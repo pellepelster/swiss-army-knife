@@ -1,29 +1,29 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { debounceTime, Subscription } from 'rxjs';
 import { RouterLink } from '@angular/router';
+import { debounceTime, Subscription } from 'rxjs';
 import { I18n, TranslatePipe } from '../i18n/i18n';
-import { apiErrorMessage } from '../shared/api';
-import { CHANGES_DEBOUNCE_MS, GroceryChanges } from './grocery-changes';
-import { GroceryList, GroceryService } from './grocery.service';
+import { ActionMenu } from './action-menu';
+import { apiErrorMessage } from './api';
+import { LIST_APP } from './list-app';
+import { CHANGES_DEBOUNCE_MS } from './list-changes';
 import { ListIcon } from './list-icon';
-import { ActionMenu } from '../shared/action-menu';
-import { PageHeader } from '../shared/page-header';
-import { RowError } from '../shared/row-error';
+import { SharedList } from './list-service';
+import { PageHeader } from './page-header';
+import { RowError } from './row-error';
 
-// the start of the grocery app (LIST-3): all lists of the user, the own and the shared ones of the
-// others, each with how many items are to buy; a list opens on its own page, its menu leads to its
-// settings and deletes it. A change of a list
-// loads them again (LIST-4)
+// the start of a list-based app (LIST-3, the app is LIST_APP): all lists of the user, the own and
+// the shared ones of the others, each with how many of its items are open; a list opens on its own
+// page, its menu leads to its settings and deletes it. A change of a list loads them again (LIST-4)
 @Component({
-  selector: 'app-grocery-lists-page',
+  selector: 'app-lists-page',
   imports: [PageHeader, ListIcon, RouterLink, ActionMenu, TranslatePipe],
   host: { class: 'd-block container pb-5' },
   template: `
     <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
-      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.grocery' | t }}</h1>
-      <a class="btn btn-primary" routerLink="lists/create" [title]="'grocery.form.create' | t">
-        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'grocery.form.create' | t }}
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ texts.title | t }}</h1>
+      <a class="btn btn-primary" routerLink="lists/create" [title]="texts.create | t">
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ texts.create | t }}
       </a>
     </header>
 
@@ -32,7 +32,7 @@ import { RowError } from '../shared/row-error';
     }
 
     @if (lists().length) {
-      <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'grocery.lists.label' | t">
+      <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="texts.lists | t">
         @for (list of lists(); track list.id) {
           <!-- the row opens the list; its menu the settings and the delete, only of a list of the
                user's own (UX-8) -->
@@ -45,10 +45,10 @@ import { RowError } from '../shared/row-error';
             >
               <span class="d-block fs-5 text-break">{{ list.name }}</span>
               <span class="d-block text-body-secondary">
-                {{ toBuy(list.items) }}
+                {{ count(list.items) }}
                 @if (list.shared) {
                   <span class="badge border text-body-secondary fw-normal ms-1">{{
-                    'grocery.shared_badge' | t
+                    texts.sharedBadge | t
                   }}</span>
                 }
               </span>
@@ -64,7 +64,7 @@ import { RowError } from '../shared/row-error';
                 role="menuitem"
                 [routerLink]="['lists', list.id, 'edit']"
                 [queryParams]="{ from: 'lists' }"
-                [attr.aria-label]="'grocery.settings_of' | t: { name: list.name }"
+                [attr.aria-label]="texts.settingsOf | t: { name: list.name }"
                 ><i class="fa-solid fa-gear me-2" aria-hidden="true"></i
                 >{{ 'shared.settings' | t }}</a
               >
@@ -79,17 +79,19 @@ import { RowError } from '../shared/row-error';
         }
       </ul>
     } @else if (loaded()) {
-      <p class="text-center text-body-secondary fs-4 py-5">{{ 'grocery.lists.empty' | t }}</p>
+      <p class="text-center text-body-secondary fs-4 py-5">{{ texts.empty | t }}</p>
     }
   `,
 })
-export class GroceryListsPage {
+export class ListsPage {
   private readonly destroyRef = inject(DestroyRef);
-  private readonly service = inject(GroceryService);
+  private readonly app = inject(LIST_APP);
+  private readonly service = inject(this.app.service);
   private readonly i18n = inject(I18n);
   private loading?: Subscription;
 
-  protected readonly lists = signal<GroceryList[]>([]);
+  protected readonly texts = this.app.texts;
+  protected readonly lists = signal<SharedList[]>([]);
   protected readonly loaded = signal(false);
   // the lists could not be loaded
   protected readonly error = signal<string | null>(null);
@@ -101,7 +103,7 @@ export class GroceryListsPage {
 
   constructor() {
     this.load();
-    inject(GroceryChanges)
+    inject(this.app.changes)
       .changes()
       .pipe(debounceTime(CHANGES_DEBOUNCE_MS), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.load());
@@ -120,19 +122,19 @@ export class GroceryListsPage {
         },
         error: (error: unknown) =>
           this.error.set(
-            apiErrorMessage(error, this.i18n.t('grocery.lists_not_loaded'), {
-              403: this.i18n.t('grocery.lists_forbidden'),
+            apiErrorMessage(error, this.i18n.t(this.texts.listsNotLoaded), {
+              403: this.i18n.t(this.texts.listsForbidden),
             }),
           ),
       });
   }
 
   // why a list can not be deleted: only its owner deletes it (LIST-2)
-  protected undeletable(list: GroceryList): string | null {
-    return list.mine ? null : this.i18n.t('grocery.only_owner_deletes');
+  protected undeletable(list: SharedList): string | null {
+    return list.mine ? null : this.i18n.t(this.texts.onlyOwnerDeletes);
   }
 
-  protected delete(list: GroceryList): void {
+  protected delete(list: SharedList): void {
     this.rowError.clear();
     this.service
       .deleteList(list.id)
@@ -140,17 +142,14 @@ export class GroceryListsPage {
       .subscribe({
         next: () => this.load(),
         error: (error: unknown) =>
-          this.rowError.set(
-            list.id,
-            apiErrorMessage(error, this.i18n.t('grocery.form.not_deleted')),
-          ),
+          this.rowError.set(list.id, apiErrorMessage(error, this.i18n.t(this.texts.notDeleted))),
       });
   }
 
-  // No items to buy, 1 item to buy, 3 items to buy
-  protected toBuy(items: number): string {
-    if (items === 0) return this.i18n.t('grocery.lists.to_buy_none');
-    if (items === 1) return this.i18n.t('grocery.lists.to_buy_one');
-    return this.i18n.t('grocery.lists.to_buy_other', { count: items });
+  // e.g. No open tasks, 1 open task, 3 open tasks
+  protected count(items: number): string {
+    if (items === 0) return this.i18n.t(this.texts.countNone);
+    if (items === 1) return this.i18n.t(this.texts.countOne);
+    return this.i18n.t(this.texts.countOther, { count: items });
   }
 }

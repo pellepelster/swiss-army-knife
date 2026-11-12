@@ -2,11 +2,10 @@ import { DOCUMENT } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
-import { AuthService } from '../auth/auth.service';
 import { I18n } from '../i18n/i18n';
 import { errorMessages, fetchAll, Page, PAGE_SIZE, Pagination } from '../shared/api';
-import { apiUrl, SERVICE_WORKER_BYPASS } from '../shared/api-url';
-import { PendingUndo } from '../shared/pending-undo';
+import { Keepalive } from '../shared/keepalive';
+import { PendingUndo, whenLeaving } from '../shared/pending-undo';
 import { NoteResponse as ApiNoteResponse, NotesSettings } from '../api/models';
 import { UNDO_DELETE_MS } from '../shared/undo-toast';
 import { AudioRecorder } from './audio-recorder';
@@ -72,7 +71,7 @@ function normalizeLabel(label: string): string {
 export class NotesStore {
   private readonly http = inject(HttpClient);
   private readonly scaler = inject(PhotoScaler);
-  private readonly auth = inject(AuthService);
+  private readonly keepalive = inject(Keepalive);
   private readonly document = inject(DOCUMENT);
   private readonly recorder = inject(AudioRecorder);
   private readonly i18n = inject(I18n);
@@ -153,23 +152,15 @@ export class NotesStore {
 
   constructor() {
     // the text typed and not saved yet and the note deleted last when the page goes away or into
-    // the background, e.g. the installed app is closed right after typing; a phone ends an app in
-    // the background without pagehide
-    const window = this.document.defaultView;
-    const leaving = () => this.saveLeaving();
-    const hidden = () => {
-      if (this.document.visibilityState === 'hidden') this.saveLeaving();
-    };
-    window?.addEventListener('pagehide', leaving);
-    this.document.addEventListener('visibilitychange', hidden);
-    inject(DestroyRef).onDestroy(() => {
+    // the background, e.g. the installed app is closed right after typing
+    const destroyRef = inject(DestroyRef);
+    whenLeaving(destroyRef, () => this.saveLeaving(), this.document);
+    destroyRef.onDestroy(() => {
       this.pendingText.forEach((timer) => clearTimeout(timer));
       this.removal.dispose();
       this.loadingNotes?.unsubscribe();
       this.loadingUsed?.unsubscribe();
       clearTimeout(this.usedTimer);
-      window?.removeEventListener('pagehide', leaving);
-      this.document.removeEventListener('visibilitychange', hidden);
     });
   }
 
@@ -444,7 +435,7 @@ export class NotesStore {
       { kind: 'note', noteId: id, fileId: null },
       (leaving) => {
         if (leaving) {
-          this.keepalive(`/api/v1/notes/${id}`, 'DELETE');
+          void this.keepalive.send(`/api/v1/notes/${id}`, 'DELETE');
           return;
         }
         this.http.delete(`/api/v1/notes/${id}`).subscribe({
@@ -580,31 +571,13 @@ export class NotesStore {
   private saveKeepalive(id: number): void {
     const note = this.all().find((n) => n.id === id);
     if (!note) return;
-    this.keepalive(
-      `/api/v1/notes/${id}`,
-      'PUT',
-      JSON.stringify({
-        text: note.text,
-        color: note.color,
-        labels: note.labels,
-        photos: note.photos,
-        recordings: note.recordings,
-      }),
-    );
-  }
-
-  private keepalive(path: string, method: 'PUT' | 'DELETE', body?: string): void {
-    const token = this.auth.token();
-    void fetch(apiUrl(path), {
-      method,
-      keepalive: true,
-      headers: {
-        ...SERVICE_WORKER_BYPASS,
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body,
-    }).catch(() => undefined);
+    void this.keepalive.send(`/api/v1/notes/${id}`, 'PUT', {
+      text: note.text,
+      color: note.color,
+      labels: note.labels,
+      photos: note.photos,
+      recordings: note.recordings,
+    });
   }
 
   // the total of the pagination after notes were created or deleted here

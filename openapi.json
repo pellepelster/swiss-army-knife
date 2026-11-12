@@ -3298,8 +3298,712 @@
                 "tags": [
                     "grocery"
                 ],
-                "summary": "The changes of the lists",
-                "description": "A stream of server-sent events (text/event-stream) that stays open: an event changed with the id of the list ({\"listId\": 2}) whenever a list the user sees, or its items, change, also when it is deleted. The event carries no data of the list, the client loads it again. A comment every 25 seconds keeps the connection open.",
+                "summary": "The changes of the grocery lists",
+                "description": "A stream of server-sent events (text/event-stream) that stays open: an event changed with the id of the list ({\"listId\": 2}) whenever a list the user sees, or its items, change, also when it is deleted, and when its owner unshares it, to every user who saw it until then. The event carries no data of the list, the client loads it again. A comment every 25 seconds keeps the connection open.",
+                "responses": {
+                    "200": {
+                        "description": "The stream of the changes"
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/lists": {
+            "post": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Create a todo list",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TodoListRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name or icon, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The user has a list of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "The todo lists",
+                "description": "The lists of the signed in user and the shared lists of the others, by name.",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the lists",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TodoListResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/lists/{id}": {
+            "put": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Rename or share a todo list",
+                "description": "Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its owner shares or unshares it.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TodoListRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name or icon, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The user is not the owner and would share or unshare the list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Another list of the owner has the name, also when another user renames a shared list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Delete a todo list",
+                "description": "Its tasks go with it; only its owner deletes a list, their last one too.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The list is gone"
+                    },
+                    "404": {
+                        "description": "The user has no such list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/lists/{id}/items": {
+            "get": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "The tasks of a todo list",
+                "description": "Open and done alike, a done task keeps its place (TODO-3): by priority, the high ones first (TODO-5), then in the order they were added.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the tasks",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TodoItemResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/lists/{id}/purge": {
+            "post": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Purge the done tasks of a todo list",
+                "description": "The done tasks of the list the request names, the ones the user saw done, are deleted; the open ones stay, and so does one done meanwhile (TODO-6). Every user who sees the list purges it (LIST-2).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TodoPurgeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "The done tasks are gone"
+                    },
+                    "400": {
+                        "description": "A malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/items": {
+            "post": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Add a task to a todo list",
+                "description": "A task names its list, one the user sees, and may have a day it is to be done by (TODO-4) and a priority (TODO-5).",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TodoNewItemRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid title, due date or priority, or a malformed request, e.g. without a list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The user sees no such list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/items/{id}/priority": {
+            "put": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Change the priority of a task",
+                "description": "High, normal or low (TODO-5), of an open or a done task; the list shows it in its new place. Every user who sees its list changes it (LIST-2).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the task",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TodoPriorityRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid priority, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/items/{id}/due-date": {
+            "put": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Set or remove the due date of a task",
+                "description": "The day a task is to be done by, of an open or a done task; none takes it away (TODO-4). Every user who sees its list changes it (LIST-2).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the task",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TodoDueDateRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid due date, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/items/{id}/done": {
+            "put": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Mark a task done or open again",
+                "description": "A done task stays on its list, struck through, until the list is purged (TODO-3, TODO-6). Every user who sees its list marks it, also one another user added (LIST-2).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the task",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TodoDoneRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "A malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/changes": {
+            "get": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "The changes of the todo lists",
+                "description": "A stream of server-sent events (text/event-stream) that stays open: an event changed with the id of the list ({\"listId\": 2}) whenever a list the user sees, or its tasks, change, also when it is deleted, and when its owner unshares it, to every user who saw it until then. The event carries no data of the list, the client loads it again. A comment every 25 seconds keeps the connection open.",
                 "responses": {
                     "200": {
                         "description": "The stream of the changes"
@@ -3321,7 +4025,7 @@
                     "users"
                 ],
                 "summary": "Add a user",
-                "description": "The user signs in with a link by e-mail and uses the notes and the grocery lists (the role user). No mail is sent.",
+                "description": "The user signs in with a link by e-mail and uses the notes, the grocery lists and the todo lists (the role user). No mail is sent.",
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -3449,8 +4153,8 @@
                 "tags": [
                     "users"
                 ],
-                "summary": "Send the link of the grocery app",
-                "description": "Sends a user or an admin of the deployment an e-mail with the link to the page that downloads the Android app of the grocery lists (/grocery/download/app), in the language of the request.",
+                "summary": "Send the links of the Android apps",
+                "description": "Sends a user or an admin of the deployment an e-mail with the links to the pages that download the Android apps: the grocery lists (/grocery/download/app), the notes (/notes/download/app) and the todo lists (/todo/download/app), in the language of the request.",
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -4106,7 +4810,8 @@
                         "enum": [
                             "web",
                             "grocery-android",
-                            "notes-android"
+                            "notes-android",
+                            "todo-android"
                         ]
                     },
                     "nonce": {
@@ -5259,6 +5964,201 @@
                 "properties": {
                     "fileId": {
                         "type": "integer"
+                    }
+                }
+            },
+            "TodoListResponse": {
+                "type": "object",
+                "title": "TodoListResponse",
+                "required": [
+                    "id",
+                    "name",
+                    "shared",
+                    "mine",
+                    "items",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "mine": {
+                        "type": "boolean"
+                    },
+                    "items": {
+                        "type": "integer"
+                    },
+                    "icon": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "TodoListRequest": {
+                "type": "object",
+                "title": "TodoListRequest",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "icon": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "TodoItemResponse": {
+                "type": "object",
+                "title": "TodoItemResponse",
+                "required": [
+                    "id",
+                    "listId",
+                    "title",
+                    "createdAt",
+                    "priority"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "listId": {
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "dueDate": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": [
+                            "high",
+                            "normal",
+                            "low"
+                        ]
+                    },
+                    "doneAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "TodoPurgeRequest": {
+                "type": "object",
+                "title": "TodoPurgeRequest",
+                "required": [
+                    "itemIds"
+                ],
+                "properties": {
+                    "itemIds": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            },
+            "TodoNewItemRequest": {
+                "type": "object",
+                "title": "TodoNewItemRequest",
+                "required": [
+                    "listId",
+                    "title"
+                ],
+                "properties": {
+                    "listId": {
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "dueDate": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "priority": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "TodoPriorityRequest": {
+                "type": "object",
+                "title": "TodoPriorityRequest",
+                "required": [
+                    "priority"
+                ],
+                "properties": {
+                    "priority": {
+                        "type": "string"
+                    }
+                }
+            },
+            "TodoDueDateRequest": {
+                "type": "object",
+                "title": "TodoDueDateRequest",
+                "properties": {
+                    "dueDate": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "TodoDoneRequest": {
+                "type": "object",
+                "title": "TodoDoneRequest",
+                "required": [
+                    "done"
+                ],
+                "properties": {
+                    "done": {
+                        "type": "boolean"
                     }
                 }
             },

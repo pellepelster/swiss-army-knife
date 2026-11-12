@@ -41,6 +41,7 @@ import io.pelle.sak.auth.model.LoginClient
 import io.pelle.sak.auth.model.LoginRequest
 import io.pelle.sak.auth.model.PasswordLoginRequest
 import io.pelle.sak.auth.model.WhoAmIResponse
+import io.pelle.sak.api.logAddress
 
 private val logger = KotlinLogging.logger {}
 
@@ -166,9 +167,9 @@ fun Route.login(
                     Text(AuthTexts.MAIL_SUBJECT, "app" to app.name).render(language),
                     Text(AuthTexts.MAIL_BODY, "app" to app.url, "link" to link, "minutes" to tokens.loginTokenTtl.toMinutes()).render(language),
                 )
-                logger.info { "sent login link to '$email'" }
+                logger.info { "sent login link to ${logAddress(email)}" }
             } catch (e: Exception) {
-                logger.warn(e) { "could not send login link to '$email'" }
+                logger.warn(e) { "could not send login link to ${logAddress(email)}" }
             }
         }
 
@@ -197,7 +198,7 @@ fun Route.login(
         val claims = tokens.exchangeLoginToken(exchange.token, exchange.nonce)
         // the roles are the address' ones now, an address without any can not use links sent before
         val roles = claims?.let { rolesOf(it.email) }.orEmpty()
-        if (claims != null && roles.isEmpty()) logger.info { "rejected the login token of '${claims.email}': the address has no role" }
+        if (claims != null && roles.isEmpty()) logger.info { "rejected the login token of ${logAddress(claims.email)}: the address has no role" }
         if (claims == null || roles.isEmpty()) {
             call.respondErrors(AuthTexts.LINK_INVALID, status = HttpStatusCode.Unauthorized)
             return@post
@@ -331,11 +332,11 @@ private fun mayHaveLink(
     linksPerHour: RateLimiter,
 ): Boolean {
     if (!loginsPerAddress.tryAcquire("$email $client")) {
-        logger.info { "not sending another login link to '$email' for $client this hour" }
+        logger.info { "not sending another login link to ${logAddress(email)} for $client this hour" }
         return false
     }
     if (!linksPerHour.tryAcquire("")) {
-        logger.warn { "not sending a login link to '$email', the links of this hour are used up" }
+        logger.warn { "not sending a login link to ${logAddress(email)}, the links of this hour are used up" }
         return false
     }
     return true

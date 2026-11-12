@@ -20,8 +20,6 @@ android {
 dependencies {
     // the deployment, the sign-in, the session, the api, compose and ktor come with core (api)
     implementation(project(":core"))
-    // the picker of the icon of a list, the emoji of the system (androidx)
-    implementation(libs.emoji2.emojipicker)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
     // the activity the screenshots show the app in (testing, Screenshots.kt), in the debug build only

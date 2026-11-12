@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the texts of the app in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
+<resources>
+    <string name="todo_only_owner_shares">Only the owner of a list shares or unshares it.</string>
+    <string name="todo_list_gone">The list is gone, or its owner no longer shares it.</string>
+    <string name="todo_all_lists">All lists</string>
+    <string name="todo_lists_not_loaded">The lists could not be loaded.</string>
+    <string name="todo_lists_open_none">No open tasks</string>
+    <string name="todo_form_create">Create list</string>
+    <string name="todo_form_no_icon">No icon</string>
+    <string name="todo_form_delete_list">Delete list</string>
+    <string name="todo_form_not_saved">The list could not be saved.</string>
+    <string name="todo_form_not_deleted">The list could not be deleted.</string>
+    <string name="todo_form_choose_icon">Choose icon</string>
+    <string name="todo_list_task">Task</string>
+    <string name="todo_list_not_added">The task could not be added.</string>
+    <string name="todo_list_not_done">The task could not be marked done.</string>
+    <string name="todo_list_items_not_loaded">The tasks could not be loaded.</string>
+    <string name="todo_list_done_of">Mark %1$s done</string>
+    <string name="todo_list_purge">Remove done tasks</string>
+    <string name="todo_list_purged">Done tasks removed</string>
+    <string name="todo_list_nothing_to_purge">The list has no done tasks.</string>
+    <string name="todo_list_not_purged">The done tasks could not be removed.</string>
+    <string name="todo_list_priority_not_set">The priority could not be changed.</string>
+    <string name="todo_list_add_due_date">Add due date</string>
+    <string name="todo_list_has_due_date">The task has a due date.</string>
+    <string name="todo_list_remove_due_date">Remove due date</string>
+    <string name="todo_list_no_due_date_yet">The task has no due date.</string>
+    <string name="todo_list_due_date_not_saved">The due date could not be saved.</string>
+    <string name="todo_list_due_date">Due date</string>
+    <string name="todo_list_due">due %1$s</string>
+    <string name="todo_list_overdue">overdue since %1$s</string>
+    <string name="todo_priority_label">Priority</string>
+    <string name="todo_priority_high">High priority</string>
+    <string name="todo_priority_normal">Normal priority</string>
+    <string name="todo_priority_low">Low priority</string>
+    <string name="todo_app_name" translatable="false">SAK Todo</string>
+    <string name="todo_cancel">Cancel</string>
+    <string name="todo_ok">OK</string>
+    <string name="todo_nothing_to_do">Nothing to do.</string>
+    <string name="todo_no_due_date">No due date</string>
+    <plurals name="todo_open">
+        <item quantity="one">%1$d open task</item>
+        <item quantity="other">%1$d open tasks</item>
+    </plurals>
+    <string name="todo_error_list_not_created">The list could not be created.</string>
+</resources>

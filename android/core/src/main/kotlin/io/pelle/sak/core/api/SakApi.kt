@@ -12,6 +12,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.HttpTimeoutConfig
 import io.ktor.client.plugins.timeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.HttpRequestBuilder
@@ -20,8 +21,10 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.prepareGet
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -29,10 +32,17 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.utils.io.readLine
 import io.pelle.sak.core.R
 import io.pelle.sak.core.UiText
 import io.pelle.sak.core.uiText
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.io.IOException
 
 val ApiJson = Json { ignoreUnknownKeys = true }
 
@@ -160,6 +170,40 @@ open class SakApi(
         return all
     }
 
+    // the ids of the lists of a list-based app that change, as the user sees them, the server-sent
+    // events at path, e.g. $url/todo/changes (LIST-4); opened calls once the stream is open. It ends
+    // with an exception when the connection ends, an ApiException with 401 when the session ended
+    protected fun listChanges(
+        path: String,
+        opened: suspend () -> Unit,
+    ): Flow<Int> =
+        flow {
+            client
+                .prepareGet(path) {
+                    session()
+                    // the backend keeps the stream open with a comment every 25 seconds; the stream
+                    // itself has no end
+                    timeout {
+                        socketTimeoutMillis = CHANGES_TIMEOUT_MS
+                        requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
+                    }
+                }.execute { response ->
+                    if (!response.status.isSuccess()) response.answer<Unit>(R.string.error_changes_not_read)
+                    opened()
+                    val channel = response.bodyAsChannel()
+                    var event: String? = null
+                    while (true) {
+                        val line = channel.readLine() ?: throw IOException("The changes ended.")
+                        when {
+                            line.startsWith("event:") -> event = line.removePrefix("event:").trim()
+                            line.startsWith("data:") && event == "changed" ->
+                                emit(ApiJson.parseToJsonElement(line.removePrefix("data:")).jsonObject.getValue("listId").jsonPrimitive.int)
+                            line.isEmpty() -> event = null
+                        }
+                    }
+                }
+        }
+
     // the body of a successful answer, else an ApiException; unauthorized is the text of a 401 without
     // an error body: the session ended, or the credentials of a sign-in were refused
     protected suspend inline fun <reified T> HttpResponse.answer(
@@ -173,6 +217,9 @@ open class SakApi(
     companion object {
         // the largest page of the api (MAX_LIMIT)
         const val PAGE_LIMIT = 100
+
+        // longer than the 25 seconds between the comments of the changes (listChanges)
+        const val CHANGES_TIMEOUT_MS = 60_000L
 
         // the exception of an answer that is no success: the messages of its error body, else a text
         // of the app by its status

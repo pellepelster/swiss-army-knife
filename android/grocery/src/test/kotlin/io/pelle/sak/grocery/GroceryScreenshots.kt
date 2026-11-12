@@ -26,7 +26,7 @@ import java.time.ZoneOffset
 
 // the screenshots of the grocery app (docs/screenshots/android-grocery-*.png): the sign-in, the home
 // with the lists, a list with its items by category and the settings of a list, against the fake
-// backend; only with mise run android:screenshots
+// backend, the home and a list also in landscape (-land); only with mise run android:screenshots
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = RobolectricDeviceQualifiers.Pixel7)
@@ -150,5 +150,26 @@ class GroceryScreenshots {
             settle()
             model.openSettings(1)
             screenshots.shoot("grocery-list-settings") { settle() }
+        }
+
+    // a phone in landscape
+    @Test
+    @Config(qualifiers = "+land")
+    fun listsLandscape() =
+        runTest {
+            val model = signedIn()
+            screenshots.show { GroceryApp(model) }
+            screenshots.shoot("grocery-lists-land") { settle() }
+        }
+
+    @Test
+    @Config(qualifiers = "+land")
+    fun listLandscape() =
+        runTest {
+            val model = signedIn()
+            screenshots.show { GroceryApp(model) }
+            settle()
+            model.open(1)
+            screenshots.shoot("grocery-list-land") { settle() }
         }
 }

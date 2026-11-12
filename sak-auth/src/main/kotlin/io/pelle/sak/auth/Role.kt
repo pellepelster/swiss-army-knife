@@ -11,7 +11,7 @@ import io.ktor.server.response.respond
 import io.pelle.sak.api.respondStatusError
 
 // what a signed in address may do, the session token names its roles: admin everything, user the
-// apps of the lists (the notes, the grocery lists) with their labels and files
+// apps of the lists (the notes, the grocery lists, the todo lists) with their labels and files
 enum class Role(
     val key: String,
 ) {

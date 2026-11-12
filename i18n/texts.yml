@@ -182,6 +182,7 @@ backend:
 
         Grocery lists: %{grocery}
         Notes: %{notes}
+        Todo lists: %{todo}
 
         Then sign in to them with this e-mail address.
       de: |
@@ -191,6 +192,7 @@ backend:
 
         Einkaufslisten: %{grocery}
         Notizen: %{notes}
+        Aufgabenlisten: %{todo}
 
         Melde dich dann mit dieser E-Mail-Adresse darin an.
     is_admin:
@@ -254,6 +256,8 @@ web:
     notes_description: { en: "Post-its from text, images or audio", de: "Post-its aus Text, Bildern oder Audio" }
     grocery: { en: "Grocery", de: "Einkaufslisten" }
     grocery_description: { en: "Shopping lists to share", de: "Einkaufslisten zum Teilen" }
+    todo: { en: "Todo", de: "Aufgaben" }
+    todo_description: { en: "Tasks to do, to share", de: "Aufgaben zum Erledigen und Teilen" }
     static_hosting: { en: "Static hosting", de: "Statisches Hosting" }
     static_hosting_description: { en: "Websites from S3 buckets", de: "Websites aus S3-Buckets" }
     redirects: { en: "Redirects", de: "Weiterleitungen" }
@@ -284,6 +288,10 @@ web:
     notes_text:
       en: "This link signs you in to the SAK notes app. Open it on the phone with the app."
       de: "Dieser Link meldet dich in der SAK-Notizen-App an. Öffne ihn auf dem Handy mit der App."
+    todo_title: { en: "Sign in to the todo app", de: "In der Aufgaben-App anmelden" }
+    todo_text:
+      en: "This link signs you in to the SAK todo app. Open it on the phone with the app."
+      de: "Dieser Link meldet dich in der SAK-Aufgaben-App an. Öffne ihn auf dem Handy mit der App."
     open_in_app: { en: "Open in the app", de: "In der App öffnen" }
     failed_title: { en: "Sign in failed", de: "Anmelden fehlgeschlagen" }
     request_new: { en: "Request a new one", de: "Fordere einen neuen an" }
@@ -336,8 +344,8 @@ web:
     all_users: { en: "All users", de: "Alle Benutzer" }
     create_user: { en: "Create user", de: "Benutzer erstellen" }
     intro:
-      en: "The admins come from the configuration of the SAK instance. A user signs in with a link by e-mail and uses the notes and the grocery lists."
-      de: "Die Admins kommen aus der Konfiguration der SAK-Instanz. Ein Benutzer meldet sich mit einem Link per E-Mail an und nutzt die Notizen und die Einkaufslisten."
+      en: "The admins come from the configuration of the SAK instance. A user signs in with a link by e-mail and uses the notes, the grocery lists and the todo lists."
+      de: "Die Admins kommen aus der Konfiguration der SAK-Instanz. Ein Benutzer meldet sich mit einem Link per E-Mail an und nutzt die Notizen, die Einkaufslisten und die Aufgabenlisten."
     column:
       email: { en: "E-mail", de: "E-Mail" }
       role: { en: "Role", de: "Rolle" }
@@ -415,7 +423,20 @@ android:
     en: "Your SAK instance runs no release, there is no update for the app."
     de: "Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App."
   ok: "OK"
+  # the lists of the list-based apps (grocery, todo): the home, the settings of a list (apps/INDEX.md)
+  no_lists:
+    en: "You have no list yet, create one with the plus at the top."
+    de: "Du hast noch keine Liste, erstelle oben mit dem Plus eine."
+  shared_with_all: { en: "Shared with all users", de: "Mit allen Benutzern geteilt" }
+  shared_badge: { en: "Shared", de: "Geteilt" }
+  only_owner_share_delete:
+    en: "Only the owner shares or unshares a list, or deletes it."
+    de: "Nur der Besitzer teilt eine Liste, hebt das Teilen auf oder löscht sie."
+  saving: { en: "Saving…", de: "Wird gespeichert…" }
+  menu_of: { en: "Menu of %{name}", de: "Menü von %{name}" }
+  back_to_list: { en: "Back to the list", de: "Zurück zur Liste" }
   error:
+    changes_not_read: { en: "The changes could not be read.", de: "Die Änderungen konnten nicht gelesen werden." }
     sak_address:
       en: "Enter the SAK address of your SAK instance, e.g. sak.example.org."
       de: "Gib die SAK-Adresse deiner SAK-Instanz ein, z. B. sak.example.org."
@@ -1441,9 +1462,6 @@ grocery:
         en: "The order of the categories could not be saved."
         de: "Die Reihenfolge der Kategorien konnte nicht gespeichert werden."
   android:
-    only_owner_share_delete:
-      en: "Only the owner shares or unshares a list, or deletes it."
-      de: "Nur der Besitzer teilt eine Liste, hebt das Teilen auf oder löscht sie."
     # the name of the app, also the title of the deployment screen
     app_name: "SAK Grocery List"
     photo_take: { en: "Take photo", de: "Foto aufnehmen" }
@@ -1455,13 +1473,7 @@ grocery:
     item_not_renamed: { en: "The item could not be renamed.", de: "Der Artikel konnte nicht umbenannt werden." }
     cancel: { en: "Cancel", de: "Abbrechen" }
     show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
-    no_lists:
-      en: "You have no list yet, create one with the plus at the top."
-      de: "Du hast noch keine Liste, erstelle oben mit dem Plus eine."
-    shared: { en: "Shared with all users", de: "Mit allen Benutzern geteilt" }
-    shared_badge: { en: "Shared", de: "Geteilt" }
     settings_of: { en: "Settings of %{list}", de: "Einstellungen von %{list}" }
-    saving: { en: "Saving…", de: "Wird gespeichert…" }
     nothing_to_buy: { en: "Nothing to buy.", de: "Nichts zu kaufen." }
     bought: { en: "%{item} bought", de: "%{item} gekauft" }
     item_category: { en: "Category", de: "Kategorie" }
@@ -1481,11 +1493,9 @@ grocery:
     category_not_set:
       en: "The category of the item could not be set."
       de: "Die Kategorie des Artikels konnte nicht gesetzt werden."
-    menu_of: { en: "Menu of %{name}", de: "Menü von %{name}" }
     suggestions: { en: "Suggestions", de: "Vorschläge" }
     category_drag: { en: "Drag to move %{category}", de: "Ziehen, um %{category} zu verschieben" }
     categories_retry: { en: "Load again", de: "Erneut laden" }
-    back_to_list: { en: "Back to the list", de: "Zurück zur Liste" }
     to_buy:
       en: { one: "%{count} item to buy", other: "%{count} items to buy" }
       de: { one: "%{count} Artikel zu kaufen", other: "%{count} Artikel zu kaufen" }
@@ -1493,7 +1503,6 @@ grocery:
       categories_not_loaded:
         en: "The categories could not be loaded."
         de: "Die Kategorien konnten nicht geladen werden."
-      changes_not_read: { en: "The changes could not be read.", de: "Die Änderungen konnten nicht gelesen werden." }
       list_not_created: { en: "The list could not be created.", de: "Die Liste konnte nicht erstellt werden." }
 
 health:
@@ -1934,3 +1943,118 @@ redirects:
       bucket_hint:
         en: "Only buckets served at a domain, the redirect leads to their first one."
         de: "Nur Buckets, die unter einer Domain ausgeliefert werden, die Weiterleitung führt zu ihrer ersten."
+
+todo:
+  common:
+    only_owner_shares:
+      en: "Only the owner of a list shares or unshares it."
+      de: "Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf."
+    list_gone:
+      en: "The list is gone, or its owner no longer shares it."
+      de: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
+    all_lists: { en: "All lists", de: "Alle Listen" }
+    lists_not_loaded: { en: "The lists could not be loaded.", de: "Die Listen konnten nicht geladen werden." }
+    lists:
+      open_none: { en: "No open tasks", de: "Keine offenen Aufgaben" }
+    form:
+      create: { en: "Create list", de: "Liste erstellen" }
+      no_icon: { en: "No icon", de: "Kein Icon" }
+      delete_list: { en: "Delete list", de: "Liste löschen" }
+      not_saved: { en: "The list could not be saved.", de: "Die Liste konnte nicht gespeichert werden." }
+      not_deleted: { en: "The list could not be deleted.", de: "Die Liste konnte nicht gelöscht werden." }
+      choose_icon: { en: "Choose icon", de: "Icon auswählen" }
+    list:
+      task: { en: "Task", de: "Aufgabe" }
+      not_added: { en: "The task could not be added.", de: "Die Aufgabe konnte nicht hinzugefügt werden." }
+      not_done: { en: "The task could not be marked done.", de: "Die Aufgabe konnte nicht erledigt werden." }
+      items_not_loaded: { en: "The tasks could not be loaded.", de: "Die Aufgaben konnten nicht geladen werden." }
+      done_of: { en: "Mark %{title} done", de: "%{title} erledigen" }
+      # the purge of the done tasks of a list (TODO-6)
+      purge: { en: "Remove done tasks", de: "Erledigte entfernen" }
+      purged: { en: "Done tasks removed", de: "Erledigte Aufgaben entfernt" }
+      nothing_to_purge: { en: "The list has no done tasks.", de: "Die Liste hat keine erledigten Aufgaben." }
+      not_purged: { en: "The done tasks could not be removed.", de: "Die erledigten Aufgaben konnten nicht entfernt werden." }
+      priority_not_set: { en: "The priority could not be changed.", de: "Die Priorität konnte nicht geändert werden." }
+      # the due date added to or taken away from a task from its menu (TODO-4)
+      add_due_date: { en: "Add due date", de: "Fälligkeitsdatum hinzufügen" }
+      has_due_date: { en: "The task has a due date.", de: "Die Aufgabe hat ein Fälligkeitsdatum." }
+      remove_due_date: { en: "Remove due date", de: "Fälligkeitsdatum entfernen" }
+      no_due_date_yet: { en: "The task has no due date.", de: "Die Aufgabe hat kein Fälligkeitsdatum." }
+      due_date_not_saved: { en: "The due date could not be saved.", de: "Das Fälligkeitsdatum konnte nicht gespeichert werden." }
+      due_date: { en: "Due date", de: "Fällig am" }
+      due: { en: "due %{date}", de: "fällig %{date}" }
+      overdue: { en: "overdue since %{date}", de: "überfällig seit %{date}" }
+    # the priority of a task (TODO-5)
+    priority:
+      label: { en: "Priority", de: "Priorität" }
+      high: { en: "High priority", de: "Hohe Priorität" }
+      normal: { en: "Normal priority", de: "Normale Priorität" }
+      low: { en: "Low priority", de: "Niedrige Priorität" }
+  web:
+    page_title:
+      create: { en: "Create list · Todo", de: "Liste erstellen · Aufgaben" }
+      list: { en: "List · Todo", de: "Liste · Aufgaben" }
+      settings: { en: "Settings · Todo", de: "Einstellungen · Aufgaben" }
+    back: { en: "Back", de: "Zurück" }
+    settings_of: { en: "Settings of %{name}", de: "Einstellungen von %{name}" }
+    only_owner_deletes: { en: "Only the owner of a list deletes it.", de: "Nur der Besitzer einer Liste löscht sie." }
+    shared_badge: { en: "shared", de: "geteilt" }
+    lists_forbidden:
+      en: "Your role does not allow to see the todo lists."
+      de: "Deine Rolle erlaubt es nicht, die Aufgabenlisten zu sehen."
+    lists:
+      label: { en: "Todo lists", de: "Aufgabenlisten" }
+      empty: { en: "You have no list yet, create one first.", de: "Du hast noch keine Liste, erstelle zuerst eine." }
+      open_one: { en: "1 open task", de: "1 offene Aufgabe" }
+      open_other: { en: "%{count} open tasks", de: "%{count} offene Aufgaben" }
+    form:
+      icon: { en: "Icon", de: "Icon" }
+      shared: { en: "Shared", de: "Geteilt" }
+      shared_hint:
+        en: "Every user sees a shared list and adds its tasks and marks them done."
+        de: "Jeder Benutzer sieht eine geteilte Liste, fügt ihre Aufgaben hinzu und erledigt sie."
+      no_such_list: { en: "There is no such list.", de: "Es gibt keine solche Liste." }
+      not_loaded: { en: "The list could not be loaded.", de: "Die Liste konnte nicht geladen werden." }
+    download:
+      page_title: { en: "Download the app · Todo", de: "App herunterladen · Aufgaben" }
+      title: { en: "The todo app for Android", de: "Die Aufgaben-App für Android" }
+    list:
+      tasks: { en: "Tasks", de: "Aufgaben" }
+      add_task: { en: "Add task", de: "Aufgabe hinzufügen" }
+      empty: { en: "Nothing to do, add a task.", de: "Nichts zu tun, füge eine Aufgabe hinzu." }
+      # the name of the toggle of a task, pressed while it is done (TODO-3); its priority and due
+      # date follow
+      done_toggle: { en: "Done: %{title}", de: "Erledigt: %{title}" }
+  android:
+    # the name of the app, also the title of the deployment screen
+    app_name: "SAK Todo"
+    cancel: { en: "Cancel", de: "Abbrechen" }
+    ok: { en: "OK", de: "OK" }
+    nothing_to_do: { en: "Nothing to do.", de: "Nichts zu tun." }
+    no_due_date: { en: "No due date", de: "Kein Fälligkeitsdatum" }
+    open:
+      en: { one: "%{count} open task", other: "%{count} open tasks" }
+      de: { one: "%{count} offene Aufgabe", other: "%{count} offene Aufgaben" }
+    error:
+      list_not_created: { en: "The list could not be created.", de: "Die Liste konnte nicht erstellt werden." }
+  backend:
+    invalid_icon: { en: "An icon must be one emoji.", de: "Ein Icon muss ein Emoji sein." }
+    invalid_list_name:
+      en: "A list name must have 1 to %{max} characters and no control characters."
+      de: "Ein Listenname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+    invalid_title:
+      en: "A task must have 1 to %{max} characters and no control characters."
+      de: "Eine Aufgabe muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+    invalid_due_date:
+      en: "A due date must be a day as yyyy-mm-dd."
+      de: "Ein Fälligkeitsdatum muss ein Tag im Format jjjj-mm-tt sein."
+    invalid_priority:
+      en: "A priority must be high, normal or low."
+      de: "Eine Priorität muss hoch, normal oder niedrig sein."
+    list_exists: { en: "A list of the name exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
+    unknown_list:
+      en: "There is no such list, or you can not see it."
+      de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
+    owner_list_exists:
+      en: "The owner of the list has another list of the name."
+      de: "Der Besitzer der Liste hat schon eine andere Liste mit diesem Namen."

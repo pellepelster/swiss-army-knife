@@ -15,11 +15,9 @@ import {
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import {
   catchError,
-  debounceTime,
-  filter,
   firstValueFrom,
   forkJoin,
   Observable,
@@ -29,14 +27,14 @@ import {
 } from 'rxjs';
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
+import { OpenList } from '../shared/open-list';
 import { PendingUndo } from '../shared/pending-undo';
 import { UndoToast } from '../shared/undo-toast';
-import { ListIcon } from './list-icon';
+import { ListIcon } from '../shared/list-icon';
 import { amountText, parseAmount, UnitOption, unitOptions } from './grocery-quantity';
 import { GroceryPhotos, PHOTO_IN_ROW, PhotoInRowPipe } from './grocery-photos';
 import { PhotoScaler } from '../notes/photo-scaler';
 import { ActionMenu } from '../shared/action-menu';
-import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 import {
   GroceryCategory,
   GroceryDiscoveredItem,
@@ -687,7 +685,6 @@ interface ItemGroup {
 export class GroceryPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(GroceryService);
-  private readonly router = inject(Router);
   private readonly i18n = inject(I18n);
   private readonly scaler = inject(PhotoScaler);
   private readonly photos = inject(GroceryPhotos);
@@ -697,7 +694,9 @@ export class GroceryPage {
   // the route parameter, the id of the list shown
   readonly id = input.required<string>();
 
-  protected readonly lists = signal<GroceryList[]>([]);
+  // the list shown among the lists, loaded again with its items on a change of it (LIST-4)
+  private readonly open = new OpenList<GroceryList>(this.id, () => this.loadItems(this.shown()));
+  protected readonly shown = this.open.shown;
   protected readonly categories = signal<GroceryCategory[]>([]);
   protected readonly items = signal<GroceryItem[]>([]);
   // the bought items shown too, after the ones to buy of their category (GROCERY-14)
@@ -708,7 +707,7 @@ export class GroceryPage {
   // where an error shows (UX-15): the lists, or the items with the categories could not be loaded,
   // at the top; adding an item or reading a photo under its field; adding the items read in their
   // form; what was done to an item in its row, at the top once the item is not shown
-  protected readonly listsError = signal<string | null>(null);
+  protected readonly listsError = this.open.error;
   protected readonly itemsError = signal<string | null>(null);
   protected readonly addError = signal<string | null>(null);
   protected readonly discoveredError = signal<string | null>(null);
@@ -734,15 +733,7 @@ export class GroceryPage {
 
   // what was bought last while it can be undone: what the toast says
   private readonly pending = new PendingUndo<{ text: string }>(GROCERY_UNDO_MS);
-  // a list, so the bar showing the time left starts anew for the next one
-  protected readonly undoable = computed(() => {
-    const current = this.pending.current();
-    return current ? [current] : [];
-  });
-
-  protected readonly shown = computed(
-    () => this.lists().find((list) => String(list.id) === this.id()) ?? null,
-  );
+  protected readonly undoable = this.pending.undoable;
 
   // the items to buy by the categories of the list, in their order, the ones without one last
   // (GROCERY-13)
@@ -773,11 +764,9 @@ export class GroceryPage {
   // the page is gone: what is sent then loads nothing again
   private destroyed = false;
   private loadingItems?: Subscription;
-  private loadingLists?: Subscription;
   private loadingSuggestions?: Subscription;
 
   constructor() {
-    this.loadLists();
     this.service
       .settings()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -785,34 +774,20 @@ export class GroceryPage {
         next: (settings) => this.discoverItems.set(settings.discoverItems === true),
         error: () => this.discoverItems.set(false),
       });
-    // the items and the categories of the list shown, anew when another one is chosen; what was done on the list
-    // before goes to the backend
+    // the items and the categories of the list shown, anew when another one is chosen, not when
+    // the lists load again; what was done on the list before goes to the backend
     effect(() => {
-      const list = this.shown();
+      const id = this.open.shownId();
       untracked(() => {
         this.pending.commit();
         // the items read for another list go with it, they are never added to this one
-        if (list?.id !== this.discoveredList) this.closeDiscoveredOf();
-        this.loadItems(list);
-      });
-    });
-    this.destroyRef.onDestroy(() => {
-      this.destroyed = true;
-      this.pending.commit();
-    });
-    // a change of the list shown, or of everything after the stream was away, loads it again; a list
-    // that is gone leads to all lists (LIST-4)
-    inject(GroceryChanges)
-      .changes()
-      .pipe(
-        filter((id) => id === EVERYTHING || String(id) === this.id()),
-        debounceTime(CHANGES_DEBOUNCE_MS),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe(() => {
-        this.loadLists();
+        if (id !== this.discoveredList) this.closeDiscoveredOf();
         this.loadItems(this.shown());
       });
+    });
+    this.destroyRef.onDestroy(() => (this.destroyed = true));
+    // what was bought goes to the backend also when the page goes away or into the background
+    this.pending.commitWhenLeaving(this.destroyRef);
   }
 
   // the suggestions of what is typed; one chosen brings its quantity and category along, typing
@@ -1375,28 +1350,6 @@ export class GroceryPage {
         this.loadItems(this.shown());
       },
     });
-  }
-
-  private loadLists(): void {
-    this.loadingLists?.unsubscribe();
-    this.loadingLists = this.service
-      .lists()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (lists) => {
-          this.listsError.set(null);
-          this.lists.set(lists);
-          if (!lists.some((list) => String(list.id) === this.id())) {
-            void this.router.navigate(['/grocery'], { replaceUrl: true });
-          }
-        },
-        error: (error: unknown) =>
-          this.listsError.set(
-            apiErrorMessage(error, this.i18n.t('grocery.lists_not_loaded'), {
-              403: this.i18n.t('grocery.lists_forbidden'),
-            }),
-          ),
-      });
   }
 
   // the items with the categories of the list, together, so the groups fit the items; categories

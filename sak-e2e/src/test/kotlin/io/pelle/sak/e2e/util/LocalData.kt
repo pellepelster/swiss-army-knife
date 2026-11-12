@@ -40,6 +40,27 @@ const val NEW_NOTE = "Pick up the parcel at the post office"
 const val PHOTO_NOTE = "The view from the hill last night"
 const val RECORDING_NOTE = "Voice memo: what to say in the talk on Monday"
 
+// the todo lists the todo app shows, by name and icon; the run deletes them and creates them anew. The
+// tasks of the first: title, priority, the day it is due counted from today (null for none) and
+// whether it is done
+val TODO_LISTS = listOf("Weekend" to "🏡", "Work" to "💼")
+data class TodoTask(
+    val title: String,
+    val priority: String,
+    val dueInDays: Long?,
+    val done: Boolean = false,
+)
+val TODO_TASKS =
+    listOf(
+        TodoTask("Book the train to Hamburg", "high", -1),
+        TodoTask("Fix the garden gate", "high", 1),
+        TodoTask("Water the plants", "normal", null, done = true),
+        TodoTask("Call the plumber about the boiler", "normal", 3),
+        TodoTask("Clean the windows", "normal", null),
+        TodoTask("Sort the old photos", "low", 14),
+    )
+val WORK_TASKS = listOf("Prepare the slides for Monday", "Answer the mails of the week")
+
 // a bucket and two redirects, kept from run to run: the name of a deleted bucket stays taken
 // the users the users page shows next to the admin, by their e-mail address and name
 val USERS = listOf("anna@example.org" to "Anna", "ben@example.org" to "Ben", "clara@example.org" to "Clara")
@@ -92,9 +113,10 @@ class LocalData(
 
     private fun json(response: com.microsoft.playwright.APIResponse) = Json.parseToJsonElement(response.text())
 
-    // the notes, the bucket, the redirects and the users the pages show
+    // the notes, the todo lists, the bucket, the redirects and the users the pages show
     fun seed() {
         seedNotes()
+        seedTodo()
         USERS.forEach { (email, name) ->
             if (api.get("/api/v1/users").text().contains("\"$email\"").not()) {
                 api.post("/api/v1/users", RequestOptions.create().setData(mapOf("email" to email, "name" to name)))
@@ -112,6 +134,60 @@ class LocalData(
             }
         }
     }
+
+    // the todo lists of TODO_LISTS anew, those of a run before go
+    fun seedTodo() {
+        val names = TODO_LISTS.map { it.first }.toSet()
+        json(api.get("/api/v1/todo/lists?limit=100"))
+            .jsonObject
+            .getValue("items")
+            .jsonArray
+            .map { it.jsonObject }
+            .filter { it.getValue("name").jsonPrimitive.content in names }
+            .forEach { api.delete("/api/v1/todo/lists/${it.getValue("id").jsonPrimitive.content}") }
+        val ids =
+            TODO_LISTS.map { (name, icon) ->
+                val created = api.post("/api/v1/todo/lists", jsonBody(buildJsonObject { put("name", name); put("shared", false); put("icon", icon) }))
+                check(created.ok()) { "a todo list could not be created: ${created.status()} ${created.text()}" }
+                json(created).jsonObject.getValue("id").jsonPrimitive.content.toInt()
+            }
+        val today = java.time.LocalDate.now()
+        TODO_TASKS.forEach { task ->
+            val created =
+                api.post(
+                    "/api/v1/todo/items",
+                    jsonBody(
+                        buildJsonObject {
+                            put("listId", ids.first())
+                            put("title", task.title)
+                            put("priority", task.priority)
+                            task.dueInDays?.let { put("dueDate", today.plusDays(it).toString()) }
+                        },
+                    ),
+                )
+            check(created.ok()) { "a task could not be created: ${created.status()} ${created.text()}" }
+            if (task.done) {
+                val id = json(created).jsonObject.getValue("id").jsonPrimitive.content
+                api.put("/api/v1/todo/items/$id/done", jsonBody(buildJsonObject { put("done", true) }))
+            }
+        }
+        WORK_TASKS.forEach { title -> api.post("/api/v1/todo/items", jsonBody(buildJsonObject { put("listId", ids.last()); put("title", title) })) }
+    }
+
+    // the id of the todo list of the name
+    fun todoList(name: String): Int =
+        json(api.get("/api/v1/todo/lists?limit=100"))
+            .jsonObject
+            .getValue("items")
+            .jsonArray
+            .map { it.jsonObject }
+            .first { it.getValue("name").jsonPrimitive.content == name }
+            .getValue("id")
+            .jsonPrimitive
+            .content
+            .toInt()
+
+    private fun jsonBody(body: JsonObject) = RequestOptions.create().setData(body.toString()).setHeader("Content-Type", "application/json")
 
     // the notes of NOTES alone: those of a run before and empty ones go, other notes stay
     fun seedNotes() {

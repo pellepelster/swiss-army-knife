@@ -75,14 +75,18 @@ import io.pelle.sak.core.ui.AccountMenu
 import io.pelle.sak.core.ui.ConfirmDelete
 import io.pelle.sak.core.ui.Error
 import io.pelle.sak.core.ui.Page
+import io.pelle.sak.core.ui.Empty
+import io.pelle.sak.core.ui.MenuIcon
+import io.pelle.sak.core.ui.UndoBar
+import io.pelle.sak.core.ui.listTitle
 import io.pelle.sak.core.ui.resolve
+import io.pelle.sak.grocery.summary
 import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.Amount
 import io.pelle.sak.grocery.ListsScreen
 import io.pelle.sak.grocery.Quantity
 import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.Renaming
-import io.pelle.sak.grocery.Undo
 import io.pelle.sak.grocery.amountOf
 
 // the items to buy of one list, the field to add one at the top; back leads to the home
@@ -102,7 +106,7 @@ internal fun ListScreen(
     screen.deleting?.let { item -> ConfirmDelete(item.name, onDelete = { model.deleteItem(item) }, onDismiss = model::dismissDelete) }
     val list = screen.lists.firstOrNull { it.id == open }
     Page(
-        list?.let { listOfNotNull(it.icon, it.name, stringResource(R.string.grocery_shared_badge).takeIf { _ -> it.shared }).joinToString(" · ") }.orEmpty(),
+        listTitle(list?.summary()),
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.grocery_all_lists))
@@ -173,7 +177,7 @@ internal fun CategoryScreen(
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
                 // back leads to the list
-                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.grocery_back_to_list))
+                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(CoreR.string.back_to_list))
             }
         },
     ) { padding ->
@@ -538,30 +542,4 @@ private fun QuantityItem(
         },
         dismissButton = { TextButton(onClick = model::dismissQuantity) { Text(stringResource(R.string.grocery_cancel)) } },
     )
-}
-
-// what was checked last and the undo, while the bar of the time left shrinks, anew for every check;
-// a screen reader says it once it shows (AN-34). millis is the time of the model, longer when the phone
-// asks for more time for a control
-@Composable
-private fun UndoBar(
-    undo: Undo,
-    millis: Long,
-    onUndo: () -> Unit,
-) {
-    val left = remember(undo.serial) { Animatable(1f) }
-    LaunchedEffect(undo.serial) { left.animateTo(0f, tween(millis.toInt(), easing = LinearEasing)) }
-    Surface(
-        tonalElevation = 3.dp,
-        shadowElevation = 3.dp,
-        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }.testTag("undo"),
-    ) {
-        Column(Modifier.navigationBarsPadding()) {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(undo.text.resolve(), modifier = Modifier.weight(1f))
-                TextButton(onClick = onUndo) { Text(stringResource(CoreR.string.shared_undo)) }
-            }
-            LinearProgressIndicator(progress = { left.value }, modifier = Modifier.fillMaxWidth(), drawStopIndicator = {})
-        }
-    }
 }

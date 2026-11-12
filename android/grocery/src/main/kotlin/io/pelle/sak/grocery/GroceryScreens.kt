@@ -4,8 +4,11 @@ import io.pelle.sak.api.model.GroceryCategoryResponse
 import io.pelle.sak.api.model.GroceryItemResponse
 import io.pelle.sak.api.model.GroceryListResponse
 import io.pelle.sak.api.model.GrocerySuggestionResponse
-import io.pelle.sak.core.AppScreen
 import io.pelle.sak.core.UiText
+import io.pelle.sak.core.Undo
+import io.pelle.sak.core.lists.ListForm
+import io.pelle.sak.core.lists.ListsAppScreen
+import io.pelle.sak.core.lists.ListSummary
 import io.pelle.sak.core.update.AppUpdate
 
 // what the screens of the app show once the user is signed in, as GroceryModel holds it
@@ -20,12 +23,6 @@ data class ItemGroup(
     // the emoji of the category, null without one
     val icon: String?,
     val items: List<GroceryItemResponse>,
-)
-
-// the check that can still be undone; serial starts the bar of the time left anew for every check
-data class Undo(
-    val text: UiText,
-    val serial: Int,
 )
 
 // the item renamed in a dialog over the list (GROCERY-14), with the name typed; its error shows once
@@ -75,19 +72,20 @@ data class Discovery(
     val error: UiText? = null,
 )
 
-// the settings of a list the user creates (no id) or changes, one of their own: its name, whether
-// all users see it and its icon, one emoji; of a list that exists also its categories, each change
-// of them saved at once (GROCERY-13)
+// a list on the home, with how many items are to buy
+fun GroceryListResponse.summary() = ListSummary(id, name, icon, shared, mine, items)
+
+// the settings of a list the user creates (no id) or changes (ListForm); of a list that exists also
+// its categories, each change of them saved at once (GROCERY-13); a shared list of another user
+// changes its categories too (LIST-2)
 data class ListSettings(
-    val id: Int? = null,
-    val name: String = "",
-    val shared: Boolean = false,
-    val icon: String? = null,
-    // a list of the user's own; a shared list of another user changes its name, icon and categories,
-    // only its owner shares, unshares and deletes it (LIST-2)
-    val mine: Boolean = true,
-    val busy: Boolean = false,
-    val error: UiText? = null,
+    override val id: Int? = null,
+    override val name: String = "",
+    override val shared: Boolean = false,
+    override val icon: String? = null,
+    override val mine: Boolean = true,
+    override val busy: Boolean = false,
+    override val error: UiText? = null,
     // the categories of the list in their order, none for a new list
     val categories: List<GroceryCategoryResponse> = emptyList(),
     // the categories are as the backend has them; false while they load the first time and when they
@@ -107,7 +105,7 @@ data class ListSettings(
     val categoriesPending: Int = 0,
     // why the categories could not be loaded or a change of them was refused, said in their section
     val categoriesError: UiText? = null,
-)
+) : ListForm
 
 // the sizes the backend scales a photo to, on its longer side (FileService.SCALED_SIZES)
 val SCALED_SIZES = listOf(128, 256, 480, 1024)
@@ -120,9 +118,9 @@ fun scaledSize(pixels: Int): Int? = SCALED_SIZES.firstOrNull { it >= pixels }
 data class ListsScreen(
     // who is signed in: their name, else the e-mail address, or admin
     override val user: String,
-    val lists: List<GroceryListResponse> = emptyList(),
+    override val lists: List<GroceryListResponse> = emptyList(),
     // the id of the list open, null on the home, which shows all lists
-    val open: Int? = null,
+    override val open: Int? = null,
     val groups: List<ItemGroup> = emptyList(),
     // the categories of the list open, in their order (GROCERY-13)
     val categories: List<GroceryCategoryResponse> = emptyList(),
@@ -150,7 +148,7 @@ data class ListsScreen(
     val showBought: Boolean = false,
     val undo: Undo? = null,
     // the screen of the settings of a list, a new one or one of the user's own, over the home
-    val settings: ListSettings? = null,
+    override val settings: ListSettings? = null,
     // the newer version of the app the deployment runs, offered on the home
     override val update: AppUpdate? = null,
     // the answer of the check for updates of the menu while there is no update to offer, e.g. that
@@ -164,8 +162,16 @@ data class ListsScreen(
     // category the new item takes while its name stays
     val suggestions: List<GrocerySuggestionResponse> = emptyList(),
     val chosen: GrocerySuggestionResponse? = null,
-) : AppScreen {
+) : ListsAppScreen<GroceryListResponse, ListSettings> {
     override fun withUser(user: String) = copy(user = user)
+
+    override fun withLists(lists: List<GroceryListResponse>) = copy(lists = lists)
+
+    override fun withOpen(open: Int?) = copy(open = open)
+
+    override fun withSettings(settings: ListSettings?) = copy(settings = settings)
+
+    override fun withError(error: UiText?) = copy(error = error)
 
     override fun withUpdate(
         update: AppUpdate?,

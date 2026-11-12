@@ -114,6 +114,10 @@ abstract class SakModel<A : SakApi>(
     // (AN-29); the scope of the process in the app (SakProcess), the scope of the model in the tests
     var lasting: CoroutineScope = scope
 
+    // the activity stopped for a change of the configuration, e.g. a rotation: the next one that starts
+    // is the same app in the foreground (SakActivity)
+    internal var configurationChanging = false
+
     // start(), which a link of a cold start waits for, so its screen does not come after the app's
     private var starting: Job? = null
 

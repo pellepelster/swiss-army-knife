@@ -12,6 +12,7 @@
           "/index.html",
           "/notes.webmanifest",
           "/grocery.webmanifest",
+          "/todo.webmanifest",
           "/*.css",
           "/*.js"
         ]

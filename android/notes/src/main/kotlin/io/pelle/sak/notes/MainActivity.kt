@@ -43,15 +43,13 @@ class MainActivity : SakActivity() {
         return true
     }
 
-    // the notes have no stream of changes: loaded again when the app comes to the front, the text
-    // typed saved when it goes
+    // the notes have no stream of changes: loaded again when the app comes to the front again (a new
+    // activity of a rotation is not restarted), the text typed saved when it goes; not on a rotation, a
+    // recording goes on and an undo stays (SakActivity)
     override fun onRestart() {
         super.onRestart()
         viewModel.model.resume()
     }
 
-    override fun onStop() {
-        viewModel.model.pause()
-        super.onStop()
-    }
+    override fun background() = viewModel.model.pause()
 }

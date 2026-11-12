@@ -2,3 +2,4 @@
 # builds, releases, runs and installs them, sak-i18n writes their texts (android/<app>/src/main/res)
 grocery
 notes
+todo

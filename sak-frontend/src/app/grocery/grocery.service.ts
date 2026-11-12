@@ -1,5 +1,4 @@
-import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import {
   GroceryCategory,
@@ -10,6 +9,7 @@ import {
 } from '../api/models';
 import { components } from '../api/schema';
 import { fetchAll, Page } from '../shared/api';
+import { ListsService } from '../shared/list-service';
 
 // the shapes of the api (GROCERY-13: the categories in the order the list shows them; checkedAt
 // is missing while an item is to buy, GROCERY-3)
@@ -31,29 +31,8 @@ export type GroceryDiscoveredItem = components['schemas']['GroceryDiscoveredItem
 
 // the grocery lists of the signed in user and the shared ones, their items and the suggestions
 @Injectable({ providedIn: 'root' })
-export class GroceryService {
-  private readonly http = inject(HttpClient);
-
-  lists(): Observable<GroceryList[]> {
-    return fetchAll<GroceryList>(this.http, '/api/v1/grocery/lists');
-  }
-
-  createList(name: string, shared: boolean, icon: string | null): Observable<GroceryList> {
-    return this.http.post<GroceryList>('/api/v1/grocery/lists', { name, shared, icon });
-  }
-
-  updateList(
-    id: number,
-    name: string,
-    shared: boolean,
-    icon: string | null,
-  ): Observable<GroceryList> {
-    return this.http.put<GroceryList>(`/api/v1/grocery/lists/${id}`, { name, shared, icon });
-  }
-
-  deleteList(id: number): Observable<void> {
-    return this.http.delete<void>(`/api/v1/grocery/lists/${id}`);
-  }
+export class GroceryService extends ListsService<GroceryList> {
+  protected readonly base = '/api/v1/grocery';
 
   // the items to buy by their category; with checked also the bought ones, after the ones to buy of
   // their category, the last bought first

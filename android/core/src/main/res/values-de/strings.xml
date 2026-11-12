@@ -36,6 +36,14 @@
     <string name="update_current">Die App ist aktuell, Version %1$s.</string>
     <string name="update_app_no_release">Dieser Build der App ist kein Release, er wird nicht aktualisiert.</string>
     <string name="update_deployment_no_release">Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App.</string>
+    <string name="no_lists">Du hast noch keine Liste, erstelle oben mit dem Plus eine.</string>
+    <string name="shared_with_all">Mit allen Benutzern geteilt</string>
+    <string name="shared_badge">Geteilt</string>
+    <string name="only_owner_share_delete">Nur der Besitzer teilt eine Liste, hebt das Teilen auf oder löscht sie.</string>
+    <string name="saving">Wird gespeichert…</string>
+    <string name="menu_of">Menü von %1$s</string>
+    <string name="back_to_list">Zurück zur Liste</string>
+    <string name="error_changes_not_read">Die Änderungen konnten nicht gelesen werden.</string>
     <string name="error_sak_address">Gib die SAK-Adresse deiner SAK-Instanz ein, z. B. sak.example.org.</string>
     <string name="error_no_deployment">Unter dieser Adresse antwortet keine SAK-Instanz.</string>
     <string name="error_no_sak_address">Das ist keine SAK-Adresse.</string>

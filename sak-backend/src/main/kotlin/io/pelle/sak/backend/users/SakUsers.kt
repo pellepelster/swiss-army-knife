@@ -25,6 +25,7 @@ import io.pelle.sak.backend.users.model.UserRequest
 import io.pelle.sak.backend.users.model.UserResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import io.pelle.sak.api.logAddress
 
 private const val USERS_TAG = "users"
 
@@ -33,7 +34,7 @@ private fun UserEntry.response() = UserResponse(id, email, name, configured)
 private val logger = KotlinLogging.logger {}
 
 // the users who may sign in, meant to be mounted behind the authentication with the role admin;
-// without a mail server (single user mode) no link of the grocery app is sent
+// without a mail server (single user mode) no links of the android apps are sent
 @OptIn(ExperimentalKtorApi::class)
 fun Route.users(
     userService: UserService,
@@ -71,7 +72,7 @@ fun Route.users(
     }.describe {
         tag(USERS_TAG)
         summary = "Add a user"
-        description = "The user signs in with a link by e-mail and uses the notes and the grocery lists (the role user). No mail is sent."
+        description = "The user signs in with a link by e-mail and uses the notes, the grocery lists and the todo lists (the role user). No mail is sent."
         requestBody {
             required = true
             schema = jsonSchema<UserRequest>()
@@ -100,18 +101,19 @@ fun Route.users(
         val language = call.language()
         try {
             withContext(Dispatchers.IO) { appLinks.send(email, language) }
-            logger.info { "sent the link of the grocery app to '$email'" }
+            logger.info { "sent the links of the android apps to ${logAddress(email)}" }
             call.respond(HttpStatusCode.NoContent)
         } catch (e: Exception) {
-            logger.warn(e) { "could not send the link of the grocery app to '$email'" }
+            logger.warn(e) { "could not send the links of the android apps to ${logAddress(email)}" }
             call.respondErrors(UsersTexts.APP_LINK_NOT_SENT, status = HttpStatusCode.BadGateway)
         }
     }.describe {
         tag(USERS_TAG)
-        summary = "Send the link of the grocery app"
+        summary = "Send the links of the Android apps"
         description =
-            "Sends a user or an admin of the deployment an e-mail with the link to the page that downloads the Android app " +
-            "of the grocery lists ($GROCERY_APP_DOWNLOAD_PATH), in the language of the request."
+            "Sends a user or an admin of the deployment an e-mail with the links to the pages that download the Android apps: " +
+            "the grocery lists ($GROCERY_APP_DOWNLOAD_PATH), the notes ($NOTES_APP_DOWNLOAD_PATH) and the todo lists " +
+            "($TODO_APP_DOWNLOAD_PATH), in the language of the request."
         requestBody {
             required = true
             schema = jsonSchema<AppLinkRequest>()

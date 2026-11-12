@@ -2852,8 +2852,641 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * The changes of the lists
-     * @description A stream of server-sent events (text/event-stream) that stays open: an event changed with the id of the list ({"listId": 2}) whenever a list the user sees, or its items, change, also when it is deleted. The event carries no data of the list, the client loads it again. A comment every 25 seconds keeps the connection open.
+     * The changes of the grocery lists
+     * @description A stream of server-sent events (text/event-stream) that stays open: an event changed with the id of the list ({"listId": 2}) whenever a list the user sees, or its items, change, also when it is deleted, and when its owner unshares it, to every user who saw it until then. The event carries no data of the list, the client loads it again. A comment every 25 seconds keeps the connection open.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The stream of the changes */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/lists': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The todo lists
+     * @description The lists of the signed in user and the shared lists of the others, by name.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Where the page starts in the whole list, 0 by default */
+          offset?: number;
+          /** @description How many items the page has at most, 50 by default and 100 at most */
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description A page of the lists */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: components['schemas']['TodoListResponse'][];
+              pagination: components['schemas']['PaginationResponse'];
+            };
+          };
+        };
+        /** @description An invalid page */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /** Create a todo list */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TodoListRequest'];
+        };
+      };
+      responses: {
+        /** @description The new list */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoListResponse'];
+          };
+        };
+        /** @description An invalid name or icon, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user has a list of the name */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/lists/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Rename or share a todo list
+     * @description Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its owner shares or unshares it.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the list */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TodoListRequest'];
+        };
+      };
+      responses: {
+        /** @description The changed list */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoListResponse'];
+          };
+        };
+        /** @description An invalid name or icon, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user is not the owner and would share or unshare the list */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such list */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description Another list of the owner has the name, also when another user renames a shared list */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    post?: never;
+    /**
+     * Delete a todo list
+     * @description Its tasks go with it; only its owner deletes a list, their last one too.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the list */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The list is gone */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description The user has no such list */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/lists/{id}/items': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The tasks of a todo list
+     * @description Open and done alike, a done task keeps its place (TODO-3): by priority, the high ones first (TODO-5), then in the order they were added.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Where the page starts in the whole list, 0 by default */
+          offset?: number;
+          /** @description How many items the page has at most, 50 by default and 100 at most */
+          limit?: number;
+        };
+        header?: never;
+        path: {
+          /** @description The id of the list */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description A page of the tasks */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: components['schemas']['TodoItemResponse'][];
+              pagination: components['schemas']['PaginationResponse'];
+            };
+          };
+        };
+        /** @description An invalid page */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such list */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/lists/{id}/purge': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Purge the done tasks of a todo list
+     * @description The done tasks of the list the request names, the ones the user saw done, are deleted; the open ones stay, and so does one done meanwhile (TODO-6). Every user who sees the list purges it (LIST-2).
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the list */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TodoPurgeRequest'];
+        };
+      };
+      responses: {
+        /** @description The done tasks are gone */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description A malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such list */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/items': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Add a task to a todo list
+     * @description A task names its list, one the user sees, and may have a day it is to be done by (TODO-4) and a priority (TODO-5).
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TodoNewItemRequest'];
+        };
+      };
+      responses: {
+        /** @description The new task */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoItemResponse'];
+          };
+        };
+        /** @description An invalid title, due date or priority, or a malformed request, e.g. without a list */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such list */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/items/{id}/priority': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Change the priority of a task
+     * @description High, normal or low (TODO-5), of an open or a done task; the list shows it in its new place. Every user who sees its list changes it (LIST-2).
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the task */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TodoPriorityRequest'];
+        };
+      };
+      responses: {
+        /** @description The task */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoItemResponse'];
+          };
+        };
+        /** @description An invalid priority, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such task */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/items/{id}/due-date': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Set or remove the due date of a task
+     * @description The day a task is to be done by, of an open or a done task; none takes it away (TODO-4). Every user who sees its list changes it (LIST-2).
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the task */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TodoDueDateRequest'];
+        };
+      };
+      responses: {
+        /** @description The task */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoItemResponse'];
+          };
+        };
+        /** @description An invalid due date, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such task */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/items/{id}/done': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Mark a task done or open again
+     * @description A done task stays on its list, struck through, until the list is purged (TODO-3, TODO-6). Every user who sees its list marks it, also one another user added (LIST-2).
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the task */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TodoDoneRequest'];
+        };
+      };
+      responses: {
+        /** @description The task */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoItemResponse'];
+          };
+        };
+        /** @description A malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such task */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/changes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The changes of the todo lists
+     * @description A stream of server-sent events (text/event-stream) that stays open: an event changed with the id of the list ({"listId": 2}) whenever a list the user sees, or its tasks, change, also when it is deleted, and when its owner unshares it, to every user who saw it until then. The event carries no data of the list, the client loads it again. A comment every 25 seconds keeps the connection open.
      */
     get: {
       parameters: {
@@ -2932,7 +3565,7 @@ export interface paths {
     put?: never;
     /**
      * Add a user
-     * @description The user signs in with a link by e-mail and uses the notes and the grocery lists (the role user). No mail is sent.
+     * @description The user signs in with a link by e-mail and uses the notes, the grocery lists and the todo lists (the role user). No mail is sent.
      */
     post: {
       parameters: {
@@ -2992,8 +3625,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Send the link of the grocery app
-     * @description Sends a user or an admin of the deployment an e-mail with the link to the page that downloads the Android app of the grocery lists (/grocery/download/app), in the language of the request.
+     * Send the links of the Android apps
+     * @description Sends a user or an admin of the deployment an e-mail with the links to the pages that download the Android apps: the grocery lists (/grocery/download/app), the notes (/notes/download/app) and the todo lists (/todo/download/app), in the language of the request.
      */
     post: {
       parameters: {
@@ -3607,7 +4240,7 @@ export interface components {
       email: string;
       redirect?: string | null;
       /** @enum {string} */
-      client?: 'web' | 'grocery-android' | 'notes-android';
+      client?: 'web' | 'grocery-android' | 'notes-android' | 'todo-android';
       nonce?: string | null;
     };
     /** ApiErrorMessage */
@@ -3913,6 +4546,58 @@ export interface components {
     /** GroceryPhotoRequest */
     GroceryPhotoRequest: {
       fileId: number;
+    };
+    /** TodoListResponse */
+    TodoListResponse: {
+      id: number;
+      name: string;
+      shared: boolean;
+      mine: boolean;
+      items: number;
+      icon?: string | null;
+      createdAt: string;
+      updatedAt?: string | null;
+    };
+    /** TodoListRequest */
+    TodoListRequest: {
+      name: string;
+      shared?: boolean;
+      icon?: string | null;
+    };
+    /** TodoItemResponse */
+    TodoItemResponse: {
+      id: number;
+      listId: number;
+      title: string;
+      createdAt: string;
+      updatedAt?: string | null;
+      dueDate?: string | null;
+      /** @enum {string} */
+      priority: 'high' | 'normal' | 'low';
+      doneAt?: string | null;
+    };
+    /** TodoPurgeRequest */
+    TodoPurgeRequest: {
+      itemIds: number[];
+    };
+    /** TodoNewItemRequest */
+    TodoNewItemRequest: {
+      listId: number;
+      title: string;
+      dueDate?: string | null;
+      priority?: string | null;
+    };
+    /** TodoPriorityRequest */
+    TodoPriorityRequest: {
+      priority: string;
+    };
+    /** TodoDueDateRequest */
+    TodoDueDateRequest: {
+      dueDate?: string | null;
+    };
+    /** TodoDoneRequest */
+    TodoDoneRequest: {
+      done: boolean;
     };
     /** UserResponse */
     UserResponse: {

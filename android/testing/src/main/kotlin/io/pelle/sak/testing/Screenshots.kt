@@ -44,13 +44,6 @@ class Screenshots(
         }
     }
 
-    // FileProvider keeps the directories of the app it saw first for good, robolectric gives every
-    // test other ones, e.g. the cache the camera of the grocery app writes into
-    private fun forgetFileProviders() {
-        val cache = Class.forName("androidx.core.content.FileProvider").getDeclaredField("sCache").apply { isAccessible = true }
-        synchronized(cache.get(null)!!) { (cache.get(null) as MutableMap<*, *>).clear() }
-    }
-
     // what is shown now, light and dark; settle lets the app and compose finish what they started
     fun shoot(
         name: String,

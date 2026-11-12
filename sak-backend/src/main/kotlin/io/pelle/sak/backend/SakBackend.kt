@@ -30,6 +30,7 @@ import io.pelle.sak.backend.grocery.GrocerySettingsService
 import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.notes.NoteService
 import io.pelle.sak.backend.grocery.GroceryService
+import io.pelle.sak.backend.todo.TodoService
 import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.logs.AccessLogsManager
@@ -84,6 +85,7 @@ class SakServices(
     val labelService: LabelService,
     val noteService: NoteService,
     val groceryService: GroceryService,
+    val todoService: TodoService,
     val fileService: FileService,
     val fileTextService: FileTextService,
     val groceryDiscovery: GroceryDiscovery,
@@ -102,7 +104,7 @@ class SakServices(
 }
 
 // the database of the backend: the buckets and their domains, the redirects, the labels, the
-// notes, the records of the files and the settings
+// notes, the grocery and todo lists, the records of the files and the settings
 fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 
 // the content of the file storage, below the first two characters of its sha-256
@@ -131,6 +133,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber, notesSettings::aiEnabled)
     val noteService = NoteService(database, labelService, fileService)
     val groceryService = GroceryService(database)
+    val todoService = TodoService(database)
     val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })
@@ -152,6 +155,7 @@ fun Application.sak(config: SakConfig): SakServices {
             labelService,
             noteService,
             groceryService,
+            todoService,
             fileService,
             fileTextService,
             GroceryDiscovery(fileService, openRouter::ingredientRecognizer, grocerySettings::aiEnabled),

@@ -1,11 +1,13 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.backend.isOneEmoji
 import io.pelle.sak.api.Language
+import io.pelle.sak.backend.lists.ListResult
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.grocery.GroceryListDelete
+import io.pelle.sak.model.lists.ListDelete
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.take
@@ -43,7 +45,7 @@ class GroceryServiceTest {
     // the first list of the user, created with the default categories in english when they have none
     private fun list(user: String): Int =
         service.lists(user).firstOrNull { it.owner == user }?.id
-            ?: (service.createList(user, "Default", shared = false, language = Language.EN) as GroceryListResult.Saved).list.id
+            ?: (service.createList(user, "Default", shared = false, language = Language.EN) as ListResult.Saved).list.id
 
     // the id of the category of the name on the list
     private fun category(
@@ -107,15 +109,15 @@ class GroceryServiceTest {
                 "🧻" to "Household",
                 "🛒" to "Other",
             )
-        val party = (service.createList(PELLE, "Party", shared = false, language = Language.DE) as GroceryListResult.Saved).list.id
+        val party = (service.createList(PELLE, "Party", shared = false, language = Language.DE) as ListResult.Saved).list.id
         service.categories(PELLE, party)!!.first().name shouldBe "Obst & Gemüse"
     }
 
     @Test
     fun `every user who sees a list changes its categories, an item takes one of its list only`() {
         val own = list(PELLE)
-        val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
-        val secret = (service.createList(PELLE, "Secret", shared = false) as GroceryListResult.Saved).list.id
+        val party = (service.createList(PELLE, "Party", shared = true) as ListResult.Saved).list.id
+        val secret = (service.createList(PELLE, "Secret", shared = false) as ListResult.Saved).list.id
 
         val snacks = (service.createCategory(PELLE, party, " Snacks ", "🍿") as GroceryCategoryResult.Saved).category
         snacks.name shouldBe "Snacks"
@@ -159,10 +161,10 @@ class GroceryServiceTest {
     }
 
     @Test
-    fun `every change of a category and of the category of an item reaches the users who see the list (LIST-4)`() =
+    fun `every change of a category and of the category of an item reaches the users who see the list (LIST-4)`(): Unit =
         runBlocking {
             val own = list(PELLE)
-            val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
+            val party = (service.createList(PELLE, "Party", shared = true) as ListResult.Saved).list.id
             val chips = add(PELLE, party, input("Chips"))
             val heard = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { service.changes(OTHER).take(7).toList() } }
 
@@ -212,8 +214,8 @@ class GroceryServiceTest {
 
     @Test
     fun `a shared list is seen and changed by every user, only its owner renames, shares and deletes it`() {
-        val shared = (service.createList(PELLE, " Party ", shared = true) as GroceryListResult.Saved).list
-        val private = (service.createList(PELLE, "Secret", shared = false) as GroceryListResult.Saved).list
+        val shared = (service.createList(PELLE, " Party ", shared = true) as ListResult.Saved).list
+        val private = (service.createList(PELLE, "Secret", shared = false) as ListResult.Saved).list
         shared.name shouldBe "Party"
 
         service.lists(OTHER).map { it.name } shouldBe listOf("Party")
@@ -227,20 +229,20 @@ class GroceryServiceTest {
         service.items(OTHER, private.id) shouldBe null
 
         // every user renames a shared list, only its owner unshares and deletes it (LIST-2)
-        (service.updateList(OTHER, shared.id, "Ours", shared = true, icon = "🎉") as GroceryListResult.Saved).list.name shouldBe "Ours"
-        service.updateList(OTHER, shared.id, "Ours", shared = false) shouldBe GroceryListResult.NotOwner
-        service.updateList(OTHER, private.id, "Mine now", shared = false) shouldBe GroceryListResult.NotFound
-        service.deleteList(OTHER, shared.id) shouldBe GroceryListDelete.NotFound
-        service.deleteList(PELLE, shared.id) shouldBe GroceryListDelete.Deleted
+        (service.updateList(OTHER, shared.id, "Ours", shared = true, icon = "🎉") as ListResult.Saved).list.name shouldBe "Ours"
+        service.updateList(OTHER, shared.id, "Ours", shared = false) shouldBe ListResult.NotOwner
+        service.updateList(OTHER, private.id, "Mine now", shared = false) shouldBe ListResult.NotFound
+        service.deleteList(OTHER, shared.id) shouldBe ListDelete.NotFound
+        service.deleteList(PELLE, shared.id) shouldBe ListDelete.Deleted
         service.lists(OTHER) shouldBe emptyList()
     }
 
     @Test
     fun `a user starts without lists, a new list has the default categories, the last one is deleted too`() {
         service.lists(PELLE) shouldBe emptyList()
-        val weekly = (service.createList(PELLE, "Weekly", shared = false, language = Language.EN) as GroceryListResult.Saved).list
+        val weekly = (service.createList(PELLE, "Weekly", shared = false, language = Language.EN) as ListResult.Saved).list
         service.categories(PELLE, weekly.id)!!.map { it.name } shouldBe DefaultGroceryCategory.of(Language.EN).map { it.name }
-        service.deleteList(PELLE, weekly.id) shouldBe GroceryListDelete.Deleted
+        service.deleteList(PELLE, weekly.id) shouldBe ListDelete.Deleted
         service.lists(PELLE) shouldBe emptyList()
     }
 
@@ -266,7 +268,7 @@ class GroceryServiceTest {
         val milk = add(PELLE, own, input("Milk", "1", "l", category(own, "Dairy & eggs")))
         // bought, no longer to buy
         service.checkItem(PELLE, milk.id) shouldBe true
-        val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
+        val party = (service.createList(PELLE, "Party", shared = true) as ListResult.Saved).list.id
         add(OTHER, party, input("Mints")).let { service.checkItem(OTHER, it.id) }
 
         val suggestion = service.suggestions(PELLE, own, "mi")!!.single()
@@ -283,10 +285,10 @@ class GroceryServiceTest {
     }
 
     @Test
-    fun `a change of a list reaches the users who see it, a private list of another user not (LIST-4)`() =
+    fun `a change of a list reaches the users who see it, a private list of another user not (LIST-4)`(): Unit =
         runBlocking {
             val own = list(PELLE)
-            val party = (service.createList(PELLE, "Party", shared = true) as GroceryListResult.Saved).list.id
+            val party = (service.createList(PELLE, "Party", shared = true) as ListResult.Saved).list.id
             // listening before anything changes
             val heard = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { service.changes(OTHER).take(4).toList() } }
 
@@ -295,22 +297,37 @@ class GroceryServiceTest {
             service.updateItem(OTHER, chips.id, input("Crisps"))
             service.checkItem(OTHER, chips.id) shouldBe true
             service.checkItem(OTHER, chips.id) shouldBe false
-            service.deleteList(PELLE, party) shouldBe GroceryListDelete.Deleted
+            service.deleteList(PELLE, party) shouldBe ListDelete.Deleted
 
             // the own list of pelle is private, the shared one heard also when it goes
             heard.await() shouldBe listOf(party, party, party, party)
         }
 
     @Test
+    fun `a list unshared reaches the users who saw it, its changes after that not (LIST-4)`(): Unit =
+        runBlocking {
+            val party = (service.createList(PELLE, "Party", shared = true) as ListResult.Saved).list.id
+            val picnic = (service.createList(PELLE, "Picnic", shared = true) as ListResult.Saved).list.id
+            val heard = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { service.changes(OTHER).take(2).toList() } }
+
+            // its unsharing reaches every user once, a rename of the private list after that not
+            service.updateList(PELLE, party, "Party", shared = false)
+            service.updateList(PELLE, party, "Our party", shared = false)
+            service.updateList(PELLE, picnic, "Picnic", shared = true)
+
+            heard.await() shouldBe listOf(party, picnic)
+        }
+
+    @Test
     fun `a list takes one emoji as its icon, an empty one is none`() {
-        val created = service.createList(PELLE, "Party", shared = false, icon = " 🎉 ") as GroceryListResult.Saved
+        val created = service.createList(PELLE, "Party", shared = false, icon = " 🎉 ") as ListResult.Saved
         created.list.icon shouldBe "🎉"
-        (service.updateList(PELLE, created.list.id, "Party", shared = false, icon = "") as GroceryListResult.Saved).list.icon shouldBe null
+        (service.updateList(PELLE, created.list.id, "Party", shared = false, icon = "") as ListResult.Saved).list.icon shouldBe null
 
         // a flag, a keycap, a family joined of four, a skin tone
-        listOf("🇩🇪", "1️⃣", "👨‍👩‍👧‍👦", "👍🏽", "🛒").forEach { GroceryService.isOneEmoji(it) shouldBe true }
-        listOf("a", "1", "🎉🎉", "🎉 a", "\u0007").forEach { GroceryService.isOneEmoji(it) shouldBe false }
+        listOf("🇩🇪", "1️⃣", "👨‍👩‍👧‍👦", "👍🏽", "🛒").forEach { isOneEmoji(it) shouldBe true }
+        listOf("a", "1", "🎉🎉", "🎉 a", "\u0007").forEach { isOneEmoji(it) shouldBe false }
         service.createList(PELLE, "Wrong", shared = false, icon = "ab") shouldBe
-            GroceryListResult.Invalid(listOf(ErrorMessage(GroceryTexts.INVALID_ICON)))
+            ListResult.Invalid(listOf(ErrorMessage(GroceryTexts.INVALID_ICON)))
     }
 }

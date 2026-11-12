@@ -18,6 +18,7 @@ document in its own one.
 | Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `redirects/` | `redirects`                                                                | none     |
 | Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                       | `notes`  |
 | Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                     | none     |
+| Todo           | [TODO.md](TODO.md)           | `io.pelle.sak.backend.todo`              | `todo/`      | `todo_lists`, `todo_items`                                                 | none     |
 
 The login, the settings, the labels and the file storage are no apps; all apps share them (refer to
 [Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`FRONTEND-1`), whose rules are
@@ -34,7 +35,8 @@ in [HEALTH.md](HEALTH.md).
 
 ## List-based apps
 
-An app whose items belong to lists of the user keeps to these rules; the notes and the grocery lists are such apps.
+An app whose items belong to lists of the user keeps to these rules; the notes, the grocery lists and the todo lists
+are such apps.
 
 - `LIST-1` **New lists.** A user starts without lists and creates them; only an app that hides its lists makes one
   at the sign-in (`NOTES-1`). The owner of a list renames, shares and deletes it, the last one too. A new item always

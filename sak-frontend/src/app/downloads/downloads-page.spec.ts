@@ -55,6 +55,10 @@ describe('DownloadsPage', () => {
         'Download Grocery',
         'https://github.com/pellepelster/swiss-army-knife/releases/download/v1.4.2/sak-grocery-1.4.2.apk',
       ],
+      [
+        'Download Todo',
+        'https://github.com/pellepelster/swiss-army-knife/releases/download/v1.4.2/sak-todo-1.4.2.apk',
+      ],
     ]);
     expect(page().textContent).toContain('Version 1.4.2');
   });

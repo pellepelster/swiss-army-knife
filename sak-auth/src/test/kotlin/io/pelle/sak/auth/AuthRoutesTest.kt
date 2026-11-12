@@ -160,7 +160,7 @@ class AuthRoutesTest {
     @Test
     fun `a link of an android app tells the signin page to hand the token on to that app`() =
         authTest {
-            listOf("grocery-android", "notes-android").forEach { app ->
+            listOf("grocery-android", "notes-android", "todo-android").forEach { app ->
                 client
                     .post("/api/v1/auth/login/link") {
                         contentType(ContentType.Application.Json)

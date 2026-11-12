@@ -42,6 +42,14 @@ val models =
         "NoteRequest",
         "DiscoverTextResponse",
         "NotesSettingsResponse",
+        "TodoListResponse",
+        "TodoListRequest",
+        "TodoItemResponse",
+        "TodoNewItemRequest",
+        "TodoDoneRequest",
+        "TodoPriorityRequest",
+        "TodoDueDateRequest",
+        "TodoPurgeRequest",
     )
 
 val spec = rootProject.layout.projectDirectory.file("../openapi.json")

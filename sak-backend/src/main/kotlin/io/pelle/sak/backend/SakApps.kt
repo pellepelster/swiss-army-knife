@@ -48,6 +48,7 @@ import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
 import io.pelle.sak.backend.grocery.grocery
+import io.pelle.sak.backend.todo.todo
 import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.backend.settings.settings as settingsRoutes
 import io.pelle.sak.config.SakConfig
@@ -213,6 +214,10 @@ fun Application.apps(
                         route("/grocery") {
                             requireRole(Role.ADMIN, Role.USER)
                             grocery(groceryService, fileService, groceryDiscovery, discoverLimiter)
+                        }
+                        route("/todo") {
+                            requireRole(Role.ADMIN, Role.USER)
+                            todo(todoService)
                         }
                         route("/users") {
                             requireRole(Role.ADMIN)

@@ -120,10 +120,15 @@ export class ActionMenu {
     this.top.set(rect.bottom);
     this.right.set(document.documentElement.clientWidth - rect.right);
     this.open.set(true);
+    // the first entry that applies, of any kind, e.g. the priorities of a task (menuitemradio)
     afterNextRender(
       () =>
         this.menu()
-          .nativeElement.querySelector<HTMLElement>('[role=menuitem]:not(:disabled)')
+          .nativeElement.querySelector<HTMLElement>(
+            ['menuitem', 'menuitemradio', 'menuitemcheckbox']
+              .map((role) => `[role=${role}]:not(:disabled)`)
+              .join(', '),
+          )
           ?.focus(),
       { injector: this.injector },
     );

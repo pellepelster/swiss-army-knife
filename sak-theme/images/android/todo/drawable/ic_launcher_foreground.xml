@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the icon of the todo app of the web app (sak-theme/images/web/icons/todo.svg) without its paper
+     white, which is the background layer: a checklist on a sheet in green, outlined in ink, two tasks
+     done, one open, with the swiss army knife of the favicon in its corner. Scaled to 0.72 around the
+     center, so the masks of the launchers keep the corners of the sheet -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.72" android:scaleY="0.72">
+        <!-- the sheet -->
+        <path
+            android:pathData="M28,14 H80 A6,6 0 0 1 86,20 V88 A6,6 0 0 1 80,94 H28 A6,6 0 0 1 22,88 V20 A6,6 0 0 1 28,14 Z"
+            android:fillColor="#c5e1a5"
+            android:strokeColor="#2b2a27"
+            android:strokeWidth="3"
+            android:strokeLineJoin="round" />
+        <!-- the boxes -->
+        <path
+            android:pathData="M32,24 H40 A2,2 0 0 1 42,26 V34 A2,2 0 0 1 40,36 H32 A2,2 0 0 1 30,34 V26 A2,2 0 0 1 32,24 Z M32,44 H40 A2,2 0 0 1 42,46 V54 A2,2 0 0 1 40,56 H32 A2,2 0 0 1 30,54 V46 A2,2 0 0 1 32,44 Z M32,64 H40 A2,2 0 0 1 42,66 V74 A2,2 0 0 1 40,76 H32 A2,2 0 0 1 30,74 V66 A2,2 0 0 1 32,64 Z"
+            android:fillColor="#f4f1ea"
+            android:strokeColor="#2b2a27"
+            android:strokeWidth="3"
+            android:strokeLineJoin="round" />
+        <!-- the checks and the lines of the tasks -->
+        <path
+            android:pathData="M32,30 L36,34 L44,22 M32,50 L36,54 L44,42 M50,30 L76,30 M50,50 L76,50 M50,70 L60,70"
+            android:strokeColor="#2b2a27"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <!-- the knife: translate(52 52) scale(0.53125) rotate(-40 32 32) -->
+        <group android:translateX="52" android:translateY="52" android:scaleX="0.53125" android:scaleY="0.53125">
+            <group android:pivotX="32" android:pivotY="32" android:rotation="-40">
+                <path
+                    android:pathData="M44,22 L66,22 Q63,33 50,37 L44,37 Z"
+                    android:fillColor="#d7dbe2"
+                    android:strokeColor="#5b6170"
+                    android:strokeWidth="2"
+                    android:strokeLineJoin="round" />
+                <path
+                    android:pathData="M13,20 H37 A13,13 0 0 1 37,46 H13 A13,13 0 0 1 13,20 Z"
+                    android:fillColor="#d52b1e"
+                    android:strokeColor="#8f1a12"
+                    android:strokeWidth="2" />
+                <path
+                    android:pathData="M22.5,25 H27.5 A1,1 0 0 1 28.5,26 V40 A1,1 0 0 1 27.5,41 H22.5 A1,1 0 0 1 21.5,40 V26 A1,1 0 0 1 22.5,25 Z"
+                    android:fillColor="#ffffff" />
+                <path
+                    android:pathData="M18,29.5 H32 A1,1 0 0 1 33,30.5 V35.5 A1,1 0 0 1 32,36.5 H18 A1,1 0 0 1 17,35.5 V30.5 A1,1 0 0 1 18,29.5 Z"
+                    android:fillColor="#ffffff" />
+            </group>
+        </group>
+    </group>
+</vector>

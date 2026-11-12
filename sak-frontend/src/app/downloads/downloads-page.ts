@@ -7,7 +7,7 @@ import { AndroidApp, apkUrl, RELEASES_URL } from '../shared/app-download';
 import { PageHeader } from '../shared/page-header';
 
 // the apps that have an android app, in the order of the index page
-const ANDROID_APPS: readonly AndroidApp[] = ['notes', 'grocery'];
+const ANDROID_APPS: readonly AndroidApp[] = ['notes', 'grocery', 'todo'];
 
 // /downloads, without a session so its link opens on a phone: a download link of each android app
 // in the version the SAK instance runs, from its github release; a SAK instance without a release,

@@ -421,16 +421,17 @@ a {
   cursor: zoom-out;
 }
 
-// an item of a grocery list, the main content of the app: as large as a lead text, not the small bold
-// text of a button it is
-.grocery-item {
+// an item of a grocery list or a task of a todo list, the main content of the app: as large as a
+// lead text, not the small bold text of a button it is
+.grocery-item,
+.todo-item {
   --bs-btn-font-size: 1.25rem;
   --bs-btn-font-weight: 400;
   --bs-btn-line-height: 1.4;
 }
 
-// an item struck through: bought, or while its check can be undone (GROCERY-3, GROCERY-14); a
-// thick red line, seen at once
+// an item struck through: bought, or while its check can be undone (GROCERY-3, GROCERY-14), or a
+// done task, until the done tasks are purged (TODO-3, TODO-6); a thick red line, seen at once
 .item-struck {
   text-decoration-line: line-through;
   text-decoration-color: var(--sak-danger);

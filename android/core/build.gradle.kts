@@ -28,6 +28,8 @@ dependencies {
     api(libs.lifecycle.viewmodel.compose)
     api(libs.lifecycle.runtime.compose)
     implementation(libs.datastore.preferences)
+    // the picker of the icon of a list, the emoji of the system (androidx, EmojiSheet)
+    implementation(libs.emoji2.emojipicker)
     api(platform(libs.ktor.bom))
     api(libs.ktor.client.core)
     api(libs.ktor.client.okhttp)

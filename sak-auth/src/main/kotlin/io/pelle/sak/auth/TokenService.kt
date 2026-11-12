@@ -13,6 +13,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import io.pelle.sak.api.logAddress
 
 data class LoginClaims(
     val email: String,
@@ -99,7 +100,7 @@ class TokenService(
         val now = clock.instant()
         usedLoginTokens.values.removeIf { it.isBefore(now) }
         if (usedLoginTokens.putIfAbsent(id, expiresAt) != null) {
-            logger.info { "rejected the login token of '$email': it was used already" }
+            logger.info { "rejected the login token of ${logAddress(email)}: it was used already" }
             return null
         }
 

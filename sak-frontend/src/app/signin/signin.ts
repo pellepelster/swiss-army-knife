@@ -18,6 +18,11 @@ export const ANDROID_APPS = {
     title: 'signin.notes_title',
     text: 'signin.notes_text',
   },
+  'todo-android': {
+    pkg: 'io.pelle.sak.todo',
+    title: 'signin.todo_title',
+    text: 'signin.todo_text',
+  },
 } as const;
 
 export type AndroidClient = keyof typeof ANDROID_APPS;
@@ -30,7 +35,7 @@ export function androidAppLink(client: AndroidClient, token: string): string {
 }
 
 // the target of the e-mailed link, exchanges its login token for a session; the link of a login an
-// android app asked for (client=grocery-android, notes-android) is handed on to that app, the page
+// android app asked for (client=grocery-android, notes-android, todo-android) is handed on to that app, the page
 // does not use the token
 @Component({
   selector: 'app-signin',

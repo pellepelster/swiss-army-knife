@@ -17,14 +17,8 @@ class MainActivity : SakActivity() {
     override fun Content() = GroceryApp(viewModel.model)
 
     // the changes of the lists only while the app is seen (LIST-4); a check that waits is sent when
-    // the app goes (AN-29)
-    override fun onStart() {
-        super.onStart()
-        viewModel.model.startListening()
-    }
+    // the app goes (AN-29), not on a rotation, its undo stays (SakActivity)
+    override fun foreground() = viewModel.model.startListening()
 
-    override fun onStop() {
-        viewModel.model.stopped()
-        super.onStop()
-    }
+    override fun background() = viewModel.model.stopped()
 }

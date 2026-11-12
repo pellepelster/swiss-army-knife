@@ -54,7 +54,6 @@
     <string name="grocery_discover_add">Add to the list</string>
     <string name="grocery_discover_not_read">The photo could not be read.</string>
     <string name="grocery_discover_not_all_added">Not every item could be added.</string>
-    <string name="grocery_only_owner_share_delete">Only the owner shares or unshares a list, or deletes it.</string>
     <string name="grocery_app_name" translatable="false">SAK Grocery List</string>
     <string name="grocery_photo_take">Take photo</string>
     <string name="grocery_photo_choose">Choose photo</string>
@@ -65,11 +64,7 @@
     <string name="grocery_item_not_renamed">The item could not be renamed.</string>
     <string name="grocery_cancel">Cancel</string>
     <string name="grocery_show_bought">Show bought items</string>
-    <string name="grocery_no_lists">You have no list yet, create one with the plus at the top.</string>
-    <string name="grocery_shared">Shared with all users</string>
-    <string name="grocery_shared_badge">Shared</string>
     <string name="grocery_settings_of">Settings of %1$s</string>
-    <string name="grocery_saving">Saving…</string>
     <string name="grocery_nothing_to_buy">Nothing to buy.</string>
     <string name="grocery_bought">%1$s bought</string>
     <string name="grocery_item_category">Category</string>
@@ -85,16 +80,13 @@
     <string name="grocery_category_not_saved">The category could not be saved.</string>
     <string name="grocery_category_not_deleted">The category could not be deleted.</string>
     <string name="grocery_category_not_set">The category of the item could not be set.</string>
-    <string name="grocery_menu_of">Menu of %1$s</string>
     <string name="grocery_suggestions">Suggestions</string>
     <string name="grocery_category_drag">Drag to move %1$s</string>
     <string name="grocery_categories_retry">Load again</string>
-    <string name="grocery_back_to_list">Back to the list</string>
     <plurals name="grocery_to_buy">
         <item quantity="one">%1$d item to buy</item>
         <item quantity="other">%1$d items to buy</item>
     </plurals>
     <string name="grocery_error_categories_not_loaded">The categories could not be loaded.</string>
-    <string name="grocery_error_changes_not_read">The changes could not be read.</string>
     <string name="grocery_error_list_not_created">The list could not be created.</string>
 </resources>

@@ -6,6 +6,7 @@ import { Home } from './home/home';
 import { hostingRoute } from './hosting/hosting.routes';
 import { redirectsRoute } from './redirects/redirects.routes';
 import { groceryDownloadRoute, groceryRoute } from './grocery/grocery.routes';
+import { todoDownloadRoute, todoRoute } from './todo/todo.routes';
 import { AppDownload } from './shared/app-download';
 import { DownloadsPage } from './downloads/downloads-page';
 import { Login } from './login/login';
@@ -29,6 +30,7 @@ export const routes: Routes = [
   hostingRoute,
   redirectsRoute,
   groceryDownloadRoute,
+  todoDownloadRoute,
   // the android app of the notes to download, without a session; before the notes, whose login
   // guard would take it otherwise
   {
@@ -38,6 +40,7 @@ export const routes: Routes = [
     data: { app: 'notes', favicon: { svg: 'icons/notes.svg', png: 'icons/notes-192.png' } },
   },
   groceryRoute,
+  todoRoute,
   // the download links of the android apps, without a session so the link opens on a phone
   { path: 'downloads', component: DownloadsPage, title: pageTitle('downloads.page_title') },
   {

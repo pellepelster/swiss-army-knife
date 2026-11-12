@@ -251,7 +251,7 @@ done
 # created once; a release that failed halfway runs again, its files are replaced
 if ! gh release view "v${VERSION}" >/dev/null 2>&1; then
   gh release create "v${VERSION}" --verify-tag --title "SAK $VERSION" \
-    --notes "sakctl for linux, macOS and windows and the android apps of the grocery lists and the notes, built from $(git rev-parse --short=12 HEAD)."
+    --notes "sakctl for linux, macOS and windows and the android apps of the grocery lists, the notes and the todo lists, built from $(git rev-parse --short=12 HEAD)."
 fi
 gh release upload "v${VERSION}" $files --clobber
 """
@@ -996,7 +996,7 @@ run = 'ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew testGithubDeb
 # local:run on the host as http://10.0.2.2:4200
 [tasks."android:run"]
 description = "Run an android app in the emulator"
-usage = 'arg "<app>" help="the app, a line of android/apps.txt (grocery, notes)"'
+usage = 'arg "<app>" help="the app, a line of android/apps.txt (grocery, notes, todo)"'
 depends = ["android:sdk"]
 dir = "{{config_root}}/android"
 run = '''
@@ -1028,7 +1028,7 @@ export ANDROID_SERIAL="$serial"
 # ANDROID_SERIAL selects one of several phones (adb devices)
 [tasks."android:install"]
 description = "Install an android app on the attached phone"
-usage = 'arg "<app>" help="the app, a line of android/apps.txt (grocery, notes)"'
+usage = 'arg "<app>" help="the app, a line of android/apps.txt (grocery, notes, todo)"'
 depends = ["android:sdk:build"]
 dir = "{{config_root}}/android"
 run = '''

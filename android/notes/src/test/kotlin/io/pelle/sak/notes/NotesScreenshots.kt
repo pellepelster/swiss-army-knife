@@ -25,7 +25,8 @@ import java.time.Instant
 import java.time.ZoneOffset
 
 // the screenshots of the notes app (docs/screenshots/android-notes-*.png): the sign-in, the wall of
-// the notes and a note open, against the fake backend; only with mise run android:screenshots
+// the notes and a note open, against the fake backend, the wall and the note also in landscape (-land);
+// only with mise run android:screenshots
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = RobolectricDeviceQualifiers.Pixel7)
@@ -109,5 +110,26 @@ class NotesScreenshots {
             settle()
             model.open(5)
             screenshots.shoot("notes-note") { settle() }
+        }
+
+    // a phone in landscape
+    @Test
+    @Config(qualifiers = "+land")
+    fun notesLandscape() =
+        runTest {
+            val model = signedIn()
+            screenshots.show { NotesApp(model) }
+            screenshots.shoot("notes-land") { settle() }
+        }
+
+    @Test
+    @Config(qualifiers = "+land")
+    fun noteLandscape() =
+        runTest {
+            val model = signedIn()
+            screenshots.show { NotesApp(model) }
+            settle()
+            model.open(5)
+            screenshots.shoot("notes-note-land") { settle() }
         }
 }

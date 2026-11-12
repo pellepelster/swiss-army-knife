@@ -13,6 +13,7 @@ app_link_body: |
 
   Einkaufslisten: %{grocery}
   Notizen: %{notes}
+  Aufgabenlisten: %{todo}
 
   Melde dich dann mit dieser E-Mail-Adresse darin an.
 is_admin: "Die Adresse ist ein Admin, sie ist kein Benutzer zum Hinzufügen."

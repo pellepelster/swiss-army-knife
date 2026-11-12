@@ -15,9 +15,11 @@ function appName(app: string): string | undefined {
 }
 
 describe('the manifests of the web apps', () => {
-  for (const app of ['grocery', 'notes']) {
+  for (const app of ['grocery', 'notes', 'todo']) {
     it(`name ${app} as its android app`, () => {
-      const manifest = JSON.parse(readFileSync(join(frontend, 'public', `${app}.webmanifest`), 'utf8'));
+      const manifest = JSON.parse(
+        readFileSync(join(frontend, 'public', `${app}.webmanifest`), 'utf8'),
+      );
       const name = appName(app);
       expect(name).toMatch(/^SAK /);
       expect(manifest.name).toBe(name);

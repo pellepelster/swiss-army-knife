@@ -17,7 +17,8 @@ phone.
  │  UI or command line       │──deploys,───▶│  server, data volume, addresses,     │
  │                           │   backs up   │  firewall, DNS records               │
  │ ~/.sak/<name>/backups     │◀─────────────│  the apps: notes, grocery lists,     │
- └───────────────────────────┘              │  static hosting, redirects           │
+ └───────────────────────────┘              │  todo lists, static hosting,         │
+                                            │  redirects                           │
                                             └──────────────────────────────────────┘
                                                       ▲
                                  browser, phone ──────┘  you and your users

@@ -10,13 +10,14 @@ import io.pelle.sak.backend.notes.NotesTexts
 import io.pelle.sak.backend.openrouter.OpenRouterTexts
 import io.pelle.sak.backend.redirects.RedirectsTexts
 import io.pelle.sak.backend.settings.SettingsTexts
+import io.pelle.sak.backend.todo.TodoTexts
 import io.pelle.sak.backend.users.UsersTexts
 import org.junit.jupiter.api.Test
 
 class CatalogsTest {
     @Test
     fun `every catalog of the backend has every text in every language`() {
-        listOf(FilesTexts, GroceryTexts, HostingTexts, LabelsTexts, NotesTexts, OpenRouterTexts, RedirectsTexts, SettingsTexts, UsersTexts)
+        listOf(FilesTexts, GroceryTexts, HostingTexts, LabelsTexts, NotesTexts, OpenRouterTexts, RedirectsTexts, SettingsTexts, TodoTexts, UsersTexts)
             .flatMap(::catalogProblems) shouldBe emptyList()
     }
 }

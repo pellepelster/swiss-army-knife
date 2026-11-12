@@ -20,5 +20,8 @@ class SakAndroidLibraryPlugin : Plugin<Project> {
                 targetCompatibility = JavaVersion.VERSION_17
             }
         }
+        // android:test runs testGithubDebugUnitTest of every module; a library has no flavors, so its
+        // tests (e.g. SakModelTest, ListsModelTest) run under that name too
+        target.tasks.register("testGithubDebugUnitTest") { dependsOn("testDebugUnitTest") }
     }
 }

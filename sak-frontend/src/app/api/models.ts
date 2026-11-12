@@ -23,6 +23,11 @@ export type GroceryItem = Schemas['GroceryItemResponse'];
 export type GroceryNewItem = Schemas['GroceryNewItemRequest'];
 export type GrocerySuggestion = Schemas['GrocerySuggestionResponse'];
 
+// todo; the schema has the priority of a task as one of its strings already (TODO-5)
+export type TodoList = Schemas['TodoListResponse'];
+export type TodoItem = Schemas['TodoItemResponse'];
+export type TodoPriority = TodoItem['priority'];
+
 // notes; what the notes app may do for the signed in user
 export type NoteResponse = Schemas['NoteResponse'];
 export type NotesSettings = Schemas['NotesSettingsResponse'];

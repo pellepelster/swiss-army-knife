@@ -1,0 +1,106 @@
+# the tables of the todo app (docs/development/architecture/apps/TODO.md), the same rules as in
+# 0001-initial.yaml: created_at, updated_at, deleted_at and owner on every table, no row is ever
+# deleted for real, the partial unique indexes in plain sql for sqlite only
+databaseChangeLog:
+  - changeSet:
+      id: 0002-todo
+      author: sak
+      changes:
+        # the todo lists of a user: every task is on one, the user creates them (LIST-1); a shared
+        # list is one of all users (LIST-2). The name is unique among the lists of an owner that are
+        # not deleted only. The icon is one emoji, none shows the first letter of the name
+        - createTable:
+            tableName: todo_lists
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: shared
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: icon
+                  type: varchar(32)
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX todo_lists_owner_name_key ON todo_lists (owner, name) WHERE deleted_at IS NULL
+
+        # the tasks of the todo lists; owner is who added it, on a shared list another user than
+        # the owner of the list. due_date is the day it is to be done by, none for no day (TODO-4); sqlite
+        # stores it as text, the check keeps out all but a real day as yyyy-mm-dd (date() of anything
+        # else is null or another text). priority is high, normal or low (TODO-5). done_at is when it
+        # was done, null while it is open
+        # (TODO-3); a purge deletes the done tasks of a list (TODO-6), nothing of them is kept or
+        # learned
+        - sql:
+            dbms: sqlite
+            sql: |
+              CREATE TABLE todo_items (
+                id INTEGER NOT NULL PRIMARY KEY,
+                list_id INTEGER NOT NULL,
+                owner VARCHAR(254) NOT NULL,
+                title VARCHAR(256) NOT NULL,
+                due_date DATE,
+                priority VARCHAR(8) NOT NULL DEFAULT 'normal',
+                done_at TIMESTAMP,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT todo_items_list_id_fkey FOREIGN KEY (list_id) REFERENCES todo_lists (id),
+                CONSTRAINT todo_items_priority_check CHECK (priority IN ('high', 'normal', 'low')),
+                CONSTRAINT todo_items_due_date_check CHECK (due_date IS NULL OR (date(due_date) IS NOT NULL AND due_date = date(due_date)))
+              )
+        # the same table for the code generation of jooq (h2), which knows no date(); without the
+        # check of the day, the columns are the same
+        - sql:
+            dbms: h2
+            sql: |
+              CREATE TABLE todo_items (
+                id INTEGER NOT NULL PRIMARY KEY,
+                list_id INTEGER NOT NULL,
+                owner VARCHAR(254) NOT NULL,
+                title VARCHAR(256) NOT NULL,
+                due_date DATE,
+                priority VARCHAR(8) NOT NULL DEFAULT 'normal',
+                done_at TIMESTAMP,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT todo_items_list_id_fkey FOREIGN KEY (list_id) REFERENCES todo_lists (id),
+                CONSTRAINT todo_items_priority_check CHECK (priority IN ('high', 'normal', 'low'))
+              )
+        # the tasks of a list, what a list shows
+        - sql:
+            dbms: sqlite
+            sql: CREATE INDEX todo_items_list_id_idx ON todo_items (list_id) WHERE deleted_at IS NULL
+
+        # the open tasks of a list, what a list counts
+        - sql:
+            dbms: sqlite
+            sql: CREATE INDEX todo_items_open_idx ON todo_items (list_id) WHERE deleted_at IS NULL AND done_at IS NULL

@@ -12,6 +12,9 @@ import io.pelle.sak.core.UiText
 import io.pelle.sak.core.session.MemorySessionStore
 import io.pelle.sak.core.session.PendingLogin
 import io.pelle.sak.core.session.Stored
+import io.pelle.sak.core.session.openList
+import io.pelle.sak.core.session.withOpenList
+import io.pelle.sak.core.lists.ChangeStream
 import io.pelle.sak.core.uiText
 import io.pelle.sak.core.update.AppUpdate
 import io.pelle.sak.core.update.UpdateException
@@ -1028,14 +1031,14 @@ class GroceryModelTest {
             assertEquals(1, loads())
 
             model.startListening()
-            advanceTimeBy(GroceryModel.RETRY_DELAY_MS / 2)
+            advanceTimeBy(ChangeStream.RETRY_DELAY_MS / 2)
             runCurrent()
             // list 2 is not open, list 1 is
             assertEquals(2, loads())
             assertEquals("t", backend.tokens["/grocery/changes"])
 
             // the stream ended; the next one loads once for what it may have missed, once for its change
-            advanceTimeBy(GroceryModel.RETRY_DELAY_MS)
+            advanceTimeBy(ChangeStream.RETRY_DELAY_MS)
             runCurrent()
             assertTrue(loads() > 2)
             assertEquals(2, backend.requests.count { it == "GET /grocery/changes" })
@@ -1052,12 +1055,12 @@ class GroceryModelTest {
             val model = signedIn(openList = null)
             advanceUntilIdle()
             model.startListening()
-            advanceTimeBy(GroceryModel.RETRY_DELAY_MS / 2)
+            advanceTimeBy(ChangeStream.RETRY_DELAY_MS / 2)
             runCurrent()
             assertEquals(2, backend.requests.count { it == "GET /grocery/lists" })
 
             backend.answers["GET /grocery/changes"] = HttpStatusCode.Unauthorized to ""
-            advanceTimeBy(GroceryModel.RETRY_DELAY_MS)
+            advanceTimeBy(ChangeStream.RETRY_DELAY_MS)
             runCurrent()
             assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error.english())
             model.stopListening()
@@ -1552,7 +1555,7 @@ class GroceryModelTest {
                 HttpStatusCode.OK to page(category(2, "Dairy & eggs", null), category(1, "Fruit & vegetables", "🥦"), category(3, "Drinks", null))
 
             model.startListening()
-            advanceTimeBy(GroceryModel.RETRY_DELAY_MS / 2)
+            advanceTimeBy(ChangeStream.RETRY_DELAY_MS / 2)
             runCurrent()
             model.stopListening()
             // the change of list 1, not the one of list 2; the list open loads too
@@ -1902,7 +1905,7 @@ class GroceryModelTest {
             model.startListening()
             runCurrent()
             // the first stream ended at once; the next one loads what it may have missed
-            advanceTimeBy(GroceryModel.RETRY_DELAY_MS + 1)
+            advanceTimeBy(ChangeStream.RETRY_DELAY_MS + 1)
             runCurrent()
             assertTrue(loads() > before)
             model.stopListening()

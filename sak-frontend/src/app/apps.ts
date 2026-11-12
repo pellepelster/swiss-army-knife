@@ -30,6 +30,12 @@ export const APPS: readonly AppEntry[] = [
     icon: 'icons/grocery.svg',
   },
   {
+    path: '/todo',
+    name: 'app.todo',
+    description: 'app.todo_description',
+    icon: 'icons/todo.svg',
+  },
+  {
     path: '/static-hosting',
     name: 'app.static_hosting',
     description: 'app.static_hosting_description',

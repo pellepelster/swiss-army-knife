@@ -21,7 +21,7 @@ function templates(dir: string): string[] {
 const ELEMENTS = /<(button|a)\b[^>]*>[\s\S]*?<\/\1>/g;
 const CREATES = /\b(Create|Add|New)\b/;
 // what an add action that is no main create action shows instead of the plus
-const ADDS_A_THING = /fa-camera|fa-microphone|fa-cart-shopping|fa-tag|fa-robot/;
+const ADDS_A_THING = /fa-camera|fa-microphone|fa-cart-shopping|fa-tag|fa-robot|fa-calendar-plus/;
 const PLUS = 'sak-icon-plus';
 
 // a key of a text in a template, 'notes.page.new' | t, is its english text

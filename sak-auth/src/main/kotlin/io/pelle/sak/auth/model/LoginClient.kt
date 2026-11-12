@@ -18,4 +18,7 @@ enum class LoginClient(
 
     @SerialName("notes-android")
     NOTES_ANDROID("notes-android"),
+
+    @SerialName("todo-android")
+    TODO_ANDROID("todo-android"),
 }

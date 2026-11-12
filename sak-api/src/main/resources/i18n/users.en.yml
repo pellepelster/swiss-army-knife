@@ -13,6 +13,7 @@ app_link_body: |
 
   Grocery lists: %{grocery}
   Notes: %{notes}
+  Todo lists: %{todo}
 
   Then sign in to them with this e-mail address.
 is_admin: "The address is an admin, it is no user to add."

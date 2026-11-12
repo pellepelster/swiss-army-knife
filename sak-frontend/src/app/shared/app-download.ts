@@ -5,17 +5,18 @@ import { AuthService } from '../auth/auth.service';
 import { TextKey, TranslatePipe } from '../i18n/i18n';
 import { PAGE_LOADER } from '../service-worker-updates';
 
-// the releases of sak on github: the tag v1.4.2 has the apks sak-grocery-1.4.2.apk and
-// sak-notes-1.4.2.apk, as the updater of each app takes it (AndroidUpdater of android/core)
+// the releases of sak on github: the tag v1.4.2 has the apks sak-grocery-1.4.2.apk,
+// sak-notes-1.4.2.apk and sak-todo-1.4.2.apk, as the updater of each app takes it (AndroidUpdater of android/core)
 export const RELEASES_URL = 'https://github.com/pellepelster/swiss-army-knife/releases';
 
 // the android apps, each with a download page of its own (route data `app`)
-export type AndroidApp = 'grocery' | 'notes';
+export type AndroidApp = 'grocery' | 'notes' | 'todo';
 
 // the title of the download page of each app
 const TITLES: Record<AndroidApp, TextKey> = {
   grocery: 'grocery.download.title',
   notes: 'notes.download.title',
+  todo: 'todo.download.title',
 };
 
 // the apk of an android app of a release

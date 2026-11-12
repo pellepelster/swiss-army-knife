@@ -18,30 +18,19 @@ import io.pelle.sak.api.model.GrocerySettingsResponse
 import io.pelle.sak.api.model.GrocerySuggestionResponse
 import io.pelle.sak.api.model.LoginRequest
 import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpTimeoutConfig
-import io.ktor.client.plugins.timeout
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
-import io.ktor.client.request.prepareGet
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
-import io.ktor.http.isSuccess
-import io.ktor.utils.io.readLine
-import io.pelle.sak.core.api.ApiJson
 import io.pelle.sak.core.api.PageResponse
 import io.pelle.sak.core.api.SakApi
+import io.pelle.sak.core.lists.ListsApi
 import io.pelle.sak.grocery.R
-import java.io.IOException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
-import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 // the grocery api of one deployment on top of what every app calls (SakApi): the lists, their items,
 // categories and photos and the stream of their changes. Its login links are handed on to this app
@@ -51,12 +40,13 @@ class GroceryApi(
     url: String,
     token: String? = null,
     languages: String? = null,
-) : SakApi(client, url, token, languages, LOGIN_CLIENT) {
+) : SakApi(client, url, token, languages, LOGIN_CLIENT),
+    ListsApi<GroceryListResponse> {
     // in the order the backend gives them: by name
-    suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", R.string.grocery_lists_not_loaded)
+    override suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", R.string.grocery_lists_not_loaded)
 
     // the new list of the signed in user
-    suspend fun createList(
+    override suspend fun createList(
         name: String,
         shared: Boolean,
         icon: String?,
@@ -69,7 +59,7 @@ class GroceryApi(
             }.answer(R.string.grocery_error_list_not_created)
 
     // the settings of a list of the user's own
-    suspend fun updateList(
+    override suspend fun updateList(
         id: Int,
         name: String,
         shared: Boolean,
@@ -83,7 +73,7 @@ class GroceryApi(
             }.answer(R.string.grocery_form_not_saved)
 
     // a list of the user's own with its items, the last one too (LIST-1)
-    suspend fun deleteList(id: Int) {
+    override suspend fun deleteList(id: Int) {
         client
             .delete("$url/grocery/lists/$id") { session() }.answer<Unit>(R.string.grocery_form_not_deleted)
     }
@@ -227,36 +217,8 @@ class GroceryApi(
                 size?.let { parameter("size", it) }
             }.answer(R.string.grocery_photo_not_loaded)
 
-    // the ids of the lists the user sees as they change, server-sent events (LIST-4); opened calls
-    // once the stream is open. It ends with an exception when the connection ends, an ApiException
-    // with 401 when the session ended
-    fun changes(opened: suspend () -> Unit): Flow<Int> =
-        flow {
-            client
-                .prepareGet("$url/grocery/changes") {
-                    session()
-                    // the backend keeps the stream open with a comment every 25 seconds; the stream
-                    // itself has no end
-                    timeout {
-                        socketTimeoutMillis = CHANGES_TIMEOUT_MS
-                        requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
-                    }
-                }.execute { response ->
-                    if (!response.status.isSuccess()) response.answer<Unit>(R.string.grocery_error_changes_not_read)
-                    opened()
-                    val channel = response.bodyAsChannel()
-                    var event: String? = null
-                    while (true) {
-                        val line = channel.readLine() ?: throw IOException("The changes ended.")
-                        when {
-                            line.startsWith("event:") -> event = line.removePrefix("event:").trim()
-                            line.startsWith("data:") && event == "changed" ->
-                                emit(ApiJson.parseToJsonElement(line.removePrefix("data:")).jsonObject.getValue("listId").jsonPrimitive.int)
-                            line.isEmpty() -> event = null
-                        }
-                    }
-                }
-        }
+    // the ids of the lists the user sees as they change (LIST-4, SakApi.listChanges)
+    override fun changes(opened: suspend () -> Unit): Flow<Int> = listChanges("$url/grocery/changes", opened)
 
     // the categories of a list the user sees, in the order it shows them (GROCERY-13)
     suspend fun categories(listId: Int): List<GroceryCategoryResponse> =
@@ -325,8 +287,5 @@ class GroceryApi(
     companion object {
         // the app the signin page of the web app hands a login link on to (LoginClient of sak-auth)
         val LOGIN_CLIENT = LoginRequest.Client.GROCERY_ANDROID
-
-        // longer than the 25 seconds between the comments of the changes
-        const val CHANGES_TIMEOUT_MS = 60_000L
     }
 }

@@ -78,3 +78,9 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   session list, so a copied token stays valid for the session TTL. Accepted: the token stays on the device (encrypted
   with the keystore on Android) and travels only over https; revoking would be the first session state in the
   backend. Revisit when shared devices make theft likely.
+
+- **An action waiting for its undo is lost when Android ends the app.** A grocery check or a todo purge waits 2
+  seconds in memory (`UX-4.2`). Accepted: at most one tap is lost, and the list shows it on the next start.
+
+- **Logs name a user by a short hash of the e-mail address.** Whoever guesses an address can confirm it. Accepted: the
+  admin finds a user's lines with `sha256sum` alone.

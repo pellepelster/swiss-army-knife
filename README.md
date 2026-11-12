@@ -21,10 +21,11 @@ server, set up and looked after by one program, sakctl.
 
 - **Notes:** post-its from text, photos and voice recordings, with labels and colors.
 - **Grocery lists:** shopping lists, private or shared, grouped by categories, updated live on every device.
+- **Todo lists:** tasks with a priority and an optional due date, private or shared, updated live on every device.
 - **Static hosting:** websites from S3 buckets, at their own domain or at a subdomain.
 - **Redirects:** domains that lead to another address, with automatic TLS certificates.
 
-The notes and the grocery lists also have a native Android app.
+The notes, the grocery lists and the todo lists also have a native Android app.
 
 ## Privacy first
 

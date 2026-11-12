@@ -14,11 +14,15 @@ its own architecture document.
     `SignInScreen`), the session kept encrypted (`session/`), the base of the api (`SakApi`, `sakClient`,
     `ApiException`), the update check (`update/`, `AndroidUpdater` takes the name of the app of its apk), the
     theme (`SakTheme`), the parts of a screen (`Page`, `Form`, `Error`, `AccountMenu`, `UpdateBanner`,
-    `ConfirmDelete`) and the texts of no app.
+    `ConfirmDelete`) and the texts of no app. What the list-based apps (grocery, todo) share is in `lists/` and
+    `ui/Lists.kt`: `ListsModel` (on top of `SakModel`: a list opened, the settings of a list created, saved and
+    deleted, a list deleted from the home) over `ListsApi` (the list calls each app's api implements), the
+    `ChangeStream` and the screens of the lists.
   - `testing` (library): what the tests of every app share, a fake backend (`FakeBackend`, `page()`) and the
     english texts (`english()`), on the jvm.
-  - one module for each app, e.g. `grocery` (`io.pelle.sak.grocery`): its model extends `SakModel` (its screen
-    once the user is signed in is an `AppScreen`), its api extends `SakApi`, its activity extends `SakActivity`
+  - one module for each app, e.g. `grocery` (`io.pelle.sak.grocery`): its model extends `SakModel`, of a list-based
+    app `ListsModel` (its screen once the user is signed in is an `AppScreen`, of a list-based app a
+    `ListsAppScreen`), its api extends `SakApi` (and implements `ListsApi`), its activity extends `SakActivity`
     (which takes the login links of its scheme, once) and its view model `SakViewModel` (the store of the session,
     the updater, the client of the process). An app names itself to the backend when it asks for a login link
     (`LoginRequest.Client`, e.g. `GROCERY_ANDROID`), so the signin page of the web app hands the link on to that

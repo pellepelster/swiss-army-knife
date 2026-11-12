@@ -37,6 +37,14 @@
     <string name="update_app_no_release">This build of the app is no release, it is not updated.</string>
     <string name="update_deployment_no_release">Your SAK instance runs no release, there is no update for the app.</string>
     <string name="ok" translatable="false">OK</string>
+    <string name="no_lists">You have no list yet, create one with the plus at the top.</string>
+    <string name="shared_with_all">Shared with all users</string>
+    <string name="shared_badge">Shared</string>
+    <string name="only_owner_share_delete">Only the owner shares or unshares a list, or deletes it.</string>
+    <string name="saving">Saving…</string>
+    <string name="menu_of">Menu of %1$s</string>
+    <string name="back_to_list">Back to the list</string>
+    <string name="error_changes_not_read">The changes could not be read.</string>
     <string name="error_sak_address">Enter the SAK address of your SAK instance, e.g. sak.example.org.</string>
     <string name="error_no_deployment">No SAK instance answers at this address.</string>
     <string name="error_no_sak_address">This is no SAK address.</string>

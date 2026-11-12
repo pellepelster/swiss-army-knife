@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the texts of the app in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
+<resources>
+    <string name="todo_only_owner_shares">Nur der Besitzer einer Liste teilt sie oder hebt das Teilen auf.</string>
+    <string name="todo_list_gone">Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr.</string>
+    <string name="todo_all_lists">Alle Listen</string>
+    <string name="todo_lists_not_loaded">Die Listen konnten nicht geladen werden.</string>
+    <string name="todo_lists_open_none">Keine offenen Aufgaben</string>
+    <string name="todo_form_create">Liste erstellen</string>
+    <string name="todo_form_no_icon">Kein Icon</string>
+    <string name="todo_form_delete_list">Liste löschen</string>
+    <string name="todo_form_not_saved">Die Liste konnte nicht gespeichert werden.</string>
+    <string name="todo_form_not_deleted">Die Liste konnte nicht gelöscht werden.</string>
+    <string name="todo_form_choose_icon">Icon auswählen</string>
+    <string name="todo_list_task">Aufgabe</string>
+    <string name="todo_list_not_added">Die Aufgabe konnte nicht hinzugefügt werden.</string>
+    <string name="todo_list_not_done">Die Aufgabe konnte nicht erledigt werden.</string>
+    <string name="todo_list_items_not_loaded">Die Aufgaben konnten nicht geladen werden.</string>
+    <string name="todo_list_done_of">%1$s erledigen</string>
+    <string name="todo_list_purge">Erledigte entfernen</string>
+    <string name="todo_list_purged">Erledigte Aufgaben entfernt</string>
+    <string name="todo_list_nothing_to_purge">Die Liste hat keine erledigten Aufgaben.</string>
+    <string name="todo_list_not_purged">Die erledigten Aufgaben konnten nicht entfernt werden.</string>
+    <string name="todo_list_priority_not_set">Die Priorität konnte nicht geändert werden.</string>
+    <string name="todo_list_add_due_date">Fälligkeitsdatum hinzufügen</string>
+    <string name="todo_list_has_due_date">Die Aufgabe hat ein Fälligkeitsdatum.</string>
+    <string name="todo_list_remove_due_date">Fälligkeitsdatum entfernen</string>
+    <string name="todo_list_no_due_date_yet">Die Aufgabe hat kein Fälligkeitsdatum.</string>
+    <string name="todo_list_due_date_not_saved">Das Fälligkeitsdatum konnte nicht gespeichert werden.</string>
+    <string name="todo_list_due_date">Fällig am</string>
+    <string name="todo_list_due">fällig %1$s</string>
+    <string name="todo_list_overdue">überfällig seit %1$s</string>
+    <string name="todo_priority_label">Priorität</string>
+    <string name="todo_priority_high">Hohe Priorität</string>
+    <string name="todo_priority_normal">Normale Priorität</string>
+    <string name="todo_priority_low">Niedrige Priorität</string>
+    <string name="todo_cancel">Abbrechen</string>
+    <string name="todo_ok">OK</string>
+    <string name="todo_nothing_to_do">Nichts zu tun.</string>
+    <string name="todo_no_due_date">Kein Fälligkeitsdatum</string>
+    <plurals name="todo_open">
+        <item quantity="one">%1$d offene Aufgabe</item>
+        <item quantity="other">%1$d offene Aufgaben</item>
+    </plurals>
+    <string name="todo_error_list_not_created">Die Liste konnte nicht erstellt werden.</string>
+</resources>

@@ -84,12 +84,14 @@ sealed interface RecordingFor {
 }
 
 // a photo or a recording taken off a note, which undo puts back at its place until the time is up
-// (UX-4.2); number is its place counted from 1, as the screen names it
+// (UX-4.2); number is its place counted from 1, as the screen names it; serial starts the bar of the
+// time left anew for every one
 data class Removal(
     val noteId: Int,
     val number: Int,
     val photo: PhotoResponse? = null,
     val recording: RecordingResponse? = null,
+    val serial: Int = 0,
 )
 
 // the notes of the signed in user once signed in: the wall of their notes, newest first, of the label
@@ -199,6 +201,11 @@ class NotesModel(
 
     // the time of the undo of a removal
     private var removing: Job? = null
+    private var serial = 0
+
+    // how long a removal can be undone: UNDO_REMOVE_MS, longer when the accessibility settings of the
+    // phone ask for more time for a control (AN-34), set by the ui
+    var undoMs = UNDO_REMOVE_MS
 
     // the photos and recordings fetched, by their file and whether it is the thumbnail
     private val files = FileCache(MAX_FILE_BYTES)
@@ -773,10 +780,10 @@ class NotesModel(
 
     // the removal shown with its undo; the backend learns of it once the time is up
     private fun removed(removal: Removal) {
-        notes { it.copy(removal = removal) }
+        notes { it.copy(removal = removal.copy(serial = ++serial)) }
         removing =
             scope.launch {
-                delay(UNDO_REMOVE_MS)
+                delay(undoMs)
                 commitRemoval()
             }
     }

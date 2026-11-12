@@ -5,7 +5,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 
-// an app of android/ (grocery, notes): the sdks, java 17, the version of SAK, the signing of a
+// an app of android/ (grocery, notes, todo): the sdks, java 17, the version of SAK, the signing of a
 // release, its build types and its distributions; the module keeps its namespace, its applicationId
 // and its texts
 class SakAndroidAppPlugin : Plugin<Project> {
@@ -80,6 +80,9 @@ class SakAndroidAppPlugin : Plugin<Project> {
                 val screenshots = target.findProperty("sak.screenshots") as String?
                 unitTests.all {
                     it.systemProperty("sak.app.package", namespace ?: "")
+                    // robolectric (the screenshots, the activity in every orientation, *RotationTest)
+                    // reaches into the file descriptors of the jdk
+                    it.jvmArgs("--add-exports", "java.base/jdk.internal.access=ALL-UNNAMED")
                     if (screenshots == null) {
                         it.exclude("**/*Screenshots*")
                     } else {
@@ -87,8 +90,6 @@ class SakAndroidAppPlugin : Plugin<Project> {
                         it.systemProperty("sak.screenshots", screenshots)
                         it.systemProperty("roborazzi.test.record", "true")
                         it.outputs.upToDateWhen { false }
-                        // robolectric reaches into the file descriptors of the jdk
-                        it.jvmArgs("--add-exports", "java.base/jdk.internal.access=ALL-UNNAMED")
                     }
                 }
             }

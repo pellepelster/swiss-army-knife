@@ -72,7 +72,7 @@ Both can:
 ## Across all devices
 
 Every app works in the browser on a desktop and on a phone. On Android, you can [install it on the home
-screen](apps/android/web-apps.md) as a web app (PWA). The notes and the grocery lists also have a native Android app;
+screen](apps/android/web-apps.md) as a web app (PWA). The notes, the grocery lists and the todo lists also have a native Android app;
 [install the native Android apps](apps/android/native-apps.md).
 
 On a desktop:
@@ -86,6 +86,12 @@ In the browser of a phone:
 In the native Android app:
 
 ![The notes in the native Android app](screenshots/android-notes.png)
+
+Turned sideways, on a phone or a tablet, the apps use the whole width:
+
+![A todo list in the browser of a phone turned sideways](screenshots/web-todo-mobile-landscape.png)
+
+![A todo list in the native Android app turned sideways](screenshots/android-todo-list-land.png)
 
 ## Light and dark
 
@@ -108,6 +114,17 @@ photo or a recording goes into the note.
 
 Shopping lists, private or shared, grouped by categories you choose. A checked item can be undone and stays visible as
 bought; what you added before comes back as a suggestion. Every change shows at once on every device.
+
+### Todo lists
+
+Tasks, private or shared, each with a priority (high, normal or low) and a due date if you want one. The tasks of high
+priority come first; a task past its due date shows in red. Tap a task when it is done: it stays in its place, struck
+through, until you remove the done tasks; you can undo this for 2 seconds. The menu of a task changes its priority
+and adds or removes its due date. Every change shows at once on every device.
+
+![A todo list with tasks of each priority, one overdue and one done](screenshots/web-todo-desktop.png)
+
+![The todo lists in the native Android app](screenshots/android-todo-lists.png)
 
 ### Static hosting
 

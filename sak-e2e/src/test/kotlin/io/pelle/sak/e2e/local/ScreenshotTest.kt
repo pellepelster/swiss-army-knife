@@ -21,6 +21,8 @@ import io.pelle.sak.e2e.util.NOTES
 import io.pelle.sak.e2e.util.PHOTO_NOTE
 import io.pelle.sak.e2e.util.RECORDING_NOTE
 import io.pelle.sak.e2e.util.REDIRECTS
+import io.pelle.sak.e2e.util.TODO_LISTS
+import io.pelle.sak.e2e.util.TODO_TASKS
 import io.pelle.sak.e2e.util.USERS
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -36,19 +38,22 @@ import java.nio.file.Paths
 // where the screenshots go, docs/screenshots/ by e2eScreenshots
 private val SCREENSHOTS: Path = Paths.get(System.getProperty("sak.e2e.screenshots") ?: "build/screenshots")
 
-// the sizes a page is shown at, each screenshot is taken in both
+// the sizes a page is shown at, each screenshot is taken on the desktop and the phone, some also on
+// the phone turned sideways; the name ends the file name
 enum class Device(
     val width: Int,
     val height: Int,
     val scale: Double,
     val mobile: Boolean,
+    val slug: String,
 ) {
-    DESKTOP(1280, 800, 1.0, false),
-    MOBILE(390, 844, 2.0, true),
+    DESKTOP(1280, 800, 1.0, false, "desktop"),
+    MOBILE(390, 844, 2.0, true, "mobile"),
+    LANDSCAPE(844, 390, 2.0, true, "mobile-landscape"),
 }
 
 // the screenshots of the docs: the login with the password and by e-mail (the mail too), the apps
-// in light and dark, the notes app, static hosting and redirects; only the page, no browser around
+// in light and dark, the notes app, the todo app, static hosting and redirects; only the page, no browser around
 // it. Against the environment of `mise run local:run`, in the light theme unless named
 @Tag("screenshots")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -95,16 +100,18 @@ class ScreenshotTest {
         return context
     }
 
-    // the page alone, without moving parts
+    // the page alone, without moving parts; a page that listens to the changes of its lists (LIST-4)
+    // keeps a request open and is never idle, it settles a moment instead
     private fun Page.shot(
         name: String,
         device: Device,
+        idle: Boolean = true,
     ) {
-        waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE)
+        if (idle) waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE) else waitForTimeout(1_000.0)
         screenshot(
             Page
                 .ScreenshotOptions()
-                .setPath(SCREENSHOTS.resolve("web-$name-${device.name.lowercase()}.png"))
+                .setPath(SCREENSHOTS.resolve("web-$name-${device.slug}.png"))
                 .setAnimations(ScreenshotAnimations.DISABLED)
                 .setCaret(com.microsoft.playwright.options.ScreenshotCaret.HIDE),
         )
@@ -113,7 +120,7 @@ class ScreenshotTest {
     private fun Page.button(label: String) = locator("button[aria-label='$label']:visible").first()
 
     @ParameterizedTest
-    @EnumSource(Device::class)
+    @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
     fun `the login with the password`(device: Device) {
         val context = context(device, signedIn = false)
         // as a SAK instance of a single user answers (docs/first-steps.md): the sign-in shows only
@@ -137,7 +144,7 @@ class ScreenshotTest {
     }
 
     @ParameterizedTest
-    @EnumSource(Device::class)
+    @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
     fun `the login by e-mail and its mail`(device: Device) {
         Mailpit.clearInbox()
         val context = context(device, signedIn = false)
@@ -174,7 +181,7 @@ class ScreenshotTest {
     }
 
     @ParameterizedTest
-    @EnumSource(Device::class)
+    @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
     fun `the notes app`(device: Device) {
         data.seedNotes()
         val context = context(device, signedIn = true)
@@ -227,8 +234,27 @@ class ScreenshotTest {
         context.close()
     }
 
+    // the todo lists and the tasks of one: by priority, with their due dates, one overdue, a done one
+    // struck through in its place (TODO-3, TODO-4, TODO-5); also on the phone turned sideways
     @ParameterizedTest
     @EnumSource(Device::class)
+    fun `the todo app`(device: Device) {
+        data.seedTodo()
+        for ((scheme, suffix) in listOf(ColorScheme.LIGHT to "", ColorScheme.DARK to "-dark")) {
+            val context = context(device, signedIn = true, scheme = scheme)
+            val page = context.newPage()
+            page.navigate("/todo")
+            assertThat(page.getByText(TODO_LISTS.first().first).first()).isVisible()
+            page.shot("todo-lists$suffix", device, idle = false)
+            page.navigate("/todo/lists/${data.todoList(TODO_LISTS.first().first)}")
+            assertThat(page.getByText(TODO_TASKS.first().title).first()).isVisible()
+            page.shot("todo$suffix", device, idle = false)
+            context.close()
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
     fun `static hosting`(device: Device) {
         val context = context(device, signedIn = true)
         val page = context.newPage()
@@ -243,7 +269,7 @@ class ScreenshotTest {
 
     // the users an admin added, who sign in by e-mail
     @ParameterizedTest
-    @EnumSource(Device::class)
+    @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
     fun `the users`(device: Device) {
         val context = context(device, signedIn = true)
         val page = context.newPage()
@@ -256,7 +282,7 @@ class ScreenshotTest {
     // where the AI features are turned on, off until then: what the apps would send and to whom, and
     // the key of the OpenRouter account
     @ParameterizedTest
-    @EnumSource(Device::class)
+    @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
     fun `the settings of the AI`(device: Device) {
         val context = context(device, signedIn = true)
         val page = context.newPage()
@@ -267,7 +293,7 @@ class ScreenshotTest {
     }
 
     @ParameterizedTest
-    @EnumSource(Device::class)
+    @EnumSource(Device::class, names = ["LANDSCAPE"], mode = EnumSource.Mode.EXCLUDE)
     fun `redirects`(device: Device) {
         val context = context(device, signedIn = true)
         val page = context.newPage()

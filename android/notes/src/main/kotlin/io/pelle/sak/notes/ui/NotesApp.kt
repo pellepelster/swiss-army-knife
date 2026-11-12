@@ -110,12 +110,16 @@ import io.pelle.sak.core.ui.resolve
 import io.pelle.sak.core.ui.SignInScreen
 import io.pelle.sak.core.ui.UpdateBanner
 import io.pelle.sak.core.ui.UpdateNotice
+import io.pelle.sak.core.ui.UndoBar
+import io.pelle.sak.core.ui.UndoTime
+import io.pelle.sak.core.Undo
+import io.pelle.sak.core.uiText
+import io.pelle.sak.notes.UNDO_REMOVE_MS
 import io.pelle.sak.notes.MAX_LABELS
 import io.pelle.sak.notes.MAX_LABEL_LENGTH
 import io.pelle.sak.notes.MAX_PHOTOS
 import io.pelle.sak.notes.MAX_RECORDINGS
 import io.pelle.sak.notes.MAX_TEXT_LENGTH
-import io.pelle.sak.notes.Removal
 import io.pelle.sak.notes.NOTE_COLORS
 import io.pelle.sak.notes.NotesModel
 import io.pelle.sak.notes.scaledPhoto
@@ -177,6 +181,8 @@ private const val NEW = -1
 fun NotesApp(model: NotesModel) {
     val screen by model.screen.collectAsStateWithLifecycle()
     val player = rememberPlayer(model)
+    // a removal can be undone longer when the phone asks for more time for a control (AN-34)
+    UndoTime(UNDO_REMOVE_MS) { model.undoMs = it }
     // a recording plays only while its note is open, the app in front and the user signed in (AN-28)
     val open = (screen as? NotesScreen)?.open
     LaunchedEffect(open) { player.stop() }
@@ -835,7 +841,10 @@ private fun BottomBars(
 ) {
     Column {
         screen.recordingSince?.takeIf { screen.recording != null }?.let { RecordingBar(it, model) }
-        screen.removal?.let { UndoBar(it, model) }
+        screen.removal?.let { removal ->
+            val text = uiText(if (removal.photo != null) R.string.notes_photo_removed else R.string.notes_recording_removed, removal.number)
+            UndoBar(Undo(text, removal.serial), model.undoMs, model::undoRemoval)
+        }
     }
 }
 
@@ -863,26 +872,6 @@ private fun RecordingBar(
             Button(onClick = model::stopRecording, modifier = Modifier.testTag("stop-recording")) {
                 Icon(painterResource(R.drawable.ic_stop), contentDescription = null, modifier = Modifier.size(16.dp))
                 Text(stringResource(R.string.notes_recording_stop), modifier = Modifier.padding(start = 8.dp))
-            }
-        }
-    }
-}
-
-// the photo or recording just taken off, and its undo
-@Composable
-private fun UndoBar(
-    removal: Removal,
-    model: NotesModel,
-) {
-    Surface(color = MaterialTheme.colorScheme.inverseSurface, modifier = Modifier.fillMaxWidth().testTag("undo")) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stringResource(if (removal.photo != null) R.string.notes_photo_removed else R.string.notes_recording_removed, removal.number),
-                color = MaterialTheme.colorScheme.inverseOnSurface,
-                modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
-            )
-            TextButton(onClick = model::undoRemoval, modifier = Modifier.testTag("undo-removal")) {
-                Text(stringResource(CoreR.string.shared_undo), color = MaterialTheme.colorScheme.inversePrimary)
             }
         }
     }

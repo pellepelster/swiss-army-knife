@@ -525,6 +525,7 @@ class SakAppsTest {
             }
             get(port, "/api/v1/auth/who-am-i", admin).json().getValue("name") shouldBe JsonNull
             get(port, "/api/v1/grocery/lists", anna).statusCode() shouldBe 200
+            get(port, "/api/v1/todo/lists", anna).statusCode() shouldBe 200
             get(port, "/api/v1/notes", anna).statusCode() shouldBe 200
             // the user may know whether the AI discovers texts, the switch itself is the admin's (AN-26)
             get(port, "/api/v1/notes/settings", anna).let {
@@ -631,6 +632,88 @@ class SakAppsTest {
                     .get(5, java.util.concurrent.TimeUnit.SECONDS)
             event shouldBe listOf("event: changed", """data: {"listId":$listId}""")
             stream.body().close()
+        }
+    }
+
+    @Test
+    fun `keeps todo lists and their tasks, a done one until the list is purged, changes stream as server-sent events`() {
+        withServer { port ->
+            val session = signIn(port)
+            get(port, "/api/v1/todo/lists", session).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
+            get(port, "/api/v1/todo/changes").statusCode() shouldBe 401
+            val listId = post(port, "/api/v1/todo/lists", """{"name":"Home"}""", session).let {
+                it.statusCode() shouldBe 201
+                it.json().string("id")
+            }
+            post(port, "/api/v1/todo/lists", """{"name":"Home"}""", session).statusCode() shouldBe 409
+            post(port, "/api/v1/todo/lists", """{"name":"Work","icon":"ab"}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "todo.invalid_icon"
+            }
+            val stream = request(port, "GET", "/api/v1/todo/changes", session, answer = HttpResponse.BodyHandlers.ofLines())
+            stream.statusCode() shouldBe 200
+            val lines = stream.body().iterator()
+            lines.next() shouldBe ": listening"
+
+            val door = post(port, "/api/v1/todo/items", """{"listId":$listId,"title":"Fix the door"}""", session).let {
+                it.statusCode() shouldBe 201
+                it.json().string("id")
+            }
+            val event =
+                java.util.concurrent.CompletableFuture
+                    .supplyAsync { generateSequence { lines.next() }.dropWhile { !it.startsWith("event:") }.take(2).toList() }
+                    .get(5, java.util.concurrent.TimeUnit.SECONDS)
+            event shouldBe listOf("event: changed", """data: {"listId":$listId}""")
+            stream.body().close()
+
+            post(port, "/api/v1/todo/items", """{"listId":$listId,"title":"Paint the fence","dueDate":"2026-12-24","priority":"low"}""", session).let {
+                it.statusCode() shouldBe 201
+                it.json().string("dueDate") shouldBe "2026-12-24"
+                it.json().string("priority") shouldBe "low"
+            }
+            post(port, "/api/v1/todo/items", """{"listId":$listId,"title":"Later","priority":"urgent"}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "todo.invalid_priority"
+            }
+            post(port, "/api/v1/todo/items", """{"listId":$listId,"title":"Later","dueDate":"soon"}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "todo.invalid_due_date"
+            }
+            post(port, "/api/v1/todo/items", """{"listId":$listId,"title":" "}""", session).statusCode() shouldBe 400
+            post(port, "/api/v1/todo/items", """{"listId":4711,"title":"Nowhere"}""", session).statusCode() shouldBe 422
+            get(port, "/api/v1/todo/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("title") } shouldBe
+                listOf("Fix the door", "Paint the fence")
+            get(port, "/api/v1/todo/lists", session).json().getValue("items").jsonArray.single().jsonObject.let {
+                it.string("items") shouldBe "2"
+                it.string("mine") shouldBe "true"
+            }
+
+            // done: the task stays struck through in its place, until the list is purged
+            put(port, "/api/v1/todo/items/$door/done", """{"done":true}""", session).json().containsKey("doneAt") shouldBe true
+            get(port, "/api/v1/todo/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("title") } shouldBe
+                listOf("Fix the door", "Paint the fence")
+            // the due date goes again (TODO-4)
+            val fence = get(port, "/api/v1/todo/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject }
+                .first { it.string("title") == "Paint the fence" }.string("id")
+            put(port, "/api/v1/todo/items/$fence/due-date", """{"dueDate":null}""", session).json().let { it["dueDate"] ?: JsonNull } shouldBe JsonNull
+            // the priority changes afterwards (TODO-5)
+            put(port, "/api/v1/todo/items/$door/priority", """{"priority":"high"}""", session).json().string("priority") shouldBe "high"
+            put(port, "/api/v1/todo/items/$door/priority", """{"priority":"urgent"}""", session).statusCode() shouldBe 400
+            // only the done tasks the request names go (TODO-6)
+            post(port, "/api/v1/todo/lists/$listId/purge", """{"itemIds":[$door,$fence]}""", session).statusCode() shouldBe 204
+            post(port, "/api/v1/todo/lists/$listId/purge", "", session).statusCode() shouldBe 400
+            post(port, "/api/v1/todo/lists/4711/purge", """{"itemIds":[]}""", session).statusCode() shouldBe 404
+            put(port, "/api/v1/todo/items/$door/done", """{"done":false}""", session).statusCode() shouldBe 404
+            get(port, "/api/v1/todo/lists/$listId/items", session).json().getValue("items").jsonArray.map { it.jsonObject.string("title") } shouldBe
+                listOf("Paint the fence")
+
+            put(port, "/api/v1/todo/lists/$listId", """{"name":"House","shared":true,"icon":"🏠"}""", session).json().let {
+                it.string("name") shouldBe "House"
+                it.string("shared") shouldBe "true"
+                it.string("icon") shouldBe "🏠"
+            }
+            delete(port, "/api/v1/todo/lists/$listId", session).statusCode() shouldBe 204
+            get(port, "/api/v1/todo/lists/$listId/items", session).statusCode() shouldBe 404
         }
     }
 
@@ -1254,6 +1337,15 @@ class SakAppsTest {
                     "/api/v1/grocery/items/{id}/check",
                     "/api/v1/grocery/items/{id}/photo",
                     "/api/v1/grocery/items/{id}/photos/{fileId}",
+                    "/api/v1/todo/lists",
+                    "/api/v1/todo/lists/{id}",
+                    "/api/v1/todo/lists/{id}/items",
+                    "/api/v1/todo/items",
+                    "/api/v1/todo/items/{id}/done",
+                    "/api/v1/todo/items/{id}/priority",
+                    "/api/v1/todo/items/{id}/due-date",
+                    "/api/v1/todo/lists/{id}/purge",
+                    "/api/v1/todo/changes",
                     "/api/v1/files",
                     "/api/v1/files/{id}",
                     "/api/v1/files/{id}/thumbnail",
@@ -1738,6 +1830,7 @@ class SakAppsTest {
                 val lines = GreenMailUtil.getBody(it).lines().map { line -> line.trim() }
                 lines shouldContain "Grocery lists: $FRONTEND_URL/grocery/download/app"
                 lines shouldContain "Notes: $FRONTEND_URL/notes/download/app"
+                lines shouldContain "Todo lists: $FRONTEND_URL/todo/download/app"
             }
         }
     }

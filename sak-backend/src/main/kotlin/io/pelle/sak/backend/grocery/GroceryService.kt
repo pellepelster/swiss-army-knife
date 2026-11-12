@@ -5,6 +5,12 @@ import io.pelle.sak.api.TextKey
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.api.Language
 import io.pelle.sak.api.render
+import io.pelle.sak.backend.isOneEmoji
+import io.pelle.sak.backend.lists.ListChanges
+import io.pelle.sak.backend.lists.ListResult
+import io.pelle.sak.backend.lists.ListTexts
+import io.pelle.sak.backend.lists.listValues
+import io.pelle.sak.backend.lists.result
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.model.grocery.GroceryCategory
@@ -13,17 +19,12 @@ import io.pelle.sak.model.grocery.GroceryCategoryOrder
 import io.pelle.sak.model.grocery.GroceryCategoryValues
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryItemValues
-import io.pelle.sak.model.grocery.GroceryList
-import io.pelle.sak.model.grocery.GroceryListDelete
-import io.pelle.sak.model.grocery.GroceryListUpdate
+import io.pelle.sak.model.lists.SakList
+import io.pelle.sak.model.lists.ListDelete
 import io.pelle.sak.model.grocery.GrocerySuggestion
 import io.pelle.sak.model.grocery.GroceryRepository
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.withContext
 import java.math.BigDecimal
-import java.text.BreakIterator
 import java.time.Clock
 
 // the categories a new list starts with, in their order (GROCERY-13): the name in the language of
@@ -86,26 +87,6 @@ sealed interface GroceryCategoriesResult {
     data object NotFound : GroceryCategoriesResult
 }
 
-sealed interface GroceryListResult {
-    data class Saved(
-        val list: GroceryList,
-    ) : GroceryListResult
-
-    data class Invalid(
-        val errors: List<ErrorMessage>,
-    ) : GroceryListResult
-
-    data object NotFound : GroceryListResult
-
-    data object Exists : GroceryListResult
-
-    // only the owner shares or unshares a list (LIST-2)
-    data object NotOwner : GroceryListResult
-
-    // another user renames a shared list to a name the owner has for another list
-    data object OwnerExists : GroceryListResult
-}
-
 sealed interface GroceryItemResult {
     data class Saved(
         val item: GroceryItem,
@@ -125,7 +106,7 @@ sealed interface GroceryItemResult {
 // GroceryRepository checks who sees and changes what (MODEL-6)
 class GroceryService(
     private val repository: GroceryRepository,
-    private val changes: GroceryChanges = GroceryChanges(),
+    private val changes: ListChanges = ListChanges(),
 ) {
     constructor(
         database: SakDatabase,
@@ -133,9 +114,9 @@ class GroceryService(
     ) : this(GroceryRepository(database, clock))
 
     // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
-    fun changes(user: String): Flow<Int> = changes.lists.filter { withContext(Dispatchers.IO) { repository.seesList(user, it) } }
+    fun changes(user: String): Flow<Int> = changes.of(user, repository::seesList)
 
-    fun lists(user: String): List<GroceryList> = repository.lists(user)
+    fun lists(user: String): List<SakList> = repository.lists(user)
 
     // the icon is one emoji, empty or none for no icon; the list starts with the default categories
     // in the language (GROCERY-13)
@@ -145,12 +126,11 @@ class GroceryService(
         shared: Boolean,
         icon: String? = null,
         language: Language = Language.FALLBACK,
-    ): GroceryListResult {
-        val normalized = name.trim()
-        val emoji = icon?.trim()?.ifEmpty { null }
-        listErrors(normalized, emoji)?.let { return GroceryListResult.Invalid(it) }
-        return repository.insertList(user, normalized, shared, emoji, DefaultGroceryCategory.of(language))?.let { GroceryListResult.Saved(changed(it)) }
-            ?: GroceryListResult.Exists
+    ): ListResult {
+        val (values, errors) = listValues(name, icon, GroceryTexts.LISTS)
+        if (errors.isNotEmpty()) return ListResult.Invalid(errors)
+        return repository.insertList(user, values.name, shared, values.icon, DefaultGroceryCategory.of(language))?.let { ListResult.Saved(changed(it)) }
+            ?: ListResult.Exists
     }
 
     fun updateList(
@@ -159,24 +139,17 @@ class GroceryService(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): GroceryListResult {
-        val normalized = name.trim()
-        val emoji = icon?.trim()?.ifEmpty { null }
-        listErrors(normalized, emoji)?.let { return GroceryListResult.Invalid(it) }
-        return when (val update = repository.updateList(user, id, normalized, shared, emoji)) {
-            is GroceryListUpdate.Updated -> GroceryListResult.Saved(changed(update.list))
-            GroceryListUpdate.NotFound -> GroceryListResult.NotFound
-            GroceryListUpdate.NameTaken -> GroceryListResult.Exists
-            GroceryListUpdate.NotOwner -> GroceryListResult.NotOwner
-            GroceryListUpdate.OwnerNameTaken -> GroceryListResult.OwnerExists
-        }
+    ): ListResult {
+        val (values, errors) = listValues(name, icon, GroceryTexts.LISTS)
+        if (errors.isNotEmpty()) return ListResult.Invalid(errors)
+        return repository.updateList(user, id, values.name, shared, values.icon).also(changes::changed).result()
     }
 
     // with its items, the last list of the user's own too (LIST-1)
     fun deleteList(
         user: String,
         id: Int,
-    ): GroceryListDelete = repository.deleteList(user, id).also { if (it == GroceryListDelete.Deleted) changes.changed(id) }
+    ): ListDelete = repository.deleteList(user, id).also { if (it == ListDelete.Deleted) changes.changed(id) }
 
     // the items to buy of a list the user sees, with checked also the latest bought item of each name
     // that is not to buy (GROCERY-14); null
@@ -372,25 +345,9 @@ class GroceryService(
         categories: List<GroceryCategory>,
     ) = if (categoryId != null && categories.none { it.id == categoryId }) ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY) else null
 
-    private fun changed(list: GroceryList) = list.also { changes.changed(it.id) }
+    private fun changed(list: SakList) = list.also { changes.changed(it.id) }
 
     private fun changed(item: GroceryItem) = item.also { changes.changed(it.listId) }
-
-    private fun listErrors(
-        name: String,
-        icon: String?,
-    ): List<ErrorMessage>? =
-        listOfNotNull(
-            listNameError(name),
-            icon?.takeUnless(::isOneEmoji)?.let { ErrorMessage(GroceryTexts.INVALID_ICON) },
-        ).ifEmpty { null }
-
-    private fun listNameError(name: String) =
-        if (name.isEmpty() || name.length > MAX_LIST_NAME_LENGTH || name.any { it.isISOControl() }) {
-            ErrorMessage(GroceryTexts.INVALID_LIST_NAME, "max" to MAX_LIST_NAME_LENGTH)
-        } else {
-            null
-        }
 
     private fun itemValues(input: GroceryItemInput): Result<GroceryItemValues, List<ErrorMessage>> {
         val name = input.name.trim()
@@ -436,26 +393,6 @@ class GroceryService(
         }
 
     companion object {
-        const val MAX_LIST_NAME_LENGTH = 64
-
-        // the longest emoji in utf-16, e.g. a flag of a region or a family joined of several
-        const val MAX_ICON_LENGTH = 32
-
-        // one emoji: a single grapheme (the character iterator of the jdk counts the extended
-        // grapheme clusters) that starts with a pictograph, a pair of regional indicators (a flag)
-        // or a keycap
-        fun isOneEmoji(text: String): Boolean {
-            if (text.isEmpty() || text.length > MAX_ICON_LENGTH) return false
-            val graphemes = BreakIterator.getCharacterInstance().apply { setText(text) }
-            if (graphemes.next() != text.length) return false
-            val first = text.codePointAt(0)
-            return Character.isExtendedPictographic(first) || first in REGIONAL_INDICATORS || text.contains(KEYCAP)
-        }
-
-        private val REGIONAL_INDICATORS = 0x1F1E6..0x1F1FF
-
-        private const val KEYCAP = '\u20E3'
-
         const val MAX_ITEM_NAME_LENGTH = 128
 
         const val MAX_UNIT_LENGTH = 16
@@ -517,4 +454,5 @@ object GroceryTexts : Catalog("grocery") {
     val UNKNOWN_LIST = text("unknown_list")
     val ONLY_OWNER_SHARES = text("only_owner_shares")
     val OWNER_LIST_EXISTS = text("owner_list_exists")
+    val LISTS = ListTexts(INVALID_ICON, INVALID_LIST_NAME, LIST_EXISTS, ONLY_OWNER_SHARES, OWNER_LIST_EXISTS)
 }

@@ -68,12 +68,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
-import androidx.emoji2.emojipicker.EmojiPickerView
 import io.pelle.sak.api.model.GroceryCategoryResponse
 import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.ui.ConfirmDelete
+import io.pelle.sak.core.ui.EmojiSheet
+import io.pelle.sak.core.ui.ListIcon
+import io.pelle.sak.core.ui.ListSettingsScreen
+import io.pelle.sak.core.ui.MenuIcon
 import io.pelle.sak.core.ui.Error
 import io.pelle.sak.core.ui.Form
 import io.pelle.sak.core.ui.Page
@@ -81,134 +83,22 @@ import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.ListSettings
 import io.pelle.sak.grocery.R
 
-// the settings of a new list or of one of the user's own: its name, whether all users see it and its
-// icon, one emoji of the picker of the system; a list of the user's own is deleted after a
-// confirmation (UX-4.1), the last one too (LIST-1). Back leads to where they were opened, the list or
-// the home, and the back arrow says which (AN-52)
-@OptIn(ExperimentalMaterial3Api::class)
+// the settings of a new list or of one the user sees (ListSettingsScreen of core), of a list that
+// exists with its categories below, loaded again when pulled down (ANDROID-3)
 @Composable
 internal fun ListSettingsScreen(
     settings: ListSettings,
     fromList: Boolean,
     model: GroceryModel,
 ) {
-    BackHandler(onBack = model::back)
-    var picking by rememberSaveable { mutableStateOf(false) }
-    var confirming by rememberSaveable { mutableStateOf(false) }
-    val canSave = settings.name.isNotBlank() && !settings.busy
-    val edit = { name: String, shared: Boolean, icon: String? -> model.editSettings(name, shared, icon) }
-    Page(
-        stringResource(if (settings.id == null) R.string.grocery_form_create else CoreR.string.shared_settings),
-        navigationIcon = {
-            IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
-                Icon(
-                    painterResource(R.drawable.ic_arrow_back),
-                    contentDescription = stringResource(if (fromList) R.string.grocery_back_to_list else R.string.grocery_all_lists),
-                )
-            }
-        },
-    ) { padding ->
-        // an existing list loads its categories again when pulled down (ANDROID-3), a new one has none
-        PullToRefreshBox(
-            isRefreshing = settings.categoriesLoading,
-            onRefresh = model::refreshCategories,
-            modifier = Modifier.fillMaxSize(),
-        ) { SettingsForm(padding, settings, model, edit, canSave, { picking = true }, { confirming = true }) }
-    }
-    if (picking) {
-        ModalBottomSheet(onDismissRequest = { picking = false }) {
-            AndroidView(
-                factory = { context ->
-                    EmojiPickerView(context).apply {
-                        setOnEmojiPickedListener { emoji ->
-                            edit(settings.name, settings.shared, emoji.emoji)
-                            picking = false
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(400.dp),
-            )
-        }
-    }
-    if (confirming) ConfirmDelete(settings.name, onDelete = { model.deleteList() }, onDismiss = { confirming = false })
-}
-
-// the fields and buttons of the settings, the categories of an existing list below them
-@Composable
-private fun SettingsForm(
-    padding: PaddingValues,
-    settings: ListSettings,
-    model: GroceryModel,
-    edit: (String, Boolean, String?) -> Unit,
-    canSave: Boolean,
-    pick: () -> Unit,
-    confirm: () -> Unit,
-) {
-    Form(padding) {
-        OutlinedTextField(
-            value = settings.name,
-            onValueChange = { edit(it, settings.shared, settings.icon) },
-            label = { Text(stringResource(CoreR.string.shared_name)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { if (canSave) model.saveSettings() }),
-            modifier = Modifier.fillMaxWidth().testTag("list-name"),
-        )
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ListIcon(settings.name, settings.icon, size = 48)
-            TextButton(onClick = pick, modifier = Modifier.testTag("choose-icon")) { Text(stringResource(R.string.grocery_form_choose_icon)) }
-            TextButton(onClick = { edit(settings.name, settings.shared, null) }, enabled = settings.icon != null) {
-                Text(stringResource(R.string.grocery_form_no_icon))
-            }
-        }
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .toggleable(
-                    value = settings.shared,
-                    enabled = settings.mine,
-                    role = Role.Switch,
-                    onValueChange = { edit(settings.name, it, settings.icon) },
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.grocery_shared), modifier = Modifier.weight(1f))
-            Switch(checked = settings.shared, onCheckedChange = null, enabled = settings.mine, modifier = Modifier.testTag("list-shared"))
-        }
-        // a shared list of another user: the switch and the delete stay in their place, disabled (UX-8)
-        if (!settings.mine) Text(stringResource(R.string.grocery_only_owner_share_delete), style = MaterialTheme.typography.bodySmall)
-        Error(settings.error)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (settings.id != null) {
-                // the button that leads to a delete (UX-3): filled like the other buttons, not
-                // the color of the screen, the line and the text in the color of danger
-                val enabled = settings.mine && !settings.busy
-                OutlinedButton(
-                    onClick = confirm,
-                    enabled = enabled,
-                    colors =
-                        ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (enabled) 1f else 0.38f)),
-                    modifier = Modifier.testTag("delete-list"),
-                ) { Text(stringResource(R.string.grocery_form_delete_list)) }
-            }
-            Button(onClick = model::saveSettings, enabled = canSave, modifier = Modifier.testTag("save-list")) {
-                Text(
-                    stringResource(
-                        when {
-                            settings.busy -> R.string.grocery_saving
-                            settings.id == null -> R.string.grocery_form_create
-                            else -> CoreR.string.shared_save
-                        },
-                    ),
-                )
-            }
-        }
-        if (settings.id != null) Categories(settings, model)
-    }
+    ListSettingsScreen(
+        settings,
+        fromList,
+        GROCERY_TEXTS,
+        model,
+        refreshing = settings.categoriesLoading,
+        onRefresh = model::refreshCategories.takeIf { settings.id != null },
+    ) { Categories(settings, model) }
 }
 
 // the categories of a list of the user's own in the order of the groups of its items (GROCERY-13),
@@ -504,19 +394,10 @@ private fun CategoryRow(
         }
     }
     if (picking) {
-        ModalBottomSheet(onDismissRequest = { picking = false }) {
-            AndroidView(
-                factory = { context ->
-                    EmojiPickerView(context).apply {
-                        setOnEmojiPickedListener { emoji ->
-                            model.setCategoryIcon(category.id, emoji.emoji)
-                            picking = false
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(400.dp),
-            )
-        }
+        EmojiSheet(onPick = { emoji ->
+            model.setCategoryIcon(category.id, emoji)
+            picking = false
+        }, onDismiss = { picking = false })
     }
     if (confirming) ConfirmDelete(category.name, onDelete = { model.deleteCategory(category.id) }, onDismiss = { confirming = false })
 }

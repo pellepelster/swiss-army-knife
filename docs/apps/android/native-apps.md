@@ -1,13 +1,13 @@
 ---
 title: "Install the Native Android Apps"
 linkTitle: "Native apps"
-description: "Where to get the links to SAK Notes and SAK Grocery List, and what to answer when Android or Play Protect shows a warning."
+description: "Where to get the links to SAK Notes, SAK Grocery List and SAK Todo, and what to answer when Android or Play Protect shows a warning."
 weight: 5
 ---
 
 # Install the native Android apps
 
-SAK Notes and SAK Grocery List are Android apps for your SAK instance. You download them from the GitHub release of
+SAK Notes, SAK Grocery List and SAK Todo are Android apps for your SAK instance. You download them from the GitHub release of
 the version your SAK instance runs. Android does not know apps from outside of Google Play, so it shows warnings
 during the installation. This page tells you what to answer.
 
@@ -19,7 +19,8 @@ Each link downloads the app in the version that your SAK instance runs. Use one 
   `<SAK address>/downloads` on the phone; this page opens without a sign-in. It shows a download link for each app.
 - **An e-mail from your admin:** on the **Users** page, an admin opens the ⋮ menu of a user and selects **Send links to
   the Android apps**. The user gets an e-mail with a link to each app. This needs a mail server.
-- **The download page of one app:** `<SAK address>/notes/download/app` or `<SAK address>/grocery/download/app` starts
+- **The download page of one app:** `<SAK address>/notes/download/app`, `<SAK address>/grocery/download/app` or
+  `<SAK address>/todo/download/app` starts
   the download at once.
 
 If your SAK instance runs no release, there are no links. The page then links the

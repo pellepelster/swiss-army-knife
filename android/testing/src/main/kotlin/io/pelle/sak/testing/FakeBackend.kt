@@ -44,7 +44,8 @@ class FakeBackend {
     // the dispatcher of the test, so advanceUntilIdle waits for the answers too
     var dispatcher: CoroutineDispatcher? = null
 
-    private val engine by lazy {
+    // the engine of the client, also of the activity of an app (Activities.kt)
+    val engine by lazy {
         MockEngine(
             MockEngineConfig().apply {
                 dispatcher = this@FakeBackend.dispatcher ?: error("the dispatcher of the test is not set")

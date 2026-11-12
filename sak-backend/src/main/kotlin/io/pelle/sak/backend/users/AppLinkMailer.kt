@@ -9,8 +9,9 @@ import io.pelle.sak.auth.MailSender
 // the paths of the pages that download the android apps, without a session
 const val GROCERY_APP_DOWNLOAD_PATH = "/grocery/download/app"
 const val NOTES_APP_DOWNLOAD_PATH = "/notes/download/app"
+const val TODO_APP_DOWNLOAD_PATH = "/todo/download/app"
 
-// sends the links to the android apps (the grocery lists and the notes) by e-mail, from the mail
+// sends the links to the android apps (the grocery lists, the notes and the todo lists) by e-mail, from the mail
 // server of the login, e.g. to a user an admin just added
 class AppLinkMailer(
     private val mailSender: MailSender,
@@ -29,6 +30,7 @@ class AppLinkMailer(
                 "app" to app.name,
                 "grocery" to "$url$GROCERY_APP_DOWNLOAD_PATH",
                 "notes" to "$url$NOTES_APP_DOWNLOAD_PATH",
+                "todo" to "$url$TODO_APP_DOWNLOAD_PATH",
             ).render(language),
         )
     }

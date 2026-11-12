@@ -1470,6 +1470,42 @@ describe('Grocery', () => {
     vi.useRealTimers();
   });
 
+  it('the lists loaded again do not send a check that can be undone (GROCERY-3, LIST-4)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await load([defaultList], [item(2, 'Milk', 12)]);
+    input('item-2').click();
+    await harness.fixture.whenStable();
+
+    changes.next(1);
+    vi.advanceTimersByTime(CHANGES_DEBOUNCE_MS);
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([{ ...defaultList }]));
+    // the items load once, the check still waits
+    await flushItems(1, [item(2, 'Milk', 12)]);
+    http.expectNone({ method: 'POST' });
+    expect(page().querySelector('[role=status]')?.textContent).toContain('Milk bought');
+    button('Undo').click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[role=status]')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('an app going into the background sends a check that can be undone at once (GROCERY-3)', async () => {
+    await load([defaultList], [item(2, 'Milk', 12)]);
+    input('item-2').click();
+    await harness.fixture.whenStable();
+    try {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      http.expectOne({ method: 'POST', url: '/api/v1/grocery/items/2/check' }).flush(null);
+      await harness.fixture.whenStable();
+      expect(page().querySelector('[data-testid=item-2]')).toBeNull();
+      expect(page().querySelector('[role=status]')).toBeNull();
+    } finally {
+      // the document of jsdom again, the specs that follow may share it
+      Reflect.deleteProperty(document, 'visibilityState');
+    }
+  });
+
   it('the settings change the icon of a list, no icon shows the first letter', async () => {
     await open('/grocery/lists/2/edit');
     http
