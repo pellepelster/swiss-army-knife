@@ -83,7 +83,7 @@
       "groupSlug": "kotlin"
     },
     {
-      "description": "Tauri: the cli of mise.toml and the crates must have the same version",
+      "description": "Tauri: the cli of sak-cli/package.json and the crates must have the same version",
       "matchPackageNames": ["/tauri/"],
       "groupName": "tauri",
       "groupSlug": "tauri",

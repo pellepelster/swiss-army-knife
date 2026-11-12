@@ -16,10 +16,10 @@ group of updates. The workflow tests each pull request as it tests every other p
 
 | File | Dependencies |
 |---|---|
-| `mise.toml` (`[tools]`) | The tools: java, node, rust, the tauri cli, hugo, go, nextest, svu, ansible-core, pipx. |
+| `mise.toml` (`[tools]`) | The tools: java, node, rust, hugo, go, nextest, svu, ansible-core, fonttools, pipx. |
 | `gradle/libs.versions.toml`, `android/gradle/libs.versions.toml` | The libraries and the plugins of the two Gradle builds. |
 | `gradle/wrapper/`, `android/gradle/wrapper/` | Gradle. |
-| `sak-frontend/package.json`, `sak-theme/package.json` | The npm packages and npm (`packageManager`). |
+| `sak-frontend/package.json`, `sak-theme/package.json`, `sak-cli/package.json` | The npm packages and npm (`packageManager`); the one of sak-cli is the tauri cli. |
 | `sak-cli/src-tauri/Cargo.toml`, `sak-cli/cloud/Cargo.toml` | The crates. |
 | `*/Dockerfile` | The base images. In `sak-cli/Dockerfile` also the `ansible` package (the `# renovate:` comment). |
 | `ansible/roles/*/defaults/main.yml` | The images with a pinned tag and digest (`<name>_image: docker.io/<image>:<tag>@<digest>`). |
@@ -49,7 +49,7 @@ ARG ANSIBLE_VERSION=11.13.0
 - One pull request for each ecosystem with its minor and patch updates, for example `mise minor and patch`.
 - Before version 1.0, a minor update can break the API. These updates come in their own group (`cargo 0.x minor`).
 - **kotlin**: Kotlin of the backend build and of the android build.
-- **tauri**: The tauri cli in `mise.toml` and the crates. They must have the same version.
+- **tauri**: The tauri cli in `sak-cli/package.json` and the crates. They must have the same version.
 - **playwright**: The Java library of sak-e2e and the npm package of sak-frontend. They must have the same browsers.
 - **ansible**: The `ansible` package of the tools image, `ansible-core` in `mise.toml` and the collections, also the
   major updates. Each version of `ansible` contains one version of `ansible-core` (`ansible` 11 contains

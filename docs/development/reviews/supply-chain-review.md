@@ -90,7 +90,11 @@ locked.
 
 Fix: `./gradlew --write-verification-metadata sha256` in both builds, and Renovate's lockfile maintenance for them.
 
-### `SC-10` The tauri command line is installed without a lockfile
+### ~~`SC-10` The tauri command line is installed without a lockfile~~
+
+**Fixed:** the tauri command line is a dependency of `sak-cli/package.json`, installed with `npm ci` by its
+`package-lock.json` (`mise run cli:install`, a dependency of `cli:run`, `cli:build` and `cli:build:<platform>`); every
+package of it, the one of each platform included, is pinned with its hash.
 
 mise installs `npm:@tauri-apps/cli` by its version (`mise.toml`), its dependencies as npm resolves them on that day,
 in the job that builds the binaries of sakctl, which become the signed zips.

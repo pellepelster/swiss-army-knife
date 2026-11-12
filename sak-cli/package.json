@@ -1,0 +1,10 @@
+{
+  "name": "sak-cli",
+  "version": "0.0.0",
+  "description": "The tauri command line that builds sakctl, installed by its lockfile (npm ci, mise run cli:install)",
+  "private": true,
+  "packageManager": "npm@10.9.9",
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4"
+  }
+}

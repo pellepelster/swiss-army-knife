@@ -221,7 +221,8 @@ jobs:
         with:
           install: false
           cache_save_post: true
-      - run: mise install rust node npm:@tauri-apps/cli
+      # the tauri command line comes with cli:build:<platform>, by the lockfile of sak-cli (cli:install)
+      - run: mise install rust node
       # as in test-unit: by the version of rust and the lockfile, saved by a push to main only
       - id: rust
         run: echo "version=$(mise exec -- rustc --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
