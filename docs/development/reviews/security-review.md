@@ -81,7 +81,10 @@ Shown with a small program under the JVM options of the backend: `AudioSystem` t
 Fix: `check` takes only what the apps record (PCM of 8 or 16 bit, one or two channels, a rate in a sane range);
 `peaks` sizes its block in bytes, not in frames; `decodeThumbnail` writes the marker for every failure of a decoder.
 
-### `SEC-2` Two password logins at the same moment can end the backend
+### ~~`SEC-2` Two password logins at the same moment can end the backend~~
+
+**Fixed:** `AdminPassword.check` checks one password at a time (a `Mutex`), the others wait; the limits still come
+first.
 
 Nobody has to be signed in. `POST /api/v1/auth/login/password` takes from its limits (10 an hour for each client, 60
 an hour for all) and then checks the password with `withContext(Dispatchers.Default) { password.matches(…) }`: an

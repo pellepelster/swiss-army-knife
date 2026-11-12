@@ -241,7 +241,8 @@ const val ADMIN_USERNAME = "admin"
 // the password login of the admin: the admin password (the deployment password) for a session token
 // of the admin, the same user as by e-mail. The check is slow on purpose (argon2id), so the limits
 // come first: a client and the server altogether try only a few passwords an hour, a request over
-// the limit is refused before any hashing. A wrong password tells nothing but 401
+// the limit is refused before any hashing, and one password is checked at a time, for the memory a
+// check takes. A wrong password tells nothing but 401
 @OptIn(ExperimentalKtorApi::class)
 fun Route.passwordLogin(
     tokens: TokenService,
@@ -262,7 +263,7 @@ fun Route.passwordLogin(
                 call.respond(HttpStatusCode.TooManyRequests)
                 return@post
             }
-            val matches = withContext(Dispatchers.Default) { password.matches(request.password) }
+            val matches = password.check(request.password)
             val roles = rolesOf(admin)
             if (!matches || roles.isEmpty()) {
                 // neither the password nor the address of the client

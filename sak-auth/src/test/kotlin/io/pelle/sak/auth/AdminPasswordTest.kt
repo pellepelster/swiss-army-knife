@@ -3,7 +3,12 @@ package io.pelle.sak.auth
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotContain
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 
 class AdminPasswordTest {
     @Test
@@ -25,6 +30,28 @@ class AdminPasswordTest {
         password.matches("Gru\u0308\u00dfe aus dem Su\u0308den, sechzehn") shouldBe true
         password.matches("Grusse aus dem Suden, sechzehn") shouldBe false
     }
+
+    // SEC-2: a check takes 64 MiB of the heap, two at once could use it up
+    @Test
+    fun `checks one password at a time`(): Unit =
+        runBlocking {
+            val running = AtomicInteger()
+            val most = AtomicInteger()
+            val password =
+                object : AdminPassword(VECTOR) {
+                    override fun matches(password: String): Boolean {
+                        most.accumulateAndGet(running.incrementAndGet(), ::maxOf)
+                        Thread.sleep(20)
+                        running.decrementAndGet()
+                        return password == "right"
+                    }
+                }
+
+            val results = (1..8).map { async(Dispatchers.Default) { password.check(if (it == 3) "right" else "wrong") } }.awaitAll()
+
+            most.get() shouldBe 1
+            results.count { it } shouldBe 1
+        }
 
     @Test
     fun `refuses what is no argon2id hash`() {
