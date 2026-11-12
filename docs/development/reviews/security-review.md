@@ -329,8 +329,10 @@ Fix: the used ids in a small table with their end; or an entry in ACCEPTED-RISKS
   a server that is taken over can send escape sequences. Fix: no control characters in a line.
 - `SEC-26` The host filters nothing that comes in: the table of nftables has the rule for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
-- `SEC-27` The drop-in of sshd is `50-sak.conf`; sshd takes the first value it reads and `50-cloud-init.conf` sorts
-  before it. `00-sak.conf` would win over an image that allows passwords there. Not checked on an image.
+- ~~`SEC-27` The drop-in of sshd is `50-sak.conf`; sshd takes the first value it reads and `50-cloud-init.conf` sorts
+  before it. `00-sak.conf` would win over an image that allows passwords there.~~ **Fixed:** shown with sshd -T
+  (a `50-cloud-init.conf` with passwords won over `50-sak.conf`); the drop-in is `00-sak.conf`, and the playbook fails
+  when `sshd -T` says passwords or keyboard-interactive are allowed.
 - `SEC-28` The ingress has no `NoNewPrivileges`, for the capability of the caddy binary. An ambient capability
   given by podman could allow it; to try.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of

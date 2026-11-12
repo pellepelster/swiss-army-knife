@@ -36,6 +36,7 @@ const TASKS: &[&str] = &[
     "Enable the unattended-upgrades service",
     "Enable the periodic apt timers",
     "Harden sshd",
+    "Check that sshd takes no passwords",
     "Install nftables",
     "Write the nftables rules",
     "Enable and start nftables",

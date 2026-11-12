@@ -72,15 +72,27 @@
     - apt-daily.timer
     - apt-daily-upgrade.timer
 
+# sshd takes the first value it reads of a setting, and the drop-ins in the order of their names:
+# as 00 this one is before every other, also before a 50-cloud-init.conf that allows passwords
 - name: Harden sshd
   ansible.builtin.template:
     src: sshd-sak.conf.j2
-    dest: /etc/ssh/sshd_config.d/50-sak.conf
+    dest: /etc/ssh/sshd_config.d/00-sak.conf
     owner: root
     group: root
     mode: "0644"
     validate: sshd -t -f %s
   notify: Restart sshd
+
+# the settings sshd ends up with, of all its files; the run fails when another file won
+- name: Check that sshd takes no passwords
+  ansible.builtin.command: sshd -T
+  register: common_sshd_settings
+  changed_when: false
+  failed_when: >-
+    common_sshd_settings.rc != 0
+    or 'passwordauthentication no' not in common_sshd_settings.stdout_lines
+    or 'kbdinteractiveauthentication no' not in common_sshd_settings.stdout_lines
 
 - name: Install nftables
   ansible.builtin.apt:
