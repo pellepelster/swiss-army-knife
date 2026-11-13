@@ -384,7 +384,12 @@ fn pump_output(
         let sender = sender.clone();
         readers.push(std::thread::spawn(move || {
             for line in BufReader::new(stream).lines().map_while(Result::ok) {
-                if sender.send(ProvisionOutput::Line(line)).is_err() {
+                if sender
+                    .send(ProvisionOutput::Line(crate::core::encoding::printable(
+                        &line,
+                    )))
+                    .is_err()
+                {
                     break;
                 }
             }

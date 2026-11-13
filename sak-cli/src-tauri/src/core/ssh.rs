@@ -389,7 +389,7 @@ pub fn run_streaming(
         if let Some(stderr) = stderr {
             scope.spawn(move || {
                 for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                    on_line(line);
+                    on_line(crate::core::encoding::printable(&line));
                 }
             });
         }

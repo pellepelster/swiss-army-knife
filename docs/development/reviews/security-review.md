@@ -255,8 +255,10 @@ Fix: the used ids in a small table with their end; or an entry in ACCEPTED-RISKS
   takes the headers, which means breaking TLS.
 - `SEC-24` sakctl wipes less than `Cargo.toml` says: `expand` returns a plain array, the age keys as strings and
   the password in `DeploymentRequest` and in the JSON to the web view are not wiped. Memory of the process only.
-- `SEC-25` The lines of the server and of ansible go to the terminal as they come (`cli/server.rs`, `core/ssh.rs`);
-  a server that is taken over can send escape sequences. Fix: no control characters in a line.
+- ~~`SEC-25` The lines of the server and of ansible go to the terminal as they come (`cli/server.rs`, `core/ssh.rs`);
+  a server that is taken over can send escape sequences. Fix: no control characters in a line.~~ **Fixed:** every line
+  of the server and of ansible, and the text of the provisioning events, has its control characters replaced
+  (`encoding::printable`).
 - `SEC-26` The host filters nothing that comes in: the table of nftables has the rule for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
 - `SEC-28` The ingress has no `NoNewPrivileges`, for the capability of the caddy binary. An ambient capability

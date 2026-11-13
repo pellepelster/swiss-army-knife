@@ -51,6 +51,57 @@ pub enum AnsibleEvent {
     },
 }
 
+impl AnsibleEvent {
+    /// the event with its text as sakctl prints it, without control characters (SEC-25)
+    pub fn printable(self) -> Self {
+        use crate::core::encoding::printable;
+        let message = |msg: Option<String>| msg.map(|text| printable(&text));
+        match self {
+            Self::PlayStart { play } => Self::PlayStart {
+                play: printable(&play),
+            },
+            Self::TaskStart { task } => Self::TaskStart {
+                task: printable(&task),
+            },
+            Self::Ok {
+                host,
+                task,
+                changed,
+            } => Self::Ok {
+                host: printable(&host),
+                task: printable(&task),
+                changed,
+            },
+            Self::Failed {
+                host,
+                task,
+                msg,
+                ignore_errors,
+            } => Self::Failed {
+                host: printable(&host),
+                task: printable(&task),
+                msg: message(msg),
+                ignore_errors,
+            },
+            Self::Skipped { host, task } => Self::Skipped {
+                host: printable(&host),
+                task: printable(&task),
+            },
+            Self::Unreachable { host, task, msg } => Self::Unreachable {
+                host: printable(&host),
+                task: printable(&task),
+                msg: message(msg),
+            },
+            Self::Stats { hosts } => Self::Stats {
+                hosts: hosts
+                    .into_iter()
+                    .map(|(host, stats)| (printable(&host), stats))
+                    .collect(),
+            },
+        }
+    }
+}
+
 /// the counts of one host at the end of the run
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 #[serde(default)]
@@ -155,7 +206,7 @@ fn answer(mut request: tiny_http::Request, token: &str, on_event: &impl Fn(Ansib
             .and_then(|_| serde_json::from_slice::<AnsibleEvent>(&body).ok())
         {
             Some(event) => {
-                on_event(event);
+                on_event(event.printable());
                 204
             }
             None => 400,
