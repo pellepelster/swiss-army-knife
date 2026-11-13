@@ -16,10 +16,15 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import java.time.Instant
 
-class VictoriaLogsException(
+open class VictoriaLogsException(
     message: String,
     cause: Throwable? = null,
 ) : RuntimeException(message, cause)
+
+// an answer larger than the client reads (SEC-10)
+class VictoriaLogsAnswerTooLargeException(
+    maxBytes: Int,
+) : VictoriaLogsException("the answer of victorialogs is larger than $maxBytes bytes")
 
 data class StatsSeries(
     val name: String,
@@ -38,6 +43,9 @@ data class StatsPoint(
 internal class VictoriaLogsClient(
     url: String,
     private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
+    // the largest answer read, so what the clients of a site send (e.g. many user agents) can not fill
+    // the heap: a page of entries is limited, a grid of a month is small (SEC-10)
+    private val maxAnswerBytes: Int = DEFAULT_MAX_ANSWER_BYTES,
 ) {
     private val url = url.trimEnd('/')
     private val statsQueryRangeUri = uri("/select/logsql/stats_query_range")
@@ -63,13 +71,12 @@ internal class VictoriaLogsClient(
                 "start" to start.epochSecond.toString(),
                 "end" to end.epochSecond.toString(),
                 "step" to "${step.seconds}s",
-            ).body(),
+            ),
         )
 
     // the entries matching a logsql query, one map of field names to values per entry
     fun query(query: String): List<Map<String, String>> =
         send(queryUri, "query" to query)
-            .body()
             .lineSequence()
             .filter { it.isNotBlank() }
             .map { record(it) }
@@ -78,7 +85,7 @@ internal class VictoriaLogsClient(
     private fun send(
         uri: URI,
         vararg form: Pair<String, String>,
-    ): HttpResponse<String> {
+    ): String {
         val request =
             HttpRequest
                 .newBuilder(uri)
@@ -90,16 +97,21 @@ internal class VictoriaLogsClient(
                     ),
                 ).build()
 
-        val response =
-            try {
-                httpClient.send(request, HttpResponse.BodyHandlers.ofString())
-            } catch (e: java.io.IOException) {
-                throw VictoriaLogsException("victorialogs at '$url' is not reachable", e)
+        try {
+            val response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream())
+            val body =
+                response.body().use { stream ->
+                    val bytes = stream.readNBytes(maxAnswerBytes + 1)
+                    if (bytes.size > maxAnswerBytes) throw VictoriaLogsAnswerTooLargeException(maxAnswerBytes)
+                    bytes.toString(Charsets.UTF_8)
+                }
+            if (response.statusCode() !in 200..299) {
+                throw VictoriaLogsException("victorialogs answered ${response.statusCode()}: ${body.take(1000)}")
             }
-        if (response.statusCode() !in 200..299) {
-            throw VictoriaLogsException("victorialogs answered ${response.statusCode()}: ${response.body()}")
+            return body
+        } catch (e: java.io.IOException) {
+            throw VictoriaLogsException("victorialogs at '$url' is not reachable", e)
         }
-        return response
     }
 
     // any response of an unexpected shape is a failed query, not a failed request
@@ -107,13 +119,13 @@ internal class VictoriaLogsClient(
         try {
             parseStats(body)
         } catch (e: IllegalArgumentException) {
-            throw VictoriaLogsException("unreadable victorialogs response: $body", e)
+            throw VictoriaLogsException("unreadable victorialogs response: ${body.take(1000)}", e)
         }
 
     private fun parseStats(body: String): List<StatsSeries> {
         val json = Json.parseToJsonElement(body).jsonObject
         if (json["status"]?.jsonPrimitive?.contentOrNull != "success") {
-            throw VictoriaLogsException("victorialogs query failed: $body")
+            throw VictoriaLogsException("victorialogs query failed: ${body.take(1000)}")
         }
 
         return (json["data"]?.jsonObject?.get("result") as? JsonArray).orEmpty().map { result ->
@@ -136,6 +148,11 @@ internal class VictoriaLogsClient(
             )
         }
     }
+
+    companion object {
+        // a grid of a month of a busy site is a few hundred KB
+        const val DEFAULT_MAX_ANSWER_BYTES = 4 * 1024 * 1024
+    }
 }
 
 // one entry of a query as a map of field names to values
@@ -145,5 +162,5 @@ private fun record(line: String): Map<String, String> =
             (value as? JsonPrimitive)?.contentOrNull ?: value.toString()
         }
     } catch (e: IllegalArgumentException) {
-        throw VictoriaLogsException("unreadable victorialogs entry: $line", e)
+        throw VictoriaLogsException("unreadable victorialogs entry: ${line.take(1000)}", e)
     }

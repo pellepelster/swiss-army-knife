@@ -1,6 +1,9 @@
 package io.pelle.sak.logs
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Instant
+
+private val logger = KotlinLogging.logger {}
 
 // a host or group of hosts caddy serves, every access log entry names its site
 data class Site(
@@ -91,8 +94,16 @@ class SiteMetricsService internal constructor(
         grid: TimeSeriesGrid,
     ): List<UserAgentSeries> {
         val byGroup = sortedMapOf<UserAgentGroup, LongArray>(compareBy { it.ordinal })
-        client
-            .statsQueryRange("$filter | stats by ($USER_AGENT) count() $REQUESTS", grid.start, grid.end, grid.range.step)
+        // one series for each user agent, which the clients of the site choose: very many of them are
+        // an answer too large to read, the metrics then show no user agents rather than fail (SEC-10)
+        val series =
+            try {
+                client.statsQueryRange("$filter | stats by ($USER_AGENT) count() $REQUESTS", grid.start, grid.end, grid.range.step)
+            } catch (e: VictoriaLogsAnswerTooLargeException) {
+                logger.warn { "the user agents of the access logs are left out: ${e.message}" }
+                return emptyList()
+            }
+        series
             .filter { it.name == REQUESTS }
             .forEach { series ->
                 val agent = series.labels[USER_AGENT].orEmpty()

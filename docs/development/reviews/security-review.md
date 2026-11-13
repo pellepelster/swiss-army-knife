@@ -228,7 +228,12 @@ Fix: refuse a write when the volume has less than a floor free, or a largest siz
 10000; uploads older than a day removed at the start and with the cleanup
 ([FDR-004](../fdr/FDR-004-maintenance-cleanup.md)); `uploads/` counted in the usage.
 
-### `SEC-10` Many user agents on a site can end the backend when the admin opens its access logs
+### ~~`SEC-10` Many user agents on a site can end the backend when the admin opens its access logs~~
+
+**Fixed:** `VictoriaLogsClient` reads every answer through a largest size (4 MiB, a grid of a month of a busy site is a
+few hundred KB) and fails beyond it; a too large answer for the user agents leaves them out of the metrics with a
+warning, the rest shows. Errors quote at most 1,000 characters of an answer. Grouping the user agents in vector would
+keep the answer small as well, but its rules would then be in two places.
 
 Anybody who can send requests to a site of a bucket. `SiteMetricsService` asks
 `stats by (user_agent) count()` without a limit of the groups, `VictoriaLogsClient` reads the whole answer as a

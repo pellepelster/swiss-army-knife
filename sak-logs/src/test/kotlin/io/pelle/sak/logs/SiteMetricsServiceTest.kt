@@ -132,6 +132,24 @@ class SiteMetricsServiceTest {
         queries.first()["step"] shouldBe "120s"
     }
 
+    // SEC-10: the clients of a site choose their user agents, very many of them are an answer too large
+    // to read; the metrics leave the user agents out instead of filling the heap
+    @Test
+    fun `leaves out the user agents when their answer is larger than the client reads`() {
+        val small = VictoriaLogsClient("http://127.0.0.1:${victoriaLogs.address.port}/", maxAnswerBytes = 2000)
+        statusResponse = response(series("requests", mapOf("status" to "200"), lastBucket to 5))
+        userAgentResponse =
+            response(*(1..100).map { series("requests", mapOf("user_agent" to "agent $it"), lastBucket to 1) }.toTypedArray())
+
+        val metrics = SiteMetricsService(small).metrics(site, MetricsRange.LAST_HOUR, now)
+
+        metrics.totalRequests shouldBe 5
+        metrics.userAgents shouldBe emptyList()
+        // the other queries are read through the same limit
+        statusResponse = userAgentResponse
+        shouldThrow<VictoriaLogsAnswerTooLargeException> { SiteMetricsService(small).metrics(site, MetricsRange.LAST_HOUR, now) }
+    }
+
     @Test
     fun `failed queries are reported`() {
         statusResponse = """{"status":"error","error":"cannot parse query"}"""
