@@ -260,8 +260,11 @@ Fix: the used ids in a small table with their end; or an entry in ACCEPTED-RISKS
   (`encoding::printable`).
 - `SEC-26` The host filters nothing that comes in: the table of nftables has the rule for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
-- `SEC-28` The ingress has no `NoNewPrivileges`, for the capability of the caddy binary. An ambient capability
-  given by podman could allow it; to try.
+- ~~`SEC-28` The ingress has no `NoNewPrivileges`, for the capability of the caddy binary. An ambient capability
+  given by podman could allow it; to try.~~ **Fixed:** the ingress quadlet sets `NoNewPrivileges=true`. Tried with
+  podman 5.4: a binary with a file capability still gains it under no-new-privileges, as long as the bounding set
+  keeps it (`AddCapability=NET_BIND_SERVICE`). The image keeps the file capability, the local docker compose needs
+  it to bind 80 and 443 in the host network.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
   10 MiB. The change streams (`…/changes`) have no largest number for a user and stay open when the session ends.
 - `SEC-30` The comment at `0001-initial.yaml:511` says only the owner of a list changes its categories; `GROCERY-13`
