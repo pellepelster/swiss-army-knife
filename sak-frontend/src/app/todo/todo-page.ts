@@ -26,6 +26,7 @@ import { PageHeader } from '../shared/page-header';
 import { PendingUndo } from '../shared/pending-undo';
 import { RowError } from '../shared/row-error';
 import { UNDO_DELETE_MS, UndoToast } from '../shared/undo-toast';
+import { PriorityIcon } from './priority-icon';
 import { TodoItem, TodoList, TodoPriority, TodoService } from './todo.service';
 
 // the day as the user's browser writes it, e.g. 24.12.2026; a day has no time zone
@@ -58,7 +59,7 @@ const PRIORITY_LABEL = {
 // with keepalive (TODO-6). A list that is gone leads to all lists
 @Component({
   selector: 'app-todo-page',
-  imports: [ActionMenu, PageHeader, ListIcon, RouterLink, TranslatePipe, UndoToast],
+  imports: [ActionMenu, PageHeader, ListIcon, PriorityIcon, RouterLink, TranslatePipe, UndoToast],
   host: {
     class: 'd-block container pb-5',
     // the menu of the priority of the next task closes on a click elsewhere and on Escape
@@ -179,11 +180,11 @@ const PRIORITY_LABEL = {
                 (click)="itemPriority.set(each); choosingPriority.set(false)"
               >
                 <i
-                  class="fa-solid fa-fw me-2"
+                  class="fa-solid fa-fw me-1"
                   [class.fa-check]="itemPriority() === each"
                   aria-hidden="true"
-                ></i
-                >{{ priorityLabel[each] | t }}
+                ></i>
+                <app-priority-icon class="me-2" [priority]="each" />{{ priorityLabel[each] | t }}
               </button>
             }
           </div>
@@ -225,22 +226,13 @@ const PRIORITY_LABEL = {
                 [attr.aria-pressed]="!!item.doneAt"
                 (click)="done(item)"
               >
-                <!-- a high priority in the danger color, a low one muted, a normal one none (TODO-5) -->
-                @if (item.priority === 'high' || item.priority === 'low') {
-                  <i
-                    class="fa-solid fa-fw"
-                    [class.fa-arrow-up]="item.priority === 'high'"
-                    [class.text-danger]="item.priority === 'high'"
-                    [class.fa-arrow-down]="item.priority === 'low'"
-                    [class.text-body-secondary]="item.priority === 'low'"
-                    [title]="priorityLabel[item.priority] | t"
-                    aria-hidden="true"
-                    [attr.data-testid]="'priority-' + item.id"
-                  ></i>
-                } @else {
-                  <!-- the place of the arrow, so the titles of all priorities line up -->
-                  <i class="fa-solid fa-fw" aria-hidden="true" data-testid="no-priority"></i>
-                }
+                <!-- an arrow up for a high priority, a dash for a normal one, an arrow down for a low
+                     one, so every row has one and the titles line up (TODO-5) -->
+                <app-priority-icon
+                  [priority]="item.priority"
+                  [title]="priorityLabel[item.priority] | t"
+                  [attr.data-testid]="'priority-' + item.id"
+                />
                 <span
                   class="flex-grow-1 text-break"
                   [class.item-struck]="!!item.doneAt"
@@ -271,11 +263,13 @@ const PRIORITY_LABEL = {
                     (click)="changePriority(item, each)"
                   >
                     <i
-                      class="fa-solid fa-fw me-2"
+                      class="fa-solid fa-fw me-1"
                       [class.fa-check]="item.priority === each"
                       aria-hidden="true"
-                    ></i
-                    >{{ priorityLabel[each] | t }}
+                    ></i>
+                    <app-priority-icon class="me-2" [priority]="each" />{{
+                      priorityLabel[each] | t
+                    }}
                   </button>
                 }
                 <div class="dropdown-divider" role="separator"></div>

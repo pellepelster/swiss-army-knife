@@ -158,18 +158,18 @@ describe('Todo', () => {
     );
   });
 
-  it('marks a high priority with an arrow up, a low one with an arrow down, a normal one not (TODO-5)', async () => {
+  it('marks a high priority with an arrow up, a normal one with a dash, a low one with an arrow down (TODO-5)', async () => {
     await load(
       [home],
       [task(10, 'Taxes', null, 'high'), task(11, 'Read'), task(12, 'Tidy', null, 'low')],
     );
-    const marker = (id: number) => page().querySelector(`[data-testid=priority-${id}]`);
+    const marker = (id: number) => page().querySelector(`[data-testid=priority-${id}] i`);
     expect(marker(10)!.classList.contains('fa-arrow-up')).toBe(true);
     // the name of the toggle says the priority, the arrow is hidden from screen readers
     expect(button('Done: Taxes, High priority')).toBeDefined();
     expect(button('Done: Read')).toBeDefined();
     expect(button('Done: Tidy, Low priority')).toBeDefined();
-    expect(marker(11)).toBeNull();
+    expect(marker(11)!.classList.contains('fa-minus')).toBe(true);
     expect(marker(12)!.classList.contains('fa-arrow-down')).toBe(true);
   });
 
@@ -186,7 +186,7 @@ describe('Todo', () => {
     request.flush(task(10, 'Taxes', null, 'high'));
     await flushItems(1, [task(10, 'Taxes', null, 'high'), task(11, 'Read', null, 'low')]);
     expect(
-      page().querySelector('[data-testid=priority-10]')!.classList.contains('fa-arrow-up'),
+      page().querySelector('[data-testid=priority-10] i')!.classList.contains('fa-arrow-up'),
     ).toBe(true);
 
     // a refused one says why in its row
