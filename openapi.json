@@ -2334,6 +2334,54 @@
                         "api-signature": []
                     }
                 ]
+            },
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "A grocery list",
+                "description": "A list of the signed in user or a shared list of another user.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
             }
         },
         "/api/v1/grocery/lists/{id}/items": {
@@ -2441,7 +2489,7 @@
                     "grocery"
                 ],
                 "summary": "Suggestions for an item of a grocery list",
-                "description": "The names of the items of the list that contain the text, one for each name with the values of its latest item, the names of the most items and the latest first, at most 10; the names to buy are left out. Only this list suggests them, every user who sees it sees them (GROCERY-11).",
+                "description": "The names of the items of the list that contain the text, one for each name with the values of its latest item, the names of the most items and the latest first, paged like every list; the names to buy are left out. Only this list suggests them, every user who sees it sees them (GROCERY-11).",
                 "parameters": [
                     {
                         "name": "id",
@@ -3146,6 +3194,54 @@
                         "api-signature": []
                     }
                 ]
+            },
+            "get": {
+                "tags": [
+                    "grocery"
+                ],
+                "summary": "An item of a grocery list",
+                "description": "An item of a list the user sees.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the item",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The item",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such item",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
             }
         },
         "/api/v1/grocery/items/{id}/category": {
@@ -3721,6 +3817,54 @@
                         "api-signature": []
                     }
                 ]
+            },
+            "get": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "A todo list",
+                "description": "A list of the signed in user or a shared list of another user.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the list",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
             }
         },
         "/api/v1/todo/lists/{id}/items": {
@@ -3917,6 +4061,56 @@
                     },
                     "422": {
                         "description": "The user sees no such list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/todo/items/{id}": {
+            "get": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "An task of a todo list",
+                "description": "An task of a list the user sees.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the task",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such task",
                         "content": {
                             "application/json": {
                                 "schema": {

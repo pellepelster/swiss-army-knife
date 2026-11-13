@@ -30,6 +30,9 @@ export type GrocerySettings = components['schemas']['GrocerySettingsResponse'];
 export type GroceryDiscoveredItem = components['schemas']['GroceryDiscoveredItem'];
 
 // the grocery lists of the signed in user and the shared ones, their items and the suggestions
+// how many suggestions the field of a new item shows at most
+const SUGGESTIONS = 10;
+
 @Injectable({ providedIn: 'root' })
 export class GroceryService extends ListsService<GroceryList> {
   protected readonly base = '/api/v1/grocery';
@@ -137,10 +140,13 @@ export class GroceryService extends ListsService<GroceryList> {
   }
 
   // the items added to the list before whose name contains the text, the ones to buy on it left
-  // out; only the list learned them (GROCERY-11)
+  // out; only the list learned them (GROCERY-11). The first page, the ones added most and last: the
+  // field shows a few, not all the list ever had
   suggestions(listId: number, text: string): Observable<GrocerySuggestion[]> {
-    return fetchAll<GrocerySuggestion>(this.http, `/api/v1/grocery/lists/${listId}/suggestions`, {
-      text,
-    });
+    return this.http
+      .get<Page<GrocerySuggestion>>(`/api/v1/grocery/lists/${listId}/suggestions`, {
+        params: { text, offset: 0, limit: SUGGESTIONS },
+      })
+      .pipe(map((page) => page.items));
   }
 }

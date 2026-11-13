@@ -699,6 +699,14 @@ class SakAppsTest {
             // the priority changes afterwards (TODO-5)
             put(port, "/api/v1/todo/items/$door/priority", """{"priority":"high"}""", session).json().string("priority") shouldBe "high"
             put(port, "/api/v1/todo/items/$door/priority", """{"priority":"urgent"}""", session).statusCode() shouldBe 400
+            // one task and one list by their id (AR-6), none of a list the user does not see
+            get(port, "/api/v1/todo/items/$door", session).json().let {
+                it.string("title") shouldBe "Fix the door"
+                it.string("priority") shouldBe "high"
+            }
+            get(port, "/api/v1/todo/lists/$listId", session).json().string("id") shouldBe listId
+            get(port, "/api/v1/todo/items/4711", session).statusCode() shouldBe 404
+            get(port, "/api/v1/todo/lists/4711", session).statusCode() shouldBe 404
             // only the done tasks the request names go (TODO-6)
             post(port, "/api/v1/todo/lists/$listId/purge", """{"itemIds":[$door,$fence]}""", session).statusCode() shouldBe 204
             post(port, "/api/v1/todo/lists/$listId/purge", "", session).statusCode() shouldBe 400
@@ -757,6 +765,11 @@ class SakAppsTest {
                 listOf("Apples", "Milk")
 
             val milkId = milk.json().string("id")
+            // one item and one list by their id (AR-6), none of a list the user does not see
+            get(port, "/api/v1/grocery/items/$milkId", session).json().string("name") shouldBe "Milk"
+            get(port, "/api/v1/grocery/lists/$listId", session).json().string("name") shouldBe "Default"
+            get(port, "/api/v1/grocery/items/4711", session).statusCode() shouldBe 404
+            get(port, "/api/v1/grocery/lists/4711", session).statusCode() shouldBe 404
             put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","categoryId":$dairy}""", session).json().let {
                 it.string("amount") shouldBe "1.5"
             }
@@ -1346,6 +1359,7 @@ class SakAppsTest {
                     "/api/v1/todo/lists/{id}",
                     "/api/v1/todo/lists/{id}/items",
                     "/api/v1/todo/items",
+                    "/api/v1/todo/items/{id}",
                     "/api/v1/todo/items/{id}/done",
                     "/api/v1/todo/items/{id}/priority",
                     "/api/v1/todo/items/{id}/due-date",

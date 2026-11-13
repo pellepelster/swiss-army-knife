@@ -98,6 +98,26 @@ fun Route.todo(todoService: TodoService) {
             }
         }
 
+        get("/{id}") {
+            val id = call.idParameter() ?: return@get
+            when (val list = withContext(Dispatchers.IO) { todoService.list(call.owner, id) }) {
+                null -> call.respond(HttpStatusCode.NotFound)
+                else -> call.respond(list.response(call.owner))
+            }
+        }.describe {
+            tag(TODO_TAG)
+            summary = "A todo list"
+            description = "A list of the signed in user or a shared list of another user."
+            parameters { listId() }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The list"
+                    schema = jsonSchema<TodoListResponse>()
+                }
+                errors(HttpStatusCode.NotFound, "The user sees no such list")
+            }
+        }
+
         put("/{id}") {
             val id = call.idParameter() ?: return@put
             val request = call.receive<TodoListRequest>()
@@ -216,6 +236,26 @@ fun Route.todo(todoService: TodoService) {
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid title, due date or priority, or a malformed request, e.g. without a list")
                 errors(HttpStatusCode.UnprocessableEntity, "The user sees no such list")
+            }
+        }
+
+        get("/{id}") {
+            val id = call.idParameter() ?: return@get
+            when (val item = withContext(Dispatchers.IO) { todoService.item(call.owner, id) }) {
+                null -> call.respond(HttpStatusCode.NotFound)
+                else -> call.respond(item.response())
+            }
+        }.describe {
+            tag(TODO_TAG)
+            summary = "An task of a todo list"
+            description = "An task of a list the user sees."
+            parameters { itemId() }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The task"
+                    schema = jsonSchema<TodoItemResponse>()
+                }
+                errors(HttpStatusCode.NotFound, "The user sees no such task")
             }
         }
 

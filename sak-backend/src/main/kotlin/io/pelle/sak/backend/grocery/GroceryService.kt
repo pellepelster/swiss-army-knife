@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.api.Page
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.TextKey
 import io.pelle.sak.api.ErrorMessage
@@ -117,6 +118,18 @@ class GroceryService(
     fun changes(user: String): Flow<Int> = changes.of(user, repository::seesList)
 
     fun lists(user: String): List<SakList> = repository.lists(user)
+
+    // a list the user sees, null when there is none
+    fun list(
+        user: String,
+        id: Int,
+    ): SakList? = repository.list(user, id)
+
+    // an item of a list the user sees, null when there is none
+    fun item(
+        user: String,
+        id: Int,
+    ) = repository.item(user, id)
 
     // the icon is one emoji, empty or none for no icon; the list starts with the default categories
     // in the language (GROCERY-13)
@@ -293,14 +306,19 @@ class GroceryService(
         fileId: Int,
     ): StoredFile? = repository.photo(user, id, fileId)
 
-    // the names added to the list before whose name contains the text, the ones added most and last
-    // first; the ones to buy on the list are left out. Null when the user does not see the list
-    // (GROCERY-11)
+    // a page of the names added to the list before whose name contains the text, the ones added most
+    // and last first; the ones to buy on the list are left out. Null when the user does not see the
+    // list (GROCERY-11)
     fun suggestions(
         user: String,
         listId: Int,
         text: String,
-    ): List<GrocerySuggestion>? = repository.suggestions(user, listId, text.trim(), MAX_SUGGESTIONS)
+        offset: Long = 0,
+        limit: Int = Int.MAX_VALUE,
+    ): Page<GrocerySuggestion>? {
+        val total = repository.suggestionCount(user, listId, text.trim()) ?: return null
+        return Page(repository.suggestions(user, listId, text.trim(), offset, limit).orEmpty(), total)
+    }
 
     // the checked items of the name of the suggestion go for good, the list changes (LIST-4); false
     // when the user does not see the list or it has no such suggestion
@@ -399,8 +417,6 @@ class GroceryService(
 
         val MAX_AMOUNT = BigDecimal("9999999.999")
 
-        // the most suggestions answered at once
-        const val MAX_SUGGESTIONS = 10
 
         const val MAX_CATEGORY_NAME_LENGTH = 32
 

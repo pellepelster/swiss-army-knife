@@ -15,6 +15,7 @@ import io.pelle.sak.model.jooq.tables.references.GROCERY_ITEMS
 import io.pelle.sak.model.jooq.tables.references.GROCERY_LISTS
 import org.jooq.Condition
 import org.jooq.DSLContext
+import org.jooq.Table
 import org.jooq.exception.IntegrityConstraintViolationException
 import org.jooq.impl.DSL
 import java.math.BigDecimal
@@ -553,7 +554,7 @@ class GroceryRepository(
             .where(GROCERY_ITEMS.ID.eq(id), visibleItem(user))
             .execute() > 0
 
-    // the names added to the list before whose name contains the text, both normalized
+    // a page of the names added to the list before whose name contains the text, both normalized
     // (groceryNameKey), with the values of the latest live item of each, the ones added most and last
     // first; the ones to buy on the list are left out. Null when the user does not see the list
     // (GROCERY-11)
@@ -561,12 +562,59 @@ class GroceryRepository(
         user: String,
         listId: Int,
         text: String,
+        offset: Long,
         limit: Int,
     ): List<GrocerySuggestion>? {
-        if (!database.dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return null
+        if (!sees(user, listId)) return null
+        val (items, latest) = suggestionItems(listId, text)
+        val id = items.field(GROCERY_ITEMS.ID)!!
+        val createdAt = items.field(GROCERY_ITEMS.CREATED_AT)!!
+        val times = items.field(SUGGESTION_TIMES_USED, Int::class.java)!!
+        return database.dsl
+            .select(
+                id,
+                items.field(GROCERY_ITEMS.NAME)!!,
+                items.field(GROCERY_ITEMS.AMOUNT)!!,
+                items.field(GROCERY_ITEMS.UNIT)!!,
+                items.field(GROCERY_ITEMS.CATEGORY_ID)!!,
+                times,
+                createdAt,
+            ).from(items)
+            .where(latest)
+            .orderBy(times.desc(), createdAt.desc(), id)
+            .limit(limit)
+            .offset(offset)
+            .fetch { (id, name, amount, unit, categoryId, times, createdAt) ->
+                GrocerySuggestion(id!!, listId, name!!, amount, unit, categoryId, times!!, createdAt!!)
+            }
+    }
+
+    // how many suggestions the list has for the text, as suggestions counts them; null when the user
+    // does not see the list
+    fun suggestionCount(
+        user: String,
+        listId: Int,
+        text: String,
+    ): Long? {
+        if (!sees(user, listId)) return null
+        val (items, latest) = suggestionItems(listId, text)
+        return database.dsl.selectCount().from(items).where(latest).fetchOne(0, Long::class.java) ?: 0
+    }
+
+    private fun sees(
+        user: String,
+        listId: Int,
+    ) = database.dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))
+
+    // the items of the list whose name contains the text, the ones to buy left out, numbered latest
+    // first within their name and counted by it; the condition keeps the latest of each name
+    private fun suggestionItems(
+        listId: Int,
+        text: String,
+    ): Pair<Table<*>, Condition> {
         // two windows: the builder of one is changed by its order
         val latestFirst = DSL.rowNumber().over(DSL.partitionBy(GROCERY_ITEMS.NAME_KEY).orderBy(GROCERY_ITEMS.ID.desc())).`as`("latest_first")
-        val timesUsed = DSL.count().over(DSL.partitionBy(GROCERY_ITEMS.NAME_KEY)).`as`("times_used")
+        val timesUsed = DSL.count().over(DSL.partitionBy(GROCERY_ITEMS.NAME_KEY)).`as`(SUGGESTION_TIMES_USED)
         val toBuy =
             DSL
                 .select(GROCERY_ITEMS.NAME_KEY)
@@ -583,25 +631,7 @@ class GroceryRepository(
                     GROCERY_ITEMS.NAME_KEY.contains(groceryNameKey(text)),
                     GROCERY_ITEMS.NAME_KEY.notIn(toBuy),
                 ).asTable("items")
-        val id = items.field(GROCERY_ITEMS.ID)!!
-        val createdAt = items.field(GROCERY_ITEMS.CREATED_AT)!!
-        val times = items.field(timesUsed)!!
-        return database.dsl
-            .select(
-                id,
-                items.field(GROCERY_ITEMS.NAME)!!,
-                items.field(GROCERY_ITEMS.AMOUNT)!!,
-                items.field(GROCERY_ITEMS.UNIT)!!,
-                items.field(GROCERY_ITEMS.CATEGORY_ID)!!,
-                times,
-                createdAt,
-            ).from(items)
-            .where(items.field(latestFirst)!!.eq(1))
-            .orderBy(times.desc(), createdAt.desc(), id)
-            .limit(limit)
-            .fetch { (id, name, amount, unit, categoryId, times, createdAt) ->
-                GrocerySuggestion(id!!, listId, name!!, amount, unit, categoryId, times!!, createdAt!!)
-            }
+        return items to items.field(latestFirst)!!.eq(1)
     }
 
     // forgets the suggestion of the name of the item (GROCERY-11): the checked items of the name on
@@ -701,3 +731,6 @@ class GroceryRepository(
 
     private fun GroceryCategoriesRecord.toCategory() = GroceryCategory(id!!, listId!!, name!!, icon, position!!)
 }
+
+// the column of the suggestions with how many items of the name the list has had
+private const val SUGGESTION_TIMES_USED = "times_used"

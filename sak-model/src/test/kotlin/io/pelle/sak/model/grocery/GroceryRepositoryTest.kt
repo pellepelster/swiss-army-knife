@@ -96,9 +96,9 @@ class GroceryRepositoryTest {
         repository.updateItem(OTHER, wine.id, values("Water")) shouldBe null
         repository.checkItem(OTHER, wine.id) shouldBe false
         // the other user does not see what the private list learned
-        repository.suggestions(OTHER, secret.id, "", 10) shouldBe null
+        repository.suggestions(OTHER, secret.id, "", 0, 10) shouldBe null
         // wine is to buy, chips were added to another list
-        repository.suggestions(PELLE, secret.id, "", 10) shouldBe emptyList()
+        repository.suggestions(PELLE, secret.id, "", 0, 10) shouldBe emptyList()
         repository.updateList(OTHER, secret.id, "Mine", shared = true) shouldBe ListUpdate.NotFound
         repository.deleteList(OTHER, secret.id) shouldBe ListDelete.NotFound
         repository.items(PELLE, secret.id)!!.map { it.name } shouldBe listOf("Wine")
@@ -165,7 +165,7 @@ class GroceryRepositoryTest {
         repository.deleteItem(PELLE, typo.id) shouldBe true
         repository.deleteItem(PELLE, typo.id) shouldBe false
         repository.items(PELLE, own) shouldBe emptyList()
-        repository.suggestions(PELLE, own, "", 10) shouldBe emptyList()
+        repository.suggestions(PELLE, own, "", 0, 10) shouldBe emptyList()
         database.dsl.fetchOne(GROCERY_ITEMS, GROCERY_ITEMS.ID.eq(typo.id))!!.deletedAt shouldBe now
 
         // a name changed before it is bought is the one suggested
@@ -173,7 +173,7 @@ class GroceryRepositoryTest {
             repository.updateItem(PELLE, it.id, values("Bread"))
             repository.checkItem(PELLE, it.id)
         }
-        repository.suggestions(PELLE, own, "", 10)!!.map { it.name } shouldBe listOf("Bread")
+        repository.suggestions(PELLE, own, "", 0, 10)!!.map { it.name } shouldBe listOf("Bread")
     }
 
     @Test
@@ -185,7 +185,7 @@ class GroceryRepositoryTest {
         repository.setPhoto(PELLE, latest.id, photo)
         repository.checkItem(PELLE, latest.id)
 
-        val milk = repository.suggestions(PELLE, own, "", 10)!!.single()
+        val milk = repository.suggestions(PELLE, own, "", 0, 10)!!.single()
         listOf(milk.id, milk.name, milk.timesUsed, milk.lastUsedAt) shouldBe listOf(latest.id, "milk", 2, now)
         milk.amount!!.compareTo(BigDecimal("2")) shouldBe 0
         // the next item takes the photo of the latest
@@ -198,7 +198,7 @@ class GroceryRepositoryTest {
         repository.forget(PELLE, own, milk.id) shouldBe false
         repository.items(PELLE, own)!!.map { it.id } shouldBe listOf(toBuy.id)
         repository.checkItem(PELLE, toBuy.id)
-        repository.suggestions(PELLE, own, "", 10)!!.single().let {
+        repository.suggestions(PELLE, own, "", 0, 10)!!.single().let {
             it.name shouldBe "MILK"
             it.timesUsed shouldBe 1
         }
@@ -229,18 +229,18 @@ class GroceryRepositoryTest {
         repository.checkItem(PELLE, bread.id)
         repository.checkItem(PELLE, again.id)
 
-        val suggestions = repository.suggestions(PELLE, own, "", 10)!!
+        val suggestions = repository.suggestions(PELLE, own, "", 0, 10)!!
         suggestions.map { it.name to it.timesUsed } shouldBe listOf("milk" to 2, "Bread" to 1)
         suggestions.forEach { it.listId shouldBe own }
         suggestions.first().amount!!.compareTo(BigDecimal("2")) shouldBe 0
-        repository.suggestions(PELLE, own, "MIL", 10)!!.map { it.name } shouldBe listOf("milk")
+        repository.suggestions(PELLE, own, "MIL", 0, 10)!!.map { it.name } shouldBe listOf("milk")
         // milk is to buy on the list
         repository.insertItem(PELLE, own, values("Milk"))
-        repository.suggestions(PELLE, own, "", 10)!!.map { it.name } shouldBe listOf("Bread")
+        repository.suggestions(PELLE, own, "", 0, 10)!!.map { it.name } shouldBe listOf("Bread")
 
         repository.forget(PELLE, own, suggestions.first().id) shouldBe true
         repository.forget(PELLE, own, suggestions.first().id) shouldBe false
-        repository.suggestions(PELLE, own, "", 10)!!.map { it.name } shouldBe listOf("Bread")
+        repository.suggestions(PELLE, own, "", 0, 10)!!.map { it.name } shouldBe listOf("Bread")
     }
 
     @Test
@@ -252,9 +252,9 @@ class GroceryRepositoryTest {
         repository.insertItem(PELLE, party, values("Chips")).let { repository.checkItem(PELLE, it!!.id) }
         repository.insertItem(PELLE, party, values("Milk", "2", "l")).let { repository.checkItem(PELLE, it!!.id) }
 
-        repository.suggestions(PELLE, own, "", 10)!!.map { it.name to it.categoryId } shouldBe listOf("Milk" to dairy)
-        repository.suggestions(PELLE, party, "", 10)!!.map { it.name to it.timesUsed } shouldBe listOf("Chips" to 1, "Milk" to 1)
-        val chips = repository.suggestions(PELLE, party, "chips", 10)!!.single()
+        repository.suggestions(PELLE, own, "", 0, 10)!!.map { it.name to it.categoryId } shouldBe listOf("Milk" to dairy)
+        repository.suggestions(PELLE, party, "", 0, 10)!!.map { it.name to it.timesUsed } shouldBe listOf("Chips" to 1, "Milk" to 1)
+        val chips = repository.suggestions(PELLE, party, "chips", 0, 10)!!.single()
         // forgotten on its own list only
         repository.forget(PELLE, own, chips.id) shouldBe false
         repository.forget(PELLE, party, chips.id) shouldBe true
@@ -280,22 +280,22 @@ class GroceryRepositoryTest {
         repository.insertItem(OTHER, party, values("Chips")).let { repository.checkItem(OTHER, it!!.id) }
         repository.insertItem(PELLE, party, values("Dip")).let { repository.checkItem(PELLE, it!!.id) }
 
-        repository.suggestions(PELLE, party, "", 10)!!.map { it.name } shouldBe listOf("Chips", "Dip")
-        repository.suggestions(OTHER, party, "", 10)!!.map { it.name } shouldBe listOf("Chips", "Dip")
+        repository.suggestions(PELLE, party, "", 0, 10)!!.map { it.name } shouldBe listOf("Chips", "Dip")
+        repository.suggestions(OTHER, party, "", 0, 10)!!.map { it.name } shouldBe listOf("Chips", "Dip")
         // the other user learned nothing on their own list
-        repository.suggestions(OTHER, list(OTHER), "", 10) shouldBe emptyList()
+        repository.suggestions(OTHER, list(OTHER), "", 0, 10) shouldBe emptyList()
 
         // unshared: the owner keeps it, the other user no longer sees it; shared again it is back
         repository.updateList(PELLE, party, "Party", shared = false)
-        repository.suggestions(OTHER, party, "", 10) shouldBe null
-        val dip = repository.suggestions(PELLE, party, "dip", 10)!!.single()
+        repository.suggestions(OTHER, party, "", 0, 10) shouldBe null
+        val dip = repository.suggestions(PELLE, party, "dip", 0, 10)!!.single()
         repository.forget(OTHER, party, dip.id) shouldBe false
         repository.updateList(PELLE, party, "Party", shared = true)
         repository.forget(OTHER, party, dip.id) shouldBe true
-        repository.suggestions(PELLE, party, "", 10)!!.map { it.name } shouldBe listOf("Chips")
+        repository.suggestions(PELLE, party, "", 0, 10)!!.map { it.name } shouldBe listOf("Chips")
 
         repository.deleteList(PELLE, party) shouldBe ListDelete.Deleted
-        repository.suggestions(PELLE, party, "", 10) shouldBe null
+        repository.suggestions(PELLE, party, "", 0, 10) shouldBe null
         database.dsl.fetchCount(GROCERY_ITEMS, GROCERY_ITEMS.LIST_ID.eq(party), GROCERY_ITEMS.DELETED_AT.isNull) shouldBe 0
     }
 
@@ -312,10 +312,10 @@ class GroceryRepositoryTest {
 
         // all of them bought
         repository.items(PELLE, list(PELLE))!!.forEach { repository.checkItem(PELLE, it.id) }
-        repository.suggestions(PELLE, list(PELLE), "", 10)!!.map { it.name to it.timesUsed } shouldBe
+        repository.suggestions(PELLE, list(PELLE), "", 0, 10)!!.map { it.name to it.timesUsed } shouldBe
             listOf("a\u0308pfel" to 3, "milk bread" to 2, "Müsli" to 1, "Musli" to 1)
-        repository.suggestions(PELLE, list(PELLE), "ÄP", 10)!!.map { it.timesUsed } shouldBe listOf(3)
-        repository.suggestions(PELLE, list(PELLE), "MÜS", 10)!!.map { it.name } shouldBe listOf("Müsli")
+        repository.suggestions(PELLE, list(PELLE), "ÄP", 0, 10)!!.map { it.timesUsed } shouldBe listOf(3)
+        repository.suggestions(PELLE, list(PELLE), "MÜS", 0, 10)!!.map { it.name } shouldBe listOf("Müsli")
     }
 
     @Test
@@ -323,10 +323,10 @@ class GroceryRepositoryTest {
         val apples = repository.insertItem(PELLE, list(PELLE), values("Äpfel"))!!
         repository.checkItem(PELLE, apples.id)
         repository.insertItem(PELLE, list(PELLE), values("Bread"))
-        repository.suggestions(PELLE, apples.listId, "Ä", 10)!!.map { it.name } shouldBe listOf("Äpfel")
+        repository.suggestions(PELLE, apples.listId, "Ä", 0, 10)!!.map { it.name } shouldBe listOf("Äpfel")
 
         repository.insertItem(PELLE, apples.listId, values("ÄPFEL"))
-        repository.suggestions(PELLE, apples.listId, "Ä", 10) shouldBe emptyList()
+        repository.suggestions(PELLE, apples.listId, "Ä", 0, 10) shouldBe emptyList()
     }
 
     @Test

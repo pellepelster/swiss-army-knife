@@ -1981,7 +1981,42 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * A grocery list
+     * @description A list of the signed in user or a shared list of another user.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the list */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The list */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GroceryListResponse'];
+          };
+        };
+        /** @description The user sees no such list */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
     /**
      * Rename or share a grocery list
      * @description Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its owner shares or unshares it.
@@ -2168,7 +2203,7 @@ export interface paths {
     };
     /**
      * Suggestions for an item of a grocery list
-     * @description The names of the items of the list that contain the text, one for each name with the values of its latest item, the names of the most items and the latest first, at most 10; the names to buy are left out. Only this list suggests them, every user who sees it sees them (GROCERY-11).
+     * @description The names of the items of the list that contain the text, one for each name with the values of its latest item, the names of the most items and the latest first, paged like every list; the names to buy are left out. Only this list suggests them, every user who sees it sees them (GROCERY-11).
      */
     get: {
       parameters: {
@@ -2650,7 +2685,42 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * An item of a grocery list
+     * @description An item of a list the user sees.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the item */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The item */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['GroceryItemResponse'];
+          };
+        };
+        /** @description The user sees no such item */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
     /** Change an item */
     put: {
       parameters: {
@@ -3152,7 +3222,42 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * A todo list
+     * @description A list of the signed in user or a shared list of another user.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the list */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The list */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoListResponse'];
+          };
+        };
+        /** @description The user sees no such list */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
     /**
      * Rename or share a todo list
      * @description Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its owner shares or unshares it.
@@ -3445,6 +3550,57 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/todo/items/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * An task of a todo list
+     * @description An task of a list the user sees.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the task */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The task */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoItemResponse'];
+          };
+        };
+        /** @description The user sees no such task */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;

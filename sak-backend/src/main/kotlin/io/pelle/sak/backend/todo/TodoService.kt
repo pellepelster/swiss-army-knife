@@ -61,6 +61,18 @@ class TodoService(
 
     fun lists(user: String): List<SakList> = repository.lists(user)
 
+    // a list the user sees, null when there is none
+    fun list(
+        user: String,
+        id: Int,
+    ): SakList? = repository.list(user, id)
+
+    // an task of a list the user sees, null when there is none
+    fun item(
+        user: String,
+        id: Int,
+    ) = repository.item(user, id)
+
     // the icon is one emoji, empty or none for no icon
     fun createList(
         user: String,

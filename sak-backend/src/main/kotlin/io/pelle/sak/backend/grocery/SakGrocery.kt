@@ -233,6 +233,26 @@ fun Route.grocery(
             }
         }
 
+        get("/{id}") {
+            val id = call.idParameter() ?: return@get
+            when (val list = withContext(Dispatchers.IO) { groceryService.list(call.owner, id) }) {
+                null -> call.respond(HttpStatusCode.NotFound)
+                else -> call.respond(list.response(call.owner))
+            }
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "A grocery list"
+            description = "A list of the signed in user or a shared list of another user."
+            parameters { listId() }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The list"
+                    schema = jsonSchema<GroceryListResponse>()
+                }
+                errors(HttpStatusCode.NotFound, "The user sees no such list")
+            }
+        }
+
         put("/{id}") {
             val id = call.idParameter() ?: return@put
             val request = call.receive<GroceryListRequest>()
@@ -314,16 +334,16 @@ fun Route.grocery(
             val id = call.idParameter() ?: return@get
             val page = call.pageRequest() ?: return@get
             val text = call.request.queryParameters["text"].orEmpty()
-            when (val suggestions = withContext(Dispatchers.IO) { groceryService.suggestions(call.owner, id, text) }) {
+            when (val suggestions = withContext(Dispatchers.IO) { groceryService.suggestions(call.owner, id, text, page.offset, page.limit) }) {
                 null -> call.respond(HttpStatusCode.NotFound)
-                else -> call.respond(page.of(page.of(suggestions.map { it.response() })))
+                else -> call.respond(page.of(suggestions.map { it.response() }))
             }
         }.describe {
             tag(GROCERY_TAG)
             summary = "Suggestions for an item of a grocery list"
             description =
                 "The names of the items of the list that contain the text, one for each name with the values of its latest " +
-                "item, the names of the most items and the latest first, at most ${GroceryService.MAX_SUGGESTIONS}; the names " +
+                "item, the names of the most items and the latest first, paged like every list; the names " +
                 "to buy are left out. Only this list suggests them, every user who sees it sees them (GROCERY-11)."
             parameters {
                 listId()
@@ -515,6 +535,26 @@ fun Route.grocery(
                 }
                 errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request, e.g. without a list")
                 errors(HttpStatusCode.UnprocessableEntity, "The user sees no such list")
+            }
+        }
+
+        get("/{id}") {
+            val id = call.idParameter() ?: return@get
+            when (val item = withContext(Dispatchers.IO) { groceryService.item(call.owner, id) }) {
+                null -> call.respond(HttpStatusCode.NotFound)
+                else -> call.respond(item.response())
+            }
+        }.describe {
+            tag(GROCERY_TAG)
+            summary = "An item of a grocery list"
+            description = "An item of a list the user sees."
+            parameters { itemId() }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The item"
+                    schema = jsonSchema<GroceryItemResponse>()
+                }
+                errors(HttpStatusCode.NotFound, "The user sees no such item")
             }
         }
 

@@ -155,9 +155,9 @@ class GroceryServiceTest {
         // a deleted category goes from its items and suggestions
         service.deleteCategory(PELLE, party, snacks.id) shouldBe true
         service.items(PELLE, party)!!.single().categoryId shouldBe null
-        service.suggestions(PELLE, party, "chips")!!.let { it shouldBe emptyList() }
+        service.suggestions(PELLE, party, "chips")!!.items.let { it shouldBe emptyList() }
         service.checkItem(PELLE, service.items(PELLE, party)!!.single().id)
-        service.suggestions(PELLE, party, "chips")!!.single().categoryId shouldBe null
+        service.suggestions(PELLE, party, "chips")!!.items.single().categoryId shouldBe null
     }
 
     @Test
@@ -273,17 +273,35 @@ class GroceryServiceTest {
         val party = (service.createList(PELLE, "Party", shared = true) as ListResult.Saved).list.id
         add(OTHER, party, input("Mints")).let { service.checkItem(OTHER, it.id) }
 
-        val suggestion = service.suggestions(PELLE, own, "mi")!!.single()
+        val suggestion = service.suggestions(PELLE, own, "mi")!!.items.single()
         suggestion.name shouldBe "Milk"
         suggestion.categoryId shouldBe category(own, "Dairy & eggs")
-        service.suggestions(PELLE, party, "mi")!!.map { it.name } shouldBe listOf("Mints")
-        service.suggestions(OTHER, otherOwn, "mi") shouldBe emptyList()
+        service.suggestions(PELLE, party, "mi")!!.items.map { it.name } shouldBe listOf("Mints")
+        service.suggestions(OTHER, otherOwn, "mi")!!.items shouldBe emptyList()
         service.suggestions(OTHER, own, "mi") shouldBe null
 
         service.forget(OTHER, own, suggestion.id) shouldBe false
         service.forget(PELLE, party, suggestion.id) shouldBe false
         service.forget(PELLE, own, suggestion.id) shouldBe true
-        service.suggestions(PELLE, own, "") shouldBe emptyList()
+        service.suggestions(PELLE, own, "")!!.items shouldBe emptyList()
+    }
+
+    // the suggestions are paged like every list (AR-7): offset and limit, the total of them all
+    @Test
+    fun `pages the suggestions, the total counts them all`() {
+        val own = list(PELLE)
+        listOf("Apples", "Bread", "Cheese").forEach { name -> service.checkItem(PELLE, add(PELLE, own, input(name)).id) }
+
+        service.suggestions(PELLE, own, "", offset = 0, limit = 2)!!.let {
+            it.items.size shouldBe 2
+            it.total shouldBe 3
+        }
+        service.suggestions(PELLE, own, "", offset = 2, limit = 2)!!.let {
+            it.items.size shouldBe 1
+            it.total shouldBe 3
+        }
+        service.suggestions(PELLE, own, "e", offset = 0, limit = 10)!!.total shouldBe 3
+        service.suggestions(PELLE, own, "ch", offset = 0, limit = 10)!!.items.map { it.name } shouldBe listOf("Cheese")
     }
 
     @Test

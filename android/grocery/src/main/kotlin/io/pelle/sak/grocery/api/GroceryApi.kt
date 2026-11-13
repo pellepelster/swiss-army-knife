@@ -102,7 +102,7 @@ class GroceryApi(
             }.answer(R.string.grocery_list_not_added)
 
     // the names of the list that contain the text, the ones added most and last first, the ones to buy
-    // left out (GROCERY-11); one page, the backend answers at most a few
+    // left out (GROCERY-11); the first page of SUGGESTIONS, the ones added most and last
     suspend fun suggestions(
         listId: Int,
         text: String,
@@ -111,6 +111,8 @@ class GroceryApi(
             .get("$url/grocery/lists/$listId/suggestions") {
                 session()
                 parameter("text", text)
+                parameter("offset", 0)
+                parameter("limit", SUGGESTIONS)
             }.answer<PageResponse<GrocerySuggestionResponse>>(R.string.grocery_list_items_not_loaded)
             .items
 
@@ -289,3 +291,6 @@ class GroceryApi(
         val LOGIN_CLIENT = LoginRequest.Client.GROCERY_ANDROID
     }
 }
+
+// how many suggestions the field of a new item shows at most
+private const val SUGGESTIONS = 10
