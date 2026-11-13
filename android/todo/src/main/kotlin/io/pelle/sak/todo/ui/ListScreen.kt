@@ -111,7 +111,7 @@ internal fun ListScreen(
             val hasDone = screen.items.any { it.doneAt != null }
             IconButton(onClick = model::purge, enabled = hasDone, modifier = Modifier.testTag("purge")) {
                 Icon(
-                    painterResource(R.drawable.ic_delete),
+                    painterResource(R.drawable.ic_broom),
                     contentDescription = stringResource(R.string.todo_list_purge),
                     tint = if (hasDone) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 )

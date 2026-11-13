@@ -172,6 +172,7 @@
 .fa-pen{--fa:"\f304"}
 .fa-mobile-screen-button{--fa:"\f3cd"}
 .fa-mobile-screen{--fa:"\f3cf"}
+.fa-broom{--fa:"\f51a"}
 .fa-robot{--fa:"\f544"}
 .fa-grip-vertical{--fa:"\f58e"}
 :host,:root{--fa-family-classic:"Font Awesome 7 Free";--fa-font-solid:normal 900 1em/1 var(--fa-family-classic);--fa-style-family-classic:var(--fa-family-classic)}@font-face{font-family:"Font Awesome 7 Free";font-style:normal;font-weight:900;font-display:block;src:url(fa-solid-900.woff2)}.fas{--fa-style:900}.fa-classic,.fas{--fa-family:var(--fa-family-classic)}.fa-solid{--fa-style:900}

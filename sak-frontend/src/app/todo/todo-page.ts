@@ -92,7 +92,7 @@ const PRIORITY_LABEL = {
             [title]="(hasDone() ? 'todo.list.purge' : 'todo.list.nothing_to_purge') | t"
             (click)="purge()"
           >
-            <i class="fa-solid fa-trash" aria-hidden="true"></i> {{ 'todo.list.purge' | t }}
+            <i class="fa-solid fa-broom" aria-hidden="true"></i> {{ 'todo.list.purge' | t }}
           </button>
           <a class="btn btn-outline-secondary" [routerLink]="['/todo/lists', list.id, 'edit']"
             ><i class="fa-solid fa-gear" aria-hidden="true"></i> {{ 'shared.settings' | t }}</a
