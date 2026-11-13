@@ -17,47 +17,44 @@ Effective date: 12 November 2026
 
 ## Summary
 
-The developer of the apps does not collect, keep or share your personal data. The apps are clients for a SAK
-instance, a server that you operate yourself, or that a person you know operates for you. The developer operates
-no server for the apps and gets no data from them.
+The developer of the apps does not collect, keep or share your personal data. The apps are clients of a SAK instance,
+a server that you operate, or that a person you know operates for you. The developer operates no server for the apps
+and gets no data from them.
 
 ## Where your data goes
 
-The apps send your data only to the SAK instance whose address you enter. The connection is encrypted (HTTPS). Your
-lists, notes, photos and voice recordings are kept on that SAK instance. The operator of the SAK instance is responsible
-for the data on it, not the developer of the apps.
+The apps send your data only to the SAK instance whose address you enter, encrypted (HTTPS). Your lists, notes, photos
+and voice recordings are kept on that SAK instance. Its operator, not the developer of the apps, is responsible for
+the data on it.
 
 ## No tracking
 
-SAK uses no tracking, neither in the apps nor in the web frontend of your SAK instance: no advertising, no analytics,
-no crash reporting, no tracking pixels and no other tracking. The web frontend loads nothing from a third party.
+Neither the apps nor the web frontend of your SAK instance use advertising, analytics, crash reporting, tracking pixels
+or other tracking. The web frontend loads nothing from a third party.
 
 ## Data on your phone
 
-The apps keep the address of your SAK instance and your sign-in session on your phone, encrypted. This data is not
-included in a backup and does not move to a new phone. When you sign out, the app deletes the session. When you
-uninstall the app, Android deletes all of this data.
+The apps keep the address of your SAK instance and your sign-in session on your phone, encrypted. This data is not in
+a backup and does not move to a new phone. When you sign out, the app deletes the session; when you uninstall the
+app, Android deletes all of this data.
 
 ## Permissions
 
 - **Internet:** to connect to your SAK instance.
-- **Microphone (SAK Notes only):** to record a voice note, only when you start a recording.
-- **Camera:** only when you tap **Scan QR code** or take a photo. The app reads the QR code that connects it to your SAK
-  instance on your phone; it keeps no picture of it and sends none.
-- **Photos:** the apps get only the photos that you take with the camera app or select, or that you share with the
-  app.
+- **Microphone (SAK Notes only):** only when you start a voice recording.
+- **Camera:** only when you tap **Scan QR code** or take a photo. The app reads the QR code that connects it to your
+  SAK instance on your phone; it keeps no picture of it and sends none.
+- **Photos:** only the photos that you take with the camera app, select or share with the app.
 
 ## Exceptions
 
-- **AI features.** In SAK Notes, the AI features read the text of a photo or a voice recording of a note. In SAK
-  Grocery List, they read the items in a photo of a recipe or a shopping list. They are off until the administrator
-  of your SAK instance turns them on with the API key of their own OpenRouter account. When they are on, they never
-  start automatically: only you start them, with the robot button, for one photo or one recording at a time. Then
-  your SAK instance, not the app, sends this photo or recording to OpenRouter.
-- **Downloads from GitHub.** The apps that are not from Google Play come from the GitHub releases of SAK: the link
-  that installs an app downloads it from GitHub, and an app downloads its update from GitHub when you start the
-  update. GitHub then sees the IP address of your phone, but no other data. The apps from Google Play do not do this:
-  Google Play installs and updates them.
+- **AI features.** In SAK Notes, they read the text of a photo or a voice recording of a note; in SAK Grocery List,
+  the items in a photo of a recipe or a shopping list. They are off until the administrator of your SAK instance turns
+  them on with the API key of their own OpenRouter account. Then only you start them, with the robot button, for one
+  photo or recording at a time, and your SAK instance, not the app, sends it to OpenRouter.
+- **Downloads from GitHub.** Apps that are not from Google Play come from the GitHub releases of SAK: the
+  installation link and each update you start download from GitHub, which then sees the IP address of your phone, but
+  no other data. Apps from Google Play do not do this: Google Play installs and updates them.
 - **Google Play.** When you install an app from Google Play, the privacy policy of Google applies to Google Play.
 
 ## Delete your data

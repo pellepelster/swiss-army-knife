@@ -6,27 +6,28 @@ weight: 5
 
 # Installation
 
-sakctl is the program on your computer that creates your SAK instance, keeps it up to date, backs it up and
-destroys it. It has a UI and a command line. There is no installer: sakctl is a single program.
+sakctl creates, updates, backs up and destroys your SAK instance. It has a UI and a command line, and it is a single
+program without an installer.
 
 ## What you need
 
-- **Docker or Podman.** sakctl runs its tools in a container. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-  or [Podman Desktop](https://podman-desktop.io/) and start it before sakctl. On Linux, the `docker` or `podman`
-  package of your distribution is enough.
-- **A Hetzner Cloud project and its API token.** Your server runs at Hetzner Cloud. Create a project in the
+- **Docker or Podman.** sakctl runs its tools in a container. Install
+  [Docker Desktop](https://www.docker.com/products/docker-desktop/) or [Podman Desktop](https://podman-desktop.io/)
+  and start it before sakctl. On Linux, the `docker` or `podman` package of your distribution is enough.
+- **A Hetzner Cloud project and its API token.** Create a project in the
   [Hetzner Cloud Console](https://console.hetzner.cloud/), then an API token with read and write access (Security,
-  API tokens). sakctl asks for the token on each start and does not store it.
+  API tokens). sakctl asks for the token at each start and does not store it.
 - **A domain** whose DNS zone is in the same Hetzner project.
 
 ## Download
 
-Each release is on the [release page](https://github.com/pellepelster/swiss-army-knife/releases). The commands below
-download sakctl for your system, check its SHA-256 checksum and extract it; if the checksum does not match, they stop.
+The commands below download sakctl from the [release page](https://github.com/pellepelster/swiss-army-knife/releases),
+check its SHA-256 checksum and extract it. They stop if the checksum does not match.
 
-macOS and Windows do not know the program, it is not signed for them. Each zip file is signed with
-[cosign](https://docs.sigstore.dev/cosign/), though: [Check the signature](#check-the-signature) shows that it was built by the
-release workflow of this repository. Without a command, sakctl opens the UI; `sakctl --help` lists the commands.
+sakctl is not signed for macOS and Windows, so they do not know it. Each zip file is signed with
+[cosign](https://docs.sigstore.dev/cosign/), though: [check the signature](#check-the-signature) to see that the
+release workflow of this repository built it. Without a command, sakctl opens the UI; `sakctl --help` lists the
+commands.
 
 ## Linux
 
@@ -35,18 +36,18 @@ libwebkit2gtk-4.1-0` (Debian, Ubuntu) or `sudo dnf install webkit2gtk4.1` (Fedor
 
 {{< install platform="linux" >}}
 
-Start `sakctl`. If the shell does not find it, add `~/.local/bin` to your `PATH`. On its first start the UI adds
-**Swiss Army Knife** to the applications of your desktop, so you can start it from the menu.
+Start `sakctl`. If the shell does not find it, add `~/.local/bin` to your `PATH`. At its first start, the UI adds
+**Swiss Army Knife** to the applications menu of your desktop.
 
 ## macOS
 
-The program works on Apple silicon and on Intel. In the Terminal:
+For Apple silicon and Intel. In the Terminal:
 
 {{< install platform="macos" >}}
 
 Start `~/.local/bin/sakctl`. Downloaded with `curl`, it starts without a warning.
 
-If you download the zip file in a browser instead, macOS refuses the first start. Open **System Settings**, **Privacy &
+If you download the zip file in a browser, macOS refuses the first start. Open **System Settings**, **Privacy &
 Security**, click **Open Anyway** next to sakctl below **Security**, and confirm. macOS asks only once.
 
 ## Windows
@@ -55,26 +56,27 @@ In PowerShell:
 
 {{< install platform="windows" >}}
 
-Start `sakctl.exe` in `%LOCALAPPDATA%\Programs\sakctl`. If Windows SmartScreen warns about it, click **More info**,
-then **Run anyway**.
+Start `sakctl.exe` in `%LOCALAPPDATA%\Programs\sakctl`. If Windows SmartScreen warns, click **More info**, then
+**Run anyway**.
 
-On Windows, sakctl is two programs, both in `%LOCALAPPDATA%\Programs\sakctl`:
+On Windows, sakctl is two programs in `%LOCALAPPDATA%\Programs\sakctl`:
 
-- **`sakctl.exe`** opens the UI. Start it in the Explorer, for example with a double click. On the command line it
-  shows no output.
-- **`sakctl-cli.exe`** is the command line. Use it in PowerShell or the command prompt, for example
-  `& "$env:LOCALAPPDATA\Programs\sakctl\sakctl-cli.exe" --help`. Where this page and the help say `sakctl`, type
-  `sakctl-cli.exe`. Without a command, it also opens the UI, but with a console window next to it.
+- **`sakctl.exe`** opens the UI, for example with a double click in the Explorer. It shows no output on the command
+  line.
+- **`sakctl-cli.exe`** is the command line, for PowerShell or the command prompt, for example
+  `& "$env:LOCALAPPDATA\Programs\sakctl\sakctl-cli.exe" --help`. Where the docs say `sakctl`, type `sakctl-cli.exe`.
+  Without a command, it opens the UI with a console window next to it.
 
 An update, in the UI or with `sakctl-cli.exe update`, replaces both programs. If `sakctl-cli.exe` is missing, run the
 commands above again. The UI needs the Microsoft Edge WebView2 runtime, which Windows 10 and 11 have.
 
 ## Check the signature
 
-The checksum shows that the download is complete. The signature also shows who made it: the release workflow of
+The checksum shows that the download is complete; the signature shows who made it: the release workflow of
 [pellepelster/swiss-army-knife](https://github.com/pellepelster/swiss-army-knife) at the tag of the release, with a
-short-lived certificate of [Sigstore](https://www.sigstore.dev/), no key that could leak. With
-[cosign installed](https://docs.sigstore.dev/cosign/system_config/installation/), run in the directory of the zip file, on Linux or macOS:
+short-lived [Sigstore](https://www.sigstore.dev/) certificate, so there is no key that could leak. With
+[cosign installed](https://docs.sigstore.dev/cosign/system_config/installation/), run this in the directory of the
+zip file, on Linux or macOS:
 
 {{< install platform="linux" signature="true" >}}
 
@@ -84,20 +86,19 @@ On Windows, in PowerShell:
 
 {{< install platform="windows" signature="true" >}}
 
-cosign answers `Verified OK`. Any other answer means the zip file was not made by the release: delete it.
+cosign answers `Verified OK`. Any other answer means the release did not make the zip file: delete it.
 
 ## Update
 
-sakctl only updates when you ask. In the UI, click **Check for updates** in the footer, then **Update to** the new
-version, then **Restart**. On the command line, `sakctl update` updates and `sakctl update --check` only checks. sakctl
-downloads the newest release from GitHub, verifies its SHA-256 checksum and its signature by the release workflow of
-the release and replaces itself.
+sakctl updates only when you ask. In the UI, click **Check for updates** in the footer, then **Update to** the new
+version, then **Restart**. On the command line, `sakctl update` updates and `sakctl update --check` only checks.
+sakctl downloads the newest release from GitHub, verifies its checksum and its signature, and replaces itself.
 
-The next deploy updates the server of the SAK instance to the same version.
+The next deploy updates the SAK instance to the same version.
 
 ## The first start
 
-sakctl first looks for Docker or Podman and downloads the image of its tools, which takes a few minutes the first
-time. Then it asks for the API token of your Hetzner Cloud project and shows your SAK instances.
+sakctl looks for Docker or Podman and downloads the image of its tools; the first time, this takes a few minutes.
+Then it asks for the API token of your Hetzner Cloud project and shows your SAK instances.
 
 Next: [first steps](first-steps.md), to create your first SAK instance.
