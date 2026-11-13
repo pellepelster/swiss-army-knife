@@ -58,6 +58,11 @@ class InvalidKeyException(
     val key: String,
 ) : RuntimeException("invalid object key '$key'")
 
+// a segment of the key longer than a name of the file system takes (SR-8)
+class KeyTooLongException(
+    val key: String,
+) : RuntimeException("the object key '$key' has a part longer than the storage takes")
+
 // s3 allows an object 'a' next to 'a/b', the filesystem layout does not
 class KeyConflictException(
     val key: String,

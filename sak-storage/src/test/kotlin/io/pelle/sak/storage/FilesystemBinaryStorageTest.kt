@@ -206,6 +206,21 @@ class FilesystemBinaryStorageTest {
         storage.usage(path("none")) shouldBe BlobUsage(0, 0)
     }
 
+    // SR-7: the staging directory is no blob, a tree of the root keeps the root and the writes being staged
+    @Test
+    fun `the root lists and counts no staged write, a tree of it keeps the root and the staged writes`() {
+        write("a", "p", "a")
+        val staged = Files.writeString(Files.createDirectories(root.resolve(BlobPath.STAGING_DIRECTORY)).resolve("running"), "xx")
+
+        storage.list(path()).map { it.path } shouldBe listOf("p/a")
+        storage.usage(path()) shouldBe BlobUsage(1, 1)
+
+        storage.deleteTree(path())
+        Files.exists(root) shouldBe true
+        Files.exists(staged) shouldBe true
+        storage.list(path()) shouldBe emptyList()
+    }
+
     @Test
     fun `what a write left staged long ago goes when the storage starts, a write that runs stays`() {
         val now = Instant.parse("2026-11-02T12:00:00Z")

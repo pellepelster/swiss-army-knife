@@ -155,6 +155,15 @@ class BinaryStorageS3BackendTest {
         }
     }
 
+    // SR-8: a part of a key is the name of a file, the last one also of its sidecar (<name>.json)
+    @Test
+    fun `a key with a part longer than a name of a file is too long`() {
+        put("a".repeat(250))
+        put("${"d".repeat(255)}/x")
+        shouldThrow<KeyTooLongException> { put("a".repeat(251)) }
+        shouldThrow<KeyTooLongException> { put("${"d".repeat(256)}/x") }
+    }
+
     @Test
     fun `traversal keys are rejected`() {
         listOf("../escape", "a/../../escape", "a//b", "a/./b", "", "/leading").forEach { key ->

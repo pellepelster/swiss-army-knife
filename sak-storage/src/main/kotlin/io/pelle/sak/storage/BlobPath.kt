@@ -25,6 +25,10 @@ class BlobPath(
     companion object {
         const val STAGING_DIRECTORY = ".tmp"
 
+        // the longest name of a file the file systems of the data volume take, in bytes of UTF-8
+        // (SR-8): a longer segment is refused here, not when the blob is moved into place
+        const val MAX_SEGMENT_BYTES = 255
+
         private val NUL: Char = Char(0)
 
         fun requireValidSegment(segment: String) =
@@ -33,7 +37,8 @@ class BlobPath(
                     segment != "." &&
                     segment != ".." &&
                     !segment.contains('/') &&
-                    !segment.contains(NUL),
+                    !segment.contains(NUL) &&
+                    segment.toByteArray(Charsets.UTF_8).size <= MAX_SEGMENT_BYTES,
             ) {
                 "invalid storage path segment '$segment'"
             }

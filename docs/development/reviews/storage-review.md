@@ -21,7 +21,10 @@ goes while it is read is "none", not an error, in `open`, `stat` and `usage`.
 
 ## Could fix
 
-### `SR-7` The root shows its staging directory
+### ~~`SR-7` The root shows its staging directory~~
+
+**Fixed:** `list` and `usage` skip the staging directory unless they walk it themselves, and `deleteTree` of the root keeps
+the root and the writes being staged.
 
 Reproduced: `list` and `usage` of the empty path (the root) count the staged files in `.tmp` as blobs, with paths no
 `BlobPath` takes; `deleteTree` of the root deletes the root itself and the writes being staged. No caller uses the
@@ -29,14 +32,19 @@ root today; `FileService` and the S3 api always name a directory below it.
 
 Fix: skip `STAGING_DIRECTORY` at the root in `list`, `usage` and `deleteTree`, or refuse the empty path there.
 
-### `SR-8` A segment longer than the file system takes fails late
+### ~~`SR-8` A segment longer than the file system takes fails late~~
+
+**Fixed:** `BlobPath` refuses a segment of more than 255 bytes of UTF-8 (`MAX_SEGMENT_BYTES`); the S3 api answers a key
+with a longer part, or a last part longer than 250 bytes (its sidecar adds `.json`), with `KeyTooLongError`.
 
 Reproduced: a segment of 300 characters fails at the move with a `FileSystemException` ("File name too long"); the
 S3 api answers 500 to such a key instead of an error of the request.
 
 Fix: `BlobPath` refuses a segment longer than 255 bytes in UTF-8; the S3 api answers `KeyTooLongError`.
 
-### `SR-9` A move does not sync the directory it leaves
+### ~~`SR-9` A move does not sync the directory it leaves~~
+
+**Fixed:** `move` syncs the directory it leaves as well, before it prunes the empty ones.
 
 `move` syncs the directory of the target, not the one of the source; after a crash the blob can show at both paths.
 For `FileService` the source is an upload, which is deleted anyway.

@@ -195,6 +195,14 @@ class FilesystemBinaryStorage(
             return null
         }
         fsyncDirectory(target.parent)
+        // the directory the blob left too, so after a crash it shows at one path only (SR-9)
+        if (source.parent != target.parent) {
+            try {
+                fsyncDirectory(source.parent)
+            } catch (_: NoSuchFileException) {
+                // pruned by a delete of another meanwhile
+            }
+        }
         pruneEmptyParents(source.parent)
         return info(target)
     }
@@ -232,7 +240,8 @@ class FilesystemBinaryStorage(
 
     // every file below dir; a file or directory that goes while it is walked (another delete, a
     // prune) is left out, dir itself missing is none. With deleteDirectories, each directory is
-    // deleted after its files, unless a write put a new blob in it meanwhile
+    // deleted after its files, unless a write put a new blob in it meanwhile, the root never. The
+    // staging directory is no blob: it is walked only when it is dir (SR-7)
     private fun walk(
         dir: Path,
         deleteDirectories: Boolean = false,
@@ -242,6 +251,11 @@ class FilesystemBinaryStorage(
         Files.walkFileTree(
             dir,
             object : SimpleFileVisitor<Path>() {
+                override fun preVisitDirectory(
+                    directory: Path,
+                    attributes: BasicFileAttributes,
+                ): FileVisitResult = if (directory == tmpDir && dir != tmpDir) FileVisitResult.SKIP_SUBTREE else FileVisitResult.CONTINUE
+
                 override fun visitFile(
                     file: Path,
                     attributes: BasicFileAttributes,
@@ -260,7 +274,7 @@ class FilesystemBinaryStorage(
                     exception: IOException?,
                 ): FileVisitResult {
                     if (exception != null && exception !is NoSuchFileException) throw exception
-                    if (deleteDirectories) {
+                    if (deleteDirectories && directory != rootPath) {
                         try {
                             Files.deleteIfExists(directory)
                         } catch (_: DirectoryNotEmptyException) {

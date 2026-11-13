@@ -14,6 +14,16 @@ class BlobPathTest {
         BlobPath(listOf("a", "...", ".hidden", "a b", "ä")).toString() shouldBe "a/.../.hidden/a b/ä"
     }
 
+    // SR-8: a longer one fails at once, not when the blob is moved into place
+    @Test
+    fun `a segment has at most 255 bytes of UTF-8, the longest name of a file`() {
+        BlobPath(listOf("a".repeat(255))).segments.single().length shouldBe 255
+        shouldThrow<IllegalArgumentException> { BlobPath(listOf("a".repeat(256))) }
+        // two bytes each
+        BlobPath(listOf("ä".repeat(127)))
+        shouldThrow<IllegalArgumentException> { BlobPath(listOf("ä".repeat(128))) }
+    }
+
     @Test
     fun `the staging directory is no path of a blob, below the root it is a name like any other`() {
         shouldThrow<IllegalArgumentException> { BlobPath(listOf(BlobPath.STAGING_DIRECTORY, "a")) }

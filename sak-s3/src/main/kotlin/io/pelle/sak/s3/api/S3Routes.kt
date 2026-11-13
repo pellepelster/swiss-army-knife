@@ -33,6 +33,7 @@ import io.pelle.sak.s3.auth.SigV4Result
 import io.pelle.sak.s3.auth.SigV4Verifier
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.InvalidKeyException
+import io.pelle.sak.s3.storage.KeyTooLongException
 import io.pelle.sak.s3.storage.InvalidPartException
 import io.pelle.sak.s3.storage.KeyConflictException
 import io.pelle.sak.s3.storage.NoSuchBucketException
@@ -119,6 +120,8 @@ private class S3Api(
             error(call, 404, "NoSuchUpload", e.message ?: "no such upload")
         } catch (e: InvalidKeyException) {
             error(call, 400, "InvalidRequest", e.message ?: "invalid key")
+        } catch (e: KeyTooLongException) {
+            error(call, 400, "KeyTooLongError", e.message ?: "key too long")
         } catch (e: AwsChunkedFormatException) {
             error(call, 400, "IncompleteBody", e.message ?: "malformed aws-chunked body")
         } catch (e: PayloadHashMismatchException) {

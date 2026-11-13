@@ -318,7 +318,7 @@ class BinaryStorageS3Backend(
         key: String,
     ): BlobPath {
         val segments = requireValidKey(key)
-        return bucketPath.resolve(META).resolve(segments.dropLast(1) + "${segments.last()}.json")
+        return bucketPath.resolve(META).resolve(segments.dropLast(1) + "${segments.last()}$SIDECAR_SUFFIX")
     }
 
     private fun uploadPath(
@@ -360,6 +360,11 @@ class BinaryStorageS3Backend(
         if (key.isEmpty()) throw InvalidKeyException(key)
         val segments = key.split('/')
         if (segments.any { it.isEmpty() || it == "." || it == ".." || it.contains(NUL) }) throw InvalidKeyException(key)
+        // a segment is the name of a file, the last one also of its sidecar (<name>.json)
+        val bytes = segments.map { it.toByteArray(Charsets.UTF_8).size }
+        if (bytes.any { it > BlobPath.MAX_SEGMENT_BYTES } || bytes.last() + SIDECAR_SUFFIX.length > BlobPath.MAX_SEGMENT_BYTES) {
+            throw KeyTooLongException(key)
+        }
         return segments
     }
 
@@ -377,6 +382,9 @@ class BinaryStorageS3Backend(
         private const val META = "meta"
         private const val UPLOADS = "uploads"
         private const val UPLOAD_META = "meta.json"
+
+        // the sidecar of an object, its name with this
+        private const val SIDECAR_SUFFIX = ".json"
 
         private val NUL: Char = Char(0)
 
