@@ -107,6 +107,8 @@ Every app follows the light or dark mode of the device.
 
 ### Notes
 
+[More about the notes](apps/notes.md).
+
 Post-its from text, photos and voice recordings, with labels and colors. With the AI features on, the text of a photo
 or a recording goes into the note.
 
@@ -114,10 +116,14 @@ or a recording goes into the note.
 
 ### Grocery lists
 
+[More about the grocery lists](apps/grocery.md).
+
 Shopping lists, private or shared, grouped by your own categories. A checked item can be undone and stays visible as
 bought; what you added before comes back as a suggestion. Every change shows at once on every device.
 
 ### Todo lists
+
+[More about the todo lists](apps/todo.md).
 
 Tasks, private or shared, with a priority (high, normal or low) and an optional due date. High priority comes first;
 an overdue task shows in red. A task you tap as done stays in its place, struck through, until you remove the done
@@ -130,11 +136,15 @@ at once on every device.
 
 ### Static hosting
 
+[More about static hosting](apps/hosting.md).
+
 Websites from S3 buckets, at their own domain or at a subdomain, with their requests and traffic.
 
 ![A bucket of static hosting](screenshots/web-hosting-bucket-desktop.png)
 
 ### Redirects
+
+[More about the redirects](apps/redirects.md).
 
 Domains that lead to another address: an external domain, or the site of a bucket. Their TLS certificates are issued
 and renewed automatically.
