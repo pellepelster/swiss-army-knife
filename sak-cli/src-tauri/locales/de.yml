@@ -315,6 +315,9 @@ ui:
       not_read: "Die Konfiguration konnte nicht gelesen werden: %{error}"
       admin: "Admin"
       no_admin: "keiner, meldet sich mit dem Passwort an"
+      smtp_username: "Benutzer am Mailserver"
+      smtp_password: "Passwort am Mailserver"
+      smtp_no_password: "keins"
   maintenance:
     confirm_title: "%{name} neu starten?"
     confirm_text: "Die SAK-Instanz wird gestoppt und ihr Server neu gestartet. Bis sie wieder antwortet, ist sie nicht erreichbar, meist einige Minuten."

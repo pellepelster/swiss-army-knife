@@ -315,6 +315,9 @@ ui:
       not_read: "The configuration could not be read: %{error}"
       admin: "Admin"
       no_admin: "none, signs in with the password"
+      smtp_username: "Mail server user"
+      smtp_password: "Mail server password"
+      smtp_no_password: "none"
   maintenance:
     confirm_title: "Reboot %{name}?"
     confirm_text: "The SAK instance is stopped and its server reboots. It is unreachable until it answers again, usually a few minutes."

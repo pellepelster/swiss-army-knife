@@ -64,6 +64,13 @@ function configRow(label, value, detail = '') {
   return resource({ label, name: value, detail });
 }
 
+// the password of the mail server: a mask of fixed length, so it does not tell the length, and its
+// last three characters
+function maskedPassword(password, passwordSet) {
+  if (password) return `••••••••${password.length > 3 ? password.slice(-3) : ''}`;
+  return passwordSet ? '••••••••' : text('ui.deployment.config.smtp_no_password');
+}
+
 function showConfig() {
   // the address of the frontend first (the list knows it from the resources)
   const rows = current?.frontendUrl ? [frontendLink(current.frontendUrl, configSource)] : [];
@@ -79,8 +86,10 @@ function showConfig() {
   if (hasConfig() && settings.userMode === 'multi') {
     rows.push(configRow(text('ui.deployment.config.admin'), settings.adminEmail || text('ui.deployment.config.no_admin')));
     if (settings.smtp) {
-      const { host, port, username } = settings.smtp;
-      rows.push(configRow(text('ui.create.smtp'), `${host}:${port}`, username));
+      const { host, port, username, password, passwordSet } = settings.smtp;
+      rows.push(configRow(text('ui.create.smtp'), `${host}:${port}`));
+      rows.push(configRow(text('ui.deployment.config.smtp_username'), username));
+      rows.push(configRow(text('ui.deployment.config.smtp_password'), maskedPassword(password, passwordSet)));
       rows.push(configRow(text('ui.create.smtp_from'), settings.smtp.from || `noreply@${settings.rootDomain ?? ''}`));
     }
   }

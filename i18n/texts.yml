@@ -1169,6 +1169,9 @@ ctl:
         not_read: { en: "The configuration could not be read: %{error}", de: "Die Konfiguration konnte nicht gelesen werden: %{error}" }
         admin: { en: "Admin", de: "Admin" }
         no_admin: { en: "none, signs in with the password", de: "keiner, meldet sich mit dem Passwort an" }
+        smtp_username: { en: "Mail server user", de: "Benutzer am Mailserver" }
+        smtp_password: { en: "Mail server password", de: "Passwort am Mailserver" }
+        smtp_no_password: { en: "none", de: "keins" }
     maintenance:
       confirm_title: { en: "Reboot %{name}?", de: "%{name} neu starten?" }
       confirm_text:
