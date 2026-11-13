@@ -9,8 +9,6 @@ Read this file first. It contains rules for the complete repository.
 - Every document below `docs/` starts with front matter (`title`, `description`, `weight`, a short
   `linkTitle` where the title is long), so the site of the documentation (`site/`, `mise run docs:serve`) lists it.
   A link between documents that does not resolve fails `mise run docs:build`.
-- Never create a Feature Decision Record (`docs/development/fdr/`) on your own; write one only when the user asks for
-  it. Keeping an existing FDR current when its feature changes is still required.
 - Never add an architecture rule (`docs/development/architecture/`) on your own. Ask the user first and add the rule
   only after the user explicitly agrees. This applies also to a rule that a change, a review or a fix needs.
 - Never change [UI-UX.md](docs/development/UI-UX.md) on your own. Ask the user first and change it only after the
@@ -188,5 +186,4 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 - [README.md](README.md) — general project overview.
 - [docs/development/architecture/SYSTEM.md](docs/development/architecture/SYSTEM.md) — how SAK is built, the first
   of the three levels of the architecture.
-- `docs/development/fdr/INDEX.md` — Swiss Army Knife feature behavior and rationale.
 - `docs/development/reviews/` — the reviews, each finding with its unique id.

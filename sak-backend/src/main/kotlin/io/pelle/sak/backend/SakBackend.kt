@@ -125,7 +125,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val storage = bucketStorage(config)
     val database = SakDatabase.open(databaseFile(config))
     // the settings, the signing key of the login among them, plain in the database until the
-    // whole database is encrypted (FDR-002)
+    // whole database is encrypted
     val settings = SettingService(database)
     val openRouter = OpenRouterManager(config.openrouter, settings)
     val notesSettings = NotesSettingsService(settings)

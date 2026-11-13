@@ -141,7 +141,7 @@ pub fn frontend_host(name: &str, dns_mode: DnsMode, root_domain: &str) -> String
 /// how sak sets up dns for a deployment: `domain` manages `<root domain>` and
 /// `*.<root domain>`, `subdomain` (the default) manages `<name>.<root domain>` and
 /// `*.<name>.<root domain>`. A root domain has one domain deployment or any number of
-/// subdomain deployments (docs/development/fdr/FDR-001-dns-mode.md)
+/// subdomain deployments
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum DnsMode {

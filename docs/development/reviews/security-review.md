@@ -67,12 +67,12 @@ apps send it to `POST /api/v1/auth/login/password`. Whoever runs code in the bac
 to type it into a page that is not SAK (`SEC-8`), reads it with the next login. From the name and the password
 follow the ssh client key (root on the server, port 22 is open), the api key, the key of every backup, old ones
 included, and the key of the local settings. The purposes of the keys do not help, what they are all derived from is
-handed over. ACCEPTED-RISKS has only the guessing offline; [FDR-007](../fdr/FDR-007-backup.md) says the server never
+handed over. ACCEPTED-RISKS has only the guessing offline; the backup says the server never
 has the key that decrypts a backup.
 
 Fix: a password for the login of its own, derived by sakctl with a purpose (`admin-login`) and shown by it, so the
 password of the deployment never leaves the machine of the admin; or a login where the server never sees the
-password (OPAQUE). Until then an entry in ACCEPTED-RISKS, and `SECURITY-1` and FDR-007 say it (the rule changes
+password (OPAQUE). Until then an entry in ACCEPTED-RISKS, and `SECURITY-1` says it (the rule changes
 only with the consent of the user).
 
 ### `SEC-4` A copied session renews itself without an end
@@ -155,8 +155,7 @@ number is checked only for `< 1`, and the parts of an upload that is never compl
 statistics of a bucket count `data/` only, so the admin sees nothing grow.
 
 Fix: refuse a write when the volume has less than a floor free, or a largest size for each bucket; part numbers to
-10000; uploads older than a day removed at the start and with the cleanup
-([FDR-004](../fdr/FDR-004-maintenance-cleanup.md)); `uploads/` counted in the usage.
+10000; uploads older than a day removed at the start and with the cleanup; `uploads/` counted in the usage.
 
 ### `SEC-11` Secrets of an old setup are in the working copy
 

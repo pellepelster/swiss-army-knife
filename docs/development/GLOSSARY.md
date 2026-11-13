@@ -29,7 +29,7 @@ user interface. Use the same term for the same thing every time.
   [SYSTEM.md](architecture/SYSTEM.md)).
 - **dns mode** (`dns_mode`): How SAK sets up DNS for a deployment. The mode `domain` manages `<root domain>` and
   `*.<root domain>`. The mode `subdomain` manages `<name>.<root domain>` and `*.<name>.<root domain>`. The
-  default is `subdomain` (refer to [FDR-001](fdr/FDR-001-dns-mode.md)).
+  default is `subdomain`.
 - **user mode** (`user_mode`): Who signs in to a deployment. The mode `single` has one user, the admin, who
   signs in with the password of the deployment. The mode `multi` needs a mail server; its users, whom the admin
   adds, sign in with a link by e-mail. The admin always signs in with the password, with an address (optional)
@@ -53,7 +53,7 @@ user interface. Use the same term for the same thing every time.
   The settings page shows each scope as a tab and saves it on its own.
 - **backup**: One file with all data of a deployment (the database, the files, the buckets, the state of the
   ingress and the logs), compressed and encrypted with the backup key. A **restore** replaces the data of the deployment of the same
-  name with the data of a backup (refer to [FDR-007](fdr/FDR-007-backup.md)).
+  name with the data of a backup.
 - **resource status**: What a plan or the state of a deployment says of one of its resources, compared with what the
   deployment declares. It is one of three: **up-to-date** (the resource exists as declared), **missing**
   (it does not exist, also when a resource it depends on does not) or **has changes** (it

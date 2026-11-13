@@ -11,7 +11,7 @@ How Swiss Army Knife (SAK) is built as a whole: its parts, how they connect, and
 is the first of three levels: what all apps share is in [the architecture of the apps](apps/INDEX.md), each app in its
 own document next to it. How to write the code is in [AGENT.md](../../../AGENT.md), how the apps look and behave in
 [UI-UX.md](../UI-UX.md), the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose in
-[ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md), and each feature in [fdr/INDEX.md](../fdr/INDEX.md).
+and [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md).
 
 A lower level adds to the levels above and never repeats them; a rule two apps need moves up to [the architecture of
 the apps](apps/INDEX.md). Every change keeps to its level and to the levels above; a change that has to break a rule
@@ -97,7 +97,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - `MODEL-2` **The database is only in `sak-model`.** Only the repository of an entity touches the database.
 - `MODEL-3` **Soft delete only.** No row is ever deleted for real. A delete marks the row as deleted; every read skips
   such rows. A value that must be unique is unique among the live rows only. A deleted bucket keeps its name taken
-  until it is purged (refer to [FDR-004](../fdr/FDR-004-maintenance-cleanup.md), the only planned purge).
+  until it is purged.
 - `MODEL-4` **Every row records its time.** When it was created, last updated and deleted, set by the repository from
   one clock.
 - `MODEL-5` **Every row records its owner.** The column `owner` holds who created the row: the e-mail address of the
@@ -133,7 +133,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   (`/storage/data/<name>`): the database, the files, the buckets, the state of caddy and the logs.
 - `SERVER-4` The backend configures caddy at run time through its admin api: the hosts of the apps and the domains of
   the buckets and the redirects.
-- `SERVER-5` The hosts depend on the **dns mode** (refer to [FDR-001](../fdr/FDR-001-dns-mode.md)): the frontend is at
+- `SERVER-5` The hosts depend on the **dns mode**: the frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>` or its own domains. The
   base domain is the root domain (`domain`) or `<name>.<root domain>` (`subdomain`).
 - `SERVER-6` The **SAK address** tells where its api is: `GET <SAK address>/.well-known/sak.json` answers
@@ -167,15 +167,13 @@ The backend serves apps to its users, for example static hosting and notes. How 
   files of the role and of the values the run gave it. The plan reads the markers through ssh and runs the playbook
   when the server changes, when there are no markers (never provisioned, or the last run failed: a run deletes them
   first) or when a role has another fingerprint. A role that stays as it was runs again only with a forced deploy.
-  Refer to [FDR-009](../fdr/FDR-009-provisioning-markers.md).
 - `SAKCTL-7` **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the
   staging ca of Let's Encrypt for a test deployment (a setting of the deployment like the others, whose roots sakctl
   then trusts). The integration tests use the staging ca, so they never run into the limits of the production
   one.
 - `SAKCTL-8` **Backups through ssh.** A backup is pulled through ssh into one file on the user's machine, compressed
   and encrypted on the server, which has only the public half of the backup key; a restore sends it back decrypted
-  through ssh. The files of the backups are data of the user, not state of sakctl. Refer to
-  [FDR-007](../fdr/FDR-007-backup.md).
+  through ssh. The files of the backups are data of the user, not state of sakctl.
 - `SAKCTL-9` **One version.** sakctl, the image of its tools and the images of the server have the same version, the
   version of the release. A server runs the images of the version of the sakctl that deployed it. For the tests,
   another tag of the images can be set, the images of a release before it is released (`<version>-rc`).

@@ -41,8 +41,3 @@ None. The health of the domains asks name servers directly.
 - `HOSTING-8` **The secret key stays in the backend.** It is stored with the bucket, but is part of no answer except
   the endpoint of the key pair.
 - `HOSTING-9` **A deleted bucket keeps its name and its objects** until it is purged; it is served nowhere and its key pair is refused.
-
-## Related
-
-- **FDRs:** [FDR-001](../../fdr/FDR-001-dns-mode.md) (the domains of the buckets by the dns mode),
-  [FDR-004](../../fdr/FDR-004-maintenance-cleanup.md)

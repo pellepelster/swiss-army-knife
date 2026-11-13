@@ -4,7 +4,7 @@
 title = 'Swiss Army Knife'
 baseURL = '/'
 locale = 'en'
-# the files are named like on github, e.g. FDR-001-dns-mode.md
+# the files are named like on github, e.g. ACCEPTED-RISKS.md
 disablePathToLower = true
 enableGitInfo = false
 
@@ -20,12 +20,7 @@ target = 'content'
 [[module.mounts]]
 source = '../docs'
 target = 'content'
-files = ['! development/fdr/INDEX.md', '! development/architecture/apps/INDEX.md', '! apps/android/INDEX.md', '! screenshots/**', '! development/design/**']
-
-# the index of the feature decision records is the page of its section
-[[module.mounts]]
-source = '../docs/development/fdr/INDEX.md'
-target = 'content/development/fdr/_index.md'
+files = ['! development/architecture/apps/INDEX.md', '! apps/android/INDEX.md', '! screenshots/**', '! development/design/**']
 
 # the architecture of all apps is the page of the section of the apps
 [[module.mounts]]

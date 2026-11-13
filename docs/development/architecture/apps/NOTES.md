@@ -21,8 +21,7 @@ and add it to the note.
 
 ## Data
 
-- `NOTES-2` **A file stays** in the storage when a note no longer shows it; other notes may show it (refer to
-  [FDR-004](../../fdr/FDR-004-maintenance-cleanup.md) for the cleanup).
+- `NOTES-2` **A file stays** in the storage when a note no longer shows it; other notes may show it.
 - `NOTES-3` **The text discovered** in a file is kept with the file; a file is sent to the AI once.
 
 ## Android
