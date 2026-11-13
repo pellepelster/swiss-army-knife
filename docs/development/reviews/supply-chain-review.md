@@ -84,8 +84,8 @@ images a developer pushes; whoever can set the variable on the machine could als
 ### ~~`SC-9` Gradle has no verification of its dependencies~~
 
 **Fixed:** `gradle/verification-metadata.xml` (454 components) and `android/gradle/verification-metadata.xml` (730)
-have the sha256 of every dependency and plugin of the two builds, metadata included; Gradle refuses a file with another
-checksum or without one. `mise run gradle:verification` writes them, resolving every configuration and building what
+have the sha256 of the file of every dependency and plugin of the two builds (not of the poms and module files, which
+Gradle reads in an order of its own); Gradle refuses a file with another checksum or without one. `mise run gradle:verification` writes them, resolving every configuration and building what
 the workflow builds; Renovate writes them with its updates, and where it can not, the build of its pull request fails
 (docs/development/DEPENDENCIES.md). Lockfiles are not needed besides: the versions are fixed in the build files and a
 checksum pins the file of each.

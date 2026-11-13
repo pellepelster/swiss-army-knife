@@ -71,8 +71,11 @@ tests. Before you merge one of these pull requests, run the tests that apply (`m
 
 ## Checksums of the Gradle dependencies
 
-Both Gradle builds verify every dependency and plugin against its sha256 in `gradle/verification-metadata.xml` and
-`android/gradle/verification-metadata.xml`; a file with another checksum, or one without an entry, fails the build.
+Both Gradle builds verify the file of every dependency and plugin (each jar and aar) against its sha256 in
+`gradle/verification-metadata.xml` and `android/gradle/verification-metadata.xml`; a file with another checksum, or
+one without an entry, fails the build. The poms and the module files are not verified (`verify-metadata` false): which
+of the parent poms and boms Gradle reads depends on the order it resolves in, a run on an empty cache asked for ones
+the run that wrote the checksums never read.
 Renovate runs Gradle to write the checksums of what it updates into these files. Where it cannot (the Android build
 needs the Android SDK), the build of its pull request fails; then, and after a dependency changed by hand, write them
 on the branch:

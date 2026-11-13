@@ -581,11 +581,17 @@ run = "./gradlew -q :sak-i18n:run --args=generate"
 # gradle/verification-metadata.xml and android/gradle/verification-metadata.xml, the sha256 of every
 # dependency and plugin of the two gradle builds, which gradle checks before it uses one (SC-9); after a
 # dependency changed by hand, Renovate writes them with its updates. Resolves every configuration and
-# builds what the workflow builds, so the dependencies of tasks are in it too
+# builds what the workflow builds, so the dependencies of tasks are in it too. In an empty gradle home of
+# its own: gradle reads the parent poms and boms of a dependency only when it resolves it the first time,
+# a warm cache would leave them out and a fresh runner would refuse them. Downloads every dependency again
 [tasks."gradle:verification"]
 description = "Write the checksums of the dependencies of the gradle builds"
 dir = "{{config_root}}"
 run = """
+#!/usr/bin/env bash
+set -euo pipefail
+export GRADLE_USER_HOME="$(mktemp -d)"
+trap 'rm -rf "$GRADLE_USER_HOME"' EXIT
 ./gradlew --no-configuration-cache -I gradle/resolve-all-dependencies.gradle --write-verification-metadata sha256 resolveAllDependencies assemble testClasses
 cd android
 ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew -I ../gradle/resolve-all-dependencies.gradle --write-verification-metadata sha256 resolveAllDependencies assembleDebug assembleGithubRelease bundlePlayRelease compileGithubDebugUnitTestKotlin
