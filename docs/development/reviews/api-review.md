@@ -38,6 +38,7 @@ with `limit` as its size), or the pages over all suggestions.
 
 ## Small items
 
-- `AR-8` `BucketResponse.subdomain` is missing "for a name with dots, which were allowed before";
+- ~~`AR-8` `BucketResponse.subdomain` is missing "for a name with dots, which were allowed before";
   `S3BucketService.subdomain` checks the name only for these old names. No bucket of today has a dot. Remove the
-  check and the comment; `subdomain` is then missing only without a base domain.
+  check and the comment; `subdomain` is then missing only without a base domain.~~ **Fixed:** the check and the
+  comment are gone.

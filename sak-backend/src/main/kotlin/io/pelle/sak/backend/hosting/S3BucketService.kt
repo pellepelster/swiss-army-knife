@@ -103,9 +103,8 @@ class S3BucketService(
                 ?.takeIf { isValidName(it) && repository.byName(it) != null }
     }
 
-    // <name>.<base_domain>, none without a base domain or for a name from before only letters,
-    // digits and hyphens were allowed
-    fun subdomain(name: String): String? = baseDomain?.let { "$name.$it" }?.takeIf { isValidName(name) }
+    // <name>.<base_domain>, none without a base domain; every name is a label of a domain (isValidName)
+    fun subdomain(name: String): String? = baseDomain?.let { "$name.$it" }
 
     // the domains of the bucket, then its subdomain of the base domain
     fun servedDomains(bucket: S3Bucket): List<String> = (bucket.domains + listOfNotNull(subdomain(bucket.name))).distinct()

@@ -7,8 +7,7 @@ import kotlinx.serialization.Serializable
 data class BucketResponse(
     val name: String,
     val domains: List<String>,
-    // <name>.<root_domain>, the bucket is served there as well; missing for a name with dots,
-    // which were allowed before
+    // <name>.<root_domain>, the bucket is served there as well; missing without a root domain
     val subdomain: String? = null,
     val createdAt: String,
     // missing until its domains are changed
