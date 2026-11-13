@@ -267,8 +267,8 @@ Fix: the used ids in a small table with their end; or an entry in ACCEPTED-RISKS
   it to bind 80 and 443 in the host network.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
   10 MiB. The change streams (`…/changes`) have no largest number for a user and stay open when the session ends.
-- `SEC-30` The comment at `0001-initial.yaml:511` says only the owner of a list changes its categories; `GROCERY-13`
-  and the code let every user who sees it.
+- ~~`SEC-30` The comment at `0001-initial.yaml:511` says only the owner of a list changes its categories; `GROCERY-13`
+  and the code let every user who sees it.~~ **Fixed:** the comment no longer says who changes the categories.
 
 ## Not checked
 

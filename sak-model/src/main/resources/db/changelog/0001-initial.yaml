@@ -492,8 +492,8 @@ databaseChangeLog:
             sql: CREATE UNIQUE INDEX grocery_lists_owner_name_key ON grocery_lists (owner, name) WHERE deleted_at IS NULL
 
         # the categories of a list (GROCERY-13): a name, an icon (one emoji or none) and the place
-        # of their group; every user who sees the list changes them (LIST-2). name_key is the name
-        # normalized (groceryNameKey), unique among the live categories of a list
+        # of their group. name_key is the name normalized (groceryNameKey), unique among the live
+        # categories of a list
         - sql:
             sql: |
               CREATE TABLE grocery_categories (
