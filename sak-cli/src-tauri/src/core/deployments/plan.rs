@@ -3,10 +3,9 @@
 
 use super::*;
 
-/// what a plan shows of the resources: each with its status and its changes
+/// each resource of a plan with its status and its changes
 pub type Seen = Vec<(String, DiffStatus, Vec<String>)>;
 
-/// the plan of a create, deploy or destroy: what the apply does, resource by resource
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlanResponse {
@@ -16,8 +15,8 @@ pub struct PlanResponse {
 }
 
 impl PlanResponse {
-    /// what the plan shows of the resources, to tell whether the project changed since. The
-    /// provisioning is left out: a forced deploy changes its row on purpose
+    /// to tell whether the project changed since. Without the provisioning: a forced deploy
+    /// changes its row on purpose
     pub fn seen(&self) -> Seen {
         self.resources
             .iter()
@@ -38,15 +37,13 @@ impl PlanResponse {
 pub struct PlannedResource {
     /// `server 'alpha'`, the name the events of the apply use for it
     pub(crate) resource: String,
-    /// the kind of resource, `ssh_key`, `volume`, …, `provisioning`, and its name at the
-    /// provider: the page and the command line show the resource with them, in their language
+    /// the kind and the name at the provider, which the ui shows in its language
     pub(crate) kind: PlannedKind,
     pub(crate) name: String,
     /// the resource status of the glossary
     pub(crate) resource_status: ResourceStatus,
     /// what the plan does to it; none for a resource that stays as it is
     pub(crate) action: Option<PlanAction>,
-    /// what the apply does to it when it starts
     pub(crate) working: Working,
     pub(crate) status: DiffStatus,
     /// a destroy keeps it: the data volume, unless `delete_data` is set
@@ -54,8 +51,8 @@ pub struct PlannedResource {
     pub(crate) changes: Vec<String>,
 }
 
-/// the kind of a planned resource: one of the cloud, or the provisioning of the server. It is the
-/// word of its text, `common.deployments.resource.<kind>`
+/// a kind of the cloud, or the provisioning of the server; its text is
+/// `common.deployments.resource.<kind>`
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PlannedKind {
@@ -64,8 +61,8 @@ pub enum PlannedKind {
     Resource(ResourceKind),
 }
 
-/// the resource status of the glossary for a status of a diff. A resource whose parent is missing
-/// is missing too. A resource found under another name stops the plan before (NotOwned)
+/// the resource status of the glossary. A resource whose parent is missing is missing too; one of
+/// someone else stops the plan before (NotOwned)
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ResourceStatus {
@@ -83,7 +80,6 @@ impl ResourceStatus {
         }
     }
 
-    /// the key of its text, for the command line and the window alike
     pub fn text_key(self) -> &'static str {
         match self {
             ResourceStatus::UpToDate => "common.resource_status.up_to_date",
@@ -93,7 +89,6 @@ impl ResourceStatus {
     }
 }
 
-/// what the plan does to a resource
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PlanAction {
@@ -127,7 +122,6 @@ impl PlanAction {
 /// what the apply does to a resource when it starts
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 pub enum Working {
-    /// creates it
     #[serde(rename = "working")]
     Create,
     #[serde(rename = "working_update")]
@@ -153,8 +147,7 @@ impl Working {
     }
 }
 
-/// the key of the text of an apply's result: a resource created anew reads as created, one that
-/// stays as up-to-date
+/// a resource created anew reads as created
 pub(super) fn applied_key(applied: Applied) -> &'static str {
     match applied {
         Applied::Created | Applied::Recreated => "common.done.created",
@@ -163,7 +156,6 @@ pub(super) fn applied_key(applied: Applied) -> &'static str {
     }
 }
 
-/// the key of the text of a destroyed resource: destroyed, or gone already
 pub(super) fn destroyed_key(gone: bool) -> &'static str {
     if gone {
         "common.done.destroyed"
@@ -172,8 +164,7 @@ pub(super) fn destroyed_key(gone: bool) -> &'static str {
     }
 }
 
-/// the name of a serialized enum value, `up_to_date`, `created`: the page reads it in the json,
-/// the command line uses it as the key of its texts
+/// the serialized name of an enum value (`up_to_date`); the command line uses it as a text key
 pub(crate) fn key<T: Serialize>(value: &T) -> String {
     serde_json::to_value(value)
         .ok()
@@ -181,9 +172,8 @@ pub(crate) fn key<T: Serialize>(value: &T) -> String {
         .unwrap_or_default()
 }
 
-/// what the plan does to a resource, from its status. A stale dns record (`remove`) goes. A
-/// destroy keeps the data volume (`keep`), leaves what is gone and removes the rest. A create or
-/// deploy creates what is missing or must be created anew and updates what has changes
+/// a stale dns record (`remove`) goes; a destroy keeps the data volume (`keep`) and removes the
+/// rest; a create or deploy creates what is missing or must be recreated, updates what changed
 pub(super) fn action(
     intent: Intent,
     status: DiffStatus,
@@ -203,9 +193,7 @@ pub(super) fn action(
     }
 }
 
-/// what the apply does to a resource when it starts, from what the plan found: it creates what is
-/// missing, checks what is up-to-date, updates or recreates what has changes, and destroys on a
-/// destroy and a stale dns record
+/// what the apply does to a resource when it starts
 pub(super) fn working(intent: Intent, status: DiffStatus, recreate: bool, remove: bool) -> Working {
     match (intent, status) {
         _ if remove => Working::Destroy,

@@ -1,6 +1,6 @@
-//! the firewall provisioner against the real api, the flow of HetznerFirewallProvisionerTest
-//! of blcks: missing, created with two rules, the rules replaced, a new and a changed
-//! label, applied to a label selector and moved to another, destroyed
+//! the firewall provisioner against the real api: missing, created with two rules, the rules
+//! replaced, a new and a changed label, applied to a label selector and moved to another,
+//! destroyed
 
 mod support;
 

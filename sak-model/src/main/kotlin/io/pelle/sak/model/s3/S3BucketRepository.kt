@@ -23,8 +23,7 @@ sealed interface InsertBucketResult {
     data object DomainTaken : InsertBucketResult
 }
 
-// the database access of the buckets and their domains, only S3BucketService (sak-backend) uses
-// it
+// the buckets and their domains, for S3BucketService only
 class S3BucketRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers
@@ -153,7 +152,7 @@ class S3BucketRepository(
             false
         }
 
-    // a new key pair of a live bucket, the one before stops working (SEC-12); false when there is no
+    // a new key pair of a live bucket, the one before stops working; false when there is no
     // such bucket or another bucket has the access key id
     fun replaceKeyPair(
         name: String,

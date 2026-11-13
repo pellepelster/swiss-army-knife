@@ -12,9 +12,8 @@ import io.pelle.sak.notes.api.NotesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 
-// a backend whose answers wait until the test opens their gate: what the app does while a request is in
-// flight (the saves of a note one at a time, a load while notes change). answer makes the answer of a
-// request from its body, e.g. the note a save sent
+// a backend whose answers wait until the test opens their gate, to test what the app does while a
+// request is in flight (one save of a note at a time, a load while notes change)
 class GatedBackend(
     dispatcher: CoroutineDispatcher,
 ) {
@@ -44,7 +43,6 @@ class GatedBackend(
             ),
         )
 
-    // the api the model makes for a url and a session
     fun api(
         url: String,
         token: String?,

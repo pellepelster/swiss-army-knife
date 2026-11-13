@@ -44,11 +44,10 @@ internal val GROCERY_TEXTS =
 private fun toBuy(items: Int) =
     if (items == 0) stringResource(R.string.grocery_lists_to_buy_none) else pluralStringResource(R.plurals.grocery_to_buy, items, items)
 
-// the screens of the app, one at a time, as the model has it
 @Composable
 fun GroceryApp(model: GroceryModel) {
     val screen by model.screen.collectAsStateWithLifecycle()
-    // a check can be undone longer when the phone asks for more time for a control (AN-34)
+    // longer when the accessibility settings of the phone ask for more time
     UndoTime(UNDO_MS) { model.undoMs = it }
     CompositionLocalProvider(LocalPhotoPicker provides rememberPhotoPicker(model)) {
         when (val current = screen) {

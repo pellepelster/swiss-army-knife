@@ -43,10 +43,9 @@ data class Quantity(
     val left: Boolean = false,
 )
 
-// an item the AI read in a photo, as the user corrects it before it is added (GROCERY-16): whether it
-// is added, its name, its amount typed and its unit; the errors of its fields show once a field was
-// left or the items were to be added (UX-6). id is its place among the items the AI read, the key of
-// its row
+// an item the AI read in a photo, as the user corrects it before it is added (GROCERY-16); its errors
+// show once a field was left or the items were to be added (UX-6). id is its place among the items
+// read, the key of its row
 data class DiscoveredRow(
     val id: Int,
     val name: String,
@@ -59,9 +58,8 @@ data class DiscoveredRow(
     val valid get() = GroceryModel.validItemName(name) && amountOf(amount) != Amount.Invalid
 }
 
-// the items of a photo for the list listId, over it (GROCERY-16): read while the photo is sent and the
-// AI reads it, then the rows to correct, none when it found no item; adding while the rows checked
-// are added, error why some were not
+// the items of a photo for the list listId (GROCERY-16): reading while the photo is sent and read,
+// adding while the rows checked are added, error why some were not
 data class Discovery(
     val listId: Int,
     val reading: Boolean = true,
@@ -91,14 +89,13 @@ data class ListSettings(
     // the categories are as the backend has them; false while they load the first time and when they
     // could not be loaded, the section then shows no rows and no field to add one
     val categoriesLoaded: Boolean = false,
-    // while the categories load
     val categoriesLoading: Boolean = false,
     // the names typed into the fields of the categories, by their id, until they are saved; they
     // stay over a load and are saved before the settings close
     val drafts: Map<Int, String> = emptyMap(),
     // the categories whose typed name is no valid one, said under its field (UX-6)
     val invalidNames: Set<Int> = emptySet(),
-    // the name typed into the field that adds a category, and whether it is no valid one
+    // the name typed into the field that adds a category
     val newCategory: String = "",
     val newCategoryInvalid: Boolean = false,
     // how many changes of the categories wait or are sent, one after the other
@@ -110,8 +107,7 @@ data class ListSettings(
 // the sizes the backend scales a photo to, on its longer side (FileService.SCALED_SIZES)
 val SCALED_SIZES = listOf(128, 256, 480, 1024)
 
-// the size to ask for of a photo that shows at pixels on the screen: the smallest scaled size that
-// is at least as large, null when none is, the photo itself then
+// the smallest scaled size of at least pixels, null for the photo itself
 fun scaledSize(pixels: Int): Int? = SCALED_SIZES.firstOrNull { it >= pixels }
 
 // the screen of the grocery lists once the user is signed in (the screens before are core's)
@@ -130,8 +126,8 @@ data class ListsScreen(
     val renaming: Renaming? = null,
     // the item whose quantity is set in a dialog over the list, kept like renaming (GROCERY-15)
     val quantity: Quantity? = null,
-    // whether the robot next to the field of a new item reads the items of a photo: the AI features
-    // of the grocery lists are on (GROCERY-16); false when the backend can not say
+    // the AI features of the grocery lists are on (GROCERY-16): the field of a new item can read the
+    // items of a photo; false when the backend can not say
     val discoverItems: Boolean = false,
     // the items of a photo, read or to be confirmed, over the list (GROCERY-16)
     val discovery: Discovery? = null,
@@ -151,8 +147,8 @@ data class ListsScreen(
     override val settings: ListSettings? = null,
     // the newer version of the app the deployment runs, offered on the home
     override val update: AppUpdate? = null,
-    // the answer of the check for updates of the menu while there is no update to offer, e.g. that
-    // the app is up-to-date; on the home until the user dismisses it
+    // the answer of the check for updates when there is none to offer, e.g. up-to-date; on the home
+    // until dismissed
     override val updateNotice: UiText? = null,
     // the item whose photo is being attached or removed
     val photoBusy: Int? = null,

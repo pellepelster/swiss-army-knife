@@ -68,8 +68,7 @@ fun Route.s3(
             api.handle(call) {
                 when {
                     key.isEmpty() -> throw notImplemented()
-                    // a copy of an object or of a part on the server has no body, it would store an
-                    // empty object (SEC-13)
+                    // a copy on the server has no body, it would store an empty object
                     call.request.headers[COPY_SOURCE_HEADER] != null -> throw notImplemented()
                     query("partNumber") != null && query("uploadId") != null -> uploadPart()
                     else -> putObject()

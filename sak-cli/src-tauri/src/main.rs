@@ -9,7 +9,7 @@
 //! sakctl: the window (gui) or, with a command as the first argument, the command line
 //! (cli), both on the same core
 
-// the texts of locales/, generated from ctl in i18n/texts.yml, english for the ones missing in a language
+// the texts of locales/, generated from `ctl` of i18n/texts.yml; english where a language has none
 rust_i18n::i18n!("locales", fallback = "en");
 
 mod cli;
@@ -18,7 +18,6 @@ mod gui;
 
 fn main() {
     core::i18n::init();
-    // a command as the first argument: the command line, without a window
     let args: Vec<String> = std::env::args().skip(1).collect();
     if cli::is_command_line(&args) {
         core::i18n::set_frontend(core::i18n::Frontend::CommandLine);

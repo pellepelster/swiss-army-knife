@@ -114,7 +114,7 @@ fun Form(
     ) { content() }
 }
 
-// an error, read out by talkback when it shows (a live region, AN-34)
+// an error, read out by talkback when it shows (a live region)
 @Composable
 fun Error(text: UiText?) {
     text?.let {
@@ -199,7 +199,7 @@ fun SignInScreen(
     model: SakModel<*>,
 ) {
     var email by rememberSaveable { mutableStateOf("") }
-    // not in the saved state of the activity, which android writes to the disk (AN-9)
+    // not in the saved state of the activity, which android writes to the disk
     var password by remember { mutableStateOf("") }
     BackHandler(enabled = screen.method != null && screen.linkSentTo == null && !screen.busy) { model.chooseMethod(null) }
     Page(screen.address, actions = { TextButton(onClick = { model.changeDeployment() }) { Text(stringResource(R.string.other_deployment)) } }) { padding ->
@@ -212,7 +212,7 @@ fun SignInScreen(
                         stringResource(R.string.link_sent, screen.linkSentTo),
                         modifier = Modifier.testTag("link-sent"),
                     )
-                    // the same address again, or another one (AN-42)
+                    // the same address again, or another one
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(onClick = { model.requestLink(screen.linkSentTo) }, enabled = !screen.busy, modifier = Modifier.testTag("send-again")) {
                             Text(stringResource(R.string.send_again))
@@ -222,7 +222,7 @@ fun SignInScreen(
                         }
                     }
                 }
-                // the deployment did not answer: the QR code still works, the rest is asked again (AN-42)
+                // the deployment did not answer: the QR code still works, the rest is asked again
                 screen.multiUser == null -> {
                     ScanQr(model::scanQr)
                     if (!screen.busy) {

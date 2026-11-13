@@ -1,7 +1,4 @@
-//! what the window and the command line share: the checks on startup, the deployments and their
-//! manager, the provisioning, the container runtime, the keys derived from a password, the signed
-//! requests to the api, the backups, the providers and their tokens, the texts. Nothing in here knows tauri or
-//! clap
+//! what the window and the command line share. Nothing in here knows tauri or clap
 
 pub mod ansible_roles;
 pub mod backup;

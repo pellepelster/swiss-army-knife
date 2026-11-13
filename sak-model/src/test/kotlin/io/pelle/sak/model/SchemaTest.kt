@@ -5,9 +5,8 @@ import io.pelle.sak.model.jooq.DefaultSchema
 import org.junit.jupiter.api.Test
 import java.time.Instant
 
-// the rules every table follows: created_at is set when a row is inserted, updated_at is null
-// until the row is changed, deleted_at is null until the row is deleted, no row is deleted for
-// real (AGENT.md); owner records who created the row (MODEL-5)
+// the rules every table follows: created_at, updated_at null until changed, deleted_at null until
+// deleted, no row deleted for real (AGENT.md); owner records who created the row (MODEL-5)
 class SchemaTest {
     @Test
     fun `every table has created, updated and deleted times`() {

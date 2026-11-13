@@ -206,7 +206,6 @@ class FilesystemBinaryStorageTest {
         storage.usage(path("none")) shouldBe BlobUsage(0, 0)
     }
 
-    // SR-7: the staging directory is no blob, a tree of the root keeps the root and the writes being staged
     @Test
     fun `the root lists and counts no staged write, a tree of it keeps the root and the staged writes`() {
         write("a", "p", "a")

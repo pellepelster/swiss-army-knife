@@ -64,12 +64,11 @@ const val API_PATH_PREFIX = "/api"
 
 const val API_VERSION = "/v1"
 
-// the api only receives small json bodies, but for the files of the file storage
+// small json bodies only; the routes of the file storage have a limit of their own
 const val API_MAX_BODY_SIZE = 16L * 1024
 
-// what caddy lets through to sak-frontend at most, a file of the file storage with room to
-// spare; uploads to buckets go to the s3 api at api.<base_domain>, with a limit of their own
-// (S3_MAX_BODY_SIZE)
+// the most caddy lets through to sak-frontend: a file of the file storage with room to spare;
+// uploads to buckets have S3_MAX_BODY_SIZE
 const val APPS_MAX_BODY_SIZE = FileService.DEFAULT_MAX_SIZE + 1024L * 1024
 
 // how long a browser keeps the answer to a preflight request
@@ -94,8 +93,8 @@ fun frontendOrigins(config: SakConfig): Set<URI> =
 fun loginApp(config: SakConfig) = LoginApp(config.frontendUrl, config.baseDomain)
 
 
-// the session token lives in the local storage of sak-frontend, scripts from anywhere else must
-// never run on its pages; no referrer keeps the login token of the signin url to itself
+// the session token is in the local storage of sak-frontend, so no script from elsewhere may run
+// on its pages; no referrer keeps the login token of the signin url private
 private class SecurityHeadersConfig {
     var contentSecurityPolicy = ""
 }
@@ -110,9 +109,8 @@ private val SecurityHeaders =
         }
     }
 
-// sak-frontend and its api, caddy proxies sak.<base_domain> here unchanged and api.<base_domain>/v1
-// below /api; everything that can fail happens before anything is installed, so a failure leaves
-// no half an app behind
+// sak-frontend and its api: caddy proxies sak.<base_domain> unchanged and api.<base_domain>/v1
+// below /api. All that can fail happens before anything is installed, so a failure leaves no half app
 fun Application.apps(
     config: SakConfig,
     auth: SakConfig.AuthConfig,
@@ -171,8 +169,7 @@ fun Application.apps(
                 install(RequestBodyLimit) { bodyLimit { API_MAX_BODY_SIZE } }
 
                 route(API_VERSION) {
-                    // the only routes without a session, the info and the login; the rest of
-                    // the api needs one
+                    // the only routes without a session
                     route("/info") {
                         info(config.name, config.dnsMode, mailServer = mailSender != null, version = config.version)
                     }
@@ -244,8 +241,7 @@ fun Application.apps(
                             servedFiles(fileService)
                         }
                     }
-                    // what only sakctl reads, with a signed request: the settings of the deployment hold
-                    // the password of the mail server, no browser session gets it
+                    // sakctl only, signed: holds the password of the mail server, no browser session gets it
                     authenticate(API_SIGNATURE_AUTH) {
                         route("/deployment") {
                             requireRole(Role.ADMIN)
@@ -260,9 +256,8 @@ fun Application.apps(
             // where the api of the SAK address is, before the pages of the apps
             wellKnown(config)
 
-            // caddy only lets sak.<base_domain> through, its swagger ui is part of sak-frontend.
-            // Unknown api paths and versions are no pages of the apps: there routing answers 404,
-            // and 405 for a method a known path does not take
+            // the pages of sak-frontend, swagger ui included. Unknown api paths are no pages: routing
+            // answers 404 there, or 405 for a method a known path does not take
             outsideOf(API_PATH_PREFIX) {
                 singlePageApplication {
                     useResources = true

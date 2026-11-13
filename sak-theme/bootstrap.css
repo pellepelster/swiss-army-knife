@@ -1,8 +1,9 @@
 /* bootstrap in the colors, fonts and radii of the tokens: bootstrap 5.3 reads its --bs-*
-   custom properties at runtime, so this maps them and nothing of bootstrap is built. Load
-   after bootstrap.min.css and tokens.css. Buttons: btn-primary is the accent, the one action
-   of a page; btn-outline-secondary every other, on the raised fill in the line of the fields;
-   btn-outline-danger one that leads to a delete, on the same fill in the color of danger */
+   custom properties at runtime, so this maps them and bootstrap keeps its own settings. Load
+   after bootstrap (bootstrap.min.css, or the subset of sak-frontend/src/bootstrap.scss) and
+   tokens.css. Buttons: btn-primary is the accent, the one action of a page; btn-outline-secondary
+   every other, on the raised fill in the line of the fields; btn-outline-danger one that leads to
+   a delete, on the same fill in the color of danger */
 :root,
 [data-bs-theme] {
   --bs-body-bg: var(--sak-bg);
@@ -189,8 +190,9 @@ code {
   --bs-card-inner-border-radius: calc(var(--sak-radius-lg) - 1px);
 }
 
-/* a tab folder: the card right after the tabs is the folder, the active tab is cut from the same sheet (its fill,
-   its line, none below), the other tabs lie flat on the page; one row, scrolled sideways where it does not fit */
+/* a tab folder: the card right after the tabs is the folder, the active tab is cut from the same
+   sheet (its fill, its line, none below), the other tabs lie flat on the page; one row, scrolled
+   sideways where it does not fit */
 .nav-tabs {
   --bs-nav-link-color: var(--sak-muted);
   --bs-nav-link-hover-color: var(--sak-ink);

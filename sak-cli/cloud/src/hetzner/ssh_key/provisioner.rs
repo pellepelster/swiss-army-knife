@@ -28,9 +28,8 @@ pub fn fingerprint(public_key: &str) -> Result<String> {
         .join(":"))
 }
 
-/// the fingerprint of the declared key; `None` for a key declared without its public key (the
-/// deployment it is compared for has none left, `deployment::spec::ObservedSpec`): it is missing,
-/// or compared by its labels only
+/// `None` for a key declared without its public key (`deployment::spec::ObservedSpec` of a
+/// deployment that has none left): it is missing, or compared by its labels only
 fn expected_fingerprint(resource: &HetznerSshKey) -> Result<Option<String>> {
     if resource.public_key.is_empty() {
         Ok(None)

@@ -6,7 +6,6 @@ import io.pelle.sak.core.SakViewModel
 import io.pelle.sak.notes.api.NotesApi
 import io.pelle.sak.notes.ui.MicrophoneRecorder
 
-// the model of the app for the activity, kept across a rotation (SakViewModel)
 class NotesViewModel(
     application: Application,
 ) : SakViewModel<NotesModel>(application, app = "notes", selfUpdate = BuildConfig.SELF_UPDATE) {

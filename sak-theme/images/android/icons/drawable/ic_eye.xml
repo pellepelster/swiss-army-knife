@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- the eye icon of Font Awesome Free 7.3.1 (solid, svgs-full: the slash stays in its viewport), https://fontawesome.com,
-     CC BY 4.0: bought items are shown (GROCERY-14) -->
+<!-- the eye icon of Font Awesome Free 7.3.1 (solid, svgs-full: the same viewport as eye-slash),
+     https://fontawesome.com, CC BY 4.0: bought items are shown (GROCERY-14) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"

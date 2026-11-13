@@ -5,8 +5,7 @@ import io.pelle.sak.model.jooq.tables.records.FilesRecord
 import io.pelle.sak.model.jooq.tables.references.FILES
 import java.time.Clock
 
-// the database access of the files, only FileService (sak-backend) uses it; it reads the files that are not
-// deleted only, and only the ones of the address that uploaded them
+// the files, for FileService only; reads the live files of their uploader only
 class FileRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers

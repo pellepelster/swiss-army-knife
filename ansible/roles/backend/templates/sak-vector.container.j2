@@ -7,8 +7,7 @@ After=sak-victorialogs.service
 ContainerName=sak-vector
 Image={{ backend_vector_image }}
 Pull=missing
-# victorialogs only listens on localhost
-# the network of victorialogs, not the one of the host (SEC-14)
+# the network of victorialogs, not the one of the host
 Network=sak-logs.network
 # the ingress writes its access log readable by its own user only
 User={{ backend_uid }}

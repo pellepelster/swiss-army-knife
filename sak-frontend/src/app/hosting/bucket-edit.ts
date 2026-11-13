@@ -18,8 +18,7 @@ import { BucketsService } from './buckets.service';
 import { DomainList } from './domain-list';
 import { PageHeader } from '../shared/page-header';
 
-// edits everything of a bucket that can be changed on a page of its own, its name can not be;
-// saving or cancelling goes back to the bucket
+// edits a bucket, not its name; save and cancel go back to the bucket
 @Component({
   selector: 'app-bucket-edit',
   imports: [PageHeader, DomainList, RouterLink, TranslatePipe],
@@ -97,8 +96,7 @@ export class BucketEdit {
   protected readonly valid = computed(() => validDomains(this.domains()));
 
   constructor() {
-    // the bucket of the route, again when the route names another one; a late answer for the
-    // bucket before never fills the form
+    // loads again for another route; a late answer for the bucket before never fills the form
     effect((onCleanup) => {
       const name = this.name();
       untracked(() => {

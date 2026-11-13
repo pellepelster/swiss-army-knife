@@ -286,7 +286,7 @@ class GroceryServiceTest {
         service.suggestions(PELLE, own, "")!!.items shouldBe emptyList()
     }
 
-    // the suggestions are paged like every list (AR-7): offset and limit, the total of them all
+    // paged like every list: offset and limit, the total of them all
     @Test
     fun `pages the suggestions, the total counts them all`() {
         val own = list(PELLE)

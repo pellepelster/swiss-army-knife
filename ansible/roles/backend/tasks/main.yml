@@ -143,10 +143,10 @@
     state: "{{ 'started' if backend_automatic_reboot | bool else 'stopped' }}"
     daemon_reload: "{{ backend_automatic_reboot_units is changed }}"
 
-# every run pulls every image: sak-backend and sak-ingress at the tag CI pushes from main
-# (latest), the log images at their pinned tags. A pull that brings another image than the one
-# there restarts its container and removes the replaced image. Pulled here already, the vector
-# configuration is validated with its image
+# every run pulls every image: sak-backend and sak-ingress at sak_image_tag, the log images at
+# their pinned tags. A pull that brings another image than the one there restarts its container
+# and removes the replaced image. Pulled here already, the vector configuration is validated with
+# its image
 - name: Pull the images
   ansible.builtin.shell:
     cmd: |

@@ -8,9 +8,8 @@ import { BucketList } from './bucket-list';
 import { BucketPublishing } from './bucket-publishing';
 import { BucketView } from './bucket-view';
 
-// the buckets of the s3 api, loaded with the first of their pages (hosting.routes.ts): the list, a
-// page to create one, a bucket's page with its tabs and a page to edit it; create and edit come
-// first, the bucket's page would take them as its name
+// loaded with the first of these pages (hosting.routes.ts); create and edit come first, the
+// bucket's page would take them as its name
 export const HOSTING_PAGES: Routes = [
   { path: '', component: BucketList, title: pageTitle('app.static_hosting') },
   { path: 'create', component: BucketCreate, title: pageTitle('hosting.route.create') },
@@ -24,7 +23,7 @@ export const HOSTING_PAGES: Routes = [
       { path: 'configuration', component: BucketConfiguration },
       { path: 'credentials', component: BucketCredentials },
       { path: 'publishing', component: BucketPublishing },
-      // with the charts, which only this tab needs
+      // lazy: only this tab needs the charts
       { path: 'logs', loadComponent: () => import('./bucket-logs').then((m) => m.BucketLogs) },
     ],
   },

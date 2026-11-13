@@ -1,7 +1,7 @@
 package io.pelle.sak.grocery
 
-// photos fetched, by a key, the ones used last kept while all of them have at most maxBytes (AN-21);
-// a photo larger than that is not kept. Without android, so the model stays testable on the jvm
+// the photos used last, at most maxBytes in all; a larger photo is not kept. Without android, so the
+// model stays testable on the jvm
 class PhotoCache(
     private val maxBytes: Long,
 ) {
@@ -33,7 +33,7 @@ class PhotoCache(
         bytes = 0
     }
 
-    // the bytes kept, for the tests
+    // for the tests
     @Synchronized
     fun size(): Long = bytes
 }

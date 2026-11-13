@@ -1,54 +1,47 @@
 # sak-theme
 
-The design tokens and the few shared components of sak, as plain css, and bootstrap as the
-dependency of this package: a page without a build (sakctl) links them, the angular app
-(sak-frontend) can import them, both read the same values and render the same bootstrap. The palette is the one of blcks-theme (`scss/_tokens.scss` there): the light "paper"
-surface by default, the dark "terminal" surface when the system prefers dark, the accent green
-of the rack-led icon, IBM Plex Sans and Mono.
+The design tokens and the shared components of SAK as plain css, with bootstrap as a dependency. A page without a
+build (sakctl) links them, the Angular app (sak-frontend) imports them; both use the same values and the same
+bootstrap. The palette is the one of blcks-theme: the light "paper" surface by default, the dark "terminal" surface
+when the system prefers dark, the accent green of the rack-led icon, IBM Plex Sans and Mono.
 
-- `tokens.css` - the custom properties: `--sak-bg`, `--sak-surface`, `--sak-raised`, `--sak-line`,
-  `--sak-ink`, `--sak-muted`; `--sak-field` and `--sak-field-line`, the fill and the outline of a field to type in,
-  3:1 against the page, the card, the raised fill and the field; `--sak-accent` and `--sak-accent-ink`; the states `--sak-ok`,
-  `--sak-info`, `--sak-warn`, `--sak-danger`, `--sak-neutral`; `--sak-danger-text`, danger as
-  text on the raised fill (darker in light mode, to be readable); `--sak-terminal`,
-  `--sak-terminal-bar`, `--sak-terminal-ink` and `--sak-terminal-muted`, a terminal, dark in both modes; fonts and text sizes
-  (`--sak-font-sans`, `--sak-font-mono`, `--sak-text*`); `--sak-radius*`; `--sak-space-1..5`.
-- `fonts.css` and `fonts/` - IBM Plex Sans 400/600 and Mono 400/500, the latin subset, under the
-  SIL open font license (`fonts/LICENSE`), self-hosted; a consumer loads nothing from outside.
-- `bootstrap.css` - bootstrap mapped onto the tokens through its `--bs-*` custom properties, loaded
-  after `node_modules/bootstrap/dist/css/bootstrap.min.css` and `tokens.css`; `btn-primary` is the
-  accent, the one action of a page, `btn-outline-secondary` every other button, in the line of the fields;
-  `form-label`, `form-control`, `card`, `list-group`, `nav-tabs` (a tab folder: the card right after the tabs is the folder, the active tab takes its fill and line), `alert-success`, `alert-warning`, `alert-danger` and the `text-bg-*` of the
-  states take the tokens. `package.json` pins bootstrap,
-  `npm ci` here fetches it.
-- `components.css` - `.sak-icon-plus` (the plus sign every button that creates or adds something
-  starts with, `icons/plus.svg` next to it: a consumer copies `icons/` with the css, a `data:` url
-  would break a content security policy of `'self'`), `.sak-led` (a state as a glowing square, `data-sak-state` one of ok, info,
-  warn, danger, neutral, busy), `.sak-status` (the led with a word), `.sak-mono`.
+- `tokens.css`: the custom properties.
+  - Surfaces and text: `--sak-bg`, `--sak-surface`, `--sak-raised`, `--sak-line`, `--sak-ink`, `--sak-muted`.
+  - Fields: `--sak-field` and `--sak-field-line`, with 3:1 contrast against the page, the card, the raised fill and
+    the field.
+  - Accent and states: `--sak-accent`, `--sak-accent-ink`, `--sak-ok`, `--sak-info`, `--sak-warn`, `--sak-danger`,
+    `--sak-neutral`, and `--sak-danger-text` (danger as text on the raised fill, darker in light mode).
+  - A terminal, dark in both modes: `--sak-terminal`, `--sak-terminal-bar`, `--sak-terminal-ink`,
+    `--sak-terminal-muted`.
+  - Fonts, sizes and spacing: `--sak-font-sans`, `--sak-font-mono`, `--sak-text*`, `--sak-radius*`,
+    `--sak-space-1..5`.
+- `fonts.css` and `fonts/`: IBM Plex Sans 400/600 and Mono 400/500, latin subset, self-hosted, SIL Open Font
+  License (`fonts/LICENSE`).
+- `bootstrap.css`: maps bootstrap onto the tokens through its `--bs-*` properties. Load it after bootstrap and
+  `tokens.css`. `btn-primary` is the accent (the one action of a page), `btn-outline-secondary` is every other
+  button. It also styles `form-label`, `form-control`, `card`, `list-group`, `nav-tabs` (the card after the tabs is
+  the folder, the active tab takes its fill and line), the alerts and the `text-bg-*` of the states.
+  `package.json` pins bootstrap.
+- `components.css`: `.sak-icon-plus` (the plus sign of every button that creates or adds; it uses `icons/plus.svg`,
+  because a `data:` url breaks a content security policy of `'self'`), `.sak-led` (a state as a glowing square,
+  `data-sak-state` is ok, info, warn, danger, neutral or busy), `.sak-status` (the led with a word), `.sak-mono`.
+- `images/`: all images and icons of the apps, read from here by each build.
+  - `web/`: the favicons and `icons/` (the app icons as svg and png, also for the manifests), copied into
+    sak-frontend by its `angular.json`. The docs site uses `favicon.svg`.
+  - `sources/`: the sources of the png icons, not shipped.
+  - `sakctl/`: the SAK icon and `providers/` (the logo of each cloud provider), copied by `mise run cli:theme`.
+  - `tauri/`: the icons of the sakctl installers and windows (`sak-cli/src-tauri/tauri.conf.json`).
+  - `android/icons/`: the icons of the Android apps (Font Awesome as vector drawables), a res directory of `core` and
+    of each app. `android/<app>/`: the launcher icon of the app.
 
-- `images/` - every image and icon of the apps, once, read from here by each build:
-  - `web/` - the favicons and `icons/` (the icons of the apps as svg and png, also for the manifests), copied to the
-    root of sak-frontend by its `angular.json`; the docs site takes `favicon.svg`.
-  - `sources/` - the sources the png icons are made from, not shipped.
-  - `sakctl/` - the icon of Swiss Army Knife and `providers/` (the logo of each cloud provider), copied by
-    `mise run cli:theme` into `sak-cli/ui/theme/images/`.
-  - `tauri/` - the icons of the sakctl installers and windows, named in `sak-cli/src-tauri/tauri.conf.json`.
-  - `android/icons/` - the icons of the android apps (Font Awesome as vector drawables), a res directory of `core`
-    and of every app; `android/<app>/` - the launcher icon of the app, a res directory of that app
-    (`sak.android.app`).
-
-A consumer's own stylesheet holds no color literal, every color is a `var(--sak-…)`;
-sakctl's tests check that for its `ui/style.css`.
+The stylesheet of a consumer has no color literal, every color is a `var(--sak-…)`. The tests of sakctl check this
+for its `ui/style.css`.
 
 ## Consumers
 
-- sakctl: `mise run cli:theme` runs `npm ci` here and copies bootstrap and the files into
-  `sak-cli/ui/theme/` (not committed, tauri bundles that one directory); `index.html` links
-  `theme/bootstrap.min.css`, `fonts.css`, `tokens.css`, `bootstrap.css` and `components.css`
-  before its own `style.css`, which holds the layout alone. `cli:run`, `cli:build` and
-  `cli:test:unit` copy first. The toolbars are button groups: the one at the bottom right moves
-  through the wizard, the one at the top right acts on the data of the view.
-- sak-frontend: builds bootstrap from its scss here (`node_modules/bootstrap/scss`) with only the components and
-  utilities its pages use (`sak-frontend/src/bootstrap.scss`), with bootstrap's own settings, then lists
-  `fonts.css`, `tokens.css`, `bootstrap.css` and `components.css` in the `styles` of its `angular.json`; the
-  post-it colors stay its own.
+- **sakctl:** `mise run cli:theme` runs `npm ci` here and copies bootstrap and the files into `sak-cli/ui/theme/`
+  (not committed, tauri bundles it). `index.html` links them before its own `style.css`, which has only the layout.
+  `cli:run`, `cli:build` and `cli:test:unit` copy first.
+- **sak-frontend:** builds a bootstrap subset from the scss here (`sak-frontend/src/bootstrap.scss`, only the
+  components and utilities its pages use), then lists `fonts.css`, `tokens.css`, `bootstrap.css` and
+  `components.css` in the `styles` of its `angular.json`. The post-it colors are its own.

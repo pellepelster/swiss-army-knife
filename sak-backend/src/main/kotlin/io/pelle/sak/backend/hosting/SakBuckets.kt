@@ -44,8 +44,7 @@ private val logger = KotlinLogging.logger {}
 
 private const val S3_TAG = "s3"
 
-// the buckets with their domains and statistics, meant to be mounted behind the
-// authentication
+// mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.buckets(
     bucketService: S3BucketService,

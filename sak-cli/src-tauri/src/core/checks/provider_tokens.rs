@@ -3,9 +3,9 @@ use crate::core::providers::ProviderType;
 use crate::core::runtime::block_on;
 use rust_i18n::t;
 
-/// the provider tokens given to sakctl, each validated and given back. For the window, the tokens
-/// of the variables that are set, e.g. HCLOUD_TOKEN, so the user does not enter them. For the
-/// command line, its token from HCLOUD_TOKEN or the terminal. Each named by where it came from
+/// the provider tokens given to sakctl, each validated and given back, named by where it came
+/// from: for the window the variables that are set (e.g. HCLOUD_TOKEN), for the command line
+/// HCLOUD_TOKEN or the terminal
 pub struct ProviderTokensCheck {
     tokens: Vec<(ProviderType, String, &'static str)>,
 }

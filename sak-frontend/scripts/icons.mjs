@@ -1,8 +1,8 @@
-// the icons of Font Awesome that sak-frontend uses (mise run frontend:icons): src/icons/icons.css with the
-// rules of fontawesome.min.css but only the icons named in src/app (fa-<name>), and
-// src/icons/fa-solid-900.woff2, the solid font cut to their glyphs with pyftsubset of fonttools
-// (mise.toml). The whole css and font would be in the bundle every page loads at the start (TD-5).
-// --check writes nothing and fails while the committed css is not current (icons.spec.ts)
+// the icons of Font Awesome that sak-frontend uses (mise run frontend:icons), so the start bundle
+// stays small: src/icons/icons.css with the rules of fontawesome.min.css but only the icons named in
+// src/app (fa-<name>), and src/icons/fa-solid-900.woff2, the solid font cut to their glyphs with
+// pyftsubset of fonttools (mise.toml). --check writes nothing and fails while the committed css is
+// not current (icons.spec.ts)
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

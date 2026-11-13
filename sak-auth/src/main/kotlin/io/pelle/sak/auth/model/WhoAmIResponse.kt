@@ -8,7 +8,7 @@ data class WhoAmIResponse(
     val username: String,
     // the name an admin gave the user, null without one: the apps show the username then
     val name: String?,
-    // when the session ends, ISO 8601; null for the admin api token, which never expires
+    // when the session ends, ISO 8601; null for a signed request of sakctl, which never expires
     val expiresAt: String?,
     val roles: List<String>,
 )

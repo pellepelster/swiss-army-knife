@@ -95,7 +95,7 @@ class SiteMetricsService internal constructor(
     ): List<UserAgentSeries> {
         val byGroup = sortedMapOf<UserAgentGroup, LongArray>(compareBy { it.ordinal })
         // one series for each user agent, which the clients of the site choose: very many of them are
-        // an answer too large to read, the metrics then show no user agents rather than fail (SEC-10)
+        // an answer too large to read, the metrics then show no user agents rather than fail
         val series =
             try {
                 client.statsQueryRange("$filter | stats by ($USER_AGENT) count() $REQUESTS", grid.start, grid.end, grid.range.step)

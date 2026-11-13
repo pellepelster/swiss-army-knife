@@ -23,16 +23,15 @@ fun bucketStorage(config: SakConfig): BinaryStorageS3Backend {
     return BinaryStorageS3Backend(storage, guard = WriteGuard({ Files.getFileStore(config.s3DataDir).usableSpace }, config.s3MinFreeBytes))
 }
 
-// what caddy lets through to the s3 api at most: the largest object or part of S3, with room for the
-// signatures of an aws-chunked body (SEC-9)
+// the most caddy lets through to the s3 api: the largest object or part, with room for the
+// signatures of an aws-chunked body
 const val S3_MAX_BODY_SIZE = WriteGuard.MAX_OBJECT_BYTES + 64L * 1024 * 1024
 
-// the domains the controller serves itself, no bucket is served at them and none is redirected
+// the domains the backend serves itself; no bucket and no redirect takes them
 fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)
 
-// the base domain (the root domain or <name>.<root_domain>, by the dns mode) leads to
-// sak-frontend, unless a bucket is served at it or it is redirected elsewhere; sak-frontend is
-// only served when the login is configured
+// the base domain (by the dns mode the root domain or <name>.<root_domain>) leads to sak-frontend,
+// unless a bucket or a redirect takes it; sak-frontend is served only with the login configured
 fun redirectsRootDomain(
     config: SakConfig,
     bucketDomains: Map<String, List<String>>,
@@ -42,8 +41,8 @@ fun redirectsRootDomain(
         bucketDomains.values.none { config.baseDomain in it } &&
         config.baseDomain !in redirectedDomains
 
-// bucketDomains are the domains each bucket is served at, redirects maps every redirected domain
-// to the domain it leads to, objectsDir is where caddy finds the objects of a bucket
+// redirects maps every redirected domain to its target; objectsDir is where caddy finds the objects
+// of a bucket
 fun caddyConfig(
     config: SakConfig,
     bucketDomains: Map<String, List<String>>,
@@ -66,8 +65,7 @@ fun caddyConfig(
             }
 
             if (config.auth != null) {
-                // sak-frontend, served by the controller; the api and the s3 api the controller
-                // serves as well belong to api.<base_domain> only
+                // the api and the s3 api belong to api.<base_domain> only
                 route {
                     host(config.frontendHost)
                     path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*", API_PATH_PREFIX, "$API_PATH_PREFIX/*")
@@ -84,8 +82,8 @@ fun caddyConfig(
                     terminal()
                 }
 
-                // the api of sak-frontend, below /api of the controller; no bucket is named v1,
-                // bucket names have at least three characters
+                // below /api of the backend; no bucket is named v1, bucket names have at least
+                // three characters
                 route {
                     host(config.apiHost)
                     path(API_VERSION, "$API_VERSION/*")
@@ -98,9 +96,9 @@ fun caddyConfig(
                 }
             }
 
-            // everything else at api.<base_domain> is the s3 api, below /s3 of the controller; hsts
-            // holds for a host, so as for the api of sak-frontend. The bucket domains and the
-            // redirects have none, the owner of a site decides that
+            // everything else at api.<base_domain> is the s3 api, below /s3 of the backend; hsts
+            // holds for a host, so the same as for the api. The bucket domains and the redirects
+            // have none, the owner of a site decides that
             route {
                 host(config.apiHost)
                 logField(SITE_LOG_FIELD, API_SITE)
@@ -155,8 +153,8 @@ class CaddyReconciler(
 ) {
     private val logger = KotlinLogging.logger {}
 
-    // whether the last attempt configured caddy, null before the first one; the first failure and
-    // the first success are told, the failures repeating it at debug only
+    // whether the last attempt configured caddy, null before the first one; a success is logged
+    // after none or a failure, an unreachable caddy only once at warn, then at debug
     private var configured: Boolean? = null
 
     private var executor: ScheduledExecutorService? = null
@@ -186,7 +184,7 @@ class CaddyReconciler(
             }
     }
 
-    // right away, e.g. after the redirects changed, without waiting for the next period
+    // without waiting for the next period, e.g. after the redirects changed
     fun reconcileNow() {
         executor?.execute(::reconcile)
     }

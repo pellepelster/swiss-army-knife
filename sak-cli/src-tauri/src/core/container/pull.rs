@@ -10,9 +10,8 @@ use futures_util::StreamExt;
 use rust_i18n::t;
 use std::collections::HashMap;
 
-/// pulls the image again, by the digest whose signature is verified (`core::images`), and runs it
-/// to prove it; from then on every run of the tools runs that digest (`image`). The api of docker
-/// reports the bytes pulled, the command line of docker and podman reports nothing
+/// pulls the image again by its verified digest (`core::images`) and runs it to prove it; from
+/// then on every run of the tools runs that digest (`image`)
 pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
     let verified = crate::core::images::reference(crate::core::images::TOOLS)?;
     // a second pull in the same run of sakctl verified the same digest

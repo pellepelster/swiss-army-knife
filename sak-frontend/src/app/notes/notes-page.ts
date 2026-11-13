@@ -211,7 +211,6 @@ export class NotesPage {
     });
   }
 
-  // the notes of the label, or all of them, from their first page
   protected select(label: string | null): void {
     this.filter.set(label);
     this.offset.set(0);

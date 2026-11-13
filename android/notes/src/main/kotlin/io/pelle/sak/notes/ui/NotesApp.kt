@@ -130,8 +130,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-// the colors of the notes, the same in the light and the dark mode, with the ink on them (the
-// --note-* of sak-frontend/src/styles.scss)
+// the same in the light and the dark mode (the --note-* of sak-frontend/src/styles.scss)
 private val NOTE_BACKGROUNDS =
     mapOf(
         NoteResponse.Color.YELLOW to Color(0xFFFFF59D),
@@ -142,8 +141,7 @@ private val NOTE_BACKGROUNDS =
     )
 private val NOTE_INK = Color(0xFF2B2A27)
 
-// a field on a note: its text, label and outline in the ink of the note, black enough to read on
-// every color of a note
+// a field in the ink of the note, readable on every color of a note
 @Composable
 private fun noteFieldColors() =
     OutlinedTextFieldDefaults.colors(
@@ -171,16 +169,16 @@ private val COLOR_NAMES =
         NoteResponse.Color.ORANGE to R.string.notes_colors_orange,
     )
 
-// a photo is taken or chosen for a note, or for a new note (NEW)
+// the note id of a photo for a new note
 private const val NEW = -1
 
 @Composable
 fun NotesApp(model: NotesModel) {
     val screen by model.screen.collectAsStateWithLifecycle()
     val player = rememberPlayer(model)
-    // a removal can be undone longer when the phone asks for more time for a control (AN-34)
+    // an undo lasts longer when the phone asks for more time for a control
     UndoTime(UNDO_REMOVE_MS) { model.undoMs = it }
-    // a recording plays only while its note is open, the app in front and the user signed in (AN-28)
+    // a recording plays only while its note is open, the app in front and the user signed in
     val open = (screen as? NotesScreen)?.open
     LaunchedEffect(open) { player.stop() }
     CompositionLocalProvider(
@@ -205,7 +203,6 @@ fun NotesApp(model: NotesModel) {
     }
 }
 
-// takes a photo with the camera or chooses one of the phone, for a note or a new note
 private class PhotoPicker(
     val hasCamera: Boolean,
     val take: (noteId: Int) -> Unit,
@@ -214,16 +211,14 @@ private class PhotoPicker(
 
 private val LocalPhotoPicker = staticCompositionLocalOf<PhotoPicker> { error("no photo picker") }
 
-// starts a recording once the app may use the microphone, asks for it first
 private val LocalMicrophone = staticCompositionLocalOf<(RecordingFor) -> Unit> { error("no microphone") }
 
-// the camera and the photo picker of the app, at its root: the note they are for is kept with the
-// saved state; the photo is read and scaled by scaledPhoto and sent by the model
+// the camera and the photo picker, at the root of the app: their note is kept in the saved state
 @Composable
 private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
     val context = LocalContext.current
     var pending by rememberSaveable { mutableStateOf<Int?>(null) }
-    // the camera writes into a file of the cache, shared with it by the file provider only
+    // a file of the cache, shared with the camera app by the file provider
     val cameraFile = remember { File(context.cacheDir, "photos/camera.jpg") }
     val cameraUri =
         remember {
@@ -249,7 +244,7 @@ private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
     }
     val camera =
         rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-            // the file of the camera (with its EXIF) goes also when no photo was taken (AN-27)
+            // the file of the camera (with its EXIF) goes also when no photo was taken
             if (taken) {
                 send(cameraUri) { cameraFile.delete() }
             } else {
@@ -257,8 +252,8 @@ private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
                 cameraFile.delete()
             }
         }
-    // the app declares the camera for the scan of a QR code (core), so android lets the camera app take
-    // a photo for it only once the user allowed the camera; asked for when the user takes a photo
+    // the app declares CAMERA for the QR scan (core), so android lets the camera app take a photo for
+    // it only once the user allowed the camera
     val permission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
             if (allowed) camera.launch(cameraUri) else pending = null
@@ -287,7 +282,6 @@ private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
     }
 }
 
-// a recording starts once the permission to record is given, asked for the first time
 @Composable
 private fun rememberMicrophone(model: NotesModel): (RecordingFor) -> Unit {
     val context = LocalContext.current
@@ -310,9 +304,8 @@ private fun rememberMicrophone(model: NotesModel): (RecordingFor) -> Unit {
     }
 }
 
-// the wall of the notes, newest first, of the label filtered by or all; the main action creates a
-// note (the plus, UX-2), a note with a photo or a recording is created by the icon of what it starts
-// with (UX-2.1)
+// the main action creates a note (the plus, UX-2), a note with a photo or a recording is created by
+// the icon of what it starts with (UX-2.1)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WallScreen(
@@ -375,7 +368,6 @@ private fun WallScreen(
     }
 }
 
-// the photo of the camera or of the phone, for a note or a new note
 @Composable
 private fun PhotoMenu(
     expanded: Boolean,
@@ -417,7 +409,7 @@ private fun LabelFilter(
             .testTag("filter"),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // how many notes there are: the notes shown, or while a label is filtered the last count of all
+        // while a label is filtered the last count of all
         val count = if (screen.filter == null) screen.notes.size.takeUnless { screen.loading } else screen.allCount
         FilterChip(
             selected = screen.filter == null,
@@ -430,8 +422,7 @@ private fun LabelFilter(
     }
 }
 
-// a note on the wall in its color: its text, its labels and how many photos and recordings it has; a
-// tap opens it, the menu of the card deletes it after a confirmation (UX-12, UX-4.1)
+// a tap opens it, the menu of the card deletes it after a confirmation (UX-12, UX-4.1)
 @Composable
 private fun NoteCard(
     screen: NotesScreen,
@@ -502,7 +493,7 @@ private fun NoteCard(
     }
 }
 
-// the thumbnail of a stored photo or the waveform of a recording, fetched once by the model
+// the thumbnail of a photo or the waveform of a recording
 @Composable
 private fun Thumbnail(
     fileId: Int,
@@ -522,8 +513,7 @@ private fun Thumbnail(
     }
 }
 
-// a note in its own screen: its text, its color, its labels, its photos and recordings and what the
-// AI discovers in them; back leads to the wall, the text typed is saved first
+// back leads to the wall, the typed text is saved first
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NoteScreen(
@@ -547,7 +537,7 @@ private fun NoteScreen(
         },
         actions = {
             Box {
-                // while the note is deleted its menu waits, a second delete does nothing (AN-51)
+                // disabled while the note is deleted, a second delete does nothing
                 IconButton(onClick = { menu = true }, enabled = !deleting, modifier = Modifier.testTag("note-menu")) {
                     if (deleting) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -573,8 +563,8 @@ private fun NoteScreen(
             onRefresh = model::refresh,
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
-            // a note is light in every theme: its fields, labels and buttons take the light colors and
-            // the dark ink of the note, so they read on it also while the phone is dark
+            // a note is light in every theme: its controls take the light colors and the dark ink, so
+            // they read on it also while the phone is dark
             SakTheme(light = true) {
                 CompositionLocalProvider(LocalContentColor provides NOTE_INK) {
                     Column(
@@ -599,8 +589,7 @@ private fun NoteScreen(
     viewing?.let { fileId -> PhotoDialog(fileId, model) { viewing = null } }
 }
 
-// the text, saved once typing pauses; kept here while typing so the answers of the saves do not move
-// the cursor
+// kept here while typing so the answers of the saves do not move the cursor
 @Composable
 private fun NoteText(
     note: NoteResponse,
@@ -611,7 +600,7 @@ private fun NoteText(
     LaunchedEffect(note.text) { if (note.text != text) text = note.text }
     OutlinedTextField(
         value = text,
-        // at most MAX_TEXT_LENGTH characters, the field says so once it is full (AN-24)
+        // the field says so once it is full
         onValueChange = {
             text = it.take(MAX_TEXT_LENGTH)
             model.setText(note.id, text)
@@ -626,7 +615,6 @@ private fun NoteText(
     )
 }
 
-// the color of the note, one of NOTE_COLORS
 @Composable
 private fun ColorChoice(
     note: NoteResponse,
@@ -654,8 +642,7 @@ private fun ColorChoice(
     }
 }
 
-// the labels of the note, each removed by its x; a new one or one of the known ones added, at most
-// MAX_LABELS (the field says why it takes no more, UX-8)
+// at most MAX_LABELS (the field says why it takes no more, UX-8)
 @Composable
 private fun Labels(
     screen: NotesScreen,
@@ -681,7 +668,6 @@ private fun Labels(
                 )
             }
         }
-        // the known labels the note does not have yet, one tap adds one
         // disabled, not hidden, once the note has MAX_LABELS (UX-8)
         val known = screen.labels.filter { name -> note.labels.none { it.name == name } && (label.isBlank() || name.contains(label.trim().lowercase())) }
         if (known.isNotEmpty()) {
@@ -711,10 +697,8 @@ private fun Labels(
     }
 }
 
-// the photos and recordings of the note: a photo opens in full, a recording plays; each can go (undo
-// brings it back), and the AI discovers the text in it when it is turned on (otherwise its button stays,
-// disabled, and the screen says why, UX-8). A note takes MAX_PHOTOS and MAX_RECORDINGS, the add buttons
-// say why they are disabled (AN-24)
+// with the AI off its button stays, disabled, and the screen says why (UX-8); a full note says why the
+// add buttons are disabled
 @Composable
 private fun Media(
     screen: NotesScreen,
@@ -766,7 +750,7 @@ private fun Media(
         note.recordings.forEachIndexed { index, recording ->
             RecordingRow(screen, note.id, recording.id, index + 1, model)
         }
-        // while recording, the bar at the bottom of every screen stops it (AN-23)
+        // while recording, the bar at the bottom of every screen stops it
         OutlinedButton(
             onClick = { microphone(RecordingFor.Note(note.id)) },
             enabled = !uploading && screen.recording == null && !recordingsFull,
@@ -783,8 +767,6 @@ private fun Media(
     }
 }
 
-// the robot that has the AI discover the text of a photo or a recording; disabled while the AI is off
-// or while it discovers
 @Composable
 private fun Discover(
     screen: NotesScreen,
@@ -807,7 +789,6 @@ private fun Discover(
     }
 }
 
-// a recording of the note: it plays and pauses, its waveform shows; one plays at a time
 @Composable
 private fun RecordingRow(
     screen: NotesScreen,
@@ -837,8 +818,7 @@ private fun RecordingRow(
     }
 }
 
-// the bars at the bottom of every screen of the notes: the recording running with its stop (AN-23), and
-// the photo or recording just taken off with its undo (UX-4.2)
+// the running recording with its stop, and the removal with its undo (UX-4.2)
 @Composable
 private fun BottomBars(
     screen: NotesScreen,
@@ -853,8 +833,7 @@ private fun BottomBars(
     }
 }
 
-// while recording: how long it records, counted from its start in the model (it stays across a
-// rotation), and its stop; the time is read out as it changes (a live region)
+// counted from the start in the model, so it stays across a rotation; read out as it changes
 @Composable
 private fun RecordingBar(
     since: java.time.Instant,
@@ -882,7 +861,6 @@ private fun RecordingBar(
     }
 }
 
-// an error or a notice with its close (dismissError, dismissNotice)
 @Composable
 private fun Message(
     text: io.pelle.sak.core.UiText,
@@ -899,7 +877,6 @@ private fun Message(
     }
 }
 
-// a photo of the note in full, as large as the screen; a tap or back closes it
 @Composable
 private fun PhotoDialog(
     fileId: Int,
@@ -913,7 +890,7 @@ private fun PhotoDialog(
     }
 }
 
-// plays one recording at a time from a file of the cache, fetched by the model
+// plays one recording at a time
 private class Player(
     val playing: Int?,
     val toggle: (Int) -> Unit,
@@ -922,8 +899,8 @@ private class Player(
 
 private val LocalPlayer = staticCompositionLocalOf { Player(null, {}, {}) }
 
-// the recording playing: a second toggle pauses it, another one plays instead. It stops when the app goes
-// to the background and ends with the app; its file in the cache goes when it stops (AN-28)
+// a second toggle stops the recording, another one plays instead. It stops when the app goes to the
+// background; its file in the cache goes when it stops
 @Composable
 private fun rememberPlayer(model: NotesModel): Player {
     val context = LocalContext.current
@@ -961,9 +938,9 @@ private fun rememberPlayer(model: NotesModel): Player {
                         return@launch
                     }
                     try {
-                        // the recordings are served only with the session, the player reads a file of the cache
+                        // served only with the session, so the player reads a file of the cache
                         withContext(Dispatchers.IO) { file.writeBytes(wav) }
-                        // another recording was tapped while this one was written (AN-28)
+                        // another recording was tapped while this one was written
                         if (playing != fileId) return@launch
                         player[0] =
                             MediaPlayer().apply {

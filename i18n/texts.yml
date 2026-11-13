@@ -1,5 +1,5 @@
 # every text a user reads, in every language: the source of the texts of the backend, the web
-# apps, the android app and sakctl. `mise run i18n:generate` writes them into the files each of them
+# apps, the android apps and sakctl. `mise run i18n:generate` writes them into the files each of them
 # reads (sak-i18n), the generated files are committed and a test fails when they are not up to date.
 #
 # A section is either for every app, or the one of an app with its texts by platform:

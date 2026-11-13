@@ -1,7 +1,5 @@
-// the sak deployments found at the providers, each with its resources and what they are: the
-// fingerprint of a key, the size of a volume, the address of a server. No state: without the
-// password the list sees only the labels, the page of a deployment checks it with its password. The header of a deployment asks for its password, then opens its page; create opens
-// the form of a new deployment, back opens the provider tokens
+// the sak deployments found at the providers, with their resources. No state: without the password
+// the list sees only the labels, the page of a deployment checks it with its password
 import { showCreate } from './create.js';
 import { closeDeployment, showPassword } from './password.js';
 import { register, setFailure, setStatus, show, text } from './views.js';
@@ -11,11 +9,10 @@ const { invoke } = window.__TAURI__.core;
 const list = document.getElementById('deployments');
 const status = document.getElementById('deployments-status');
 
-// the led of the theme for the state of a deployment, on its pill on its page
+// the led of the theme for the state of a deployment
 export const STATES = { ok: 'ok', incomplete: 'info', changed: 'warn', unknown: 'danger' };
 
-// a resource as the list knows it: its kind, its name and its detail. The place of the led stays
-// empty, the page of the deployment puts the led of its check there
+// the place of the led stays empty, the page of the deployment puts the led of its check there
 export function resource(state) {
   const item = document.createElement('li');
   item.className = 'resource';
@@ -37,9 +34,8 @@ export function resource(state) {
   return item;
 }
 
-// the SAK address of a deployment as `SAK address: <link>`, at the bottom of its card and on its
-// page; a failure to open it shows in failed. Rust opens the link in the browser of the system, the
-// window never leaves its pages
+// rust opens the link in the browser of the system, the window never leaves its pages; a failure
+// shows in `failed`
 export function frontendLink(url, failed = status) {
   const line = document.createElement('li');
   line.className = 'deployment-link';
@@ -63,7 +59,6 @@ function deployment(data) {
   const { provider, name, resources } = data;
   const item = document.createElement('li');
   item.className = 'card deployment';
-  // the header asks for the password of the deployment, then opens it
   const header = document.createElement('button');
   header.type = 'button';
   header.className = 'card-header deployment-header deployment-open provider';
@@ -79,15 +74,13 @@ function deployment(data) {
   const group = document.createElement('ul');
   group.className = 'resources card-body';
   group.replaceChildren(...resources.map(resource));
-  // a deployment the list could not compare says why; its page checks it again
   if (data.error) {
     const error = document.createElement('li');
     error.className = 'deployment-error status-failed';
     error.textContent = text('common.deployments.not_compared', { name, error: data.error });
     group.append(error);
   }
-  // the last line of the list, so it starts where the resources start; hidden for a deployment
-  // without a root domain on its resources
+  // the last line of the list, so it starts where the resources start
   group.append(frontendLink(data.frontendUrl));
   item.append(header, group);
   return item;
@@ -95,7 +88,7 @@ function deployment(data) {
 
 
 export async function showDeployments() {
-  // no page of a deployment is open while the list shows, nothing here needs its password
+  // the list forgets the password of the opened deployment
   closeDeployment();
   list.replaceChildren();
   setStatus(status, text('ui.deployments.loading'));

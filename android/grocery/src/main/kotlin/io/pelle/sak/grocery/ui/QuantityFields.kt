@@ -27,8 +27,7 @@ import io.pelle.sak.grocery.UNITS
 // the fields of a quantity (GROCERY-15), of the dialog of the menu of an item and of the items of a
 // photo (GROCERY-16)
 
-// the amount, typed with a point or a comma on the keyboard of numbers; error shows under it why it is
-// no valid one, once the field was left (onLeave) or the quantity was to be saved (UX-6)
+// error shows once the field was left (onLeave) or the quantity was to be saved (UX-6)
 @Composable
 internal fun AmountField(
     amount: String,
@@ -59,9 +58,8 @@ internal fun AmountField(
     )
 }
 
-// the unit chosen from no unit and the usual ones (UNITS) in the language of the phone; a unit that is
-// none of them, one the item had or the AI read (e.g. Zehe), stays one to choose, also once another
-// one was chosen
+// a unit that is none of UNITS, one the item had or the AI read (e.g. Zehe), stays one to choose,
+// also once another one was chosen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun UnitField(

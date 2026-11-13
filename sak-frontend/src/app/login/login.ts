@@ -9,10 +9,9 @@ import { validLoginEmail } from '../shared/email';
 
 type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | 'failed';
 
-// the login of the apps, by the user mode of the deployment (UX-7): in the multi user mode with a
-// link by e-mail (the link leads to the frontend's signin page) and a link to the admin password
-// login, in the single user mode only with the admin password. The fields are signals, as in the other
-// forms: @angular/forms would be in the bundle every page loads at the start for this one (TD-5)
+// the login by the user mode of the deployment (UX-7): multi, a link by e-mail (to the signin page)
+// and a link to the admin password login; single, only the admin password. The fields are signals:
+// @angular/forms would go into the initial bundle for this one form
 @Component({
   selector: 'app-login',
   imports: [TranslatePipe],
@@ -118,8 +117,8 @@ export class Login {
   private readonly router = inject(Router);
   private readonly params = inject(ActivatedRoute).snapshot.queryParamMap;
 
-  // where to go after signing in: the page the login started from, else the app of the app
-  // parameter, a short form for links and bookmarks (/login?app=grocery); else the start page
+  // after the login: the page it started from, else the app of /login?app=grocery (for links and
+  // bookmarks), else the start page
   private readonly redirect = this.params.get('redirect') ?? appPath(this.params.get('app'));
 
   protected readonly email = signal('');

@@ -12,10 +12,10 @@ import { CopyButton } from '../shared/copy-button';
 import { BucketStore } from './bucket-store';
 import { s3Endpoint } from './buckets.service';
 
-// the credentials tab of a bucket: the endpoint of the s3 api and the key pair that may access
-// this bucket only; the keys are fetched when the tab opens, the secret stays hidden until it
-// is shown or copied. The key pair can be replaced, e.g. after it leaked (SEC-12): it asks in its
-// place first, Keep is the safe default (UX-4.1), as every client with the current one stops
+// the credentials tab of a bucket: the s3 endpoint and the key pair of this bucket only; the keys
+// are fetched when the tab opens, the secret stays hidden until it is shown or copied. A replace
+// (e.g. after a leak) asks in its place first, Keep is the safe default (UX-4.1): every client with
+// the current key pair stops working
 @Component({
   selector: 'app-bucket-credentials',
   imports: [CopyButton, TranslatePipe],

@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import java.time.Clock
 
 // what ListsModel reads and changes of the screen of the lists of an app: L the list as the backend
-// answers it, S the settings of a list. The screen of the app returns itself from each with
+// answers it, S the settings of a list. Each with… returns the screen of the app, changed
 interface ListsAppScreen<L, S : ListForm> : AppScreen {
     val lists: List<L>
 
@@ -44,12 +44,10 @@ data class ListTexts(
     @StringRes val gone: Int,
 )
 
-// the logic of a list-based app (grocery, todo) on top of SakModel: a list of the home opens, the
-// settings of a new list or of one the user sees, saved (created or changed) or deleted, and a list
-// of the user's own deleted from the menu of its row on the home. A shared list of another user
-// changes its icon, only its owner renames, shares, unshares and deletes it (LIST-2). The app shows
-// a list or the home (show), loads the lists (load) and makes its settings; it hooks into the
-// settings opened and saved, e.g. grocery for its categories
+// the logic of a list-based app on top of SakModel: open a list, create, change and delete one. A
+// shared list of another user changes its icon, only its owner renames, shares, unshares and deletes it
+// (LIST-2). The app shows a list or the home (show), loads the lists (load) and makes its settings; it
+// hooks into the settings opened and saved, e.g. grocery for its categories
 abstract class ListsModel<A, L, S : ListForm>(
     store: SessionStore,
     apiOf: (url: String, token: String?) -> A,
@@ -102,7 +100,6 @@ abstract class ListsModel<A, L, S : ListForm>(
         show(id)
     }
 
-    // the settings of a new list, from the home
     override fun newList() {
         val lists = listsScreen() ?: return
         if (lists.open == null) state.value = lists.withSettings(settingsOf(null))

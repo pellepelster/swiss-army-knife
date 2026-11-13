@@ -1,5 +1,4 @@
-// the app of the grocery lists: kotlin (built into the android gradle plugin), jetpack compose, ktor
-// with okhttp, on top of core; sdks, version, signing and build types come from sak.android.app
+// the grocery app on top of core; sdks, version, signing and build types come from sak.android.app
 // (build-logic)
 plugins {
     alias(libs.plugins.android.application)

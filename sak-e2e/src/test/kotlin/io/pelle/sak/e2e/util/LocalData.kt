@@ -61,10 +61,10 @@ val TODO_TASKS =
     )
 val WORK_TASKS = listOf("Prepare the slides for Monday", "Answer the mails of the week")
 
-// a bucket and two redirects, kept from run to run: the name of a deleted bucket stays taken
 // the users the users page shows next to the admin, by their e-mail address and name
 val USERS = listOf("anna@example.org" to "Anna", "ben@example.org" to "Ben", "clara@example.org" to "Clara")
 
+// a bucket and two redirects, kept from run to run: the name of a deleted bucket stays taken
 const val BUCKET = "docs-site"
 const val BUCKET_DOMAIN = "docs.example.org"
 val REDIRECTS = listOf("old.example.org" to "example.org", "www.example.org" to "example.org")

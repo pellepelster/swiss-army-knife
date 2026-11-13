@@ -16,7 +16,7 @@ table inet sak {
 		ip daddr {{ common_metadata_address }} meta skuid != 0 counter reject with icmpx type admin-prohibited
 	}
 
-	# a container on a network of its own (vector and victorialogs, SEC-14) reaches the metadata service
+	# a container on a network of its own (vector and victorialogs) reaches the metadata service
 	# through the forward hook, not the output one: never
 	chain forward {
 		type filter hook forward priority filter; policy accept;

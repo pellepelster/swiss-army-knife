@@ -125,7 +125,7 @@ impl HetznerApi {
             base: base.trim_end_matches('/').to_string(),
             token: token.to_string(),
             retry: Backoff::new(5, Duration::from_secs(1), Duration::from_secs(10)),
-            // about 9.5 minutes: a server with its volume and addresses can take minutes to go
+            // about 10 minutes: a server with its volume and addresses can take minutes to go
             // when hetzner is busy
             wait: Backoff::new(120, Duration::from_secs(1), Duration::from_secs(5)),
         }
@@ -316,11 +316,10 @@ impl HetznerApi {
         unreachable!("the wait has at least one attempt")
     }
 
-    /// sends the request, and again after a while when it failed for a moment: every request on
+    /// sends the request, and again after a delay when it failed for a moment: every request on
     /// a rate limit (429, until `RateLimit-Reset`) and on a resource locked by a running action
-    /// (423 `locked`, 409 `conflict`); a request that can be sent twice (GET, PUT, DELETE) also on
-    /// a connection error, a timeout and a server error (5xx). A POST is not sent twice after an
-    /// error that may have come after hetzner took it, it could create a resource twice.
+    /// (423, 409 `conflict`); an idempotent one also on a connection error, a timeout and a 5xx.
+    /// A POST is not sent again then: hetzner may have taken it and would create a resource twice.
     /// `build` adds the query or the body
     async fn send(
         &self,

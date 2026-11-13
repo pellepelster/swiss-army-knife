@@ -1,4 +1,4 @@
-# ships the ingress access log (caddy json) to victorialogs, the console computes the metrics
+# ships the ingress access log (caddy json) to victorialogs, the backend computes the metrics
 # of the sites from it; the paths are the ones inside the sak-vector container, the quadlet
 # mounts the ingress log directory and the data directory there
 data_dir: /var/lib/vector
@@ -42,7 +42,7 @@ sinks:
     type: elasticsearch
     inputs:
       - caddy_access_parsed
-    # victorialogs and vector have a network of their own, vector reaches it by its name (SEC-14)
+    # victorialogs and vector have a network of their own, vector reaches it by its name
     endpoints:
       - http://sak-victorialogs:9428/insert/elasticsearch/
     api_version: v8

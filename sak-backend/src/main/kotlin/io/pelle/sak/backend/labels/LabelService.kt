@@ -36,9 +36,8 @@ sealed interface DeleteLabelResult {
     data object NotFound : DeleteLabelResult
 }
 
-// the labels of a user, the owner (the e-mail address of the signed in user), shared by every
-// application and seen by nobody else, the only way to them; the applications that link labels
-// hear of every deleted one to drop their links to it
+// the only way to the labels of a user (the owner); every app shares them, no other user sees them.
+// The apps that link labels hear of every deleted one to drop their links to it
 class LabelService(
     private val repository: LabelRepository,
 ) {
@@ -110,8 +109,7 @@ class LabelService(
         return DeleteLabelResult.Deleted
     }
 
-    // the owner's labels of the names, normalized (normalize) by the caller, the missing ones are
-    // created; sorted by name
+    // the names normalized by the caller; the missing labels are created; sorted by name
     fun resolve(
         owner: String,
         names: Set<String>,

@@ -16,8 +16,7 @@ pub trait Labeled {
     fn labels(&self) -> &Labels;
 
     /// the info labels among the labels: written, never compared, so a change of one alone is no
-    /// diff (the version of SAK that created or changed a resource). Next to the identity labels,
-    /// which every lookup checks
+    /// diff (e.g. the version of SAK that created or changed the resource)
     fn info(&self) -> &Labels {
         static NONE: Labels = Labels::new();
         &NONE

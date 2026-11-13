@@ -373,7 +373,7 @@ class SakAppsTest {
             list shouldNotContain secretAccessKey.take(5)
             bucket.body() shouldNotContain accessKeyId
             get(port, "/api/v1/static-hosting/unknown/secret", session).statusCode() shouldBe 404
-            // a new key pair replaces it (SEC-12), only for a session of an admin
+            // a new key pair replaces it, only for a session of an admin
             post(port, "/api/v1/static-hosting/created/secret", "").statusCode() shouldBe 401
             post(port, "/api/v1/static-hosting/unknown/secret", "", session).statusCode() shouldBe 404
             val replaced = post(port, "/api/v1/static-hosting/created/secret", "", session)
@@ -545,7 +545,7 @@ class SakAppsTest {
             get(port, "/api/v1/grocery/lists", anna).statusCode() shouldBe 200
             get(port, "/api/v1/todo/lists", anna).statusCode() shouldBe 200
             get(port, "/api/v1/notes", anna).statusCode() shouldBe 200
-            // the user may know whether the AI discovers texts, the switch itself is the admin's (AN-26)
+            // the user may know whether the AI discovers texts, the switch itself is the admin's
             get(port, "/api/v1/notes/settings", anna).let {
                 it.statusCode() shouldBe 200
                 it.json().string("discoverText") shouldBe "false"
@@ -717,7 +717,7 @@ class SakAppsTest {
             // the priority changes afterwards (TODO-5)
             put(port, "/api/v1/todo/items/$door/priority", """{"priority":"high"}""", session).json().string("priority") shouldBe "high"
             put(port, "/api/v1/todo/items/$door/priority", """{"priority":"urgent"}""", session).statusCode() shouldBe 400
-            // one task and one list by their id (AR-6), none of a list the user does not see
+            // one task and one list by their id, none of a list the user does not see
             get(port, "/api/v1/todo/items/$door", session).json().let {
                 it.string("title") shouldBe "Fix the door"
                 it.string("priority") shouldBe "high"
@@ -783,7 +783,7 @@ class SakAppsTest {
                 listOf("Apples", "Milk")
 
             val milkId = milk.json().string("id")
-            // one item and one list by their id (AR-6), none of a list the user does not see
+            // one item and one list by their id, none of a list the user does not see
             get(port, "/api/v1/grocery/items/$milkId", session).json().string("name") shouldBe "Milk"
             get(port, "/api/v1/grocery/lists/$listId", session).json().string("name") shouldBe "Default"
             get(port, "/api/v1/grocery/items/4711", session).statusCode() shouldBe 404

@@ -1,8 +1,7 @@
-//! the test e-mail of a mail server before a deploy: sakctl sends it from this machine as the
-//! backend will send its login links from the server: from its sender, noreply@<root domain>
-//! unless another is given, with starttls
-//! or else implicit tls (never plain text, as `provision` configures the backend), logged in when
-//! there is a user
+//! the test e-mail of a mail server before a deploy, sent from this machine as the backend will
+//! send its login links: from its sender (noreply@<root domain> unless another is given), with
+//! starttls or else implicit tls (never plain text, as `provision` configures the backend), logged
+//! in when there is a user
 
 use crate::core::deployments::{Smtp, check_smtp, is_address};
 use lettre::message::Mailbox;
@@ -67,9 +66,9 @@ pub async fn send_test(smtp: &Smtp, mail: &TestMail<'_>) -> Result<String, Strin
     }
 }
 
-/// why the test e-mail was not sent, in the words of what failed. The two ways of tls mixed up are told
-/// apart: implicit tls on a port of starttls reads plain text where it expects tls, starttls on a
-/// port of implicit tls waits for a greeting the server does not send before tls
+/// why the test e-mail was not sent. The two tls modes mixed up are told apart: implicit tls on a
+/// starttls port reads plain text where it expects tls, starttls on an implicit tls port waits for
+/// a greeting the server does not send before tls
 fn reason(smtp: &Smtp, error: &lettre::transport::smtp::Error) -> String {
     let text = error.to_string();
     let key = if error.is_timeout() && smtp.starttls {

@@ -1,7 +1,6 @@
 //! the dns provisioners against the real api: a zone of the test's own, an A record in
 //! it with literal values, with another value, another ttl and label, one with the
-//! address of a primary ip, destroyed. The flow of HetznerDnsProvisionerTest of blcks,
-//! which used a zone that existed already and mocked the servers
+//! address of a primary ip, destroyed
 
 mod support;
 

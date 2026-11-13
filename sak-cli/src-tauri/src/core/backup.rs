@@ -1,10 +1,9 @@
-//! the backups of a deployment. `sak-backend backup` on the server writes all data
-//! of the deployment as one tar stream, compressed with zstd and encrypted with age to the
-//! recipient of the backup key; sakctl stores the bytes as they come, in
-//! `~/.sak/<name>/backups/<name>-<UTC time>.age.sak`, and decrypts them once to check them. A
-//! restore decrypts a backup and streams it, still compressed, into `sak-backend restore`, which checks it
-//! before it replaces the data. The plain data of a backup is never on the disk of the user, and
-//! the secret half of the key never on the server
+//! the backups of a deployment. `sak-backend backup` on the server writes all data as one tar
+//! stream, compressed with zstd and encrypted with age to the recipient of the backup key; sakctl
+//! stores the bytes as they come in `~/.sak/<name>/backups/<name>-<UTC time>.age.sak` and decrypts
+//! them once to check them. A restore decrypts a backup and streams it, still compressed, into
+//! `sak-backend restore`, which checks it before it replaces the data. The plain data is never on
+//! the disk of the user, the secret half of the key never on the server
 
 use crate::core::keys::BackupKey;
 use crate::core::local::{create_private_dir, create_private_file};

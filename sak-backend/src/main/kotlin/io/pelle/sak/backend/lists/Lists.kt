@@ -31,10 +31,9 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.seconds
 
-// what every list-based app (LIST-1) does with its lists the same way: the values of a list checked,
-// the answers to creating and changing one, and the stream of the changes (LIST-4)
+// what every list-based app (LIST-1) does with its lists the same way, the stream of the changes
+// (LIST-4) included
 
-// how long the name of a list is at most
 const val MAX_LIST_NAME_LENGTH = 64
 
 // how often a comment keeps the stream of the changes open
@@ -73,8 +72,7 @@ data class ListValues(
     val icon: String?,
 )
 
-// the name trimmed and the icon, one emoji, empty or none for no icon; the errors when they are not
-// valid
+// the icon is one emoji, empty or none for no icon; the errors when they are not valid
 fun listValues(
     name: String,
     icon: String?,
@@ -93,7 +91,6 @@ fun listValues(
     return values to errors
 }
 
-// what changing a list came to, as the answer of the service
 fun ListUpdate.result(): ListResult =
     when (this) {
         is ListUpdate.Updated -> ListResult.Saved(list)
@@ -102,7 +99,7 @@ fun ListUpdate.result(): ListResult =
         ListUpdate.NotOwner -> ListResult.NotOwner
     }
 
-// the list as response answers it, 201 for a new one
+// 201 for a new list
 suspend fun ApplicationCall.respondList(
     result: ListResult,
     texts: ListTexts,
@@ -116,9 +113,9 @@ suspend fun ApplicationCall.respondList(
     ListResult.NotOwner -> respondErrors(texts.onlyOwnerShares, status = HttpStatusCode.Forbidden)
 }
 
-// the ids of the lists of an app that changed, as they change (LIST-4); the backend is one process,
-// so every client that listens hears of each change here. A slow listener misses the oldest ids,
-// never the newest: a client loads its list anew on any change
+// the ids of the lists of an app as they change (LIST-4); the backend is one process, so every
+// listening client hears of each change here. A slow listener misses the oldest ids, never the
+// newest: a client loads its list anew on any change
 class ListChanges {
     // a change and whether every user hears of it, also one who does not see the list any more
     private data class Change(
@@ -128,8 +125,7 @@ class ListChanges {
 
     private val changed = MutableSharedFlow<Change>(extraBufferCapacity = CHANGES_BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    // a change of a list; toAll when the users who saw it until now do not see it any more, the owner
-    // unshared it: their clients load their lists anew, without it
+    // toAll when the owner unshared it: the users who saw it load their lists anew, without it
     fun changed(
         listId: Int,
         toAll: Boolean = false,
@@ -137,23 +133,22 @@ class ListChanges {
         changed.tryEmit(Change(listId, toAll))
     }
 
-    // the ids of the lists the user sees that change from now on, a list deleted included, and a list
-    // unshared that the user saw until then (LIST-4); sees tells whether the user sees a list or saw it
-    // until it was deleted
+    // the ids of the lists the user sees that change from now on, deleted and unshared ones included
+    // (LIST-4); sees tells whether the user sees a list or saw it until it was deleted
     fun of(
         user: String,
         sees: (String, Int) -> Boolean,
     ): Flow<Int> = changed.filter { it.toAll || withContext(Dispatchers.IO) { sees(user, it.listId) } }.map { it.listId }
 
-    // a change of a list as it was saved; an unshared one reaches every user who saw it (LIST-4)
+    // an unshared list reaches every user who saw it (LIST-4)
     fun changed(update: ListUpdate) {
         if (update is ListUpdate.Updated) changed(update.list.id, toAll = update.unshared)
     }
 }
 
-// GET /changes: server-sent events, one for each change of a list the user sees (LIST-4), what changes
-// gives for the user; a comment keeps the connection open while nothing changes, proxies and phones
-// close a quiet one. items names what is on the lists, e.g. "items" or "tasks"
+// GET /changes: server-sent events, one for each change of a list the user sees (LIST-4); a comment
+// keeps the connection open, proxies and phones close a quiet one. items names what is on the lists,
+// e.g. "items" or "tasks"
 @OptIn(ExperimentalKtorApi::class)
 fun Route.listChanges(
     tag: String,

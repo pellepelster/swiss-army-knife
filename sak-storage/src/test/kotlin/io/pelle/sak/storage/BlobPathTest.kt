@@ -14,7 +14,7 @@ class BlobPathTest {
         BlobPath(listOf("a", "...", ".hidden", "a b", "ä")).toString() shouldBe "a/.../.hidden/a b/ä"
     }
 
-    // SR-8: a longer one fails at once, not when the blob is moved into place
+    // a longer one fails at once, not when the blob is moved into place
     @Test
     fun `a segment has at most 255 bytes of UTF-8, the longest name of a file`() {
         BlobPath(listOf("a".repeat(255))).segments.single().length shouldBe 255

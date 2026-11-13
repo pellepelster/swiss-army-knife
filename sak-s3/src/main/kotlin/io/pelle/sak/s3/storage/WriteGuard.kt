@@ -3,11 +3,10 @@ package io.pelle.sak.s3.storage
 import java.io.FilterInputStream
 import java.io.InputStream
 
-// the room a write to a bucket may take (SEC-9): one key of a bucket must not fill the data volume,
-// which also has the database, the certificates of caddy and the logs. A write starts only while
-// the volume has more than minFreeBytes free, and stops when it falls below while the content
-// streams, which it checks every CHECK_EVERY bytes; an object or a part has at most maxBytes, as
-// S3 has it
+// the room a write to a bucket may take: one key must not fill the data volume, which also has the
+// database, the certificates of caddy and the logs. A write starts only while the volume has more
+// than minFreeBytes free and stops when it falls below while it streams (checked every checkEvery
+// bytes); an object or a part has at most maxBytes, as in S3
 class WriteGuard(
     // the bytes free on the volume of the buckets
     private val freeBytes: () -> Long,
@@ -16,7 +15,6 @@ class WriteGuard(
     // how many bytes are read between two looks at the free bytes
     private val checkEvery: Long = CHECK_EVERY,
 ) {
-    // refused when the volume has no room for a write
     fun requireRoom() {
         if (freeBytes() < minFreeBytes) throw InsufficientStorageException(minFreeBytes)
     }

@@ -1,7 +1,6 @@
-//! the settings a deploy takes from the existing deployment when they are not given: from the
-//! running deployment (`GET /v1/deployment`), else from what this machine kept of its last
-//! create or deploy (`~/.sak/<name>/config.json`), else from its dns records, which tell the root
-//! domain and the dns mode only. The resources carry no settings as labels
+//! the settings a deploy takes from the deployment when they are not given: from the running
+//! deployment (`GET /v1/deployment`), else what this machine kept (`~/.sak/<name>/config.json`),
+//! else its dns records (root domain and dns mode only)
 
 use super::*;
 
@@ -9,21 +8,17 @@ use super::*;
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum SettingsSource {
-    /// the running deployment answered them
     Running,
-    /// the settings this machine kept of the last create or deploy
     Local,
-    /// the dns records of the deployment: its root domain and dns mode only
+    /// root domain and dns mode only
     Records,
 }
 
-/// what a create or deploy keeps of a deployment on this machine (`local`), encrypted for its
-/// password: what the config form takes when the deployment does not answer. It holds the password of
-/// the mail server, so no Debug.
+/// what a create or deploy keeps on this machine (`local`), encrypted for the password, for the
+/// config form when the deployment does not answer. No Debug: it holds the smtp password.
 ///
-/// The file may come from another version of sakctl, older or newer, so every field is read on its
-/// own: a field it lacks or a value this version does not know (a new dns mode) is none, the
-/// others still count; a field this version does not know is ignored
+/// An older or newer sakctl may have written it, so every field is read on its own: a missing or
+/// unknown value is none, an unknown field is ignored
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalSettings {
@@ -41,7 +36,7 @@ pub struct LocalSettings {
     pub smtp: Option<Smtp>,
     #[serde(default, deserialize_with = "lenient")]
     pub acme_ca: Option<AcmeCa>,
-    /// the version of sakctl that wrote them
+    /// of the sakctl that wrote them
     #[serde(default, deserialize_with = "lenient")]
     pub version: Option<String>,
     /// when the create or deploy that kept them started, rfc 3339
@@ -49,7 +44,7 @@ pub struct LocalSettings {
     pub deployed_at: Option<String>,
 }
 
-/// a field of `LocalSettings` as far as this version can read it: none when it cannot
+/// none when this version cannot read the field
 fn lenient<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -59,8 +54,7 @@ where
     Ok(serde_json::from_value(value).ok())
 }
 
-/// the settings a deploy takes from the existing deployment when they are not given
-/// (`DeploymentManager::detected`)
+/// `DeploymentManager::detected`
 #[derive(Clone, Debug, Default, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Detected {
@@ -74,13 +68,11 @@ pub struct Detected {
     pub user_mode: Option<UserMode>,
     pub admin_email: Option<String>,
     pub smtp: Option<DetectedSmtp>,
-    /// why the running deployment could not be read: the backend did not answer, its
-    /// certificate was refused, …; none when it was read
+    /// why the running deployment could not be read
     pub unread: Option<String>,
 }
 
-/// the mail server of the running configuration, with its password when the backend answers it.
-/// No derived Debug, the password never shows
+/// the detected mail server, with its password when the source has it. Debug hides the password
 #[derive(Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct DetectedSmtp {
@@ -90,7 +82,6 @@ pub struct DetectedSmtp {
     pub password: Option<String>,
     pub password_set: bool,
     pub starttls: bool,
-    /// the sender of the mails, as the deployment has it
     pub from: String,
 }
 
@@ -109,7 +100,6 @@ impl fmt::Debug for DetectedSmtp {
 }
 
 impl Detected {
-    /// the settings the running deployment answered
     pub(super) fn from_running(running: crate::core::config::DeploymentSettings) -> Self {
         let user_mode = UserMode::parse(&running.user_mode);
         let multi = user_mode == Some(UserMode::Multi);
@@ -133,7 +123,6 @@ impl Detected {
         }
     }
 
-    /// the settings this machine kept of the last create or deploy
     pub(super) fn from_local(local: LocalSettings) -> Self {
         let multi = local.user_mode == Some(UserMode::Multi);
         Detected {
@@ -157,8 +146,6 @@ impl Detected {
         }
     }
 
-    /// what the dns records of the deployment tell: its root domain and dns mode; nothing without
-    /// records
     pub(super) fn from_records(deployment: &DiscoveredDeployment) -> Self {
         let Some(root_domain) = deployment.root_domain() else {
             return Detected::default();
@@ -180,9 +167,8 @@ fn acme_ca_of(directory: Option<&str>) -> AcmeCa {
     }
 }
 
-/// a deploy completed from `detected`; when it still lacks what only the running configuration
-/// tells (the user mode, or the admin and mail server of multi user) and that could not be read,
-/// the reason it could not is the error, not a missing value later
+/// a deploy completed from `detected`; when it still lacks the user mode, or the admin and mail
+/// server of multi user, the error is why the deployment could not be read, not a missing value
 pub(super) fn completed_from(
     deployment: DeploymentRequest,
     detected: &Detected,
@@ -206,10 +192,8 @@ pub(super) fn completed_from(
     }
 }
 
-/// a deploy completed from `detected` where a value is not given: the dns mode, the root domain,
-/// the acme ca, the user mode and, for multi user, the admin and the mail server. A given `smtp_password` wins over the detected one. An
-/// older backend does not answer the password; then the password must be given, because a deploy
-/// without it removes it
+/// a deploy completed from `detected` where a value is not given. A given `smtp_password` wins.
+/// A password that is set but not detected must be given: a deploy without it removes it
 pub(super) fn complete(
     mut deployment: DeploymentRequest,
     detected: &Detected,

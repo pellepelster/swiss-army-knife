@@ -9,8 +9,8 @@ import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 
-// the P-256 key pair the tokens are signed with (ES256), both halves are kept in one pem
-// file because the jdk can not derive the public key from the private one
+// the P-256 key pair of the tokens (ES256); both halves in one pem, the jdk can not derive the
+// public key from the private one
 class SigningKey(
     val privateKey: ECPrivateKey,
     val publicKey: ECPublicKey,

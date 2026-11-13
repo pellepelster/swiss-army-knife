@@ -1,5 +1,4 @@
-// the conventions of the android modules (sak.android.app, sak.android.library), an included build
-// of android/ (settings.gradle.kts); it reads the versions of android/gradle/libs.versions.toml
+// an included build of android/; it reads the versions of android/gradle/libs.versions.toml
 dependencyResolutionManagement {
     repositories {
         google()

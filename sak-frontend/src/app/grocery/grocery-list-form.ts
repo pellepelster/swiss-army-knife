@@ -39,11 +39,10 @@ import { ActionMenu } from '../shared/action-menu';
 import { GroceryCategory, GroceryService } from './grocery.service';
 import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-changes';
 
-// the settings of a grocery list (ListSettingsForm), with its categories below them once the list
-// is loaded (GROCERY-13): each change of them is saved at once, not with the form, one after the
-// other in the order they were made; a change of the list from elsewhere, or a change refused, loads
-// them again. A category is moved by dragging its grip (@angular/cdk/drag-drop), or one place up or
-// down from the menu of its row, which a keyboard reaches
+// the settings of a grocery list, with its categories (GROCERY-13): each change of them is saved at
+// once, not with the form, one after the other in the order made; a change from elsewhere, or a
+// change refused, loads them again. A category moves by its drag grip, or by the menu of its row,
+// which a keyboard reaches
 @Component({
   selector: 'app-grocery-list-form',
   imports: [ActionMenu, CdkDrag, CdkDragHandle, CdkDropList, ListSettingsForm, TranslatePipe],
@@ -168,7 +167,7 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                       (emoji-click)="iconOf(category, $any($event).detail.unicode)"
                     ></emoji-picker>
                   }
-                  <!-- the error of a change of the category, in its row (UX-15) -->
+                  <!-- in its row (UX-15) -->
                   @if (categoryError.of(category.id); as error) {
                     <p class="alert alert-danger mt-2 mb-0" role="alert">{{ error }}</p>
                   }
@@ -221,23 +220,21 @@ export class GroceryListForm {
   private readonly host = inject(ElementRef<HTMLElement>);
   private readonly injector = inject(Injector);
 
-  // the changes of the categories, each a request made when its turn comes, one after the other
+  // each change of the categories is a request made when its turn comes, one after the other
   private readonly queue = new Subject<() => Observable<unknown>>();
   private readonly pending = signal(0);
 
   // the route parameter, missing for a new list
   readonly id = input<string | undefined>();
-  // the query parameter: lists when the settings were opened from all lists, they lead back there
+  // the query parameter: `lists` when opened from all lists, they lead back there
   readonly from = input<string | undefined>();
 
-  // the list once the settings loaded it, null for a new list
+  // null for a new list
   protected readonly list = signal<SharedList | null>(null);
 
-  // the categories of the list, in their order (GROCERY-13)
   protected readonly categories = signal<GroceryCategory[]>([]);
   protected readonly categoriesLoaded = signal(false);
-  // the categories could not be loaded; a change of one failed, in its row or, adding one, under
-  // the field of the new one (UX-15)
+  // a failed change shows in its row or, adding one, under the field of the new one (UX-15)
   protected readonly categoriesError = signal<string | null>(null);
   protected readonly categoryError = new RowError<number | 'new'>();
   protected strayCategoryError(): string | null {
@@ -249,9 +246,7 @@ export class GroceryListForm {
   protected readonly busy = computed(() => this.pending() > 0);
   // the categories whose name field was left empty (UX-6)
   protected readonly unnamed = signal<ReadonlySet<number>>(new Set());
-  // the category whose icon is being chosen
   protected readonly pickingFor = signal<number | null>(null);
-  // the name of the next category and whether it was left without one
   protected readonly newName = signal('');
   protected readonly newInvalid = signal(false);
 
@@ -278,13 +273,12 @@ export class GroceryListForm {
     this.loadCategories();
   }
 
-  // the field of the category is typed in again: its error goes until it is left (UX-6)
+  // typing hides the error until the field is left (UX-6)
   protected named(id: number): void {
     this.unnamed.update((ids) => new Set([...ids].filter((each) => each !== id)));
   }
 
-  // the name of the category once its field is left; an empty one is not saved, an unchanged one
-  // shows as it is stored
+  // an empty name is not saved, an unchanged one shows as it is stored
   protected rename(category: GroceryCategory, field: HTMLInputElement): void {
     const name = field.value.trim();
     if (!name) {
@@ -314,8 +308,7 @@ export class GroceryListForm {
     this.saveCategory(category.id, { icon });
   }
 
-  // the category one place up (-1) or down (1) of where it is when its turn comes, from the menu of
-  // its row; the focus goes back to that menu, so a keyboard moves it on
+  // from where it is when its turn comes; the focus goes back to the menu, so a keyboard moves it on
   protected move(id: number, by: -1 | 1): void {
     this.change(
       (listId) => {
@@ -335,8 +328,8 @@ export class GroceryListForm {
     );
   }
 
-  // a category dropped at another place: the page shows it there at once; when its turn comes, it
-  // goes to that place among the categories as they are then, so a change before it is kept
+  // shown there at once; when its turn comes, it goes to that place among the categories as they
+  // are then, so a change before it is kept
   protected dropped(event: Pick<CdkDragDrop<unknown>, 'previousIndex' | 'currentIndex'>): void {
     if (event.previousIndex === event.currentIndex) return;
     const id = this.categories()[event.previousIndex]?.id;
@@ -385,8 +378,8 @@ export class GroceryListForm {
     );
   }
 
-  // the name or the icon of a category; the other one as it is when its turn comes, so changes
-  // made one after the other do not undo each other
+  // the other value as it is when its turn comes, so changes one after the other do not undo each
+  // other
   private saveCategory(
     id: number,
     values: { name?: string; icon?: string | null },
@@ -413,9 +406,8 @@ export class GroceryListForm {
     );
   }
 
-  // a change of the categories, after the ones before it; a refused one says why where it was made
-  // (at: the category, or new for the one added) and loads the categories again, so the next
-  // changes start from what is stored
+  // after the changes before it; a refused one says why at `at` and loads the categories again, so
+  // the next changes start from what is stored
   private change<T>(
     request: (listId: number) => Observable<T>,
     done: (result: T) => void,
@@ -442,7 +434,7 @@ export class GroceryListForm {
     );
   }
 
-  // the categories as they are stored, after the changes made before
+  // after the changes made before
   private loadCategories(): void {
     const listId = this.list()?.id;
     if (listId === undefined) return;
@@ -468,8 +460,7 @@ export class GroceryListForm {
     );
   }
 
-  // the categories in the order of the answer, with the names and icons as they are here: a change
-  // of them that came after the order is kept
+  // the order of the answer, the names and icons as they are here: a later change of them is kept
   private inOrderOf(ordered: GroceryCategory[]): GroceryCategory[] {
     const current = new Map(this.categories().map((category) => [category.id, category]));
     return ordered.map((category) => current.get(category.id) ?? category);
@@ -479,7 +470,6 @@ export class GroceryListForm {
     return this.categories().find((category) => category.id === id);
   }
 
-  // the ⋮ of the row of the category
   private focusMenu(id: number): void {
     afterNextRender(
       () =>

@@ -84,7 +84,7 @@ class TodoRepositoryTest {
         // every user who sees the list marks a task done, also one another user added (LIST-2)
         repository.setDone(OTHER, invite.id, done = true)!!.doneAt shouldBe now
         repository.items(PELLE, party.id)!!.map { it.title } shouldBe listOf("Send the invitations", "Bring music")
-        // only the owner renames it, another user changes its icon (LIST-2, SEC-19)
+        // only the owner renames it, another user changes its icon (LIST-2)
         (repository.updateList(OTHER, party.id, "Party", shared = true, icon = "🎉") as ListUpdate.Updated).list.let {
             it.icon shouldBe "🎉"
             it.owner shouldBe PELLE

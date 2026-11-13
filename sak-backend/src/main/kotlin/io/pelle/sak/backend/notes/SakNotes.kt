@@ -88,8 +88,6 @@ private suspend fun RoutingCall.respondSaved(
             )
     }
 
-// the address of the signed in user, the owner of the notes
-
 // the notes of the signed in user with their labels, meant to be mounted behind the
 // authentication
 @OptIn(ExperimentalKtorApi::class)

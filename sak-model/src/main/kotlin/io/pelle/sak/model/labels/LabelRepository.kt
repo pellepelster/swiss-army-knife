@@ -6,8 +6,7 @@ import io.pelle.sak.model.jooq.tables.references.LABELS
 import org.jooq.exception.IntegrityConstraintViolationException
 import java.time.Clock
 
-// the database access of the labels, only LabelService (sak-backend) uses it; it reads the labels that are not
-// deleted only, and only those of the owner, the e-mail address of the signed in user
+// the labels, for LabelService only; reads the live labels of the owner only
 class LabelRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers

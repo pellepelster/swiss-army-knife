@@ -86,9 +86,7 @@ import java.time.format.FormatStyle
 // the day as the phone writes it, e.g. 24 Dec 2026
 internal fun dayText(day: LocalDate): String = day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM))
 
-// the tasks of one list by priority, then in the order they were added (TODO-5), a done one struck
-// through in its place (TODO-3), the field to add one at the top with the day it is to be done by
-// (TODO-4); a tap marks a task done or open again. Back leads to the home
+// the tasks of one list (TODO-3, TODO-5), the field to add one at the top (TODO-4)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ListScreen(
@@ -106,8 +104,8 @@ internal fun ListScreen(
             }
         },
         actions = {
-            // the purge of the done tasks, in the color of an error, it deletes them (UX-3); disabled while
-            // there are none (UX-8); every user who sees the list purges it (TODO-6, LIST-2)
+            // in the color of an error, it deletes (UX-3); disabled while nothing is done (UX-8); every
+            // user who sees the list may purge it (TODO-6, LIST-2)
             val hasDone = screen.items.any { it.doneAt != null }
             IconButton(onClick = model::purge, enabled = hasDone, modifier = Modifier.testTag("purge")) {
                 Icon(
@@ -116,7 +114,7 @@ internal fun ListScreen(
                     tint = if (hasDone) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 )
             }
-            // the settings of the list, of a shared list of another user too (LIST-2)
+            // also of a shared list of another user (LIST-2)
             IconButton(onClick = { model.openSettings(open) }, enabled = list != null, modifier = Modifier.testTag("list-settings")) {
                 Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(CoreR.string.shared_settings))
             }
@@ -142,9 +140,8 @@ internal fun ListScreen(
     }
 }
 
-// the field at the top of a list, without a button: Enter on the keyboard adds the task and keeps the
-// keyboard open for the next one. The calendar next to it chooses the day it is to be done by, shown
-// under the field until it is added; a tap on it takes the day away again (TODO-4)
+// no add button: Enter adds the task and keeps the keyboard open for the next one. The due date and a
+// priority chosen show as chips under the field, a tap on a chip takes it away (TODO-4, TODO-5)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NewItem(
@@ -173,7 +170,6 @@ private fun NewItem(
         }
         PriorityButton(screen.itemPriority, model::choosePriority)
     }
-    // the priority chosen that is not the normal one, a tap makes it normal again (TODO-5)
     screen.itemPriority.takeIf { it != Priority.NORMAL }?.let { priority ->
         AssistChip(
             onClick = { model.choosePriority(Priority.NORMAL) },
@@ -196,8 +192,8 @@ private fun NewItem(
     }
 }
 
-// the date picker of a due date (TODO-4): OK takes the day chosen, none when none is, Cancel nothing.
-// On a screen too low for the calendar, e.g. a phone in landscape, the day is typed in
+// OK takes the day chosen, null when none is, Cancel nothing (TODO-4). On a screen too low for the
+// calendar, e.g. a phone in landscape, the day is typed in
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DuePicker(
@@ -227,8 +223,7 @@ private fun DuePicker(
 // the height the calendar of the date picker needs with its buttons
 private val CALENDAR_HEIGHT = 600.dp
 
-// the day today, again when the app comes to the front and at midnight, so a due date that passed
-// shows as overdue (TODO-4)
+// updated on resume and at midnight, so a due date that passed shows as overdue (TODO-4)
 @Composable
 private fun rememberToday(): LocalDate {
     var today by remember { mutableStateOf(LocalDate.now()) }
@@ -241,9 +236,8 @@ private fun rememberToday(): LocalDate {
     return today
 }
 
-// a task: a tap marks it done, struck through, a tap on a done one opens it again; no checkbox, the
-// row tells a screen reader it is one (TODO-3); its due date after it, in the color of an error once
-// it passed (TODO-4); its menu changes its priority (TODO-5)
+// a tap toggles done; no checkbox, the row tells a screen reader it is one (TODO-3); the due date in
+// the color of an error once it passed (TODO-4)
 @Composable
 private fun ItemRow(
     item: TodoItemResponse,
@@ -283,9 +277,8 @@ private fun ItemRow(
     }
 }
 
-// the menu of a task changes its priority, the current one checked (TODO-5), adds a due date to a task
-// without one, in the date picker, and takes it away again, each disabled when it does not apply
-// (TODO-4, UX-8)
+// the priority (TODO-5), add or remove the due date, each disabled when it does not apply (TODO-4,
+// UX-8)
 @Composable
 private fun ItemMenu(
     item: TodoItemResponse,
@@ -326,7 +319,7 @@ private fun ItemMenu(
     if (picking) DuePicker(null, onPick = { day -> day?.let { model.setDueDate(item, it) } }, onDismiss = { picking = false })
 }
 
-// the flag next to the field chooses the priority of the next task from a menu (TODO-5)
+// the priority of the next task (TODO-5)
 @Composable
 private fun PriorityButton(
     current: Priority,
@@ -364,8 +357,7 @@ private fun PriorityMenuItems(
     }
 }
 
-// the arrow of a priority, up for a high one, down for a low one, none for a normal one; a screen
-// reader says the priority
+// none for normal; a screen reader says the priority
 @Composable
 private fun PriorityIcon(
     priority: Priority,
@@ -388,8 +380,8 @@ private fun priorityText(priority: Priority) =
         },
     )
 
-// a text, struck through with a red line through the middle of each of its lines, more visible than
-// the line of the font, as the grocery lists strike an item through
+// a red line through each line of the text, more visible than the strike-through of the font, as in
+// the grocery app
 @Composable
 private fun StruckText(
     text: String,

@@ -4,14 +4,13 @@ import { Observable } from 'rxjs';
 import { SettingScope, SettingValue } from '../api/models';
 import { fetchAll } from '../shared/api';
 
-// a value of a setting, of the type its definition names; a setting as the backend describes it,
-// the page chooses its input by the type
+// a value has the type its definition names; the page chooses the input by that type
 export type { SettingDefinition, SettingScope, SettingValue } from '../api/models';
 
 // the values of the settings of one scope by their names, e.g. { enabled: false, api_key: '' }
 export type ScopeValues = Record<string, SettingValue>;
 
-// the scopes of settings of the backend, their values read and set one scope at a time
+// the settings are read and set one scope at a time
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   private readonly http = inject(HttpClient);
@@ -25,7 +24,7 @@ export class SettingsService {
     return this.http.get<ScopeValues>(`/api/v1/settings/${encodeURIComponent(scope)}`);
   }
 
-  // sets the values given, the others of the scope stay; answers all of the scope
+  // the others of the scope stay; answers the whole scope
   update(scope: string, values: ScopeValues): Observable<ScopeValues> {
     return this.http.put<ScopeValues>(`/api/v1/settings/${encodeURIComponent(scope)}`, values);
   }

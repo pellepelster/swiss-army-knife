@@ -1,13 +1,13 @@
-//! everything a deployment derives from its password: the ssh client key, the ssh host key, the
-//! password hash label, the api key, the backup key and the admin password hash.
-//! The same name and password give the same values on every machine, so sakctl keeps no key; what it
-//! keeps of a deployment (`local`: its settings, its backups) is encrypted with values derived here.
+//! everything a deployment derives from its name and password: the ssh client and host keys, the
+//! password hash label, the api key, the backup key and the admin password hash. The same values on
+//! every machine, so sakctl keeps no key; what it keeps (`local`) is encrypted with values derived
+//! here.
 //!
-//! One strong argon2id of the password (`MASTER_PARAMS`) gives the master key of the deployment.
-//! hkdf-sha256 expands each value from it with a purpose of its own, so no value gives away
-//! another, and a run computes the argon2id one time only. Whoever reads the project (the label,
-//! the public keys) must compute it for every guess. The admin password hash is the exception:
-//! the backend checks a typed password against it, so it is an argon2id of the password itself
+//! One strong argon2id (`MASTER_PARAMS`) gives the master key; hkdf-sha256 expands each value from
+//! it with a purpose of its own, so no value gives away another. Whoever reads the project (the
+//! label, the public keys) must compute the argon2id for every guess. The admin password hash is
+//! the exception: the backend checks a typed password against it, so it is an argon2id of the
+//! password itself
 
 use crate::core::encoding::hex;
 use argon2::{Algorithm, Argon2, Params, Version};
@@ -35,14 +35,13 @@ fn argon2((memory, passes, lanes): (u32, u32, u32)) -> Result<Argon2<'static>, S
     Ok(Argon2::new(Algorithm::Argon2id, Version::V0x13, params))
 }
 
-/// the password as nfc: the same characters give the same bytes, typed on whatever system. A copy
-/// of the password, wiped when it goes
+/// the password as nfc, so the same characters give the same bytes on every system; wiped on drop
 fn normalized(password: &str) -> Zeroizing<String> {
     Zeroizing::new(password.nfc().collect())
 }
 
-/// the master keys this process derived, by the name and a sha-256 of the password. A run asks for
-/// several values of the same deployment, the argon2id runs one time for all of them
+/// the master keys this process derived, by the name and a sha-256 of the password, so the
+/// argon2id runs once for all values of a deployment
 #[allow(clippy::type_complexity)]
 static MASTER_KEYS: Mutex<Vec<(String, [u8; 32], [u8; 32])>> = Mutex::new(Vec::new());
 
@@ -132,13 +131,12 @@ pub fn derive_key(name: &str, password: &str) -> Result<DerivedKey, String> {
     derive(name, password, "client-key", &format!("sak-{name}"))
 }
 
-/// the public key, `ssh-ed25519 <base64> sak-<name>`, of the client key
+/// `ssh-ed25519 <base64> sak-<name>`
 pub fn derive_public_key(name: &str, password: &str) -> Result<String, String> {
     Ok(derive_key(name, password)?.public_key())
 }
 
-/// the host key of the server of a deployment: cloud-init installs it, so sakctl knows the key
-/// before the server first boots and verifies the first connection
+/// the host key of the server: cloud-init installs it, so sakctl verifies the first connection
 pub fn derive_host_key(name: &str, password: &str) -> Result<DerivedKey, String> {
     derive(name, password, "host-key", &format!("sak-{name}-host"))
 }
@@ -149,9 +147,8 @@ pub fn password_hash(name: &str, password: &str) -> Result<String, String> {
     Ok(hex(&expand::<30>(name, password, "password-hash")?))
 }
 
-/// the ed25519 key sakctl signs its requests to the admin api of a deployment with
-/// (`config::signed_text`). The backend knows only its public half, so no request carries a
-/// secret. No Debug, the key never shows
+/// the ed25519 key sakctl signs its requests to the admin api with (`config::signed_text`). The
+/// backend knows only its public half, so no request carries a secret. No Debug
 pub struct ApiKey(SigningKey);
 
 impl ApiKey {
@@ -167,16 +164,14 @@ impl ApiKey {
     }
 }
 
-/// the key of the admin api of a deployment
 pub fn api_key(name: &str, password: &str) -> Result<ApiKey, String> {
     Ok(ApiKey(SigningKey::from_bytes(&expand::<32>(
         name, password, "api-key",
     )?)))
 }
 
-/// the age x25519 key of the backups of a deployment: the server encrypts a backup to its
-/// public half (`recipient`), only sakctl decrypts with the identity. No Debug, the key never
-/// shows
+/// an age x25519 key: the server encrypts a backup to its `recipient`, only sakctl decrypts. No
+/// Debug
 pub struct BackupKey(age::x25519::Identity);
 
 impl BackupKey {
@@ -203,8 +198,8 @@ pub fn backup_key(name: &str, password: &str) -> Result<BackupKey, String> {
         .map_err(|e| e.to_string())
 }
 
-/// the age key of the settings sakctl keeps of a deployment on this machine (`local`): a purpose of
-/// its own, so it opens no backup and a backup key opens no settings
+/// the key of the settings sakctl keeps on this machine (`local`): a purpose of its own, so it
+/// opens no backup and a backup key opens no settings
 pub fn local_settings_key(name: &str, password: &str) -> Result<BackupKey, String> {
     use std::str::FromStr;
     let secret = expand::<32>(name, password, "local-settings")?;
@@ -215,10 +210,8 @@ pub fn local_settings_key(name: &str, password: &str) -> Result<BackupKey, Strin
         .map_err(|e| e.to_string())
 }
 
-/// the hash of the admin password (the deployment password as nfc) that the backend checks a
-/// password login against: argon2id as a phc string (`$argon2id$v=19$m=…,t=…,p=…$<salt>$<hash>`).
-/// The salt comes from the name, so every deploy gives the same hash and the configuration of the
-/// backend does not change
+/// the hash the backend checks a password login against, argon2id as a phc string. The salt
+/// comes from the name, so every deploy gives the same hash and the backend configuration stays
 pub fn admin_password_hash(name: &str, password: &str) -> Result<String, String> {
     use argon2::PasswordHasher;
     // 16 bytes of salt, the recommended length

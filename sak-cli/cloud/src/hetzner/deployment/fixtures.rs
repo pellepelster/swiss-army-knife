@@ -90,8 +90,6 @@ pub(super) fn spec(dns_mode: DnsMode) -> DeploymentSpec {
     .with_root_domain("pelle.io")
 }
 
-/// a project with a `web` server, ssh key, firewall, data volume and primary ips without
-/// labels, protected where hetzner allows it: no deployment created them
 pub(super) fn foreign_volume() -> Value {
     json!({
         "id": 3, "name": "sak-web-data", "format": "ext4", "linux_device": "/dev/disk/by-id/scsi-0HC_Volume_3", "size": 16,
@@ -107,6 +105,8 @@ pub(super) fn foreign_ip(id: u64, name: &str, ip_type: &str) -> Value {
     })
 }
 
+/// a project with a `web` server, ssh key, firewall, data volume and primary ips without labels,
+/// protected where hetzner allows it: no deployment created them
 pub(super) async fn foreign_web() -> (wiremock::MockServer, Arc<HetznerApi>) {
     let (volume, ip) = (foreign_volume(), foreign_ip);
     mock_api_all(&[
@@ -125,7 +125,7 @@ pub(super) async fn foreign_web() -> (wiremock::MockServer, Arc<HetznerApi>) {
     .await
 }
 
-/// the requests to the mock that change something: all requests except reads
+/// the requests to the mock except reads
 pub(super) async fn writes(server: &wiremock::MockServer) -> Vec<String> {
     server
         .received_requests()

@@ -1,9 +1,9 @@
 //! the answers of the window's commands for the screenshots and the video of the sakctl ui
-//! (`sak-e2e`, its README): what rust sends for a create of `family` on
-//! `krawallbu.de` in subdomain mode for a single user, the SAK instance of docs/first-steps.md, built from the real types, texts and resources so the window
-//! shows nothing rust would not send. Not a test of its own: `mise run docs:screenshots` and
-//! `docs:videos` run it (`cargo test window_fixtures -- --ignored`) and the run writes
-//! `SAK_WINDOW_FIXTURES` (`build/ui-fixtures/window.json` of the repository by default)
+//! (`sak-e2e`, its README): a create of `family` on `krawallbu.de` in subdomain mode for a single
+//! user (docs/first-steps.md), built from the real types, texts and resources so the window shows
+//! nothing rust would not send. `mise run docs:screenshots` and `docs:videos` run it (`cargo test
+//! window_fixtures -- --ignored`); it writes `SAK_WINDOW_FIXTURES` (default
+//! `build/ui-fixtures/window.json`)
 
 use super::*;
 use crate::core::checks::{CheckEvent, CheckItem, Next};
@@ -20,9 +20,8 @@ const LOCATION: Location = Location::hel1;
 const IPV4: &str = "203.0.113.10";
 const IPV6: &str = "2001:db8:1::1";
 
-/// the tasks of the playbook `pelle_io.sak.server` as its callback names them, in their order:
-/// the pre tasks, then the roles common, storage, backend and role_markers
-/// (ansible/roles/*/tasks/main.yml)
+/// the tasks of the playbook `pelle_io.sak.server` in their order: the pre tasks, then those of
+/// its roles (`the_tasks_are_those_of_the_playbook`)
 const TASKS: &[&str] = &[
     "Wait for the server to accept ssh",
     "Gather facts",
@@ -71,7 +70,6 @@ const TASKS: &[&str] = &[
     "Write a marker for each role of the run",
 ];
 
-/// an event of a channel and the milliseconds before it
 fn after(delay_ms: u64, event: impl Serialize) -> Value {
     json!({ "delayMs": delay_ms, "message": event })
 }
@@ -85,8 +83,6 @@ pub(super) fn spec() -> DeploymentSpec {
         .with_password_hash(&crate::core::keys::password_hash(NAME, PASSWORD).unwrap())
 }
 
-/// the configuration the running deployment of the spec answers: a single user, no mail server,
-/// in dns mode subdomain
 fn settings() -> Detected {
     Detected {
         source: Some(SettingsSource::Running),
@@ -98,8 +94,8 @@ fn settings() -> Detected {
     }
 }
 
-/// the resources of the spec in the order the registry applies them: what they depend on first
-/// (a test compares it with the registry, `tests::the_window_fixtures_apply_in_the_order_of_the_registry`)
+/// the resources of the spec in the order the registry applies them
+/// (`tests::the_window_fixtures_apply_in_the_order_of_the_registry`)
 pub(super) fn resources(spec: &DeploymentSpec) -> Vec<sak_cloud::api::ResourceRef> {
     let mut resources = vec![
         spec.ssh_key().resource_ref(),
@@ -121,8 +117,7 @@ fn provisioning(spec: &DeploymentSpec) -> String {
     t!("common.provision.resource", name = spec.resource_name()).to_string()
 }
 
-/// the plan of the create (every resource missing, then the provisioning) or of a check of the
-/// deployment as it is (a deploy: every resource up to date)
+/// the plan of the create (every resource missing) or of the check (every resource up to date)
 fn plan(spec: &DeploymentSpec, intent: Intent) -> PlanResponse {
     let status = if intent == Intent::Create {
         DiffStatus::Missing
@@ -163,8 +158,7 @@ fn plan(spec: &DeploymentSpec, intent: Intent) -> PlanResponse {
     }
 }
 
-/// the create: each resource taken up and created, then the playbook task by task, the wait for
-/// the deployment and the end
+/// the events of the create: each resource, then the playbook task by task, the wait for the api
 fn create(spec: &DeploymentSpec) -> Vec<Value> {
     let mut events = Vec::new();
     for reference in resources(spec) {
@@ -260,7 +254,7 @@ fn create(spec: &DeploymentSpec) -> Vec<Value> {
     events
 }
 
-/// `example1` after the create: every resource up to date, with the details a listing shows
+/// the deployment after the create: every resource up to date, with the details a listing shows
 fn created(spec: &DeploymentSpec) -> DeploymentResponse {
     let state = |reference: &sak_cloud::api::ResourceRef| {
         let kind = ResourceKind::of(reference).expect("a resource of a deployment");
@@ -298,8 +292,7 @@ fn created(spec: &DeploymentSpec) -> DeploymentResponse {
     }
 }
 
-/// the checks without a token in the environment: the container runtime, the image, then the
-/// providers page
+/// the checks without a token: the container runtime, the image, then the providers page
 fn checks() -> Vec<Value> {
     let checks =
         crate::core::checks::checks(crate::core::checks::ProviderTokensCheck::new(Vec::new()));
@@ -381,8 +374,6 @@ fn checks() -> Vec<Value> {
     events
 }
 
-/// the tasks of the fixtures are those of the playbook, in its order: its pre tasks, then the
-/// tasks of each of its roles
 #[test]
 fn the_tasks_are_those_of_the_playbook() {
     let ansible = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ansible");

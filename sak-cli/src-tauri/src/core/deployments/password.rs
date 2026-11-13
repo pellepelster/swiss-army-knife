@@ -2,10 +2,8 @@
 
 use super::*;
 
-/// checks the password of an existing deployment before anything changes: against the hash labels
-/// on its resources, where every hash must match. Only when no resource has one (created before
-/// the resources carried it), against the public client key; with neither, it is refused
-/// (`check_password`)
+/// checks the password before anything changes: every hash label on the resources must match;
+/// only when none has one, against the public client key (`check_password`)
 pub(super) fn verify_password(
     deployment: &DiscoveredDeployment,
     name: &str,
@@ -15,9 +13,8 @@ pub(super) fn verify_password(
     check_password(&hashes, key, name, password)
 }
 
-/// where a deployment answers its users: its api, the key a request to it is signed with, the trust
-/// of its certificates and the address of its server, which a request asks directly because a
-/// resolver of this machine can still know the address of an earlier server of the name
+/// where a deployment answers its users. A request goes to `address` directly: a resolver of this
+/// machine can still know the address of an earlier server of the name
 pub struct Endpoint {
     pub url: String,
     pub(super) key: crate::core::keys::ApiKey,
@@ -25,10 +22,9 @@ pub struct Endpoint {
     pub address: Option<std::net::IpAddr>,
 }
 
-/// the endpoint of `deployment`, the password checked against it first. Its certificates are
-/// trusted as the ca this machine kept for it (`local`) says; without, the roots of the staging
-/// ca of let's encrypt as well as the public ones, so a deployment of either answers: the request
-/// is signed and goes to the server of the deployment
+/// the endpoint of `deployment`, password checked. The trust follows the ca this machine kept
+/// (`local`); without, also the staging roots, so a deployment of either answers. That is safe:
+/// the request is signed and goes to the server of the deployment
 pub(super) fn endpoint(
     deployment: &DiscoveredDeployment,
     password: &str,
@@ -49,7 +45,7 @@ pub(super) fn endpoint(
     })
 }
 
-/// the settings `deployment` runs with, from its backend (`GET /v1/deployment`)
+/// `GET /v1/deployment`
 pub(super) async fn deployment_settings_of(
     deployment: &DiscoveredDeployment,
     password: &str,
@@ -64,9 +60,8 @@ pub(super) async fn deployment_settings_of(
     .await
 }
 
-/// where `config show` asks and with which key: the api of the base domain on the labels of the
-/// deployment, and the api key of the password. sakctl checks the password first, so it signs
-/// nothing with the key of a wrong password
+/// the api of the base domain on the labels and the api key of the password. The password is
+/// checked first, so nothing is signed with the key of a wrong password
 pub(super) fn config_endpoint(
     deployment: &DiscoveredDeployment,
     name: &str,
@@ -91,8 +86,7 @@ pub(super) fn config_endpoint(
     Ok((url, key))
 }
 
-/// what a password can be checked against: the password hashes on the resources and the public
-/// key of the ssh key. Both are empty when only resources without labels are left
+/// the password hashes on the resources and the public key of the ssh key
 pub(super) fn password_proofs(deployment: &DiscoveredDeployment) -> (Vec<String>, Option<&str>) {
     let hashes: Vec<String> = deployment
         .labels()
@@ -111,9 +105,7 @@ pub(super) fn password_proofs(deployment: &DiscoveredDeployment) -> (Vec<String>
     (hashes, key)
 }
 
-/// `hashes` are the password hashes on the resources, `key` is the public key of the ssh key.
-/// When there is no hash and no key, sakctl cannot check the password and refuses it, so it does
-/// not take every password
+/// with no hash and no key the password cannot be checked and is refused
 pub(super) fn check_password(
     hashes: &[String],
     key: Option<&str>,

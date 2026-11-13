@@ -52,9 +52,8 @@ enum class Device(
     LANDSCAPE(844, 390, 2.0, true, "mobile-landscape"),
 }
 
-// the screenshots of the docs: the login with the password and by e-mail (the mail too), the apps
-// in light and dark, the notes app, the todo app, static hosting and redirects; only the page, no browser around
-// it. Against the environment of `mise run local:run`, in the light theme unless named
+// the screenshots of the docs, only the page, no browser around it. Against the environment of
+// `mise run local:run`, in the light theme unless named
 @Tag("screenshots")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScreenshotTest {

@@ -27,11 +27,10 @@ internal val TODO_TEXTS =
         deleteList = R.string.todo_form_delete_list,
     )
 
-// the screens of the app, one at a time, as the model has it
 @Composable
 fun TodoApp(model: TodoModel) {
     val screen by model.screen.collectAsStateWithLifecycle()
-    // a purge can be undone longer when the phone asks for more time for a control (AN-34)
+    // a purge can be undone longer when the accessibility settings ask for more time
     UndoTime(UNDO_MS) { model.undoMs = it }
     when (val current = screen) {
         is ListsScreen -> TodoScreen(current, model)

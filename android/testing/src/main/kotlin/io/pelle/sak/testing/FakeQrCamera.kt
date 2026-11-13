@@ -32,10 +32,9 @@ import io.pelle.sak.core.qr.QrCamera
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 
-// the camera of the scan on the jvm: a QR code on a screen, the way the camera of a phone sees the web
-// app, in place of the preview; the camera reads code once the test sets it
+// the camera of the scan on the jvm: shows a QR code on a screen as the preview; it reads code once
+// the test sets it
 class FakeQrCamera(
-    // what the QR code in the picture shows
     private val shown: String = "https://sak.example.org/connect#token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbm5hIn0.c2lnbmF0dXJl",
 ) : QrCamera {
     var code by mutableStateOf<String?>(null)
@@ -85,8 +84,7 @@ private fun Modifier.square(share: Float) =
         layout(side, side) { placeable.place(0, 0) }
     }
 
-// the fake camera for the scan of the app on the jvm, allowed (the user said yes) and with a light;
-// the camera the app has
+// installs a FakeQrCamera as the camera of the process, with a light and the permission granted or not
 fun fakeCamera(allowed: Boolean = true): FakeQrCamera {
     val application = RuntimeEnvironment.getApplication()
     if (allowed) shadowOf(application).grantPermissions(Manifest.permission.CAMERA) else shadowOf(application).denyPermissions(Manifest.permission.CAMERA)

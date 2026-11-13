@@ -1,7 +1,5 @@
-// what the tests of every app share, without android: a fake backend of one deployment for the client
-// of the api, and the english texts of core and the app; and, with android on the jvm (robolectric),
-// the screenshots of the apps (Screenshots.kt)
-// (sdks and java 17 from sak.android.library, build-logic)
+// what the tests of every app share: the fake backend, the english texts and, on robolectric, the
+// activities and the screenshots
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
@@ -28,6 +26,6 @@ dependencies {
     api(libs.roborazzi.compose)
     api(libs.roborazzi.junit.rule)
     api(libs.compose.ui.test.junit4)
-    // the QR code the fake camera of the scan shows (FakeQrCamera)
+    // the QR code of FakeQrCamera
     implementation(libs.zxing.core)
 }

@@ -174,8 +174,7 @@ class FileServiceTest {
         recordings.store(Media.wav(seconds = 301, rate = 100f).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.RecordingTooLong
     }
 
-    // SEC-1: the header of a recording is of the uploader, a frame of 32767 channels made the block
-    // the waveform reads into 1 GB
+    // the uploader writes the header: a frame of 32767 channels made the waveform block read 1 GB
     @Test
     fun `takes no recording but mono or stereo pcm of 8 or 16 bit`() {
         val recordings = service(maxSize = 10_000_000)

@@ -1,9 +1,8 @@
 import org.gradle.api.GradleException
 
-// the version of SAK of a build, from VERSION (mise.toml takes the v off): latest for every build
-// but a release, x.y.z for a release. The versionCode counts up with every release, so android
-// takes it as an update: 1.4.2 is 1_004_002, latest is 1. A minor or a patch of 1000 or more would
-// collide with the next major or minor, and any other VERSION is no release: both fail the build
+// the version of a build, from VERSION: latest, or x.y.z for a release. The versionCode counts up
+// with every release, so android takes it as an update: 1.4.2 is 1_004_002, latest is 1. A minor or
+// patch of 1000 or more would collide with the next major or minor, so it fails the build
 data class SakVersion(
     val name: String,
     val code: Int,

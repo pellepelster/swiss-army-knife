@@ -31,8 +31,8 @@ fun HealthStatus.response(language: Language) =
         details.map { HealthDetailResponse(it.name, it.state, it.message?.render(language)) },
     )
 
-// the health of everything the backend checks, meant to be mounted behind the authentication;
-// every check runs on each request, all at once, a check may take a few seconds (e.g. dns)
+// mounted behind the authentication; every check runs on each request, all at once, and may take a
+// few seconds (e.g. dns)
 @OptIn(ExperimentalKtorApi::class)
 fun Route.health(checks: List<Health>) {
     installApi()

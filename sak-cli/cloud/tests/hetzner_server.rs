@@ -1,7 +1,6 @@
-//! the server provisioner against the real api, the flow of HetznerServerProvisionerTest
-//! of blcks without its private network: created with an ssh key, a volume and a
-//! primary ip, the diffs of another image and another ssh key, destroyed and created
-//! again with the same address
+//! the server provisioner against the real api: created with an ssh key, a volume and a
+//! primary ip, the diffs of another image and another ssh key, destroyed and created again
+//! with the same address
 
 mod support;
 

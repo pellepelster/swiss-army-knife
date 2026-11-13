@@ -9,8 +9,8 @@ pub struct HetznerSshKey {
     pub name: String,
     /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
-    /// the labels that tell about it and are never compared (`api::Labeled::info`), written with
-    /// the labels when it is created or changed for another reason
+    /// never compared (`api::Labeled::info`); written when the labels are written for another
+    /// reason
     pub info: Labels,
     /// `ssh-ed25519 AAAA... comment`
     pub public_key: String,

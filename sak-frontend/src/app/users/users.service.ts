@@ -4,16 +4,14 @@ import { Observable } from 'rxjs';
 import { User } from '../api/models';
 import { Page, PAGE_SIZE } from '../shared/api';
 
-// who may sign in: an admin of the configuration of the deployment (no id, not deleted here) or a
-// user an admin added, the role user
+// an admin of the configuration (no id, not deleted here) or a user an admin added (role user)
 export type { User } from '../api/models';
 
-// the users, only an admin reaches them
+// only an admin reaches them
 @Injectable({ providedIn: 'root' })
 export class UsersService {
   private readonly http = inject(HttpClient);
 
-  // the page of the users starting at the offset
   page(offset: number): Observable<Page<User>> {
     return this.http.get<Page<User>>('/api/v1/users', { params: { offset, limit: PAGE_SIZE } });
   }
@@ -23,7 +21,7 @@ export class UsersService {
     return this.http.post<User>('/api/v1/users', { email, name });
   }
 
-  // an e-mail with the link to the page that downloads the android app of the grocery lists
+  // an e-mail with the links to the android apps
   sendAppLink(email: string): Observable<void> {
     return this.http.post<void>('/api/v1/users/app-link', { email });
   }

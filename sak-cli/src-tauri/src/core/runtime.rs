@@ -1,10 +1,9 @@
 //! the async code the blocking code of sakctl waits for: the checks, the provisioning and the
 //! command line run on threads that may block, the requests of the providers are async
 
-/// runs the future to its end: on the runtime of this thread (a blocking task of the window or of
-/// the command line), else on a runtime of its own (the tests). In an async task of a runtime with
-/// several threads the task first gives its thread to the others (`block_in_place`); an async task
-/// of a runtime with one thread cannot wait, which only a test could do, so it panics there
+/// runs the future to its end on the runtime of this thread, else on a runtime of its own (the
+/// tests). In an async task of a multi-thread runtime it uses `block_in_place`; in an async task
+/// of a current-thread runtime (only a test) it panics
 pub(crate) fn block_on<F: std::future::Future>(future: F) -> F::Output {
     match tokio::runtime::Handle::try_current() {
         Ok(handle) => match handle.runtime_flavor() {

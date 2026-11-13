@@ -35,7 +35,6 @@ private const val ADMIN = "admin@example.org"
 
 private const val USER = "anna@example.org"
 
-// a clock the test moves on
 private class MovingClock(
     var now: Instant = Instant.parse("2026-11-12T08:00:00Z"),
 ) : Clock() {

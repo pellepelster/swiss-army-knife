@@ -6,7 +6,7 @@ import io.pelle.sak.model.jooq.tables.references.REDIRECTS
 import org.jooq.exception.IntegrityConstraintViolationException
 import java.time.Clock
 
-// the database access of the redirects, only RedirectService (sak-backend) uses it
+// the redirects, for RedirectService only
 class RedirectRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers

@@ -60,7 +60,7 @@ class S3BucketServiceTest {
         service.byName("unknown") shouldBe null
     }
 
-    // SEC-12: a leaked key pair ends without the bucket
+    // a leaked key pair ends without the bucket
     @Test
     fun `replaces the key pair of a bucket, the one before stops working`() {
         val bucket = service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>().bucket

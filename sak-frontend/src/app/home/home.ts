@@ -8,8 +8,8 @@ import { InstallService } from '../install.service';
 import { ActionMenu } from '../shared/action-menu';
 import { PageHeader } from '../shared/page-header';
 
-// a card of the maintenance of the backend: a page of the app (path), or a page of its own (href,
-// swagger ui); only for an admin unless it is for everyone, the users only in the multi user mode
+// a maintenance card: a route (path) or a page outside the app (href, swagger ui); only for an
+// admin unless everyone, the users only in the multi user mode
 interface MaintenanceEntry {
   readonly name: TextKey;
   readonly description: TextKey;
@@ -57,9 +57,8 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
   },
 ];
 
-// the index page, a tile for every app and for the maintenance of the backend; a tile the signed in
-// user can not open stays in its place, disabled, and says why (UX-8). The name of the user shows,
-// else their address
+// the index page: a tile for every app and for maintenance; a tile the user can not open stays,
+// disabled, and says why (UX-8). Shows the name of the user, else the address
 @Component({
   selector: 'app-home',
   imports: [PageHeader, ActionMenu, RouterLink, TranslatePipe],
@@ -153,7 +152,7 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
                 </span>
               </a>
             } @else {
-              <!-- a page of its own next to the app, no route of it -->
+              <!-- outside the app, no route -->
               <a
                 class="card card-body h-100 flex-row align-items-center gap-3 link-body-emphasis text-decoration-none"
                 [href]="entry.href"

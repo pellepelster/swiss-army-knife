@@ -1,7 +1,7 @@
 //! the settings a deployment runs with, as a redeploy and `sakctl config show` take them. sakctl
-//! reads them from the backend with a request signed with the api key (`keys::api_key`). No request carries
-//! a secret. The signature covers the method, the host, the path, the time, a nonce and the body,
-//! so the backend refuses a request sent to a wrong host or sent again
+//! reads them from the backend with a request signed with the api key (`keys::api_key`); no request
+//! carries a secret. The signature covers method, host, path, time, nonce and body, so the backend
+//! refuses a request sent to a wrong host or sent again
 
 use crate::core::keys::ApiKey;
 use reqwest::redirect::Policy;
@@ -66,10 +66,9 @@ fn pinned(
 /// the scheme of the `Authorization` header of a signed request
 pub const SIGNATURE_SCHEME: &str = "SAK-Ed25519";
 
-/// the text sakctl signs for a request to the admin api, one part on each line: the version of the
-/// format, the method, the host in lower case without the port, the path with its query, the time
-/// in unix seconds, the nonce and the sha-256 of the body as hex. The backend builds the same text
-/// with its own host
+/// the text sakctl signs for a request to the admin api, one part on each line: format version,
+/// method, host in lower case without port, path with query, unix seconds, nonce, sha-256 of the
+/// body as hex. The backend builds the same text with its own host
 pub fn signed_text(
     method: &str,
     host: &str,
@@ -133,12 +132,10 @@ enum Transport {
     PlainHttp,
 }
 
-/// `GET <api>/v1/deployment`, signed with the api key: the settings the deployment runs with, so
-/// a redeploy takes them over. A refused signature means that the backend does not know the key
-/// of this password (yet). Over https only and to the api only: sakctl refuses a plain http api
-/// before any request, and a redirect fails. The request goes to `address`, the server of the
-/// deployment, when it is known: a resolver of this machine can still know the address of an
-/// earlier server of the name
+/// `GET <api>/v1/deployment`, signed with the api key. A refused signature means that the backend
+/// does not know the key of this password (yet). Https only, no redirect. The request goes to
+/// `address` when it is known: a resolver of this machine can still know an earlier server of the
+/// name
 pub async fn fetch_deployment(
     api: &str,
     key: &ApiKey,
@@ -265,9 +262,8 @@ pub fn with_causes(error: &dyn std::error::Error) -> String {
 pub const API_WAIT: Duration = Duration::from_secs(300);
 
 /// waits until `GET <api>/v1/info` (no login needed) answers through the ingress with the
-/// certificate, as a user reaches it. The request goes to `address`, the server just provisioned,
-/// because a resolver of this machine can still know the address of an earlier server of the
-/// name. Asks every `interval`; after `timeout` the error tells the cause of the last failure
+/// certificate, as a user reaches it. Sent to `address` (see `fetch_deployment`); after `timeout`
+/// the error tells the cause of the last failure
 pub async fn wait_for_api(
     api: &str,
     address: Option<std::net::IpAddr>,

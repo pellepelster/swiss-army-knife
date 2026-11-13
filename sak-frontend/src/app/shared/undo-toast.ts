@@ -5,8 +5,7 @@ import { TranslatePipe } from '../i18n/i18n';
 export const UNDO_DELETE_MS = 2000;
 
 // tells what was removed and offers to bring it back while the bar shrinks; centered at the bottom.
-// Shown anew for every removal, the
-// bar starts again
+// Shown anew for every removal, the bar starts again
 @Component({
   selector: 'app-undo-toast',
   imports: [TranslatePipe],

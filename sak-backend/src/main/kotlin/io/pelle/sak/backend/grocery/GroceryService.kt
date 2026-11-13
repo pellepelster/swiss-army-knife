@@ -165,9 +165,8 @@ class GroceryService(
     ): ListDelete = repository.deleteList(user, id).also { if (it == ListDelete.Deleted) changes.changed(id) }
 
     // the items to buy of a list the user sees, with checked also the latest bought item of each name
-    // that is not to buy (GROCERY-14); null
-    // for another list. By the order of their category (GROCERY-13), the ones without a category
-    // last; in a category the ones to buy first in the order they were added, then the bought ones,
+    // not to buy (GROCERY-14); null for another list. By the order of their category (GROCERY-13),
+    // those without one last; in a category the ones to buy first as added, then the bought ones,
     // the last bought first
     fun items(
         user: String,
@@ -183,8 +182,8 @@ class GroceryService(
         )
     }
 
-    // on a list the user sees, an item names its list (LIST-1); it takes the photo and, without one
-    // given, the category of the latest item of its name (GROCERY-11). Its category is one of the list (GROCERY-13)
+    // on a list the user sees (LIST-1); it takes the photo and, without one given, the category of
+    // the latest item of its name (GROCERY-11). Its category is one of the list (GROCERY-13)
     fun addItem(
         user: String,
         listId: Int,
@@ -279,7 +278,8 @@ class GroceryService(
         return repository.checkItem(user, id).also { if (it) changes.changed(listId) }
     }
 
-    // an item, to buy or bought, gone for good, by any user who sees its list; false when the user sees no such item
+    // to buy or bought, gone for good, by any user who sees its list; false when the user sees no
+    // such item
     fun deleteItem(
         user: String,
         id: Int,
@@ -288,8 +288,8 @@ class GroceryService(
         return repository.deleteItem(user, id).also { if (it) changes.changed(listId) }
     }
 
-    // the photo of an item, to buy or bought, on a list the user sees: a file the user uploaded that is an image, or
-    // none to take it away; the next item of its name on the list takes it (GROCERY-12)
+    // of an item to buy or bought on a list the user sees: an image the user uploaded, or none to
+    // take it away; the next item of its name on the list takes it (GROCERY-12)
     fun setPhoto(
         user: String,
         id: Int,
@@ -420,12 +420,10 @@ class GroceryService(
 
         const val MAX_CATEGORY_NAME_LENGTH = 32
 
-        // the most categories of a list
         const val MAX_CATEGORIES = 30
     }
 }
 
-// the texts of the grocery lists (grocery.backend in i18n/texts.yml)
 sealed interface GroceryPhotoResult {
     data class Set(
         val item: GroceryItem,
@@ -438,6 +436,7 @@ sealed interface GroceryPhotoResult {
     data object NotAPhoto : GroceryPhotoResult
 }
 
+// the texts of the grocery lists (grocery.backend in i18n/texts.yml)
 object GroceryTexts : Catalog("grocery") {
     val NOT_A_PHOTO = text("not_a_photo")
     val TOO_MANY_DISCOVERIES = text("too_many_discoveries")

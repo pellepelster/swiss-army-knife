@@ -386,7 +386,7 @@ restore() {
   install -d -m 0700 -o root -g root "$staging"
 
   step "receiving and extracting the backup"
-  # a backup is encrypted to a public key, it proves no sender (SEC-15): it is extracted without its
+  # a backup is encrypted to a public key, it proves no sender: it is extracted without its
   # owners, holds only its known entries, regular files, directories and links that stay in it, and
   # all of it belongs to the backend user afterwards, without a setuid, setgid or sticky bit
   zstd -dc -q | tar --extract --file=- --no-same-owner --same-permissions -C "$staging"

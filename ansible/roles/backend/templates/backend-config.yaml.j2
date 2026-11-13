@@ -1,7 +1,8 @@
 ---
 # the configuration of sak-backend, rendered by the backend role from the inventory sakctl writes
-# (sak_name, sak_dns_mode, sak_root_domain, sak_version, sak_api_public_key, sak_admin_email, sak_smtp_*);
-# the mail server and the sender of the login mails, the secrets too, come from backend.env: a value starting with $ is an environment variable
+# (sak_name, sak_dns_mode, sak_root_domain, sak_version, sak_api_public_key, sak_admin_email,
+# sak_smtp_*); the mail server, the sender and the secrets come from backend.env: a value starting
+# with $ is an environment variable
 ktor:
   deployment:
     port: 8080

@@ -27,11 +27,8 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 
-// the screenshots of the todo app (docs/screenshots/android-todo-*.png): the sign-in, the scan of the
-// QR code that connects the app, the home with the lists, a list with its tasks of every priority,
-// with and without a due date, open and done, and the settings of a list, against the fake backend;
-// the scan, the home and a list also in landscape (-land).
-// Only with mise run android:screenshots
+// the screenshots of the todo app (docs/screenshots/android-todo-*.png) against the fake backend; the
+// scan, the home and a list also in landscape (-land). Only with mise run android:screenshots
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = RobolectricDeviceQualifiers.Pixel7)

@@ -12,28 +12,25 @@ use std::time::{Duration, Instant};
 
 // tried in this order; sakctl uses the first one that works
 pub const RUNTIMES: &[&str] = &["docker", "podman"];
-// a small image that shows that a runtime pulls and runs images (canary/Dockerfile), run by the
-// digest whose signature is verified (`core::images`). The name is fully qualified, because
-// without a tty podman refuses a short name
+// a small image that shows that a runtime pulls and runs images (canary/Dockerfile), run by its
+// verified digest (`core::images`); fully qualified, without a tty podman refuses a short name
 fn canary_image() -> Result<String, String> {
     crate::core::images::reference(crate::core::images::CANARY)
 }
 const CANARY_ANSWER: &str = "sak-cli-docker-canary";
-// the image of the tools (Dockerfile) of the tag of sakctl (`core::image_tag`, its version unless
-// SAK_DOCKER_IMAGE_TAG says otherwise), pulled on every start: by the digest whose signature the
-// pull verified (`pinned`) once it is pulled, by its tag before
+// the image of the tools (Dockerfile) of the tag of sakctl (`core::image_tag`), pulled on every
+// start: by tag before the pull, by the digest the pull verified (`PINNED`) after it
 pub fn image() -> &'static str {
     static TAGGED: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
         crate::core::images::tagged(crate::core::images::TOOLS, crate::core::image_tag())
     });
     PINNED.get().map(String::as_str).unwrap_or(&TAGGED)
 }
-// the image of the tools as the pull verified it, what every run of the tools runs
 static PINNED: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 // the user of the image; only this image answers `id -un` with it
 const IMAGE_USER: &str = "sak";
-// the timeout of each request to the docker api, the pull of the image is one request, and of
-// each run of the command line of the checks
+// the timeout of each request to the docker api (the pull is one request) and of each command
+// line run of the checks
 const API_TIMEOUT_SECONDS: u64 = 3600;
 
 /// the runtime found working on startup

@@ -53,8 +53,7 @@ import kotlinx.coroutines.withContext
 internal val PHOTO_IN_ROW = 48.dp
 internal val PHOTO_SPACE = 8.dp
 
-// takes a photo with the camera or chooses one of the phone for an item, or one whose items the AI
-// reads (GROCERY-16); whether the phone has a camera
+// takes or chooses a photo for an item, or one whose items the AI reads (GROCERY-16)
 class PhotoPicker(
     val hasCamera: Boolean,
     val take: (itemId: Int) -> Unit,
@@ -65,10 +64,9 @@ class PhotoPicker(
 
 internal val LocalPhotoPicker = staticCompositionLocalOf<PhotoPicker> { error("no photo picker") }
 
-// the camera and the photo picker of the app, at its root: always there, also while the app starts
-// anew after android ended it while the camera was open, so their answer is never lost. The item
-// they are for, or that the AI reads the photo, is kept with the saved state; the photo is read and
-// sent by the model, which waits for the lists. The file the camera wrote is deleted once it was read, or when the model drops it
+// at the root of the app, so the answer of the camera is not lost when android ended the app while
+// the camera was open; what the photo is for is in the saved state, the model waits for the lists.
+// The file the camera wrote is deleted once read, or when the model drops it
 @Composable
 internal fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
     val context = LocalContext.current
@@ -167,8 +165,7 @@ internal fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
     }
 }
 
-// the photo of an item as large as it shows: fetched in the scaled size that fills that many pixels
-// of the screen (scaledSize), the photo itself when none is that large
+// fetched in the scaled size that fills the pixels it shows at (scaledSize)
 @Composable
 internal fun Photo(
     item: GroceryItemResponse,

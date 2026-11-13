@@ -3,17 +3,17 @@ package io.pelle.sak.notes
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
-// the rate the recordings are stored at, enough for speech, as the web app (audio-recorder.ts)
+// enough for speech, as the web app (audio-recorder.ts)
 const val RECORDING_RATE = 16_000
 
-// a recording stops by itself after this long, so it stays below the backend's size of a file and
-// its longest recording (FileService.MAX_RECORDING_SECONDS)
+// a recording stops by itself after this long, below the limits of the backend
+// (FileService.MAX_RECORDING_SECONDS)
 const val MAX_RECORDING_SECONDS = 300
 
-// the bytes of the RIFF header of a wav, before its samples
+// the bytes of the RIFF header
 const val WAV_HEADER = 44
 
-// the samples, 16 bit mono little endian, as a wav file: its RIFF header of WAV_HEADER bytes and the samples
+// 16 bit mono little endian samples as a wav file
 fun wav(
     pcm: ByteArray,
     rate: Int = RECORDING_RATE,

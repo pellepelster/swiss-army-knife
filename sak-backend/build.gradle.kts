@@ -24,7 +24,6 @@ dependencies {
     implementation(libs.ktor.server.config.yaml)
     implementation(libs.ktor.server.routing.openapi)
     runtimeOnly(libs.logback.classic)
-    // to look at what is logged
     testImplementation(libs.logback.classic)
     testImplementation(testFixtures(project(":sak-api")))
     testImplementation(testFixtures(project(":sak-model")))
@@ -39,10 +38,9 @@ dependencies {
 
 application {
     mainClass = "io.pelle.sak.backend.SakBackendKt"
-    // measured under load on 2026-11-02 (the review of the memory, MR-4, MR-8, MR-10, in the history of git; its open
-    // findings are the issues #150 to #154): about 100 MB of live
-    // heap at the peak, the serial gc fits one household and gives the heap back at a full gc; the client
-    // compiler only, its code is half as large; an OutOfMemoryError ends the backend, systemd starts it again
+    // measured under load on 2026-11-02: about 100 MB of live heap at the peak. The serial gc fits one household
+    // and gives the heap back at a full gc; the client compiler only, its code is half as large; an
+    // OutOfMemoryError ends the backend, systemd starts it again
     applicationDefaultJvmArgs =
         listOf(
             "--enable-native-access=ALL-UNNAMED",
@@ -57,7 +55,7 @@ application {
         )
 }
 
-// the controller is shipped as docker image, built from the installDist output
+// the docker image is built from the installDist output
 tasks.distTar {
     enabled = false
 }
@@ -66,17 +64,15 @@ tasks.distZip {
     enabled = false
 }
 
-// SakBackendTest validates the deployed configuration, the template of the backend role.
-// RecipeIngredientsTest asks openrouter with the key of pass openrouter/pelle/api-key, only when it
-// is selected by name: ./gradlew :sak-backend:test --tests '*RecipeIngredientsTest*' --rerun, or
-// run from IntelliJ; each run costs a few cents
+// SakBackendTest validates the config template of the backend role. RecipeIngredientsTest asks
+// openrouter (a few cents each run) only when selected by name:
+// ./gradlew :sak-backend:test --tests '*RecipeIngredientsTest*' --rerun
 tasks.test {
     inputs.file(rootProject.file("ansible/roles/backend/templates/backend-config.yaml.j2")).withPathSensitivity(PathSensitivity.RELATIVE)
     passSecrets(mapOf("OPENROUTER_API_KEY" to "openrouter/pelle/api-key"), selectedTest = "RecipeIngredientsTest")
 }
 
-// the unit tests of the vector configuration the backend role deploys, run with the image
-// the role deploys (needs docker, so not part of check; the console's e2eTest depends on it)
+// runs with the image the role deploys; needs docker, so not part of check (the console's e2eTest depends on it)
 val vectorTest by tasks.registering(Exec::class) {
     group = "verification"
     description = "Run the unit tests of the vector configuration in docker"

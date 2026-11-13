@@ -58,7 +58,7 @@ class InvalidKeyException(
     val key: String,
 ) : RuntimeException("invalid object key '$key'")
 
-// a segment of the key longer than a name of the file system takes (SR-8)
+// a segment of the key longer than the file system takes as a name
 class KeyTooLongException(
     val key: String,
 ) : RuntimeException("the object key '$key' has a part longer than the storage takes")
@@ -72,12 +72,12 @@ class InvalidPartException(
     message: String,
 ) : RuntimeException(message)
 
-// the volume of the buckets has no room for the write (SEC-9)
+// the volume of the buckets has no room for the write
 class InsufficientStorageException(
     minFreeBytes: Long,
 ) : RuntimeException("the storage keeps $minFreeBytes bytes free, it has no room for the write")
 
-// an object or a part larger than S3 takes (SEC-9)
+// an object or a part larger than S3 takes
 class EntityTooLargeException(
     maxBytes: Long,
 ) : RuntimeException("an object or a part has at most $maxBytes bytes")

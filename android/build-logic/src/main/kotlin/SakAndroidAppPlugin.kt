@@ -5,9 +5,8 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 
-// an app of android/ (grocery, notes, todo): the sdks, java 17, the version of SAK, the signing of a
-// release, its build types and its distributions; the module keeps its namespace, its applicationId
-// and its texts
+// the conventions of every app; the module keeps its namespace, its applicationId and its own
+// dependencies
 class SakAndroidAppPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.pluginManager.apply("com.android.application")
@@ -41,8 +40,6 @@ class SakAndroidAppPlugin : Plugin<Project> {
                 debug {
                     applicationIdSuffix = ".debug"
                 }
-                // shrunk by r8, with the rules of android/proguard-rules.pro next to the ones the
-                // libraries bring (kotlinx.serialization, ktor, okhttp)
                 release {
                     isMinifyEnabled = true
                     isShrinkResources = true
@@ -50,9 +47,8 @@ class SakAndroidAppPlugin : Plugin<Project> {
                     signingConfig = signingConfigs.findByName("release")
                 }
             }
-            // where the app comes from: github, the apks of the github release, the app updates itself
-            // from them; play, the bundle for google play, which updates the app and forbids an app to
-            // install itself: no updater and no REQUEST_INSTALL_PACKAGES (android/play/AndroidManifest.xml)
+            // github: the apk updates itself from the github release. play: google play forbids an app
+            // to install itself, so no updater and no REQUEST_INSTALL_PACKAGES (play/AndroidManifest.xml)
             flavorDimensions += "distribution"
             productFlavors {
                 create("github") {
@@ -65,23 +61,20 @@ class SakAndroidAppPlugin : Plugin<Project> {
                 }
             }
             sourceSets.getByName("play").manifest.srcFile(target.rootProject.file("play/AndroidManifest.xml"))
-            // the icons of every app and the launcher icon of this one, kept in sak-theme/images/android
             sourceSets.getByName("main").res.srcDir(target.rootProject.file("../sak-theme/images/android/icons"))
             sourceSets.getByName("main").res.srcDir(target.rootProject.file("../sak-theme/images/android/${target.name}"))
             buildFeatures {
                 compose = true
                 buildConfig = true
             }
-            // the tests read the texts of the app by its R class (testing, english()). The screenshots
-            // (the classes *Screenshots, robolectric) run only with -Psak.screenshots=<dir>, which they
-            // are written to (mise run android:screenshots), and then alone
+            // the tests read the texts of the app by its R class (english()). The *Screenshots tests run
+            // only with -Psak.screenshots=<dir>, the directory they write to, and then alone
             testOptions {
                 unitTests.isIncludeAndroidResources = true
                 val screenshots = target.findProperty("sak.screenshots") as String?
                 unitTests.all {
                     it.systemProperty("sak.app.package", namespace ?: "")
-                    // robolectric (the screenshots, the activity in every orientation, *RotationTest)
-                    // reaches into the file descriptors of the jdk
+                    // robolectric reaches into the file descriptors of the jdk
                     it.jvmArgs("--add-exports", "java.base/jdk.internal.access=ALL-UNNAMED")
                     if (screenshots == null) {
                         it.exclude("**/*Screenshots*")
@@ -98,8 +91,7 @@ class SakAndroidAppPlugin : Plugin<Project> {
                 targetCompatibility = JavaVersion.VERSION_17
             }
         }
-        // a release is signed: the apk or bundle of a version without the keystore fails, latest may
-        // stay unsigned
+        // a release is never unsigned; latest may be
         val unsigned = !sak.latest && keystore == null
         val packaging = Regex("(package|bundle)[A-Za-z]*Release")
         target.tasks.configureEach {

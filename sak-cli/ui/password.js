@@ -1,7 +1,6 @@
 // the password of a deployment before its page opens. Rust checks it against the resources of the
-// deployment while it is typed, a moment after the last key; next only with the right one, cancel
-// back to the list. The password stays with the opened deployment for its check and its destroy.
-// With SAK_PASSWORD set, the field starts with it and rust checks it at once
+// deployment a moment after the last key. The password stays with the opened deployment until the
+// list shows again. With SAK_PASSWORD set, rust checks it at once
 import { navigate, setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -12,7 +11,6 @@ const status = document.getElementById('password-status');
 const next = document.getElementById('password-next');
 const toggle = document.getElementById('password-toggle');
 
-// the password as dots, or as typed while the eye is pressed
 function showTyped(typed) {
   input.type = typed ? 'text' : 'password';
   toggle.setAttribute('aria-pressed', String(typed));
@@ -24,26 +22,24 @@ toggle.addEventListener('click', () => {
   input.focus();
 });
 
-// the wait after the last key before rust checks, each check derives the master key
+// each check derives the master key, so it waits for the last key
 const CHECK_AFTER_MS = 500;
 
 let deployment = null;
 let timer = null;
-// what was asked last: an answer to an older password counts no more
+// an answer to an older password counts no more
 let asked = '';
-// the deployment that is open and its password
 let opened = null;
 
 export function openedDeployment() {
   return opened;
 }
 
-// a deployment open with its password, after the password screen or a create
+// after the password screen or an apply
 export function openDeployment(data, password) {
   opened = { deployment: data, password };
 }
 
-// the deployment closed: its password is forgotten when its pages are left for the list
 export function closeDeployment() {
   opened = null;
 }

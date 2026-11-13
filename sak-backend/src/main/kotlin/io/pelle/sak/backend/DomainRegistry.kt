@@ -3,10 +3,9 @@ package io.pelle.sak.backend
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.ingress.RedirectRepository
 
-// what buckets and redirects must know of each other, both consult it: the domains a bucket or a
-// redirect can not take (the ones the backend serves itself and the redirected ones), so neither
-// takes a domain of the other, and the redirects that keep a bucket from being deleted.
-// The domains of the buckets S3BucketService knows itself
+// what buckets and redirects must know of each other: the domains neither may take (reserved or
+// redirected) and the redirects that keep a bucket from being deleted. S3BucketService knows the
+// domains of the buckets itself
 class DomainRegistry(
     // e.g. api.<base_domain> and sak.<base_domain>
     private val reserved: Set<String>,

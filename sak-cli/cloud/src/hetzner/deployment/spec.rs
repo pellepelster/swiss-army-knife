@@ -1,5 +1,5 @@
-//! the resources of a deployment as a deploy declares them, the names and the registries, and
-//! the spec an existing deployment tells, to compare it
+//! the resources of a deployment as a deploy declares them, and the spec an existing deployment
+//! tells, to compare it
 
 use crate::api::{Error, Labels, Registry, Resource, ResourceDiff, Result};
 use crate::hetzner::api::zones::RRType;
@@ -22,8 +22,7 @@ pub const USER_DATA: &str = "#cloud-config\npackage_update: true\n";
 /// the prefix of the cloud name of every resource of a deployment, `sak-<name>`
 pub const RESOURCE_PREFIX: &str = "sak-";
 
-/// the suffix of the cloud name of the data volume, `sak-<name>-data`: the longest cloud name
-/// of a resource
+/// the suffix of the data volume, `sak-<name>-data`: the longest cloud name of a resource
 pub const DATA_VOLUME_SUFFIX: &str = "-data";
 
 /// the suffixes of the cloud names of the primary ips, `sak-<name>-ipv4` and `sak-<name>-ipv6`
@@ -33,13 +32,11 @@ pub(super) const IPV6_SUFFIX: &str = "-ipv6";
 /// the maximum length of a dns label, and so of a hostname label
 pub const DNS_LABEL_LEN: usize = 63;
 
-/// the maximum length of a name, so that the longest cloud name, `sak-<name>-data`, is a dns
-/// label
+/// so that the longest cloud name, `sak-<name>-data`, is a dns label
 pub const MAX_NAME_LEN: usize = DNS_LABEL_LEN - RESOURCE_PREFIX.len() - DATA_VOLUME_SUFFIX.len();
 
-/// checks a name: 1 to MAX_NAME_LEN lower case letters, digits and dashes, with a letter or
-/// digit at both ends. Hetzner accepts it as a name and dns as a label, also with the prefix
-/// and a suffix
+/// 1 to MAX_NAME_LEN lower case letters, digits and dashes, a letter or digit at both ends:
+/// valid for Hetzner as a name and for dns as a label, also with the prefix and a suffix
 pub fn check_name(name: &str) -> Result<()> {
     let valid = !name.is_empty()
         && name.len() <= MAX_NAME_LEN
@@ -64,9 +61,8 @@ pub enum DataVolume {
     Delete,
 }
 
-/// the resources of a deployment, as sakctl creates them: an ssh key, a data volume, a primary
-/// ipv4 and ipv6, a firewall, the server made of them and its dns records, each with the name
-/// label
+/// the resources of a deployment as sakctl creates them: an ssh key, a data volume, the primary
+/// ips, a firewall, the server and its dns records, each with the name label
 #[derive(Clone, Debug)]
 pub struct DeploymentSpec {
     pub name: String,
@@ -77,17 +73,18 @@ pub struct DeploymentSpec {
     pub image: String,
     pub data_volume_gb: u64,
     pub user_data: String,
-    /// on every resource, how sak sets up dns for the deployment
+    /// gives the names of the dns records
     pub dns_mode: DnsMode,
-    /// on every resource, the dns zone of the names of the deployment; none for a destroy
+    /// the dns zone of the records; none for a destroy and without dns records
     pub root_domain: Option<String>,
-    /// on every resource, who signs in; none for a destroy
+    /// who signs in; none for a destroy
     pub user_mode: Option<UserMode>,
-    /// on every resource, the acme ca of the certificates; none for the default
+    /// none for the default
     pub acme_ca: Option<AcmeCa>,
-    /// on every resource, the version of sak that creates or deploys it; none for a destroy
+    /// an info label on every resource, the version of sak that creates or deploys it; none for a
+    /// destroy
     pub version: Option<String>,
-    /// on every resource; sakctl checks a password against it
+    /// a label and identity on every resource; sakctl checks a password against it
     pub password_hash: Option<String>,
     /// on every resource, with the name label
     pub labels: Labels,
@@ -161,10 +158,9 @@ impl DeploymentSpec {
         labels
     }
 
-    /// the labels of a resource: those of `labels()` and the password hash, the identity. The
-    /// settings of the deployment are no labels: the backend answers them, sakctl keeps them in
-    /// `~/.sak/<name>/config.json`, the dns records tell the root domain and the dns mode. The
-    /// firewall selects its servers by `labels()` alone
+    /// `labels()` and the password hash. The settings of the deployment are no labels: the backend
+    /// answers them, sakctl keeps them in `~/.sak/<name>/config.json`, the dns records tell the
+    /// root domain and the dns mode. The firewall selects its servers by `labels()` alone
     fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();
         if let Some(hash) = &self.password_hash {
@@ -173,7 +169,7 @@ impl DeploymentSpec {
         labels
     }
 
-    /// the info labels of a resource, written and never compared: the version
+    /// written and never compared: the version
     fn resource_info(&self) -> Labels {
         self.version
             .iter()
@@ -292,9 +288,8 @@ impl DeploymentSpec {
             .collect()
     }
 
-    /// the identity of a resource of the deployment: the name and the password hash. Every
-    /// resource has them as labels and as identity, so a lookup refuses a resource of the name
-    /// without them and the registries destroy no other resource
+    /// the name and the password hash. A lookup refuses a resource of the name without them, so
+    /// the registries destroy no other resource
     pub fn identity(&self) -> Labels {
         let mut identity = Labels::from([(NAME_LABEL.to_string(), self.name.clone())]);
         if let Some(hash) = &self.password_hash {
@@ -303,11 +298,9 @@ impl DeploymentSpec {
         identity
     }
 
-    /// the resource group with its dns records in a registry of the provider, ready to diff
-    /// and apply. Only the server and the ssh key are recreatable (the key holds no data, and a
-    /// new key needs a new server). A change that needs a recreate of the data volume or a
-    /// primary ip stops the plan (`RecreateRefused`). A recreate removes only resources with
-    /// the identity of the deployment
+    /// the resources with their dns records, ready to diff and apply. Only the server and the ssh
+    /// key are recreatable (the key holds no data, a new key needs a new server); a recreate of the
+    /// data volume or a primary ip stops the plan (`RecreateRefused`)
     pub fn registry(&self, provider: &HetznerProviderRuntime) -> Result<Registry> {
         self.registry_with(provider, self.server())
     }
@@ -335,8 +328,7 @@ impl DeploymentSpec {
         Ok(registry)
     }
 
-    /// what a destroy removes: the resource group, the data volume only with
-    /// `DataVolume::Delete`, each only with the identity of the deployment. The dns records are
+    /// what a destroy removes, the data volume only with `DataVolume::Delete`. The dns records are
     /// not in it; they are found by their labels (`deployment_records`, `stale_records`)
     pub fn destroy_registry(
         &self,
@@ -358,9 +350,8 @@ impl DeploymentSpec {
     }
 }
 
-/// the spec of an existing deployment, as far as its resources tell, to compare it with what a
-/// deploy declares: a list shows its state with it. Its server has the hash of its user data, not
-/// the text, so it cannot be applied; it only compares
+/// the spec of an existing deployment as far as its resources tell, for the state a list shows.
+/// Its server has the hash of its user data, not the text, so it only compares, never applies
 pub(super) struct ObservedSpec {
     spec: DeploymentSpec,
     /// the user data label of the server; none without a server or the label
@@ -368,9 +359,9 @@ pub(super) struct ObservedSpec {
 }
 
 impl ObservedSpec {
-    /// the spec of `deployment`: its key, location, server type, image, volume size, user data
-    /// hash, and the dns mode, root domain, user mode, acme ca, version and password hash on its
-    /// labels. The rest has the default of a new deployment
+    /// its key, location, server type, image, volume size and user data hash, the dns mode and
+    /// root domain its records tell, the version and password hash on its labels; the rest has the
+    /// default of a new deployment
     pub(super) fn of(deployment: &DiscoveredDeployment) -> Result<Self> {
         let server = deployment.server.as_ref();
         let location = deployment

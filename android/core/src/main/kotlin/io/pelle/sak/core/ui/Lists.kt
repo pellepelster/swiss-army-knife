@@ -81,8 +81,7 @@ import io.pelle.sak.core.lists.ListSummary
 import io.pelle.sak.core.lists.ListsActions
 import io.pelle.sak.core.Undo
 
-// the parts of the screens of the list-based apps (grocery, todo): the home with the lists and the
-// settings of a list; and the undo of what was just done, of every app
+// the screens of the list-based apps (the home, the settings of a list) and the undo of every app
 
 // the texts of the app the screens of its lists show, by their resource (<app>.common)
 data class ListTexts(
@@ -102,7 +101,7 @@ fun Empty(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
 }
 
-// the ⋮ of the menu of a row, which tells a screen reader whose menu it is (AN-34)
+// the ⋮ of the menu of a row, which tells a screen reader whose menu it is
 @Composable
 fun MenuIcon(name: String) {
     Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.menu_of, name))
@@ -139,7 +138,7 @@ fun listTitle(list: ListSummary?): String =
     list?.let { listOfNotNull(it.icon, it.name, stringResource(R.string.shared_badge).takeIf { _ -> it.shared }).joinToString(" · ") }.orEmpty()
 
 // how long an undo is offered: millis, longer when the accessibility settings of the phone ask for more
-// time for a control (AN-34); apply hands it to the model
+// time for a control; apply hands it to the model
 @Composable
 fun UndoTime(
     millis: Long,
@@ -152,7 +151,7 @@ fun UndoTime(
 }
 
 // what was done last and its undo, while the bar of the time left shrinks, anew for every undo; a
-// screen reader says it once it shows (AN-34, UX-4.2). millis is the time of the model (UndoTime)
+// screen reader says it once it shows (UX-4.2). millis is the time of the model (UndoTime)
 @Composable
 fun UndoBar(
     undo: Undo,
@@ -298,12 +297,11 @@ private fun ListRow(
     if (confirming) ConfirmDelete(list.name, onDelete = delete, onDismiss = { confirming = false })
 }
 
-// the settings of a new list or of one the user sees: its name, whether all users see it and its
-// icon, one emoji of the picker of the system; a list of the user's own is deleted after a
+// the settings of a new list or of one the user sees; a list of the user's own is deleted after a
 // confirmation (UX-4.1), the last one too (LIST-1). Back leads to where they were opened, the list or
-// the home, and the back arrow says which (AN-52). below is what the app adds under the fields of a
-// list that exists, e.g. the categories of a grocery list; onRefresh, when it is not null, loads it
-// again when the form is pulled down (ANDROID-3)
+// the home, and the back arrow says which. below is what the app adds under the fields of a list that
+// exists, e.g. the categories of a grocery list; onRefresh, when not null, loads it again when the form
+// is pulled down (ANDROID-3)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <M : ListsActions> ListSettingsScreen(

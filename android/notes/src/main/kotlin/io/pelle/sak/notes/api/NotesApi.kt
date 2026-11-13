@@ -20,16 +20,14 @@ import io.pelle.sak.core.api.PageResponse
 import io.pelle.sak.core.api.SakApi
 import io.pelle.sak.notes.R
 
-// the notes api of one deployment on top of what every app calls (SakApi): the notes, the labels, the
-// files of their photos and recordings and the text the AI discovers in them. Its login links are
-// handed on to this app (notes-android)
+// the notes api of one deployment: the notes, the labels, their files and the text the AI discovers
 class NotesApi(
     client: HttpClient,
     url: String,
     token: String? = null,
     languages: String? = null,
 ) : SakApi(client, url, token, languages, LOGIN_CLIENT) {
-    // a page of the notes of the user, of the label or of all, the newest first
+    // of the label or of all, the newest first
     suspend fun notes(
         label: String?,
         offset: Int,
@@ -43,10 +41,10 @@ class NotesApi(
                 label?.let { parameter("label", it) }
             }.answer(R.string.notes_errors_not_loaded)
 
-    // the labels of all apps, the ones to suggest
+    // the labels of all apps, to suggest
     suspend fun labels(): List<LabelResponse> = all("$url/labels", R.string.notes_errors_not_loaded)
 
-    // the labels a note of the user has, by name: the ones the wall filters by
+    // the labels the notes of the user have: the wall filters by them
     suspend fun usedLabels(): List<LabelResponse> = all("$url/notes/labels", R.string.notes_errors_not_loaded)
 
     suspend fun createNote(note: NoteRequest): NoteResponse =
@@ -69,12 +67,12 @@ class NotesApi(
                 setBody(note)
             }.answer(R.string.notes_errors_not_saved)
 
-    // DELETE answers 204, no body; the files stay in the storage (NOTES-2)
+    // the files stay in the storage (NOTES-2)
     suspend fun deleteNote(id: Int) {
         client.delete("$url/notes/$id") { session() }.answer<Unit>(R.string.notes_errors_not_deleted)
     }
 
-    // a photo (a jpeg scaled down already) or a recording (a wav) into the file storage; its file
+    // a photo (a scaled jpeg) or a recording (a wav)
     suspend fun upload(
         content: ByteArray,
         type: ContentType,
@@ -88,7 +86,6 @@ class NotesApi(
                 setBody(content)
             }.answer<FileResponse>(failure)
 
-    // the content of a file of the user, a photo or a recording; its thumbnail with thumbnail
     suspend fun file(
         id: Int,
         thumbnail: Boolean,
@@ -101,17 +98,14 @@ class NotesApi(
             }
             .answer(failure)
 
-    // the text the AI discovers in a photo or a recording of the user (NOTES-5); the backend sends it
-    // only with the AI turned on in the settings of the notes, which an admin turns on
+    // NOTES-5; the backend refuses it while an admin has not turned the AI on
     suspend fun discoverText(fileId: Int): String =
         client
             .post("$url/files/$fileId/discover/text") { session() }
             .answer<DiscoverTextResponse>(R.string.notes_errors_not_discovered)
             .text
 
-    // whether the AI discovers the text of photos and recordings: an admin turned it on and a provider is
-    // set up; every signed in user may ask (GET /notes/settings, AN-26), the backend still refuses a
-    // discover while it is off
+    // whether an admin turned the discovery on and a provider is set up; every signed in user may ask
     suspend fun discoverAvailable(): Boolean =
         client
             .get("$url/notes/settings") { session() }

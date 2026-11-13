@@ -25,8 +25,8 @@ class BlobPath(
     companion object {
         const val STAGING_DIRECTORY = ".tmp"
 
-        // the longest name of a file the file systems of the data volume take, in bytes of UTF-8
-        // (SR-8): a longer segment is refused here, not when the blob is moved into place
+        // the longest name of a file the file systems of the data volume take, in bytes of UTF-8:
+        // a longer segment is refused here, not when the blob is moved into place
         const val MAX_SEGMENT_BYTES = 255
 
         private val NUL: Char = Char(0)

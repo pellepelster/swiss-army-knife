@@ -9,9 +9,9 @@ import { ActionMenu } from '../shared/action-menu';
 import { UsersService } from './users.service';
 import { PageHeader } from '../shared/page-header';
 
-// who may sign in, a page at a time, as a table of the address, the name, the role and the
-// actions: the admins of the configuration of the deployment, then the users an admin added. A user is added on a page of its own
-// and deleted after a confirmation in its place (UX-4.1); an admin of the configuration is not
+// who may sign in, a page at a time: the admins of the configuration, then the users an admin
+// added. A user is added on its own page and deleted after a confirmation in its place (UX-4.1);
+// an admin of the configuration is not deleted
 @Component({
   selector: 'app-user-list',
   imports: [PageHeader, PaginationControl, RouterLink, ActionMenu, TranslatePipe],
@@ -30,7 +30,7 @@ import { PageHeader } from '../shared/page-header';
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
-    <!-- what the sending of a link of the grocery app did -->
+    <!-- the links to the android apps were sent -->
     @if (sent(); as sent) {
       <p class="alert alert-success" role="status" data-testid="app-link-sent">{{ sent }}</p>
     }
@@ -65,7 +65,7 @@ import { PageHeader } from '../shared/page-header';
                   }}</span>
                 </td>
                 <td class="text-end">
-                  <!-- an admin comes from the configuration, it is not deleted here (UX-8) -->
+                  <!-- an admin of the configuration is not deleted here (UX-8) -->
                   <app-action-menu
                     [name]="user.email"
                     deletes
@@ -104,7 +104,7 @@ export class UserList {
   private readonly service = inject(UsersService);
   private readonly i18n = inject(I18n);
 
-  // the route's offset query parameter, where the page shown starts
+  // the offset query parameter
   readonly offset = input(0, { transform: pageOffset });
 
   protected readonly list = pagedList({
@@ -119,7 +119,7 @@ export class UserList {
   // why an admin is not deleted
   protected readonly configured = this.i18n.t('users.configured');
 
-  // a link of the grocery app on its way, and to whom it went last
+  // the links to the android apps on their way, and to whom they went last
   protected readonly sending = signal(false);
   protected readonly sent = signal<string | null>(null);
 

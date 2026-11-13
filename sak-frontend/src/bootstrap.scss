@@ -1,6 +1,6 @@
-// bootstrap of sak-theme, built from its scss with only the components the pages use: the whole
-// bootstrap.min.css would be in the bundle every page loads at the start (TD-5). The settings are
-// bootstrap's own, as in bootstrap.min.css, which sak-theme/bootstrap.css maps onto the tokens.
+// bootstrap of sak-theme, built from its scss with only the components the pages use, so the
+// start bundle stays small. The settings are bootstrap's own, as in bootstrap.min.css, which
+// sak-theme/bootstrap.css maps onto the tokens.
 // A page that uses another component (modal, tooltip, accordion, navbar, ...) adds it here
 @import 'bootstrap/scss/functions';
 @import 'bootstrap/scss/variables';

@@ -11,7 +11,7 @@ import java.io.IOException
 import java.math.BigDecimal
 import java.math.RoundingMode
 
-// an item the AI read in a photo, within the limits of an item (GroceryService.check)
+// an item the AI read in a photo, within the limits of an item (GroceryService.itemValues)
 data class DiscoveredItem(
     val name: String,
     val amount: BigDecimal?,
@@ -43,9 +43,8 @@ sealed interface GroceryDiscoverResult {
     ) : GroceryDiscoverResult
 }
 
-// discovers the items to buy in a photo of the file storage, the ingredients of a recipe or the items
-// of a shopping list (GROCERY-16). Nothing is added: the user confirms the items first, with their
-// corrections. A photo is read anew every time, the items are not kept
+// discovers the items to buy in a photo, of a recipe or a shopping list (GROCERY-16). Nothing is
+// added: the user confirms the items first. A photo is read anew every time, nothing is kept
 class GroceryDiscovery(
     private val files: FileService,
     // asked for each photo, null while no api key is set (OpenRouterManager)
@@ -53,12 +52,12 @@ class GroceryDiscovery(
     // whether the photos may be sent to the AI provider at all
     private val aiEnabled: () -> Boolean,
 ) {
-    // whether the items can be discovered now: the AI features turned on and an api key set; what every
-    // user of the grocery lists may know, the switches themselves are for the admins
+    // the AI features on and an api key set; every user may know this, the switches are for the
+    // admins
     fun available(): Boolean = aiEnabled() && recognizer() != null
 
-    // the items in a photo of the owner, the address that uploaded it. mayAsk is asked only right
-    // before the photo goes to the AI provider, so a limit of what that costs counts nothing else
+    // mayAsk is asked only right before the photo goes to the AI provider, so the limit counts
+    // nothing else
     fun discover(
         owner: String,
         fileId: Int,
@@ -82,14 +81,13 @@ class GroceryDiscovery(
     }
 
     companion object {
-        // the most items of one photo, more are left out
+        // more items of one photo are left out
         const val MAX_ITEMS = 100
 
-        // what the model answered within the limits of an item: a name without control characters
-        // and the blanks around it, cut at its longest; an amount rounded to 3 decimal places, none
-        // when it is out of range; a unit only with an amount, cut at its longest. One without a
-        // name and water from the tap are left out. An item of a recipe that needs it in several parts (e.g. the dough and the
-        // filling) is one item (merged), the model does not do that every time
+        // the answer of the model within the limits of an item: names and units cleaned and cut,
+        // amounts rounded to 3 decimal places or dropped when out of range, a unit only with an
+        // amount; no name or tap water is left out. An ingredient in several parts of a recipe (e.g.
+        // dough and filling) is merged into one, the model does not do that every time
         internal fun items(ingredients: List<Ingredient>): List<DiscoveredItem> =
             merged(
                 ingredients.mapNotNull { ingredient ->
@@ -108,15 +106,13 @@ class GroceryDiscovery(
         // an english one (egg, eggs)
         private val PLURALS = listOf("en", "er", "n", "e", "s")
 
-        // the items of one name, without case and in the singular or the plural, as one where the first of
-        // them is, under the longer name (Eier): the amounts of one unit added up (at most MAX_AMOUNT),
-        // one without an amount dropped when another one of the name has one; items of the name in other
-        // units stay items of their own
+        // the items of one name (any case, singular or plural) as one at the place of the first, under
+        // the longer name (Eier): the amounts of one unit added up (at most MAX_AMOUNT), one without an
+        // amount dropped when another has one; other units stay items of their own
         private fun merged(items: List<DiscoveredItem>): List<DiscoveredItem> {
             val names = mutableListOf<String>()
 
-            // the name of the items it is one with, the first of them that was seen; what is in brackets
-            // tells them apart not (Eier, Eier (Größe M))
+            // the first name seen that it is one with; brackets do not count (Eier, Eier (Größe M))
             fun key(item: DiscoveredItem): String {
                 val name = bare(item.name)
                 return names.firstOrNull { it == name || plural(it, name) || plural(name, it) } ?: name.also { names += it }

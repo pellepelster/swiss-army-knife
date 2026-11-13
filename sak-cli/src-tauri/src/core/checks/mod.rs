@@ -1,7 +1,6 @@
-//! the checks of what sakctl needs on its machine. They run in order before the window or a
-//! command starts: the window lists them on its splash screen, the command line logs them. A
-//! failing check ends both. The checks give back what they find: the container runtime and the
-//! valid provider tokens
+//! the checks of what sakctl needs on its machine, run in order before the window or a command
+//! starts (the splash screen lists them, the command line logs them). A failing check ends both.
+//! They give back what they find: the container runtime and the valid provider tokens
 
 mod container_runtime;
 mod image;
@@ -185,9 +184,7 @@ pub fn run(
     Ok(found)
 }
 
-/// the text of a check that did not finish, e.g. its thread panicked
-/// the checks with `tokens`, on a thread of their own because they block, for the window and the
-/// command line alike; each event goes to `on_event`
+/// the checks with `tokens` on a thread of their own, for the window and the command line alike
 pub async fn run_all(
     tokens: ProviderTokensCheck,
     mut on_event: impl FnMut(CheckEvent) -> Result<(), String> + Send + 'static,
@@ -197,6 +194,7 @@ pub async fn run_all(
         .map_err(not_finished)?
 }
 
+/// the text of a check that did not finish, e.g. its thread panicked
 fn not_finished(error: impl std::fmt::Display) -> String {
     t!("common.checks.not_finished", error = error).to_string()
 }

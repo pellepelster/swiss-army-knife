@@ -21,16 +21,14 @@ use crate::api::{DiffItem, Labeled, label_diff};
 /// the prefix of the labels of sak on the resources
 pub const LABEL_NAMESPACE: &str = "sak.pelle.io";
 
-/// the name of the deployment that a resource belongs to; every cloud resource of a deployment
-/// has it
+/// the name of the deployment, on every cloud resource of it
 pub const NAME_LABEL: &str = "sak.pelle.io/name";
 
 /// the hash of the password of a deployment, on every resource of it; sakctl checks a password
 /// against it before it changes a deployment
 pub const PASSWORD_HASH_LABEL: &str = "sak.pelle.io/password-hash";
 
-/// the version of sak that last created or deployed a deployment, `0.1.1`, on every resource of
-/// it
+/// the version of sak that last created or deployed a deployment, `0.1.1`, on every resource of it
 pub const VERSION_LABEL: &str = "sak.pelle.io/version";
 
 /// the hash of the fingerprints of the ssh keys that a server was created with
@@ -39,8 +37,8 @@ pub const SSH_KEYS_LABEL: &str = "sak.pelle.io/ssh-keys";
 /// the hash of the user data (cloud-init) that a server was created with
 pub const USER_DATA_LABEL: &str = "sak.pelle.io/user-data";
 
-/// on the ssh key that sakctl creates and deletes to check a token; the next check finds a key
-/// that a check left and removes it
+/// on the ssh key that sakctl creates and deletes to check a token; the next check removes a key a
+/// check left
 pub const TOKEN_CHECK_LABEL: &str = "sak.pelle.io/token-check";
 
 /// whether the provisioners or sakctl keep the label on a resource in addition to the declared
@@ -49,15 +47,12 @@ pub fn is_managed_label(key: &str) -> bool {
     key.starts_with(SSH_KEYS_LABEL) || key.starts_with(USER_DATA_LABEL)
 }
 
-/// the label diff of a hetzner resource, without the managed labels (`is_managed_label`) and the
-/// info labels of the resource (`Labeled::info`). The kinds of the labels of a deployment:
+/// the label diff without the managed and the info labels. The kinds of labels:
 ///
-/// - identity: the name and the password hash, every lookup checks them, compared; a label of a
-///   resource that is none of these kinds, e.g. a setting an older sakctl wrote, is a change that
-///   deletes it
-/// - managed: the hashes of the ssh keys and the user data; the provisioners and sakctl keep
-///   them, never compared
-/// - info: the version, written with the other labels, never compared
+/// - identity: the name and the password hash, checked by every lookup, compared; a label of none
+///   of these kinds, e.g. a setting an older sakctl wrote, is a change that deletes it
+/// - managed (`is_managed_label`): the hashes of the ssh keys and the user data, never compared
+/// - info (`Labeled::info`): the version, written with the other labels, never compared
 pub(crate) fn hetzner_label_diff(resource: &impl Labeled, runtime: &impl Labeled) -> Vec<DiffItem> {
     let info = resource.info();
     label_diff(resource.labels(), runtime.labels(), |key| {

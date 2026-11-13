@@ -18,7 +18,7 @@
   --bs-list-group-border-color: var(--sak-line);
 }
 
-// the menu of a row (shared/row-menu.ts) on the surface, as the cards it opens over
+// the menu of a row (shared/action-menu.ts) on the surface, as the cards it opens over
 .dropdown-menu {
   --bs-dropdown-bg: var(--sak-surface);
   --bs-dropdown-color: var(--sak-ink);
@@ -388,7 +388,7 @@ a {
   touch-action: none;
 }
 
-// the row while it is dragged: it follows the pointer above the page, like the row it is
+// the row while it is dragged: it follows the pointer above the page, styled like the row itself
 .category-row.cdk-drag-preview {
   box-sizing: border-box;
   border: var(--bs-border-width) solid var(--bs-border-color);

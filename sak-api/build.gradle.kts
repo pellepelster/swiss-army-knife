@@ -5,7 +5,7 @@ plugins {
     `java-test-fixtures`
 }
 
-// what every route of the api answers alike: the errors of a bad request and the pages of a list
+// what every route of the api shares: the error bodies and the pages of a list
 dependencies {
     api(platform(libs.ktor.bom))
     api(libs.ktor.server.core)

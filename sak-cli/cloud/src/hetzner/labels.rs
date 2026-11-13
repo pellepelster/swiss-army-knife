@@ -41,10 +41,9 @@ pub struct HashComparison {
     pub actual: Option<String>,
 }
 
-/// the labels of a hetzner resource. A value longer than a label allows is chunked across
-/// indexed keys when stored and joined again when read. A hash label fits one value
-/// (`label_hash`); a server labeled before the hash was cut has all 64 characters in two
-/// chunks
+/// the labels of a hetzner resource. A value too long for a label is chunked across indexed keys
+/// and joined again when read. A hash label fits one value (`label_hash`); a server labeled before
+/// the hash was cut has all 64 characters in two chunks
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct HetznerLabels {
     raw: Labels,
@@ -69,10 +68,9 @@ impl HetznerLabels {
         self.raw
     }
 
-    /// the labels with the chunks joined. Only a sequence `key_0` … `key_n` as `add` writes it
-    /// is joined: at least two chunks, from 0 on without a gap, every one but the last of the full
-    /// chunk length. Any other
-    /// key with a numeric suffix (a label of the user, `backup_1`) stays as it is
+    /// the labels with the chunks joined. Only a sequence `key_0` … `key_n` as `add` writes it is
+    /// joined: at least two chunks, from 0 on without a gap, all but the last of full length. Any
+    /// other key with a numeric suffix (a label of the user, `backup_1`) stays as it is
     pub fn labels(&self) -> Labels {
         let mut chunked: std::collections::BTreeMap<&str, Vec<(usize, &str)>> = Default::default();
         for (key, value) in &self.raw {
@@ -170,8 +168,7 @@ impl HetznerLabels {
     }
 }
 
-// `key_1` may be the second chunk of `key`: the key and the index; none for a key whose suffix is
-// not a number
+// `key_1` may be the second chunk of `key`: the key and the index
 fn chunk_of(raw_key: &str) -> Option<(&str, usize)> {
     let (key, index) = raw_key.rsplit_once(DELIMITER)?;
     let index = index.parse::<usize>().ok()?;

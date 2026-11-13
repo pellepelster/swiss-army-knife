@@ -3,7 +3,7 @@ package io.pelle.sak.backend.redirects.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// where a redirect leads to, told apart by its type; more types will follow
+// where a redirect leads to, told apart by its type
 @Serializable
 sealed interface RedirectTarget {
     @Serializable

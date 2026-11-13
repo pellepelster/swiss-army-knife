@@ -1,5 +1,5 @@
-//! the deployments of a project, found by the name label on their resources; the dns records with
-//! the name label tell the root domain and the dns mode of each
+//! the deployments of a project, found by the name label on their resources; their dns records
+//! tell the root domain and the dns mode
 
 use crate::api::{Labels, Result};
 use crate::hetzner::api::{HetznerApi, ListQuery, Location};
@@ -27,18 +27,16 @@ pub struct DiscoveredDeployment {
     pub ipv4: Option<HetznerPrimaryIpRuntime>,
     /// the primary ip of its declared name, `sak-<name>-ipv6`
     pub ipv6: Option<HetznerPrimaryIpRuntime>,
-    /// the other resources with its name label: a second server, ssh key or firewall (the
-    /// deployment has the first found), a volume or primary ip of another name than the declared
-    /// one. They are kept here, so the list shows them and the password is checked against their
-    /// hashes too
+    /// the other resources with its name label: a second server, ssh key or firewall, a volume or
+    /// primary ip of another name. Kept so the list shows them and the password is checked against
+    /// their hashes too
     pub left_out: Vec<LeftOut>,
     /// the root domain whose zone has its dns records and the dns mode their names tell; none
     /// without records
     pub domain: Option<(String, DnsMode)>,
 }
 
-/// a resource with the name label of a deployment that has one of its kind already, or a volume
-/// or primary ip with it under a name the deployment does not declare
+/// see `DiscoveredDeployment::left_out`
 #[derive(Clone, Debug)]
 pub struct LeftOut {
     pub kind: ResourceKind,
@@ -81,9 +79,8 @@ impl DiscoveredDeployment {
         ))
     }
 
-    /// the location of its server, else of its volume, else of its primary ips; none without
-    /// them. Resources in different locations are an error that names them: a deploy must not
-    /// guess
+    /// the location of its server, else of its volume, else of its primary ips. Resources in
+    /// different locations are an error that names them: a deploy must not guess
     pub fn location(&self) -> std::result::Result<Option<Location>, String> {
         let found = self.locations();
         let Some((_, location)) = found.first() else {
@@ -124,8 +121,8 @@ impl DiscoveredDeployment {
         self.ipv4.iter().chain(self.ipv6.iter())
     }
 
-    /// the labels of each of its resources: the server, the ssh key, the firewall, the primary
-    /// ips, the volume, the ones left out
+    /// the labels of each of its resources, in this order: server, ssh key, firewall, primary ips,
+    /// volume, the ones left out
     pub fn labels(&self) -> Vec<&Labels> {
         let mut labels: Vec<&Labels> = Vec::new();
         labels.extend(self.server.iter().map(|server| &server.labels));
@@ -137,15 +134,14 @@ impl DiscoveredDeployment {
         labels
     }
 
-    /// the value of `key` on the first of its resources that has it, in the order of `labels`
+    /// the value on the first resource that has it, in the order of `labels`
     pub(super) fn label(&self, key: &str) -> Option<&String> {
         self.labels().into_iter().find_map(|labels| labels.get(key))
     }
 }
 
-/// the deployments of the project, sorted by name. A deployment has one server, ssh key and
-/// firewall, the first found, and the volume and the primary ips of their declared names; any
-/// other resource with the same name label is left out (`left_out`)
+/// sorted by name. A deployment has the first server, ssh key and firewall found and the volume
+/// and primary ips of their declared names; any other resource with its name label is `left_out`
 pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
     let query = ListQuery::new().label_exists(NAME_LABEL);
     let mut deployments: BTreeMap<String, DiscoveredDeployment> = BTreeMap::new();
@@ -222,7 +218,7 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
             });
         }
     }
-    // the root domain and the dns mode of the deployments found: the zone with their records
+    // the root domain and the dns mode: the zone with the records of the deployment
     let zones = api.zones();
     for zone in zones.list(&ListQuery::new()).await? {
         for rrset in zones.rrsets(&zone.name).list(&query).await? {
@@ -241,8 +237,7 @@ pub async fn discover(api: &HetznerApi) -> Result<Vec<DiscoveredDeployment>> {
     Ok(deployments.into_values().collect())
 }
 
-/// the cloud name a deployment declares for a resource with `suffix`, `sak-<name>-data`; names
-/// are unique per kind in a project, so one resource has it at most
+/// `sak-<name><suffix>`; names are unique per kind in a project, so one resource has it at most
 fn declared(name: &str, suffix: &str) -> String {
     format!("{RESOURCE_PREFIX}{name}{suffix}")
 }

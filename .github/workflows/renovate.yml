@@ -1,12 +1,11 @@
-# Renovate (renovate.json, docs/development/DEPENDENCIES.md), as the GitHub App of the repository
-# (secrets RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY, mise run github:secrets:update):
-# daily, so the automerge of green pull requests, the rebases and the Dependency Dashboard follow
-# within a day, while renovate.json says when new pull requests open (Monday before 06:00). The
-# pull requests of the app start the workflow swiss-army-knife (a pull request of GITHUB_TOKEN
-# would not), and with platformCommit GitHub signs the commits of the app (Verified).
-# workflow_dispatch: mise run renovate:run, at once (the schedules of renovate.json forced to
-# "at any time", the lock files too), dry_run changes nothing.
-# A tick of a checkbox on the Dependency Dashboard runs it at once
+# Renovate (renovate.json, docs/development/DEPENDENCIES.md) as the GitHub App of the repository
+# (secrets RENOVATE_APP_CLIENT_ID and RENOVATE_APP_PRIVATE_KEY, mise run github:secrets:update).
+# Daily, so automerges, rebases and the Dependency Dashboard follow within a day; renovate.json
+# says when new pull requests open. The pull requests of the app start the workflow
+# swiss-army-knife (those of GITHUB_TOKEN would not); with platformCommit GitHub signs its commits.
+# workflow_dispatch: mise run renovate:run, at once (the schedules forced to "at any time", the
+# lock files too), dry_run changes nothing. A tick of a checkbox on the Dependency Dashboard runs
+# it at once
 name: renovate
 
 on:

@@ -168,7 +168,7 @@ export class BucketView {
   protected readonly formatCount = formatCount;
 
   constructor() {
-    // the bucket of the route, again when the route names another one
+    // loads again for another route
     effect(() => {
       const name = this.name();
       untracked(() => this.store.load(name));

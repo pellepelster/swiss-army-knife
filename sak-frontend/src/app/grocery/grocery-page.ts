@@ -46,16 +46,14 @@ import {
 import { PageHeader } from '../shared/page-header';
 import { RowError } from '../shared/row-error';
 
-// how long a check can be undone, shorter than for the notes: while shopping one
-// item follows the other
+// shorter than for the notes: while shopping one item follows the other
 export const GROCERY_UNDO_MS = 1500;
 
-// the ids but the one
 function without(ids: ReadonlySet<number>, id: number): ReadonlySet<number> {
   return new Set([...ids].filter((each) => each !== id));
 }
 
-// the items to buy first in the order they were added, then the bought ones, the last bought first
+// to buy first, in the order added; then bought, the last bought first
 function byToBuyThenBought(a: GroceryItem, b: GroceryItem): number {
   if (!a.checkedAt !== !b.checkedAt) return a.checkedAt ? 1 : -1;
   if (a.checkedAt && b.checkedAt && a.checkedAt !== b.checkedAt) {
@@ -64,33 +62,30 @@ function byToBuyThenBought(a: GroceryItem, b: GroceryItem): number {
   return a.id - b.id;
 }
 
-// one item the AI read in a photo, as the user corrects it before it is added (GROCERY-16); the
-// errors show once a field is left or the items are added
+// an item the AI read in a photo, as the user corrects it before it is added (GROCERY-16)
 interface DiscoveredRow {
   key: number;
   include: boolean;
   name: string;
   amount: string;
   unit: string;
-  // the units to choose, the one the AI read among them
+  // includes the unit the AI read
   units: UnitOption[];
   nameEmpty: boolean;
   amountInvalid: boolean;
 }
 
-// one group of the items to buy, of a category or of none
 interface ItemGroup {
   // the id of the category, null for the items without one
   key: number | null;
   label: string;
-  // one emoji, null for none
+  // an emoji
   icon: string | null;
   items: GroceryItem[];
 }
 
-// one grocery list, opened from all lists (LIST-3), with its items to buy by category; a bought item
-// is struck through while it can be undone and goes afterwards (GROCERY-3). A new item goes to the
-// list shown, the suggestions are the items added to it before. A list that is gone leads to all lists
+// one grocery list (LIST-3), its items to buy by category; a bought item is struck through while
+// it can be undone and goes afterwards (GROCERY-3). A list that is gone leads to all lists
 @Component({
   selector: 'app-grocery-page',
   imports: [
@@ -107,7 +102,6 @@ interface ItemGroup {
   host: {
     class: 'd-block container pb-5',
   },
-  // the number of a quantity wide enough for its longest one, the unit as wide as its label
   styles: `
     .quantity-amount {
       width: 8rem;
@@ -129,8 +123,7 @@ interface ItemGroup {
           }}</span>
         }
       </h1>
-      <!-- one toolbar (UX-10): the bought items shown or not (GROCERY-14), the settings, always in
-           their place (UX-8): only the owner changes a list -->
+      <!-- one toolbar (UX-10): the bought items shown or not (GROCERY-14), the settings -->
       <div class="btn-group" role="group" [attr.aria-label]="'shared.actions' | t">
         <button
           type="button"
@@ -175,8 +168,8 @@ interface ItemGroup {
             [value]="itemName()"
             (input)="typed(name.value)"
           />
-          <!-- the robot reads the items in a photo, only with the AI features turned on; its label
-               names OpenRouter, where the photo goes (GROCERY-16, PRIVACY-2) -->
+          <!-- only with the AI features turned on; its label names OpenRouter, where the photo
+               goes (GROCERY-16, PRIVACY-2) -->
           @if (discoverItems()) {
             <button
               type="button"
@@ -211,7 +204,7 @@ interface ItemGroup {
             >{{ 'grocery.discover.reading' | t }}
           </p>
         }
-        <!-- the error of adding the item or of reading the photo, under the field (UX-15) -->
+        <!-- under the field (UX-15) -->
         @if (addError(); as error) {
           <p class="alert alert-danger mt-2 mb-0" role="alert">{{ error }}</p>
         }
@@ -222,8 +215,7 @@ interface ItemGroup {
         </datalist>
       </form>
 
-      <!-- the items read in the photo, in the page, not in a dialog (WEB-3): corrected, left out or
-           added at once; cancel adds none (GROCERY-16) -->
+      <!-- the items read in the photo, in the page, not in a dialog (WEB-3, GROCERY-16) -->
       @if (discovered(); as rows) {
         @if (rows.length) {
           <form
@@ -363,7 +355,7 @@ interface ItemGroup {
             </fieldset>
           </form>
         } @else {
-          <!-- nothing to choose from: only a warning, acknowledged with OK -->
+          <!-- nothing read: only a warning -->
           <div
             id="discovered"
             class="alert alert-warning d-flex align-items-center gap-3 mb-4"
@@ -406,11 +398,8 @@ interface ItemGroup {
     }
 
     <ng-template #row let-item>
-      <!-- the photo shows the photo in full, a tap on the rest of the row checks the item
-           (GROCERY-3), struck through while it can be undone; the menu renames the item in its row,
-           attaches a photo and sets the category, one of the list or none (GROCERY-13). A bought
-           item, shown with the bought ones (GROCERY-14), is struck through, a tap does not check it
-           again; its menu changes it as the one of an item to buy -->
+      <!-- a tap on the row checks the item (GROCERY-3); a tap on a bought one, shown with the
+           bought ones, does nothing (GROCERY-14) -->
       <li
         class="list-group-item p-0 d-flex flex-wrap align-items-center"
         [attr.data-testid]="'item-' + item.id"
@@ -432,7 +421,7 @@ interface ItemGroup {
           </button>
         }
         @if (renaming() === item.id) {
-          <!-- the name in a field: Enter or leaving it saves, Escape keeps the name (UX-6) -->
+          <!-- Enter or leaving it saves, Escape keeps the name (UX-6) -->
           <div class="flex-grow-1 min-w-0 px-3 py-2">
             <input
               #renameField
@@ -456,9 +445,7 @@ interface ItemGroup {
             }
           </div>
         } @else if (quantityOf() === item.id) {
-          <!-- the quantity in fields, a number and a unit (GROCERY-15): Enter or Save saves, Escape
-               or Cancel keeps it; leaving a field saves nothing, there are two of them, the number
-               is checked when it is left (UX-6) -->
+          <!-- leaving a field saves nothing, as there are two of them (GROCERY-15, UX-6) -->
           <div
             class="flex-grow-1 min-w-0 px-3 py-2 d-flex flex-wrap align-items-start gap-2"
             role="group"
@@ -619,7 +606,7 @@ interface ItemGroup {
             </button>
           </div>
         </app-action-menu>
-        <!-- the error of what was done to the item, in its row (UX-15) -->
+        <!-- in its row (UX-15) -->
         @if (itemError.of(item.id); as error) {
           <div class="w-100 px-3 pb-2">
             <p class="alert alert-danger mb-0" role="alert">{{ error }}</p>
@@ -628,7 +615,7 @@ interface ItemGroup {
       </li>
     </ng-template>
 
-    <!-- the photo the robot reads the items in; no capture either (GROCERY-16) -->
+    <!-- no capture, so a phone offers the camera and its photos (GROCERY-16) -->
     <input
       #discoverInput
       type="file"
@@ -638,8 +625,7 @@ interface ItemGroup {
       (change)="discoverChosen($any($event.target))"
     />
 
-    <!-- the photo chosen for the item of photoFor; no capture, so a phone offers the camera and the
-         photos it has -->
+    <!-- for the item of photoFor; no capture, as above -->
     <input
       #photoInput
       type="file"
@@ -649,7 +635,7 @@ interface ItemGroup {
       (change)="photoChosen($any($event.target))"
     />
 
-    <!-- the photo in full, over the list; a tap or Escape closes it -->
+    <!-- a tap or Escape closes it -->
     @if (viewing(); as photo) {
       <div
         class="photo-viewer position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
@@ -691,22 +677,20 @@ export class GroceryPage {
   private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
   private readonly injector = inject(Injector);
 
-  // the route parameter, the id of the list shown
+  // the route parameter
   readonly id = input.required<string>();
 
-  // the list shown among the lists, loaded again with its items on a change of it (LIST-4)
+  // loaded again with its items on a change of it (LIST-4)
   private readonly open = new OpenList<GroceryList>(this.id, () => this.loadItems(this.shown()));
   protected readonly shown = this.open.shown;
   protected readonly categories = signal<GroceryCategory[]>([]);
   protected readonly items = signal<GroceryItem[]>([]);
-  // the bought items shown too, after the ones to buy of their category (GROCERY-14)
+  // after the ones to buy of their category (GROCERY-14)
   protected readonly showBought = signal(false);
-  // whether an item is to buy, what the empty list says
   protected readonly hasToBuy = computed(() => this.items().some((item) => !item.checkedAt));
   protected readonly loaded = signal(false);
-  // where an error shows (UX-15): the lists, or the items with the categories could not be loaded,
-  // at the top; adding an item or reading a photo under its field; adding the items read in their
-  // form; what was done to an item in its row, at the top once the item is not shown
+  // where an error shows (UX-15): loading at the top; adding an item or reading a photo under its
+  // field; adding the items read in their form; an item in its row, at the top once it is not shown
   protected readonly listsError = this.open.error;
   protected readonly itemsError = signal<string | null>(null);
   protected readonly addError = signal<string | null>(null);
@@ -718,7 +702,7 @@ export class GroceryPage {
 
   protected readonly suggestions = signal<GrocerySuggestion[]>([]);
   protected readonly itemName = signal('');
-  // the quantity and the category of the suggestion chosen, taken over without being shown
+  // of the suggestion chosen, taken over without being shown
   private readonly itemAmount = signal('');
   private readonly itemUnit = signal('');
   private readonly itemCategory = signal<number | null>(null);
@@ -728,15 +712,13 @@ export class GroceryPage {
 
   protected readonly undoMs = GROCERY_UNDO_MS;
 
-  // the items bought while the bar runs, struck through until they go
+  // bought while the toast runs, struck through until they go
   protected readonly struck = signal<ReadonlySet<number>>(new Set());
 
-  // what was bought last while it can be undone: what the toast says
   private readonly pending = new PendingUndo<{ text: string }>(GROCERY_UNDO_MS);
   protected readonly undoable = this.pending.undoable;
 
-  // the items to buy by the categories of the list, in their order, the ones without one last
-  // (GROCERY-13)
+  // by the categories of the list, in their order, the ones without one last (GROCERY-13)
   protected readonly toBuy = computed<ItemGroup[]>(() => {
     const categories = this.categories();
     const groups: ItemGroup[] = categories.map((category) => ({
@@ -755,13 +737,12 @@ export class GroceryPage {
       const index = categories.findIndex((each) => each.id === item.categoryId);
       (index < 0 ? none : groups[index]).items.push(item);
     }
-    // in a group the items to buy first in the order they were added, then the bought ones, the
-    // last bought first, as the backend answers them; a category set keeps that order (GROCERY-14)
+    // sorted here, so a category set keeps the order the backend answers (GROCERY-14)
     for (const group of [...groups, none]) group.items.sort(byToBuyThenBought);
     return [...groups, none].filter((group) => group.items.length);
   });
 
-  // the page is gone: what is sent then loads nothing again
+  // what is sent after the page is gone loads nothing again
   private destroyed = false;
   private loadingItems?: Subscription;
   private loadingSuggestions?: Subscription;
@@ -774,24 +755,22 @@ export class GroceryPage {
         next: (settings) => this.discoverItems.set(settings.discoverItems === true),
         error: () => this.discoverItems.set(false),
       });
-    // the items and the categories of the list shown, anew when another one is chosen, not when
-    // the lists load again; what was done on the list before goes to the backend
+    // anew when another list is chosen, not when the lists load again; what was done on the list
+    // before goes to the backend
     effect(() => {
       const id = this.open.shownId();
       untracked(() => {
         this.pending.commit();
-        // the items read for another list go with it, they are never added to this one
+        // the items read for another list are never added to this one
         if (id !== this.discoveredList) this.closeDiscoveredOf();
         this.loadItems(this.shown());
       });
     });
     this.destroyRef.onDestroy(() => (this.destroyed = true));
-    // what was bought goes to the backend also when the page goes away or into the background
     this.pending.commitWhenLeaving(this.destroyRef);
   }
 
-  // the suggestions of what is typed; one chosen brings its quantity and category along, typing
-  // another name drops them
+  // a suggestion chosen brings its quantity and category along, typing another name drops them
   protected typed(name: string): void {
     this.itemName.set(name);
     const chosen = this.suggestions().find((each) => each.name === name);
@@ -850,10 +829,9 @@ export class GroceryPage {
       });
   }
 
-  // the item is bought and struck through, after GROCERY_UNDO_MS the backend learns it and it goes
-  // from the list, unless it is undone (GROCERY-3)
+  // the backend learns it after GROCERY_UNDO_MS, unless it is undone (GROCERY-3)
   protected check(item: GroceryItem): void {
-    // checked again while the bar runs: not bought after all
+    // a second tap undoes it
     if (this.struck().has(item.id)) {
       this.undo();
       return;
@@ -864,11 +842,11 @@ export class GroceryPage {
       () => {
         this.struck.update((ids) => without(ids, item.id));
         this.closeFields(item.id);
-        // bought on another device meanwhile: done already, nothing to send
+        // bought on another device meanwhile: nothing to send
         const bought = !!this.items().find((each) => each.id === item.id)?.checkedAt;
         this.items.update((items) => items.filter((each) => each.id !== item.id));
-        // shown with the bought ones, it comes back in its place among them; one bought on another
-        // device meanwhile (404) is done too
+        // shown with the bought ones, it comes back in its place among them; a 404 (bought on
+        // another device meanwhile) is done too
         const done = () => {
           if (this.showBought()) this.loadItems(this.shown());
         };
@@ -896,15 +874,15 @@ export class GroceryPage {
     this.struck.update((ids) => new Set([...ids, item.id]));
   }
 
-  // the bought items shown or not (GROCERY-14)
+  // (GROCERY-14)
   protected toggleBought(): void {
     this.showBought.update((shown) => !shown);
     this.loadItems(this.shown());
   }
 
-  // removed for good, not bought: it goes from the list and from the suggestions
+  // removed for good, not bought: it also goes from the suggestions
   protected deleteItem(item: GroceryItem): void {
-    // its check waits for the end of the bar: it goes with its toast, nothing is checked
+    // a check waiting for the end of the toast goes with it
     if (this.struck().has(item.id)) {
       this.pending.dispose();
       this.struck.update((ids) => without(ids, item.id));
@@ -919,12 +897,12 @@ export class GroceryPage {
     this.pending.undo();
   }
 
-  // the item whose name is in a field, to fix it, to buy or bought; an empty name is not saved
+  // the item whose name is in a field; an empty name is not saved
   protected readonly renaming = signal<number | null>(null);
   protected readonly renameEmpty = signal(false);
 
   protected startRename(item: GroceryItem): void {
-    // one field in a row at a time: the quantity is not saved
+    // one field in a row at a time: the quantity open is not saved
     this.quantityOf.set(null);
     this.renameEmpty.set(false);
     this.renaming.set(item.id);
@@ -938,13 +916,11 @@ export class GroceryPage {
     );
   }
 
-  // Escape keeps the name, the focus goes back to the row
   protected cancelRename(item: GroceryItem): void {
     this.closeFields(item.id);
     this.focusRow(item.id);
   }
 
-  // the fields of the item closed, its name or its quantity, e.g. when the item leaves the list
   private closeFields(id: number): void {
     if (this.renaming() === id) {
       this.renameEmpty.set(false);
@@ -956,7 +932,7 @@ export class GroceryPage {
     }
   }
 
-  // the focus on the row of the item once it shows again, not lost to the page
+  // once the row shows again, so the focus is not lost to the page
   private focusRow(id: number): void {
     afterNextRender(
       () => this.host.nativeElement.querySelector<HTMLElement>(`#item-${id}`)?.focus(),
@@ -964,9 +940,8 @@ export class GroceryPage {
     );
   }
 
-  // the name once Enter is pressed or the field is left, with the quantity and the category the
-  // item has; the field goes first, so leaving it after Enter or Escape saves nothing. Enter brings
-  // the focus back to the row, leaving the field keeps it where it went
+  // the field goes first, so leaving it after Enter or Escape saves nothing. Enter brings the focus
+  // back to the row, leaving the field keeps it where it went
   protected rename(item: GroceryItem, field: HTMLInputElement, enter = false): void {
     if (this.renaming() !== item.id) return;
     const name = field.value.trim();
@@ -1001,8 +976,8 @@ export class GroceryPage {
       });
   }
 
-  // the item whose quantity is in fields, to buy or bought, and the units to choose for it, the one it
-  // has among them (GROCERY-15); an amount that is no positive number is not saved
+  // the item whose quantity is in fields (GROCERY-15); an amount that is no positive number is not
+  // saved
   protected readonly quantityOf = signal<number | null>(null);
   protected readonly quantityInvalid = signal(false);
   protected readonly quantityUnits = signal<UnitOption[]>([]);
@@ -1010,7 +985,7 @@ export class GroceryPage {
   protected readonly parseAmount = parseAmount;
 
   protected startQuantity(item: GroceryItem): void {
-    // one field in a row at a time: a name left open was saved when its field was left
+    // one field in a row at a time: a name open was saved when its field was left
     this.renaming.set(null);
     this.renameEmpty.set(false);
     this.quantityInvalid.set(false);
@@ -1026,20 +1001,17 @@ export class GroceryPage {
     );
   }
 
-  // the number is checked when its field is left (UX-6)
+  // (UX-6)
   protected checkAmount(field: HTMLInputElement): void {
     this.quantityInvalid.set(parseAmount(field.value) === undefined);
   }
 
-  // Escape or Cancel keeps the quantity, the focus goes back to the row
   protected cancelQuantity(item: GroceryItem): void {
     this.closeFields(item.id);
     this.focusRow(item.id);
   }
 
-  // the quantity once Enter or Save is pressed, with the name and the category the item has; no
-  // number takes the unit away too, the backend keeps no unit without one. The focus goes back to
-  // the row
+  // no number takes the unit away too: the backend keeps no unit without one
   protected saveQuantity(
     item: GroceryItem,
     amountField: HTMLInputElement,
@@ -1074,17 +1046,15 @@ export class GroceryPage {
       });
   }
 
-  // whether the robot offers to read the items in a photo: the AI features turned on, asked once
-  // with the page, not offered when that fails (GROCERY-16)
+  // the AI features turned on, asked once with the page, false when that fails (GROCERY-16)
   protected readonly discoverItems = signal(false);
-  // the photo is being sent and read
   protected readonly discovering = signal(false);
-  // the items read in the photo, null while none are shown
+  // null while none are shown
   protected readonly discovered = signal<DiscoveredRow[] | null>(null);
   protected readonly addingDiscovered = signal(false);
-  // the list the photo was read for, the only one its items are added to
+  // the only list the items read are added to
   private discoveredList: number | null = null;
-  // at least one item left in; one that is not valid says why once Add is pressed
+  // one item left in is enough; one that is not valid says why once Add is pressed
   protected readonly canAddDiscovered = computed(() =>
     (this.discovered() ?? []).some((row) => row.include),
   );
@@ -1095,8 +1065,7 @@ export class GroceryPage {
     this.discoverInput().nativeElement.click();
   }
 
-  // the photo scaled down and stored as the one of an item, the items the AI reads in it shown to
-  // correct them; the photo stays in the file storage, attached to no item
+  // the photo stays in the file storage, attached to no item
   protected async discoverChosen(input: HTMLInputElement): Promise<void> {
     const file = input.files?.[0];
     input.value = '';
@@ -1109,7 +1078,7 @@ export class GroceryPage {
       const scaled = await this.scaler.scale(file);
       const stored = await firstValueFrom(this.service.uploadPhoto(scaled));
       const items = await firstValueFrom(this.service.discover(stored.id));
-      // read while another list was chosen: not shown there
+      // another list was chosen meanwhile: not shown there
       if (this.destroyed || this.shown()?.id !== list) return;
       this.discoveredList = list;
       this.discovered.set(items.map((each, key) => this.discoveredRow(key, each)));
@@ -1126,8 +1095,6 @@ export class GroceryPage {
     }
   }
 
-  // an item read, in with the quantity the AI read; a unit not among the usual ones stays one to
-  // choose
   private discoveredRow(key: number, item: GroceryDiscoveredItem): DiscoveredRow {
     return {
       key,
@@ -1151,9 +1118,8 @@ export class GroceryPage {
     return !!row.name.trim() && parseAmount(row.amount) !== undefined;
   }
 
-  // the items left in added one after the other, without a category: the backend gives each the
-  // one it learned for its name (GROCERY-13). The ones the backend refuses stay to try again, an
-  // item left in that is not valid says why and none is added
+  // added one after the other, without a category: the backend gives each the one it learned for
+  // its name (GROCERY-13). The ones refused stay to try again; one not valid stops all
   protected async addDiscovered(): Promise<void> {
     const rows = (this.discovered() ?? []).filter((row) => row.include);
     const list = this.discoveredList;
@@ -1196,7 +1162,6 @@ export class GroceryPage {
     if (failed.length < rows.length) this.loadItems(this.shown());
   }
 
-  // closed, nothing is added; the focus goes back to the field of a new item
   protected closeDiscovered(): void {
     this.closeDiscoveredOf();
     afterNextRender(
@@ -1213,8 +1178,7 @@ export class GroceryPage {
     this.discoveredList = null;
   }
 
-  // the category of the item, one of the list or none; the backend learns it for the next item of
-  // the name on the list (GROCERY-13)
+  // the backend learns it for the next item of the name on the list (GROCERY-13)
   protected setCategory(item: GroceryItem, categoryId: number | null): void {
     if (item.categoryId === categoryId) return;
     this.categoryBusy.set(item.id);
@@ -1240,7 +1204,7 @@ export class GroceryPage {
       });
   }
 
-  // the item the photo input chooses a photo for, and the item whose photo is being sent
+  // the item the photo input chooses a photo for; the one whose photo is being sent
   private photoFor: GroceryItem | null = null;
   protected readonly photoBusy = signal<number | null>(null);
   protected readonly photoInRow = PHOTO_IN_ROW;
@@ -1251,8 +1215,6 @@ export class GroceryPage {
     this.photoInput().nativeElement.click();
   }
 
-  // the photo scaled down and stored, then attached to the item; it shows once the item is loaded
-  // again, also on the other screens that show the list (LIST-4)
   protected async photoChosen(input: HTMLInputElement): Promise<void> {
     const file = input.files?.[0];
     const item = this.photoFor;
@@ -1298,7 +1260,7 @@ export class GroceryPage {
       });
   }
 
-  // the photo in full: its name at once, the photo once it is fetched in the size of the screen
+  // the name at once, the url once the photo is fetched in the size of the screen
   protected readonly viewing = signal<{ id: number; name: string; url: string | null } | null>(
     null,
   );
@@ -1313,7 +1275,7 @@ export class GroceryPage {
     );
     try {
       const url = await this.photos.full(item);
-      // still the photo shown, not closed or another one meanwhile
+      // not closed or another one meanwhile
       if (this.viewing()?.id === item.id && this.viewing()?.url === null) {
         this.viewing.set({ id: item.id, name: item.name, url });
       } else {
@@ -1332,8 +1294,8 @@ export class GroceryPage {
     this.viewing.set(null);
   }
 
-  // not ended with the page: what was done is sent also when the page is left; a failure says why
-  // in the row of the item and brings the list back as the backend has it
+  // not ended with the page: what was done is sent also when the page is left; a failure loads the
+  // list again
   private send(
     request: Observable<unknown>,
     failure: string,
@@ -1352,8 +1314,7 @@ export class GroceryPage {
     });
   }
 
-  // the items with the categories of the list, together, so the groups fit the items; categories
-  // that could not be loaded show the items without them, with the error
+  // together, so the groups fit the items; categories that fail show the items without them
   private loadItems(list: GroceryList | null): void {
     if (this.destroyed) return;
     this.loadingItems?.unsubscribe();
@@ -1362,7 +1323,6 @@ export class GroceryPage {
       this.categories.set([]);
       return;
     }
-    // the error of the categories, shown once the items are there
     let categoriesFailed: string | null = null;
     const categories = this.service.categories(list.id).pipe(
       catchError((error: unknown) => {

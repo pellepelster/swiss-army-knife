@@ -34,9 +34,8 @@ export function androidAppLink(client: AndroidClient, token: string): string {
   return `intent://signin?token=${encodeURIComponent(token)}#Intent;scheme=${pkg};package=${pkg};end`;
 }
 
-// the target of the e-mailed link, exchanges its login token for a session; the link of a login an
-// android app asked for (client=grocery-android, notes-android, todo-android) is handed on to that app, the page
-// does not use the token
+// the target of the e-mailed link, trades its login token for a session; the link of a login an
+// android app asked for (client=grocery-android, ...) goes on to that app, unused here
 @Component({
   selector: 'app-signin',
   imports: [RouterLink, TranslatePipe],

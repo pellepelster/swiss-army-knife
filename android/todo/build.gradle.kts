@@ -1,6 +1,4 @@
-// the app of the todo lists: kotlin (built into the android gradle plugin), jetpack compose, ktor
-// with okhttp, on top of core; sdks, version, signing and build types come from sak.android.app
-// (build-logic)
+// the todo app on top of core; sdks, version, signing and build types come from sak.android.app
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -22,9 +20,8 @@ dependencies {
     implementation(project(":core"))
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
-    // the activity the screenshots show the app in (testing, Screenshots.kt), in the debug build only
+    // the activity of the screenshots (testing), debug build only
     debugImplementation(libs.compose.ui.test.manifest)
 
-    // the fake backend and the english texts of the tests (testing)
     testImplementation(project(":testing"))
 }

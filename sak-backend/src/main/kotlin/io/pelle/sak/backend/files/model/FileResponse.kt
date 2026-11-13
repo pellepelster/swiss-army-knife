@@ -2,7 +2,7 @@ package io.pelle.sak.backend.files.model
 
 import kotlinx.serialization.Serializable
 
-// url is where the file is served, thumbnailUrl where a small jpeg of the image is
+// url is where the file is served, thumbnailUrl where a small jpeg of the image, or the waveform of a recording, is
 @Serializable
 data class FileResponse(
     val id: Int,

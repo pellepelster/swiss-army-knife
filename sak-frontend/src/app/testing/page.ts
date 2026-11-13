@@ -22,8 +22,7 @@ export function signedIn(email = 'admin@example.org', roles: string[] = ['admin'
   );
 }
 
-// the page the router shows and what the specs do on it; the harness is asked for anew, every
-// spec creates its own
+// helpers on the page the router shows; harness() is called each time, every spec creates its own
 export function pageHelpers(harness: () => RouterTestingHarness) {
   const page = () => harness().routeNativeElement!;
   const button = (name: string, root: ParentNode = page()) =>
@@ -32,12 +31,11 @@ export function pageHelpers(harness: () => RouterTestingHarness) {
     ) as HTMLButtonElement;
   return {
     page,
-    // the text of the element with the test id
     text: (testId: string) =>
       page().querySelector(`[data-testid="${testId}"]`)?.textContent?.trim(),
-    // the button or link with the text or the label
+    // the button or link with the text or label
     button,
-    // opens the menu of the row of the thing named (shared/action-menu.ts), its entries
+    // opens the menu of the row (shared/action-menu.ts), returns its entries
     rowMenu: async (name: string) => {
       const toggle = button(`Actions of ${name}`);
       toggle.click();
@@ -55,7 +53,6 @@ export function pageHelpers(harness: () => RouterTestingHarness) {
       button('Delete', row.querySelector(`[aria-label="Delete ${name}"]`)!).click();
       await harness().fixture.whenStable();
     },
-    // types into the input or chooses in the select
     type: async (selector: string, value: string) => {
       const input = page().querySelector<HTMLInputElement | HTMLSelectElement>(selector)!;
       input.value = value;

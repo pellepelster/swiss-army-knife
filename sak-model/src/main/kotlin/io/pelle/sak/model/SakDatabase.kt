@@ -11,13 +11,12 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 
-// the controller's database, a sqlite file only the controller uses; the schema is migrated to
-// the changelog when it is opened
+// the sqlite file of the backend, only it uses it; migrated to the changelog when opened
 class SakDatabase private constructor(
     private val dataSource: SQLiteDataSource,
 ) {
-    // the generated classes name everything in upper case, the changelog in lower case; only the
-    // repositories of this module use it
+    // the generated classes name everything in upper case, the changelog in lower case; for the
+    // repositories of this module only
     internal val dsl: DSLContext = DSL.using(dataSource, SQLDialect.SQLITE, Settings().withRenderNameCase(RenderNameCase.LOWER))
 
     private fun migrate() {

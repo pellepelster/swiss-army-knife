@@ -170,14 +170,14 @@ class AuthRoutesTest {
                 link.parameters.names() shouldBe setOf("token", "client")
                 link.parameters["client"] shouldBe app
                 val token = link.parameters["token"]!!
-                // only with the nonce of the request (AN-8); a wrong one does not use the link up
+                // only with the nonce of the request ; a wrong one does not use the link up
                 client.exchange(token).status shouldBe HttpStatusCode.Unauthorized
                 client.exchangeWithNonce(token, "another nonce of 16+").status shouldBe HttpStatusCode.Unauthorized
                 client.exchangeWithNonce(token, "the nonce of $app").status shouldBe HttpStatusCode.OK
             }
 
-            // a link asked for the web app signs in no app that waits for a link of its own (SEC-6);
-            // the nonce does not use the link up, the web app still signs in with it
+            // a link asked for the web app signs in no app that waits for a link of its own; the
+            // nonce does not use the link up, the web app still signs in with it
             client.post("/api/v1/auth/login/link") {
                 contentType(ContentType.Application.Json)
                 setBody("""{"email":"admin@example.org"}""")
@@ -196,7 +196,7 @@ class AuthRoutesTest {
                         }.status shouldBe HttpStatusCode.BadRequest
                 }
 
-            // no client the list does not name, also not the one before the apps were told apart
+            // no client the list does not name
             listOf("ios", "android").forEach { unknown ->
                 client
                     .post("/api/v1/auth/login/link") {

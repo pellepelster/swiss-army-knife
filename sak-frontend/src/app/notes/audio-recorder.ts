@@ -72,7 +72,7 @@ export class AudioRecorder {
     }
   }
 
-  // ends the recording, record() hands it over; while it is set up, it does not start
+  // record() hands the recording over; while the microphone is set up, it does not start
   stop(): void {
     if (this.starting()) this.stopped = true;
     this.finish?.();

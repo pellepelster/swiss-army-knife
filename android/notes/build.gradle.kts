@@ -1,6 +1,4 @@
-// the app of the notes: kotlin (built into the android gradle plugin), jetpack compose, ktor with
-// okhttp, on top of core; sdks, version, signing and build types come from sak.android.app
-// (build-logic)
+// the notes app on top of core; sdks, version, signing and build types come from sak.android.app
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -18,13 +16,12 @@ android {
 }
 
 dependencies {
-    // the deployment, the sign-in, the session, the api, compose and ktor come with core (api)
+    // compose, ktor and the api come with core
     implementation(project(":core"))
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
-    // the activity the screenshots show the app in (testing, Screenshots.kt), in the debug build only
+    // the activity of the screenshots (testing, Screenshots.kt)
     debugImplementation(libs.compose.ui.test.manifest)
 
-    // the fake backend and the english texts of the tests (testing)
     testImplementation(project(":testing"))
 }

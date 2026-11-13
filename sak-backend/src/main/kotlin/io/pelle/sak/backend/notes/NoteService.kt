@@ -88,10 +88,9 @@ sealed interface DeleteNoteResult {
     data object NotFound : DeleteNoteResult
 }
 
-// the notes of the notes app, the only way to them; every note belongs to its owner, the address
-// of the user that created it, and is only seen and changed by them. The labels are the shared
-// ones, a label unknown yet is created when a note gets it; the photos are files uploaded to the
-// file storage before
+// the notes, the only way to them; only the owner, who created a note, sees and changes it. The
+// labels are the shared ones, an unknown label is created when a note gets it; photos and
+// recordings are files uploaded before
 class NoteService(
     private val repository: NoteRepository,
     private val labels: LabelService,
@@ -116,10 +115,10 @@ class NoteService(
         language: Language,
     ) = repository.ensureList(owner, DEFAULT_LIST)
 
-    // the newest first, of the label or of all when label is null; an unknown label has no notes
     // the labels a note of the owner has, the ones to filter by
     fun usedLabels(owner: String): List<Label> = repository.usedLabels(owner)
 
+    // the newest first, of the label or of all when label is null; an unknown label has no notes
     fun page(
         owner: String,
         offset: Long,
@@ -234,7 +233,7 @@ class NoteService(
         return Checked.Valid(noteColor!!, labels.resolve(owner, names), distinctPhotos, distinctRecordings)
     }
 
-    // the labels and the files of all the notes are read at once, the files are told apart by their type
+    // the labels and files of all the notes in one read, the files told apart by their type
     private fun notes(
         owner: String,
         rows: List<NoteRow>,

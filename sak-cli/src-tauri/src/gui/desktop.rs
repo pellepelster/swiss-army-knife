@@ -1,9 +1,8 @@
-//! the entry of the window in the desktop of linux: a desktop file and the icon in the icons of the
-//! user, below `$XDG_DATA_HOME` (`~/.local/share`). The taskbar and the dock find the icon of a
-//! window only through a desktop file of its app id, and sakctl comes as one binary without one.
-//! The app id of the window is the name of the binary, `sakctl`. Written when the window opens and
-//! its content differs, so it follows sakctl when it moves (an update keeps its place); a failure
-//! leaves the window as it is
+//! the entry of the window in the desktop of linux: a desktop file and the icon below
+//! `$XDG_DATA_HOME` (`~/.local/share`). The taskbar and the dock find the icon of a window only
+//! through a desktop file of its app id (the name of the binary, `sakctl`), and the binary comes
+//! without one. Written when the window opens and its content differs, so it follows sakctl when
+//! it moves; a failure leaves the window as it is
 
 use std::path::{Path, PathBuf};
 

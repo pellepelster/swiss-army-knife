@@ -23,8 +23,8 @@ import io.pelle.sak.todo.R
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
-// the todo api of one deployment on top of what every app calls (SakApi): the lists, their open tasks
-// and the stream of their changes. Its login links are handed on to this app (todo-android)
+// the todo api of one deployment on top of SakApi: the lists, their tasks and the stream of their
+// changes
 class TodoApi(
     client: HttpClient,
     url: String,
@@ -47,7 +47,6 @@ class TodoApi(
                 setBody(TodoListRequest(name, shared, icon))
             }.answer(R.string.todo_error_list_not_created)
 
-    // the settings of a list the user sees
     override suspend fun updateList(
         id: Int,
         name: String,
@@ -61,16 +60,15 @@ class TodoApi(
                 setBody(TodoListRequest(name, shared, icon))
             }.answer(R.string.todo_form_not_saved)
 
-    // a list of the user's own with its tasks, the last one too (LIST-1)
+    // only a list of the user's own, with its tasks, the last one too (LIST-1)
     override suspend fun deleteList(id: Int) {
         client.delete("$url/todo/lists/$id") { session() }.answer<Unit>(R.string.todo_form_not_deleted)
     }
 
-    // the tasks of the list, a done one in its place (TODO-3), by priority, the high ones first (TODO-5)
+    // a done one in its place (TODO-3), in TASK_ORDER (TODO-5)
     suspend fun items(listId: Int): List<TodoItemResponse> = all("$url/todo/lists/$listId/items", R.string.todo_list_items_not_loaded)
 
-    // the new task, on the list it names, with the day it is to be done by or none (TODO-4) and its
-    // priority (TODO-5); normal, the one the backend takes without one, is not sent
+    // normal, the default of the backend, is not sent (TODO-4, TODO-5)
     suspend fun addItem(
         listId: Int,
         title: String,
@@ -84,7 +82,7 @@ class TodoApi(
                 setBody(TodoNewItemRequest(listId = listId, title = title, dueDate = dueDate?.toString(), priority = priority.takeIf { it != Priority.NORMAL }?.value))
             }.answer(R.string.todo_list_not_added)
 
-    // done, struck through, or open again (TODO-3)
+    // done or open again (TODO-3)
     suspend fun setDone(
         id: Int,
         done: Boolean,
@@ -96,7 +94,7 @@ class TodoApi(
                 setBody(TodoDoneRequest(done))
             }.answer(R.string.todo_list_not_done)
 
-    // the priority of a task, open or done (TODO-5)
+    // open or done (TODO-5)
     suspend fun setPriority(
         id: Int,
         priority: Priority,
@@ -108,7 +106,7 @@ class TodoApi(
                 setBody(TodoPriorityRequest(priority.value))
             }.answer(R.string.todo_list_priority_not_set)
 
-    // the day a task is to be done by, none takes it away (TODO-4)
+    // null takes the due date away (TODO-4)
     suspend fun setDueDate(
         id: Int,
         dueDate: LocalDate?,
@@ -120,8 +118,8 @@ class TodoApi(
                 setBody(TodoDueDateRequest(dueDate?.toString()))
             }.answer(R.string.todo_list_due_date_not_saved)
 
-    // the done tasks of the list it names are deleted, the ones the user saw when they purged; one
-    // that is open again or gone stays (TODO-6; POST answers 204, no body)
+    // deletes the done tasks of itemIds, the ones the user saw; one open again or gone stays (TODO-6);
+    // 204, no body
     suspend fun purge(
         listId: Int,
         itemIds: List<Int>,
@@ -138,7 +136,7 @@ class TodoApi(
     override fun changes(opened: suspend () -> Unit): Flow<Int> = listChanges("$url/todo/changes", opened)
 
     companion object {
-        // the app the signin page of the web app hands a login link on to (LoginClient of sak-auth)
+        // the signin page of the web app hands a login link on to this app (LoginClient of sak-auth)
         val LOGIN_CLIENT = LoginRequest.Client.TODO_ANDROID
     }
 }

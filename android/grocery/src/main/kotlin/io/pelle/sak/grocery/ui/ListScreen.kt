@@ -162,8 +162,7 @@ internal fun ListScreen(
     }
 }
 
-// the categories of the list to choose the one of an item from, and no category; a tap sets it and
-// leads straight back to the list, back too without a change (ANDROID-2)
+// a tap sets the category and leads back to the list, back too without a change (ANDROID-2)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun CategoryScreen(
@@ -176,7 +175,6 @@ internal fun CategoryScreen(
         stringResource(R.string.grocery_category_of, item.name),
         navigationIcon = {
             IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
-                // back leads to the list
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(CoreR.string.back_to_list))
             }
         },
@@ -200,7 +198,7 @@ internal fun CategoryScreen(
     }
 }
 
-// one category to choose, the one of the item marked
+// the category of the item marked
 @Composable
 private fun CategoryChoice(
     icon: String?,
@@ -217,10 +215,8 @@ private fun CategoryChoice(
     )
 }
 
-// the field at the top of a list, without a button: Enter on the keyboard adds the item and keeps the
-// keyboard open for the next one (GROCERY-2). Under it the names the list suggests for what is typed
-// (GROCERY-11), a tap takes one with its quantity and category. With the AI features on, the robot
-// next to it adds the items of a photo (DiscoverButton)
+// no button: Enter adds the item and keeps the keyboard open for the next one (GROCERY-2); under it
+// the suggestions (GROCERY-11), a tap takes one with its quantity and category
 @Composable
 private fun NewItem(
     screen: ListsScreen,
@@ -269,10 +265,8 @@ private fun NewItem(
     }
 }
 
-// the robot that adds the items of a photo of a recipe or a shopping list (GROCERY-16): its menu takes
-// a photo with the camera, only when the phone has one (UX-8), or chooses one of the phone (PhotoPicker),
-// scaled down on the phone before it is sent. Its label names OpenRouter, where the photo goes
-// (PRIVACY-2); busy while the items of a photo show
+// adds the items of a photo (GROCERY-16); the camera only when the phone has one (UX-8). Its label
+// names OpenRouter, where the photo goes (PRIVACY-2)
 @Composable
 private fun DiscoverButton(busy: Boolean) {
     val photos = LocalPhotoPicker.current
@@ -301,11 +295,9 @@ private fun DiscoverButton(busy: Boolean) {
     }
 }
 
-// the photo of the item, a tap shows it in full; the rest of the row checks the item, struck through
-// while the check can be undone, no checkbox, the row tells a screen reader it is one (GROCERY-3);
-// its menu attaches a photo, from the camera or the photos of the phone. A bought item (GROCERY-14)
-// is struck through and a tap does nothing; its menu changes it as one to buy. The photo has the
-// same space to its left, above and below it
+// a tap on the photo shows it in full, on the rest of the row checks the item: no checkbox, the row
+// tells a screen reader it is one (GROCERY-3). A bought item (GROCERY-14) is struck through and a tap
+// does nothing. The photo has the same space to its left, above and below it
 @Composable
 private fun ItemRow(
     item: GroceryItemResponse,
@@ -383,12 +375,9 @@ private fun StruckText(
     Text(text, style = style, modifier = line, onTextLayout = { layout = it })
 }
 
-// the menu of an item, to buy or bought (GROCERY-14): its name and its quantity in a dialog (RenameItem,
-// QuantityItem, GROCERY-15); its category,
-// chosen on a screen of its own (CategoryScreen); a photo from the camera or the photos of the phone
-// (PhotoPicker), scaled down on the phone before it is sent, or the photo removed; the camera only
-// when the phone has one (UX-8); a photo while another one is sent waits for it. Its last entry
-// deletes the item for good after a confirmation (UX-12, UX-4.1)
+// the menu of an item, to buy or bought (GROCERY-14, GROCERY-15); the camera only when the phone has
+// one (UX-8), a photo waits while another one is sent. Its last entry deletes the item after a
+// confirmation (UX-12, UX-4.1)
 @Composable
 private fun ItemMenu(
     item: GroceryItemResponse,
@@ -468,9 +457,8 @@ private fun ItemMenu(
     }
 }
 
-// the name of an item in a dialog, e.g. to fix a spelling error; an empty or too long name shows its
-// error under the field once the field was left or Done was pressed, and can not be saved (UX-6).
-// Cancel is the safe default
+// an empty or too long name shows its error once the field was left or Done was pressed, and can not
+// be saved (UX-6); Cancel is the safe default
 @Composable
 private fun RenameItem(
     renaming: Renaming,
@@ -509,9 +497,8 @@ private fun RenameItem(
     )
 }
 
-// the quantity of an item in a dialog (GROCERY-15): the amount, with a point or a comma, and the unit;
-// an amount that is no valid one shows its error under the field once the field was left or Save was
-// pressed, and can not be saved (UX-6); no amount takes the unit away. Cancel is the safe default
+// GROCERY-15: an invalid amount shows its error once the field was left or Save was pressed, and can
+// not be saved (UX-6); no amount drops the unit. Cancel is the safe default
 @Composable
 private fun QuantityItem(
     quantity: Quantity,

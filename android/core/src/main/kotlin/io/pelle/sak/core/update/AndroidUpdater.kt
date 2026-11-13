@@ -125,7 +125,7 @@ class AndroidUpdater(
 
 // the confirmation of an update the installer of android asks the user for: android shows it only
 // from an app that is seen (the start of an activity from the background is blocked), so it waits
-// for the next activity of the app that is seen when there is none (AN-12)
+// for the next activity of the app that is seen when there is none
 object PendingInstall {
     private var confirm: Intent? = null
     private var shown: Activity? = null
@@ -140,7 +140,6 @@ object PendingInstall {
         }
     }
 
-    // an activity of the app is seen: the confirmation that waits shows
     @Synchronized
     fun seen(activity: Activity) {
         shown = activity

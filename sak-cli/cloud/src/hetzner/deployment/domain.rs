@@ -8,9 +8,8 @@ use crate::providers::hetzner::HetznerProviderRuntime;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// a dns zone of the project: a root domain that a deployment can use, with the deployments
-/// that use it. A use is an rrset with the name label of a deployment; its name tells the dns mode
-/// (`DnsMode::of_record`), no label does
+/// a dns zone of the project with the deployments that use it. A use is an rrset with the name
+/// label of a deployment; the rrset name tells the dns mode (`DnsMode::of_record`), no label does
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RootDomain {
     /// `pelle.io`
@@ -29,12 +28,9 @@ pub struct DomainUse {
 /// why a deployment cannot use a root domain in a dns mode
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RootDomainConflict {
-    /// domain mode is requested, but another deployment manages the root domain in domain
-    /// mode
+    /// another deployment manages the root domain in domain mode
     DomainTaken { by: Vec<Option<String>> },
-    /// other deployments use the root domain in the other mode: subdomain requested on the root
-    /// domain of a domain deployment (`used` domain), or domain requested on the root domain of
-    /// subdomain deployments (`used` subdomain)
+    /// domain mode requested where subdomain deployments are (`used` subdomain), or the reverse
     MixedModes {
         used: DnsMode,
         by: Vec<Option<String>>,
@@ -42,8 +38,7 @@ pub enum RootDomainConflict {
 }
 
 impl RootDomain {
-    /// the root domain of a zone listing: the deployments of its rrsets and the dns mode their
-    /// names tell, each deployment once
+    /// each deployment of the rrsets once, with the dns mode their names tell
     pub fn of(listing: &HetznerDnsZoneListing) -> Self {
         let mut uses: Vec<DomainUse> = listing
             .rrsets
@@ -73,9 +68,8 @@ impl RootDomain {
             .collect()
     }
 
-    /// whether the deployment `name` can use the root domain in `dns_mode`. A root domain has
-    /// one domain deployment or any number of subdomain deployments. The entries of the
-    /// deployment itself do not count, so it can deploy again and change its mode
+    /// a root domain has one domain deployment or any number of subdomain deployments. The entries
+    /// of `name` itself do not count, so it can deploy again and change its mode
     pub fn check(
         &self,
         name: &str,
@@ -111,8 +105,7 @@ impl RootDomain {
     }
 }
 
-/// the root domains of the project: every dns zone with the deployments that use it, sorted by
-/// name
+/// every dns zone of the project with the deployments that use it, sorted by name
 pub async fn root_domains(provider: &HetznerProviderRuntime) -> Result<Vec<RootDomain>> {
     Ok(provider
         .dns_zones()
@@ -138,10 +131,8 @@ pub fn frontend_host(name: &str, dns_mode: DnsMode, root_domain: &str) -> String
     format!("sak.{}", base_domain(name, dns_mode, root_domain))
 }
 
-/// how sak sets up dns for a deployment: `domain` manages `<root domain>` and
-/// `*.<root domain>`, `subdomain` (the default) manages `<name>.<root domain>` and
-/// `*.<name>.<root domain>`. A root domain has one domain deployment or any number of
-/// subdomain deployments
+/// `domain` manages `<root domain>` and `*.<root domain>`, `subdomain` (the default)
+/// `<name>.<root domain>` and `*.<name>.<root domain>`
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "snake_case")]
 pub enum DnsMode {
@@ -151,9 +142,7 @@ pub enum DnsMode {
 }
 
 impl DnsMode {
-    /// the dns mode a record of the deployment `name` belongs to, from its name: `@` and `*` in
-    /// domain mode, `<name>` and `*.<name>` in subdomain mode (`DeploymentSpec::record_names`);
-    /// none for another name
+    /// from the record name (`DeploymentSpec::record_names`); none for another name
     pub fn of_record(record: &str, name: &str) -> Option<DnsMode> {
         match record {
             "@" | "*" => Some(DnsMode::Domain),
@@ -166,7 +155,7 @@ impl DnsMode {
 
     pub const ALL: [DnsMode; 2] = [DnsMode::Domain, DnsMode::Subdomain];
 
-    /// the value in the label and on the command line, `domain` or `subdomain`
+    /// the value on the command line and in the settings, `domain` or `subdomain`
     pub fn as_str(self) -> &'static str {
         match self {
             DnsMode::Domain => "domain",

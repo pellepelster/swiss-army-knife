@@ -3,8 +3,7 @@
 
 use super::*;
 
-/// the values the environment proposes for a new deployment, so a script types nothing. No Debug,
-/// the passwords never show in a log
+/// the values the environment proposes for a new deployment. No Debug: it holds passwords
 #[derive(Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentDefaults {
@@ -25,25 +24,20 @@ pub struct DeploymentDefaults {
     pub(super) user_mode: Option<UserMode>,
 }
 
-/// the variables of the name, the password and the location of a deployment, for the window and
-/// the command line
+/// the variables of the environment a deployment is proposed from (`defaults`)
 pub const NAME_VARIABLE: &str = "SAK_NAME";
 pub const PASSWORD_VARIABLE: &str = "SAK_PASSWORD";
 pub const LOCATION_VARIABLE: &str = "SAK_LOCATION";
 
-/// the variables of the mail server of a deployment, for the window and the command line
 pub const SMTP_HOST_VARIABLE: &str = "SAK_SMTP_HOST";
 pub const SMTP_PORT_VARIABLE: &str = "SAK_SMTP_PORT";
 pub const SMTP_USERNAME_VARIABLE: &str = "SAK_SMTP_USERNAME";
 pub const SMTP_PASSWORD_VARIABLE: &str = "SAK_SMTP_PASSWORD";
 pub const SMTP_STARTTLS_VARIABLE: &str = "SAK_SMTP_STARTTLS";
 pub const SMTP_FROM_VARIABLE: &str = "SAK_SMTP_FROM";
-/// the variable of the address of the admin, for the window and the command line
 pub const ADMIN_EMAIL_VARIABLE: &str = "SAK_ADMIN_EMAIL";
-/// the variable of the user mode, for the window and the command line
 pub const USER_MODE_VARIABLE: &str = "SAK_USER_MODE";
 
-/// the user mode and the acme ca are labels of the deployment, sak-cloud has them
 pub use sak_cloud::hetzner::deployment::{AcmeCa, UserMode};
 
 /// the acme directory caddy gets the certificates of `ca` from, none for its default issuers
@@ -62,17 +56,16 @@ pub fn acme_trust(ca: AcmeCa) -> crate::core::config::Trust {
     }
 }
 
-/// the longest host name of a mail server and the longest e-mail address that dns and smtp
-/// allow; the fields of the page have the same limits
+/// the longest host name and e-mail address that dns and smtp allow; the page has the same limits
 pub const MAX_HOST_LEN: usize = 253;
 pub const MAX_ADDRESS_LEN: usize = 254;
 
-/// the port and the starttls of a mail server when none is given, the defaults of the backend
+/// the defaults of the backend
 pub const DEFAULT_SMTP_PORT: u16 = 587;
 pub const DEFAULT_SMTP_STARTTLS: bool = true;
 
-/// the mail server the backend sends its login links with. No Debug, the password never shows in
-/// a log; Serialize only for the encrypted settings of `local`
+/// the mail server the backend sends its login links with. No Debug: it holds a password;
+/// Serialize only for the encrypted settings of `local`
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Smtp {
@@ -95,7 +88,6 @@ fn default_starttls() -> bool {
 }
 
 impl Smtp {
-    /// the address the mails come from: the one given, else noreply@<root domain>
     pub fn sender(&self, root_domain: &str) -> String {
         match self.from.trim() {
             "" => default_sender(root_domain),
@@ -104,13 +96,11 @@ impl Smtp {
     }
 }
 
-/// the sender of the mails of a deployment that was given none
 pub fn default_sender(root_domain: &str) -> String {
     format!("noreply@{}", root_domain.trim())
 }
 
-/// checks the mail server: a host name without spaces, a port that is not 0, and no line break in
-/// a value, because `backend.env` has one line for each value
+/// no line break in a value: `backend.env` has one line for each value
 pub(crate) fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     let host = smtp.host.trim();
     if host.is_empty() || host.len() > MAX_HOST_LEN || host.contains(char::is_whitespace) {
@@ -141,9 +131,8 @@ pub(crate) fn check_smtp(smtp: &Smtp) -> Result<(), String> {
     Ok(())
 }
 
-/// whether `address` is an e-mail address as a deployment needs it: a local part of letters,
-/// digits and `._%+-`, one `@`, a domain with a dot. Nothing that breaks a line of `backend.env`
-/// or of yaml
+/// whether `address` is an e-mail address as a deployment needs it; nothing that breaks a line of
+/// `backend.env` or of yaml
 pub fn is_address(address: &str) -> bool {
     if address.trim().len() > MAX_ADDRESS_LEN {
         return false;
@@ -173,7 +162,6 @@ pub fn parse_flag(value: &str) -> Result<bool, String> {
     }
 }
 
-/// a location to create a deployment in, as the page and the command line offer it
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocationResponse {
@@ -209,15 +197,13 @@ pub(crate) const LOCATIONS: &[LocationResponse] = &[
     },
 ];
 
-/// the server type of a deployment: the type its server `has`, so a server resized in the console
-/// is not recreated by a deploy. A new server gets the type of its location
+/// the type the server `has`, so a deploy does not recreate a server resized in the console
 pub(super) fn server_type_of(has: Option<ServerType>, location: Location) -> ServerType {
     has.filter(|server_type| *server_type != ServerType::unknown)
         .unwrap_or_else(|| server_type_for(location))
 }
 
-/// the server type of a new deployment: cx23 where hetzner offers it (the european locations),
-/// cpx21 in the other locations
+/// cx23 where hetzner offers it (the european locations), else cpx21
 pub(super) fn server_type_for(location: Location) -> ServerType {
     match location {
         Location::fsn1 | Location::nbg1 | Location::hel1 => ServerType::cx23,
@@ -227,7 +213,6 @@ pub(super) fn server_type_for(location: Location) -> ServerType {
     }
 }
 
-/// what the environment proposes for a new deployment
 pub fn defaults() -> DeploymentDefaults {
     DeploymentDefaults {
         name: variable(NAME_VARIABLE),
@@ -244,7 +229,6 @@ pub fn defaults() -> DeploymentDefaults {
     }
 }
 
-/// the locations a deployment can be created in
 pub fn locations() -> Vec<LocationResponse> {
     LOCATIONS.to_vec()
 }
@@ -256,19 +240,17 @@ pub(super) fn variable(name: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-/// the least number of characters of a password; every key and label of a deployment is derived
-/// from it
+/// every key and label of a deployment is derived from the password
 pub(super) const MIN_PASSWORD_CHARS: usize = 16;
 
-/// what a plan or an apply is for: `Create` a deployment that does not exist yet, `Deploy` an
-/// existing one to what it declares (its server created anew when necessary)
+/// what a plan or an apply is for: `Create` a new deployment, `Deploy` an existing one to what it
+/// declares (its server created anew when necessary)
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Intent {
     Create,
     Deploy,
-    /// remove every resource of the deployment, the data volume only with `delete_data`. A
-    /// deployment that is gone is destroyed already
+    /// remove every resource of the deployment, the data volume only with `delete_data`
     Destroy,
 }
 
@@ -289,10 +271,10 @@ pub struct DeploymentRequest {
     #[serde(default)]
     pub root_domain: Option<String>,
     pub intent: Intent,
-    /// a destroy also deletes the data volume; without it the volume stays
+    /// a destroy also deletes the data volume
     #[serde(default)]
     pub delete_data: bool,
-    /// who signs in, needed by a create and a deploy; a destroy needs none
+    /// needed by a create and a deploy
     #[serde(default)]
     pub user_mode: Option<UserMode>,
     /// where the certificates come from. None: the ca of the deployment for a deploy, production
@@ -302,21 +284,17 @@ pub struct DeploymentRequest {
     /// the mail server of the e-mail login: needed for multi user, not used for single user
     #[serde(default)]
     pub smtp: Option<Smtp>,
-    /// the address of the admin, the first user of the e-mail login: needed for multi user, not
-    /// used for single user
+    /// the first user of the e-mail login: optional for multi user, refused for single user
     #[serde(default)]
     pub admin_email: Option<String>,
-    /// a create or deploy runs the playbook even when the provisioning is up to date: the server
-    /// was not changed and was provisioned with this configuration. Without it such a provisioning
-    /// is skipped
+    /// run the playbook even when the provisioning is up to date
     #[serde(default)]
     pub force: bool,
 }
 
-/// a name as sakctl takes it, trimmed: 1 to MAX_NAME_LEN lower case letters, digits and dashes,
-/// so hetzner and dns take it with the prefix and suffix of the cloud names. The only check of a
-/// name; the window calls it when the user leaves the field. A wrong name is a usage error
-/// (`EXIT_USAGE`)
+/// a name trimmed: 1 to MAX_NAME_LEN lower case letters, digits and dashes, so hetzner and dns
+/// take it with the prefix and suffix of the cloud names. The only check of a name; a wrong name is
+/// a usage error (`EXIT_USAGE`)
 pub fn checked_name(name: &str) -> Result<&str, SakctlError> {
     let name = name.trim();
     check_name(name).map_err(|_| {
@@ -329,8 +307,8 @@ pub fn checked_name(name: &str) -> Result<&str, SakctlError> {
 }
 
 impl DeploymentRequest {
-    /// a deploy of the deployment `name` as it is: nothing given, its settings come from the
-    /// deployment (`DeploymentManager::completed`)
+    /// a deploy of `name` as it is: its settings come from the deployment
+    /// (`DeploymentManager::completed`)
     pub fn as_it_is(name: &str, password: &str, location: Location) -> Self {
         DeploymentRequest {
             name: name.to_string(),

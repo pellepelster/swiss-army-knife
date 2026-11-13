@@ -103,7 +103,6 @@ class S3WireTest {
         response.eTag() shouldBe "\"3eeebf6b04a9821afe3b68830b7038f9\""
     }
 
-    // SEC-13: a copy on the server is not supported, it never replaces the object with an empty one
     @Test
     fun `copyObject is not implemented and leaves the objects as they are`() {
         client().putObject({ it.bucket("bucket1").key("a.txt") }, RequestBody.fromString("the content"))

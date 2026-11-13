@@ -17,8 +17,7 @@ import { RedirectTargetFields, redirectTarget, TargetType } from './redirect-tar
 import { RedirectsService } from './redirects.service';
 import { PageHeader } from '../shared/page-header';
 
-// edits where a redirect leads to on a page of its own, the redirected domain can not be
-// changed; saving or cancelling goes back to the redirect
+// edits the target of a redirect, not its source domain; save and cancel go back to the redirect
 @Component({
   selector: 'app-redirect-edit',
   imports: [PageHeader, RedirectTargetFields, RouterLink, TranslatePipe],
@@ -101,8 +100,7 @@ export class RedirectEdit {
   );
 
   constructor() {
-    // the redirect of the route, again when the route names another one; a late answer for the
-    // redirect before never fills the form
+    // loads again for another route; a late answer for the redirect before never fills the form
     effect((onCleanup) => {
       const source = this.source();
       untracked(() => {
@@ -144,7 +142,6 @@ export class RedirectEdit {
   }
 }
 
-// what the api answered, or what its status tells
 function saveErrorMessage(i18n: I18n, error: unknown): string {
   return apiErrorMessage(error, i18n.t('redirects.edit_page.save_failed'), {
     403: i18n.t('redirects.edit_page.forbidden'),

@@ -4,18 +4,16 @@ import { firstValueFrom } from 'rxjs';
 import { scaledSize } from '../shared/scaled-size';
 import { GroceryItem } from './grocery.service';
 
-// how large the photo of an item shows in its row, in css pixels
+// in css pixels
 export const PHOTO_IN_ROW = 48;
 
-// the photos of the items, served only with the session, which an img can not send: fetched with it
-// and shown as object urls. A photo is fetched in the size it shows at on the screen
-// (scaledSize), each file and size once; the file id names the photo, it never changes
+// the photos need the session, which an img can not send: fetched with it and shown as object
+// urls, in the size shown on the screen, each file and size once (a file id never changes)
 @Injectable({ providedIn: 'root' })
 export class GroceryPhotos {
   private readonly http = inject(HttpClient);
   private readonly scaled = new Map<string, Promise<string>>();
 
-  // the photo in the row of the item
   inRow(item: GroceryItem): Promise<string> {
     const size = scaledSize(PHOTO_IN_ROW);
     const key = `${item.photoId}-${size}`;
@@ -29,7 +27,7 @@ export class GroceryPhotos {
     return url;
   }
 
-  // the photo as large as the screen shows it; the caller revokes the url once it is closed
+  // the caller revokes the url once it is closed
   full(item: GroceryItem): Promise<string> {
     const screen = Math.max(globalThis.innerWidth || 0, globalThis.innerHeight || 0);
     return this.objectUrl(item, scaledSize(screen));
@@ -44,8 +42,7 @@ export class GroceryPhotos {
   }
 }
 
-// the object url of the photo of an item in its row, for [src]; null until it is fetched, and when
-// it can not be, e.g. another user took it away meanwhile: the row shows no photo then
+// null until it is fetched, and when it can not be, e.g. another user took it away meanwhile
 @Pipe({ name: 'photoInRow' })
 export class PhotoInRowPipe implements PipeTransform {
   private readonly photos = inject(GroceryPhotos);

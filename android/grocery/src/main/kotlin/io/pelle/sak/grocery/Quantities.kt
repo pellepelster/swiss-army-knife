@@ -2,12 +2,10 @@ package io.pelle.sak.grocery
 
 import java.math.BigDecimal
 
-// the quantity of an item (GROCERY-15) as the dialog of its menu and the items of a photo (GROCERY-16)
-// type it: an amount and a unit
+// the quantity of an item (GROCERY-15), typed in its dialog and for the items of a photo (GROCERY-16)
 
-// the units to choose from after no unit, the usual ones; an item stores the label in the language of
-// the phone, e.g. EL in german, the ui reads them. A unit an item has that is none of them stays one
-// to choose
+// the units to choose from; an item stores the label in the language of the phone, e.g. EL in
+// german. A unit an item has that is none of them stays one to choose
 val UNITS =
     listOf(
         R.string.grocery_quantity_units_g,
@@ -29,8 +27,8 @@ val MAX_AMOUNT = BigDecimal("9999999.999")
 // digits with a point or a comma and at most 3 decimal places, as the backend takes them
 private val AMOUNT = Regex("""\d+([.,]\d{0,3})?|[.,]\d{1,3}""")
 
-// the amount typed, with a point or a comma: none for an empty field, else a positive number with at
-// most 3 decimal places up to MAX_AMOUNT, or no valid one
+// the amount typed: None for an empty field, Of a positive number up to MAX_AMOUNT with at most 3
+// decimal places, else Invalid
 sealed interface Amount {
     data object None : Amount
 

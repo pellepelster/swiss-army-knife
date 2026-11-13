@@ -24,7 +24,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 // a file that can not be read (e.g. cut off) is replaced by an empty one: the app starts on the
-// deployment instead of failing on every start (AN-1)
+// deployment instead of failing on every start
 private val Context.dataStore by preferencesDataStore(
     name = "session",
     corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
@@ -39,7 +39,7 @@ private val PENDING_API_URL = stringPreferencesKey("pending_api_url")
 private val PENDING_STARTED_AT = longPreferencesKey("pending_started_at")
 private val PENDING_NONCE = stringPreferencesKey("pending_nonce")
 
-// the values of the app, each a key of its own with this prefix
+// each value of Stored.app is a key of its own with this prefix
 private const val APP_PREFIX = "app."
 
 // the preferences of the app, the session token and the nonce of a pending login encrypted with a key
@@ -106,7 +106,7 @@ class DataStoreSessionStore(
 
 // aes-gcm with a key of the android keystore; a value is its iv and the cipher text, base64. A key
 // that can no longer be used (some phones lose it with an update of android) is made anew; what it
-// encrypted before is then unreadable and taken as none (AN-11)
+// encrypted before is then unreadable and taken as none
 private class KeystoreCipher(
     private val alias: String,
 ) {

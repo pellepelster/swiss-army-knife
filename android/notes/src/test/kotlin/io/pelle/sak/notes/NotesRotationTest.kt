@@ -24,8 +24,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
 
-// the app in every orientation: the activity made anew by a rotation keeps what the model holds, an
-// undo that runs included, and the screens fit a phone in landscape
+// a rotation keeps what the model holds, a running undo included, and the screens fit in landscape
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = RobolectricDeviceQualifiers.Pixel7)
 class NotesRotationTest {

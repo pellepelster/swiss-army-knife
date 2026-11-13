@@ -12,8 +12,8 @@ import java.time.Duration
 import io.pelle.sak.storage.BlobContent
 
 // reads the text in an image with a vision model through openrouter's chat completions; the image
-// goes along as data url, streamed from the storage (base64Body), openrouter could not fetch it from the controller. Only providers that
-// do not collect the data are asked.
+// goes along as data url, streamed from the storage (base64Body), as openrouter can not fetch it
+// from the backend. Only providers that do not collect the data are asked.
 class OpenRouterTextRecognizer(
     url: String,
     private val apiToken: String,

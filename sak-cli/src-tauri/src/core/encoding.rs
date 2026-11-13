@@ -17,9 +17,8 @@ pub fn random_hex<const N: usize>() -> Result<String, String> {
     Ok(hex(&random::<N>()?))
 }
 
-/// a line of the server or of ansible as sakctl prints it (SEC-25): every control character, an
-/// escape sequence of a terminal among them, is replaced with U+FFFD, so a server that is taken over
-/// can not move the cursor, rewrite what the terminal shows or change its title; a tab stays
+/// a line of the server or of ansible as sakctl prints it: every control character but a tab becomes
+/// U+FFFD, so a server that is taken over can not send escape sequences to the terminal
 pub fn printable(line: &str) -> String {
     line.chars()
         .map(|c| {

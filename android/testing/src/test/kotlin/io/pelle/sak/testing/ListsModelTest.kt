@@ -122,8 +122,7 @@ private data class ThingListsScreen(
     override fun withError(error: UiText?) = copy(error = error)
 }
 
-// the logic of the lists of core with an app as small as it gets: it shows a list or the home and
-// loads the lists; what the hooks were called with is kept
+// the smallest app on ListsModel; it keeps what the hooks were called with
 private class ThingListsModel(
     store: SessionStore,
     backend: FakeBackend,

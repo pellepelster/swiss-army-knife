@@ -39,9 +39,9 @@ private const val ROOT_DOMAIN = "krawallbu.de"
 private const val CHECKS_HOLD = 6
 private const val CREATE_HOLD = 20 + 1 + 2 * 20
 
-// a tour through the window: the checks, a provider token, the create of example1 with its plan
-// and its run, the page of the new deployment with its check, the list, and the password that
-// opens the deployment again; `step` gets the name of each view as it is shown, `type` types into a field
+// a tour through the window: the checks, a provider token, the create of NAME with its plan and
+// its run, the page of the new deployment with its check, the list, and the password that opens
+// the deployment again; `step` gets the name of each view as it is shown, `type` types into a field
 private fun Page.tour(
     step: (String) -> Unit,
     type: (Locator, String) -> Unit,
@@ -61,8 +61,7 @@ private fun Page.tour(
     step("providers-token")
     locator("#providers-next").click()
 
-    // no deployment yet, a new one
-    // the list once the providers answered, not while it looks
+    // no deployment yet, once the providers answered, not while it looks; then a new one
     assertThat(locator("#deployments-status")).containsText("No SAK instance found")
     step("deployments-empty")
     locator("#deployments-create").click()

@@ -8,41 +8,34 @@ End to end tests in Kotlin (JUnit 5, Playwright for Java). They do not run with 
 The apps in chromium, against the local environment:
 
 ```sh
-mise run local:run              # ingress, victorialogs, vector, mailpit, the backend and the frontend
-mise run frontend:test:local         # in another terminal, once `mise run local:run` lists the addresses
+mise run local:run             # ingress, victorialogs, vector, mailpit, the backend and the frontend
+mise run frontend:test:local   # in another terminal, when local:run shows the addresses
 ```
 
-The login tests read the links from mailpit (http://localhost:8025) and sign in as
-`admin@localhost` (config/local-config.yaml). The backend sends 5 links an hour to an address and
-keeps that count in memory. A run asks for one link. Restart the backend to run more often.
-`SAK_E2E_FRONTEND_URL` and `SAK_E2E_MAILPIT_URL` point the tests elsewhere. Playwright downloads
-its chromium on the first run.
+The login tests read the links from mailpit (http://localhost:8025) and sign in as `admin@localhost`
+(`config/local-config.yaml`). The backend sends 5 links an hour to an address and keeps the count in memory; a run
+asks for one link, so restart the backend to run more often. `SAK_E2E_FRONTEND_URL` and `SAK_E2E_MAILPIT_URL` point
+the tests elsewhere. Playwright downloads its chromium on the first run.
 
 ## Screenshots
 
-The screenshots of `docs/screenshots/` and the videos of `build/videos/`, taken in chromium. They
-do not run with the local tests. The videos are not committed, but for the tour of the sakctl ui,
-which the docs show (`docs/screenshots/sakctl-ui.mp4`).
+The screenshots of `docs/screenshots/` and the videos of `build/videos/`, in chromium. Only the video of the sakctl
+ui is committed (`docs/screenshots/sakctl-ui.mp4`), the docs show it.
 
 ```sh
-mise run local:run              # in one terminal
-mise run docs:screenshots       # in another one: the apps, the sakctl ui and cli, the android apps
-mise run docs:video             # the tours of the apps and of the sakctl ui, as .webm, .mp4 and .gif
+mise run local:run          # in one terminal
+mise run docs:screenshots   # in another: the apps, the sakctl ui and cli, the Android apps
+mise run docs:video         # the tours of the apps and of the sakctl ui, as .webm, .mp4 and .gif
 ```
 
-The sakctl ui (`sak-cli/ui`) runs without tauri and without a cloud project: Playwright
-serves its files, and a fake `window.__TAURI__` answers its commands with what rust sends for a
-create of `example1` on `krawallbu.de` in domain mode. A rust test writes these answers from the
-real types and texts (`core/deployments/window_fixtures.rs`, `mise run docs:window`). The sakctl ui
-is shown at its own size, 736×686, in light and dark; its video shows the checks, a provider
-token, the create of `example1` with the provisioning and the page of the new deployment.
-
-Every page is taken on a desktop (1280×800) and on a phone (390×844), without the browser
-around it: the login with the password and by e-mail (the mail in mailpit too), the apps in the
-light and the dark theme, the notes app (text notes in each color, a note with a photo and one
-with a recording), static hosting and redirects. The run signs in with the local admin password
-(`SAK_LOCAL_ADMIN_PASSWORD_HASH` of `mise.toml`) and asks for two login links. It creates its own
-notes, a bucket and two redirects; other data of the local environment stays and can show.
+- Each page of the apps is taken on a desktop (1280×800) and on a phone (390×844), without the browser around it,
+  in the light and the dark theme. The run signs in with the local admin password (`SAK_LOCAL_ADMIN_PASSWORD_HASH`
+  of `mise.toml`) and asks for two login links. It creates its own data; other data of the local environment can
+  show.
+- The sakctl ui (`sak-cli/ui`) runs without tauri and without a cloud project: Playwright serves its files, and a
+  fake `window.__TAURI__` answers its commands as for a create of `example1` on `krawallbu.de` in domain mode. A
+  rust test writes these answers from the real types and texts (`core/deployments/window_fixtures.rs`,
+  `mise run docs:window`). It is shown at its own size, 736×686.
 
 ## Integration tests
 
@@ -83,10 +76,10 @@ The tests run in this order:
    admin address and the SMTP of the sandbox: the admin signs in with the password and with an e-mailed link. It runs
    last, because the deployment stays multi user.
 
-Each step and each wait is a line on the output while the tests run, with the time and the deployment it is about.
+Each step and each wait is a line of the output, with the time and the deployment.
 
-What the run needs, from pass unless set. gradle reads them for `e2eIntegration` (`build.gradle.kts`), so a test
-also runs from IntelliJ once sakctl is built and the images are pushed; the task stops without them:
+The run needs these variables, from pass when not set. Gradle reads them for `e2eIntegration`
+(`build.gradle.kts`), so a test also runs from IntelliJ when sakctl is built and the images are pushed:
 
 | Variable | pass |
 |---|---|

@@ -130,7 +130,7 @@ class SakModelTest {
             assertEquals(250, (model.screen.value as ThingsScreen).things)
             assertEquals(3, backend.queries.count { it.startsWith("GET /things") })
 
-            // a server that claims more than it gives ends with its short page (AN-38)
+            // a server that claims more than it gives ends with its short page, no endless paging
             backend.queries.clear()
             backend.answersByQuery["GET /things?offset=0&limit=100"] = HttpStatusCode.OK to page(0, 1_000_000, (0 until 100).map(::thing))
             backend.answersByQuery["GET /things?offset=100&limit=100"] = HttpStatusCode.OK to page(100, 1_000_000, (0 until 7).map(::thing))
@@ -172,7 +172,7 @@ class SakModelTest {
             )
             assertEquals(PendingLogin(URL, now, "the nonce of the test"), store.load().pending)
 
-            // tapped twice: one exchange, the second link is not taken (AN-2)
+            // tapped twice: one exchange, the second link is not taken
             model.signInWithLink("login-token")
             model.signInWithLink("login-token")
             advanceUntilIdle()

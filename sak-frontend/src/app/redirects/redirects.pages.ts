@@ -6,9 +6,8 @@ import { RedirectEdit } from './redirect-edit';
 import { RedirectList } from './redirect-list';
 import { RedirectView } from './redirect-view';
 
-// the redirects, loaded with the first of their pages (redirects.routes.ts): the list, a page to
-// create one, a redirect's page with its tabs and a page to edit it; create and edit come first,
-// the redirect's page would take them as its domain
+// loaded with the first of these pages (redirects.routes.ts); create and edit come first, the
+// redirect's page would take them as its domain
 export const REDIRECTS_PAGES: Routes = [
   { path: '', component: RedirectList, title: pageTitle('app.redirects') },
   { path: 'create', component: RedirectCreate, title: pageTitle('redirects.route.create') },

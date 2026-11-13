@@ -347,8 +347,7 @@ async fn a_deploy_is_completed_only_when_something_is_not_given_and_a_failed_rea
             .is_ok()
     );
 
-    // the mail server is missing: the deployment is read, and that it cannot be is the error,
-    // not a missing mail server later
+    // the mail server is missing: the error is why the deployment cannot be read
     let Err(error) = DeploymentManager.completed(Vec::new(), deploy(), "").await else {
         panic!("a deploy without its mail server was completed without the deployment");
     };
@@ -511,7 +510,7 @@ fn a_deploy_takes_what_it_is_not_told_from_the_detected_settings() {
             .password,
         "given"
     );
-    // a backend of before tells no password: it has to be given
+    // a backend that tells no password: it has to be given
     let before = Detected::from_running(running(None, true));
     assert_eq!(
         complete(deploy(), &before, "")
@@ -1023,7 +1022,7 @@ fn a_resource_of_someone_else_ends_with_its_own_exit_code() {
             .message
             .starts_with("volume 'web-data' would have to be created anew")
     );
-    // any other failure of the provider is a failure as before
+    // any other failure of the provider is a plain failure
     let other = cloud_failure(
         "common.deployments.destroy_failed",
         ProviderType::Hetzner,
@@ -1060,7 +1059,7 @@ fn a_deploy_keeps_the_dns_mode_and_root_domain_of_the_deployment_unless_given() 
         ),
         Ok((DnsMode::Subdomain, Some("example.com".to_string())))
     );
-    // a deployment from before the labels: subdomain, and the root domain must be given
+    // no labels: subdomain, and the root domain must be given
     assert_eq!(
         resolve_dns("beta", Intent::Deploy, None, Some(" pelle.io "), None, None),
         Ok((DnsMode::Subdomain, labeled()))

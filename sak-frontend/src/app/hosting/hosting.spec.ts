@@ -363,7 +363,7 @@ describe('Hosting', () => {
     expect(button('Copy secret key').querySelector('.fa-check')).toBeNull();
   });
 
-  // SEC-12: a leaked key pair ends without the bucket; it asks first, Keep is the safe default
+  // a leaked key pair is replaced without the bucket; it asks first, Keep is the safe default
   it('replaces the key pair after asking, the new one shows and the old one is said to be gone', async () => {
     await open('/static-hosting/site/credentials');
     http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', []));

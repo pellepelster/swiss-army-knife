@@ -31,7 +31,7 @@ class AdminPasswordTest {
         password.matches("Grusse aus dem Suden, sechzehn") shouldBe false
     }
 
-    // SEC-2: a check takes 64 MiB of the heap, two at once could use it up
+    // a check takes 64 MiB of the heap, two at once could use it up
     @Test
     fun `checks one password at a time`(): Unit =
         runBlocking {

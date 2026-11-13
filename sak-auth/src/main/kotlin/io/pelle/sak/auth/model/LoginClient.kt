@@ -3,9 +3,8 @@ package io.pelle.sak.auth.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// what asked for a login link: the web app, or one of the android apps, whose link the signin page
-// of the web app hands on to that app instead of signing in itself; a closed list, so a link never
-// names another package. The name is the client parameter of the link (null for the web app)
+// what asked for a login link; the signin page hands the link of an android app on to that app. A
+// closed list, so a link never names another package. linkName is the client parameter of the link
 @Serializable
 enum class LoginClient(
     val linkName: String?,

@@ -40,15 +40,13 @@ open class AdminPassword(
         hash = decoder.decode(parts[5])
     }
 
-    // one check at a time, the others wait
     private val checking = Mutex()
 
-    // matches, off the thread of the request and one at a time: a check takes the memory of the
-    // hash from the heap (64 MiB as sakctl writes it), two at once could use it up
+    // one at a time: a check takes the memory cost of the hash from the heap (64 MiB as sakctl writes
+    // it), two at once could use it up
     suspend fun check(password: String): Boolean = checking.withLock { withContext(Dispatchers.Default) { matches(password) } }
 
-    // whether the password has the hash, the password as nfc like sakctl hashes it, so it does not
-    // matter how it was typed; compared in constant time. Blocks, and takes the memory of the hash
+    // the password as nfc like sakctl hashes it, compared in constant time; blocks
     open fun matches(password: String): Boolean {
         val parameters =
             Argon2Parameters

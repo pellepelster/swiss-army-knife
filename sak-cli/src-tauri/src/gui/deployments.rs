@@ -58,9 +58,8 @@ pub fn check_name(name: String) -> Result<(), String> {
         .map_err(|error| error.message)
 }
 
-/// sends a test e-mail to `to` with the mail server of the form, from this machine and from its
-/// sender (noreply@`root_domain` without one) as the deployment `name` will (`core::smtp`); what the user reads when
-/// the mail server took it, else why it did not
+/// sends a test e-mail to `to` with the mail server of the form, from this machine, as the
+/// deployment `name` will (`core::smtp`); the text for the user, or why the mail server refused it
 #[tauri::command]
 pub async fn send_test_mail(
     smtp: crate::core::deployments::Smtp,
@@ -91,8 +90,8 @@ pub async fn root_domains(
     manager.root_domains(tokens, &name).await
 }
 
-/// the plan of a create, a config or a destroy, as the form asks for it; a config takes what
-/// it is not given from the deployment (`completed`), as the command line does
+/// the plan of a create, a config or a destroy; a config takes what it is not given from the
+/// deployment, as the command line does
 #[tauri::command]
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,
@@ -234,8 +233,8 @@ pub async fn apply_checked(
     let mut report = |event| {
         let _ = on_event.send(event);
     };
-    // the apply plans again and applies only what the page showed: a project that changed since
-    // the check is checked again first. The apply applies this plan
+    // plans again and refuses when the plan is not what the page showed: the project changed
+    // since the check
     let work = async {
         let prepared = manager.prepare(tokens.tokens(), &deployment).await?;
         let planned = manager.plan_prepared(prepared, &container).await?;

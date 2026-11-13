@@ -1,10 +1,10 @@
 # the services next to the backend of `mise run local:backend:run` (`mise run local:env:run`), as the
-# backend role deploys them:
-# the ingress (caddy) the backend configures through its admin api on localhost:2019, vector
-# ships its access log to victorialogs, and mailpit catches the login links. Everything is in
-# the host network like in production, the ingress proxies to the backend on localhost:8080 and
-# serves the buckets from their host paths. local:env:run sets the variables, the images are the ones
-# of ansible/roles/backend/defaults/main.yml, the data lives below build/local/
+# backend role deploys them: the ingress (caddy) the backend configures through its admin api on
+# localhost:2019, vector ships its access log to victorialogs, and mailpit catches the login links.
+# Everything is in the host network (in production vector and victorialogs have a network of their
+# own), the ingress proxies to the backend on localhost:8080 and serves the buckets from their host
+# paths. local:env:run sets the variables, the images are the ones of
+# ansible/roles/backend/defaults/main.yml, the data lives below build/local/
 name: sak-local
 
 services:

@@ -1,6 +1,5 @@
-//! the volume provisioner against the real api, the flow of HetznerVolumeProvisionerTest
-//! of blcks: missing, created protected, a new and a changed label, the protection
-//! lifted, destroyed; and a protected volume destroyed
+//! the volume provisioner against the real api: missing, created protected, a new and a
+//! changed label, the protection lifted, destroyed; and a protected volume destroyed
 
 mod support;
 

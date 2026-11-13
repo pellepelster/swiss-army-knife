@@ -30,11 +30,10 @@ import java.time.LocalDate
 // how long a purge can be undone, the same as in the web app (UNDO_DELETE_MS, UX-4.2)
 const val UNDO_MS = 2_000L
 
-// the logic of the app, without android, on top of what core does (the deployment, the sign-in, the
-// session): the lists on the home and the tasks of the list open, a task added from the field at the
-// top with a due date or none (TODO-4) and a priority (TODO-5), a task done struck through in its place
-// (TODO-3), the done tasks purged once the undo of the purge ran out (TODO-6), the settings of a list.
-// apiOf makes the api of a url with a session token or none
+// the logic of the app, without android, on top of ListsModel: the tasks of the list open, a task added
+// with a due date or none (TODO-4) and a priority (TODO-5), a task done struck through in its place
+// (TODO-3), the done tasks purged once the undo ran out (TODO-6). apiOf makes the api of a url with a
+// session token or none
 class TodoModel(
     store: SessionStore,
     apiOf: (url: String, token: String?) -> TodoApi,
@@ -58,9 +57,8 @@ class TodoModel(
     ) {
     private var loading: Job? = null
 
-    // the purge that can still be undone (TODO-6): its list, the ids of the done tasks hidden when it
-    // was asked for, which are the ones purged, those tasks as the list had them last, which undo
-    // brings back, and the timer that sends it to the backend
+    // the purge that can still be undone (TODO-6): ids are the done tasks hidden, the ones purged;
+    // items are those tasks as the list had them last, for the undo; timer sends it to the backend
     private data class Purge(
         val listId: Int,
         val ids: List<Int>,
@@ -74,20 +72,18 @@ class TodoModel(
     // the request of the purge sent last, which a load waits for, so it does not show the done tasks again
     private var purging: Job? = null
 
-    // the done or open again of a task sent last, by its task: a tap waits for the one before, so a
-    // quick second tap does not overtake the first; a load waits for them all (TODO-3)
+    // the done or open again sent last, by task: a tap waits for the one before, so a quick second tap
+    // does not overtake the first; a load waits for them all (TODO-3)
     private val marking = mutableMapOf<Int, Job>()
 
-    // counts up with every list shown (show): what a request of a list answers once another one shows
-    // changes nothing there
+    // counts up with every show: an answer for a list that is no longer shown changes nothing
     private var shown = 0
 
-    // how long a purge can be undone: UNDO_MS, longer when the accessibility settings of the phone ask
-    // for more time for a control, set by the ui
+    // UNDO_MS, longer when the accessibility settings ask for more time; set by the ui (UndoTime)
     var undoMs = UNDO_MS
 
-    // the changes of the lists once the user is signed in (LIST-4): a change of the list open, or of any
-    // list on the home, loads it again, and so does a stream open again, it may have missed changes
+    // the changes of the lists (LIST-4): a change of the list open, or of any list on the home, loads
+    // again, and so does a reconnect, the stream may have missed changes
     private val changes =
         ChangeStream(
             scope,
@@ -105,19 +101,18 @@ class TodoModel(
             },
         )
 
-    // the app comes to the foreground: it hears the changes of the lists (LIST-4)
+    // the app comes to the foreground (LIST-4)
     fun startListening() = changes.start()
 
-    // the app goes to the background: a purge that waits is sent now, it would be lost with the app,
-    // and the stream is closed. Not on a rotation (SakActivity), the undo stays
+    // the app goes to the background: a purge that waits is sent now, it would be lost with the app.
+    // Not on a rotation (SakActivity), the undo stays
     fun stopped() {
         commitPending()
         changes.stop()
     }
 
-    // the task done, struck through at once, or a done one open again, as the list shows it now; the
-    // backend learns it at once, the list loads then, with the task in its place; a failure shows why
-    // and loads the list (TODO-3)
+    // toggles the task as the list shows it now, struck through at once; the list loads after the
+    // answer, a failure shows why and loads the list (TODO-3)
     fun done(item: TodoItemResponse) {
         val lists = state.value as? ListsScreen ?: return
         val shown = lists.items.firstOrNull { it.id == item.id } ?: return
@@ -139,8 +134,7 @@ class TodoModel(
         sending.start()
     }
 
-    // the priority of a task, from the menu of its row; the list loads then, with the task in its new
-    // place; a failure shows why and loads the list (TODO-5)
+    // the list loads then, with the task in its new place; a failure shows why and loads (TODO-5)
     fun setPriority(
         item: TodoItemResponse,
         priority: Priority,
@@ -153,8 +147,7 @@ class TodoModel(
         }
     }
 
-    // the due date of a task, added to one without from the menu of its row, or null to take it away;
-    // the list loads then, a failure shows why and loads the list (TODO-4). The day it has is no change
+    // null takes the due date away; the list loads then, a failure shows why and loads (TODO-4)
     fun setDueDate(
         item: TodoItemResponse,
         day: LocalDate?,
@@ -167,9 +160,8 @@ class TodoModel(
         }
     }
 
-    // the done tasks the list open shows go at once, after undoMs the backend deletes them, unless it is
-    // undone; a task done meanwhile stays, struck through. A purge before goes to the backend at once
-    // (TODO-6, UX-4.2)
+    // the done tasks shown go at once, the backend deletes them after undoMs unless undone; a task done
+    // meanwhile stays, struck through. A purge before goes to the backend at once (TODO-6, UX-4.2)
     fun purge() {
         val lists = state.value as? ListsScreen ?: return
         val listId = lists.open ?: return
@@ -186,8 +178,7 @@ class TodoModel(
         lists { it.copy(items = it.items.filter { item -> item.id !in ids }, undo = Undo(uiText(R.string.todo_list_purged), ++serial), error = null) }
     }
 
-    // the done tasks of the purge come back in their places, as the list had them last, also without a
-    // connection: nothing went to the backend yet
+    // the done tasks come back in their places, also without a connection: nothing went to the backend
     fun undo() {
         val purge = pending ?: return
         purge.timer.cancel()
@@ -199,9 +190,8 @@ class TodoModel(
         }
     }
 
-    // the purge that can be undone goes to the backend now, also when the app closes meanwhile, after
-    // the done of its tasks still sent; a failure brings the list back as the backend has it. The job of
-    // the request, null without one
+    // sends the pending purge now, after the done of its tasks still sent, also when the app closes
+    // meanwhile; a failure loads the list. Answers the job of the request, null without a purge
     private fun commitPending(): Job? {
         val purge = pending ?: return null
         pending = null
@@ -221,14 +211,13 @@ class TodoModel(
         }.also { purging = it }
     }
 
-    // the purge that can be undone goes without being sent, e.g. the session ended
+    // forgets the pending purge without sending it, e.g. the session ended
     private fun dropPending() {
         pending?.timer?.cancel()
         pending = null
     }
 
-    // from the settings back to where they were opened, from a list to the home; the next start shows
-    // the home
+    // from the settings to where they were opened, from a list to the home (also on the next start)
     override fun back() {
         val lists = state.value as? ListsScreen ?: return
         when {
@@ -237,8 +226,8 @@ class TodoModel(
         }
     }
 
-    // what was purged goes to the backend, the field and what was chosen for the next task are empty,
-    // the list or the home loads; what is still asked of the list before changes nothing here
+    // sends the pending purge and clears the new task; answers still due for the list before change
+    // nothing here
     override fun show(open: Int?) {
         val purged = commitPending()
         val lists = state.value as? ListsScreen ?: return
@@ -265,18 +254,16 @@ class TodoModel(
         load()
     }
 
-    // the title typed into the field at the top
     fun typed(title: String) = lists { it.copy(itemTitle = title) }
 
-    // the day the next task is to be done by, null for none (TODO-4)
+    // the due date of the next task, null for none (TODO-4)
     fun chooseDue(day: LocalDate?) = lists { it.copy(itemDue = day) }
 
     // the priority of the next task (TODO-5)
     fun choosePriority(priority: Priority) = lists { it.copy(itemPriority = priority) }
 
-    // the title typed goes to the list shown with the day and the priority chosen; the field is empty
-    // again, the priority normal, and the tasks are loaded anew; a failure keeps them, to send them
-    // again. The answer once another list shows changes nothing there
+    // adds the task typed with the due date and priority chosen, then clears them and loads; a failure
+    // keeps them to send again. The answer once another list shows changes nothing
     fun addItem() {
         val lists = state.value as? ListsScreen ?: return
         val title = lists.itemTitle.trim()
@@ -311,10 +298,9 @@ class TodoModel(
         load()
     }
 
-    // the lists, then the tasks of the one open, after the request it waits for, the purge sent last and
-    // the done of tasks still sent; the done tasks of a purge stay away while it can be undone, as
-    // they are now, for its undo. A list that is gone leads to the home, a session that ended to the
-    // sign-in
+    // the lists, then the tasks of the one open, once after, the purge sent last and the done of tasks
+    // still sent. The tasks of a pending purge stay hidden and are kept as they are now, for its undo.
+    // A list that is gone leads to the home, a session that ended to the sign-in
     override fun load(after: Job?) {
         loading?.cancel()
         val waits = listOfNotNull(after, purging) + marking.values
@@ -353,7 +339,7 @@ class TodoModel(
         error: UiText?,
     ) = settings.copy(busy = busy, error = error)
 
-    // changes the screen of the lists, nothing when another screen is shown
+    // nothing when another screen is shown
     private inline fun lists(change: (ListsScreen) -> ListsScreen) {
         (state.value as? ListsScreen)?.let { state.value = change(it) }
     }

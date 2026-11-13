@@ -52,7 +52,7 @@ describe('authInterceptor', () => {
     }
   });
 
-  // SEC-18: as a new page, nothing of the user before stays in the tab
+  // as a new page, nothing of the user before stays in the tab
   it('ends the session and opens the login as a new page when the api rejects the token', () => {
     client.get('/api/v1/auth/who-am-i').subscribe({ error: () => undefined });
     http

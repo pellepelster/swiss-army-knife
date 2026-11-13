@@ -1,13 +1,10 @@
-# the initial schema of the controller's database; sqlite only takes checks and foreign keys when
-# a table is created, the unique constraints over several columns are unique indexes. Liquibase
-# has no element for check constraints, the table with one is created with plain sql. The unique
-# indexes over the rows that are not deleted only are partial ones in plain sql for sqlite only,
-# jooq generates its classes from the schema in h2, which knows no partial indexes.
-# Every table has created_at, set when the row is inserted, updated_at, null until the row is
-# changed, and deleted_at, null until the row is deleted; no row is ever deleted for real. Every
-# table has owner, who created the row: the e-mail address of a user, admin for the admin of the
-# password login and for sakctl, or system for what the backend creates on its own (SchemaTest,
-# MODEL-5 of docs/development/architecture/SYSTEM.md).
+# the initial schema. sqlite takes checks and foreign keys only when a table is created, so unique
+# constraints over several columns are unique indexes, and a table with a check (liquibase has no
+# element for it) is plain sql. The unique indexes over live rows are partial, in plain sql for
+# sqlite only: jooq generates its classes in h2, which knows no partial indexes.
+# Every table has created_at, updated_at (null until changed) and deleted_at (null until deleted);
+# no row is deleted for real. Every table has owner (MODEL-5, SchemaTest): the e-mail address of a
+# user, admin for the password login and sakctl, or system for what the backend creates.
 databaseChangeLog:
   - changeSet:
       id: 0001-initial
@@ -53,10 +50,8 @@ databaseChangeLog:
                   name: deleted_at
                   type: timestamp
 
-        # the domains a bucket is served at, in their order, the first is where redirects to the
-        # bucket lead; a domain belongs to one bucket at most among the rows that are not deleted.
-        # The domains a bucket is no longer served at, and the ones of a deleted bucket, stay as
-        # rows with deleted_at set
+        # the domains a bucket is served at, in their order; redirects to the bucket lead to the
+        # first. A live domain belongs to one bucket at most
         - createTable:
             tableName: s3_buckets_domains
             columns:
@@ -106,9 +101,8 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX s3_buckets_domains_position_key ON s3_buckets_domains (bucket_name, position) WHERE deleted_at IS NULL
 
-        # the domains caddy redirects, each to an external domain or to the domain a bucket is
-        # served at; exactly the column of the target type is set. A deleted redirect stays as a
-        # row with deleted_at set, a domain is redirected once among the rows that are not deleted
+        # the domains caddy redirects, to an external domain or to a bucket; exactly the column of
+        # the target type is set. A domain has one live redirect at most
         - sql:
             sql: >-
               CREATE TABLE redirects (
@@ -131,10 +125,8 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX redirects_source_domain_key ON redirects (source_domain) WHERE deleted_at IS NULL
 
-        # the labels every application can attach to the entities of the user who created them,
-        # each application links them in a table of its own; owner is the e-mail address of the
-        # signed in user, nobody else sees them. A deleted label stays as a row with deleted_at
-        # set; the name is unique among the labels of an owner that are not deleted only
+        # the labels of a user, each application links them in a table of its own; only the owner
+        # sees them. The name is unique among the live labels of an owner
         - createTable:
             tableName: labels
             columns:
@@ -169,10 +161,9 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX labels_owner_name_key ON labels (owner, name) WHERE deleted_at IS NULL
 
-        # the files of the generic file storage, each upload is a file of its own; the content
-        # lives in the data dir under its sha-256 (lower case hex), the same content is stored
-        # once. The table knows what it is, who uploaded it and the text discovered in it, null
-        # until it is discovered. A deleted file stays as a row with deleted_at set.
+        # the files of the file storage, one row an upload; the content is in the data dir under
+        # its sha-256 (lower case hex), the same content stored once. discovered is null until the
+        # text in it is discovered
         - createTable:
             tableName: files
             columns:
@@ -217,10 +208,9 @@ databaseChangeLog:
                   name: discovered
                   type: varchar(100000)
 
-        # the lists of the notes of a user: every note is in one, a user without a list gets "Default"
-        # when they sign in (NOTES-1). A shared list is one of all users (LIST-2). The name is unique
-        # among the lists of an owner that are not deleted only; a deleted list stays as a row with
-        # deleted_at set
+        # the lists of the notes: every note is in one, a user without a list gets "Default" when
+        # they sign in (NOTES-1). A shared list is one of all users (LIST-2). The name is unique among
+        # the live lists of an owner
         - createTable:
             tableName: note_lists
             columns:
@@ -260,8 +250,7 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX note_lists_owner_name_key ON note_lists (owner, name) WHERE deleted_at IS NULL
 
-        # the notes of the notes app, each belongs to the address of the user that created it and is
-        # in one of their lists; a deleted note stays as a row with deleted_at set
+        # the notes, each of the user that created it and in one of their lists
         - createTable:
             tableName: notes
             columns:
@@ -311,9 +300,8 @@ databaseChangeLog:
               - column:
                   name: owner
 
-        # the labels attached to a note. A label removed from a note, the labels of a deleted note
-        # and the links to a deleted label stay as rows with deleted_at set; a label is attached to
-        # a note once among the rows that are not deleted
+        # the labels of a note; a link removed, also of a deleted note or label, stays with
+        # deleted_at set. A label has one live link to a note at most
         - createTable:
             tableName: notes_labels
             columns:
@@ -361,10 +349,8 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE INDEX notes_labels_label_id_idx ON notes_labels (label_id) WHERE deleted_at IS NULL
 
-        # the files of a note in their order, its photos and its recordings, told apart by the
-        # type of the file. A file removed from a note, or the files of a deleted note, stay as
-        # rows with deleted_at set; a file is attached to a note once among the rows that are not
-        # deleted
+        # the files of a note in their order, photos and recordings told apart by the type of the
+        # file. A link removed stays with deleted_at set; a file has one live link to a note at most
         - createTable:
             tableName: notes_files
             columns:
@@ -413,10 +399,9 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX notes_files_file_key ON notes_files (note_id, file_id) WHERE deleted_at IS NULL
 
-        # the settings of the controller, each of a name and a scope, the name of a scope of settings
-        # (e.g. 'system', SettingScope in sak-backend). Some are secrets (e.g. AUTH_SIGNING_KEY); the
-        # values are plain, the whole database is to be encrypted. A setting replaced or deleted stays as a row
-        # with deleted_at set, one setting per name and scope is not deleted
+        # the settings of the backend, by name and scope (e.g. 'system', SettingScope in
+        # sak-backend). Some are secrets (e.g. AUTH_SIGNING_KEY), stored plain: the whole database is
+        # to be encrypted. A replaced setting stays as deleted; one live setting per name and scope
         - createTable:
             tableName: settings
             columns:
@@ -461,9 +446,9 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX settings_name_scope_key ON settings (name, scope) WHERE deleted_at IS NULL
 
-        # the grocery lists of a user: every item is on one, the user creates them (LIST-1); a shared
-        # list is one of all users (LIST-2). The name is unique among the lists of an owner that are
-        # not deleted only. The icon is one emoji, none shows the first letter of the name
+        # the grocery lists: every item is on one, the user creates them (LIST-1); a shared list is
+        # one of all users (LIST-2). The name is unique among the live lists of an owner. The icon is
+        # one emoji, none shows the first letter of the name
         - createTable:
             tableName: grocery_lists
             columns:
@@ -506,10 +491,9 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX grocery_lists_owner_name_key ON grocery_lists (owner, name) WHERE deleted_at IS NULL
 
-        # the categories of a list (GROCERY-13): a name, an icon (one emoji, none for none) and the
-        # place of their group in the list; only the owner of the list changes them, everyone who
-        # sees it sees them. name_key is the name normalized (groceryNameKey, sak-model), unique among
-        # the live categories of a list, so "Dairy" and "dairy" are one name
+        # the categories of a list (GROCERY-13): a name, an icon (one emoji or none) and the place
+        # of their group; every user who sees the list changes them (LIST-2). name_key is the name
+        # normalized (groceryNameKey), unique among the live categories of a list
         - sql:
             sql: |
               CREATE TABLE grocery_categories (
@@ -531,14 +515,12 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE UNIQUE INDEX grocery_categories_list_name_key ON grocery_categories (list_id, name_key) WHERE deleted_at IS NULL
 
-        # the items of the grocery lists; owner is who added it, on a shared list another user than
-        # the owner of the list. An item is to buy until it is checked (checked_at, GROCERY-3); a
-        # checked item stays as the history of the list, what its suggestions are made of, the
-        # latest item of a name gives their values (GROCERY-11). A deleted item is gone for good, a
-        # forgotten suggestion deletes the checked items of its name. name_key is the name
-        # normalized (groceryNameKey, sak-model). An amount is positive, a unit needs one; the
-        # category is one of the list (GROCERY-13), the repository checks it; the photo is a file of
-        # the file storage (GROCERY-12)
+        # the items of the grocery lists; owner is who added it, on a shared list maybe not the
+        # owner of the list. An item is to buy until checked (GROCERY-3); checked, it stays as the
+        # history the suggestions are made of (GROCERY-11). A forgotten suggestion deletes the checked
+        # items of its name. name_key as in grocery_categories. An amount is positive, a unit needs
+        # one; the repository checks that the category is one of the list (GROCERY-13); the photo is
+        # a file of the file storage (GROCERY-12)
         - sql:
             sql: |
               CREATE TABLE grocery_items (
@@ -569,9 +551,8 @@ databaseChangeLog:
             dbms: sqlite
             sql: CREATE INDEX grocery_items_to_buy_idx ON grocery_items (list_id) WHERE deleted_at IS NULL AND checked_at IS NULL
 
-        # the users an admin adds by e-mail address, with an optional name; they sign in with a link by
-        # e-mail and use the apps of the role user. The admins of the configuration are no rows. The
-        # address is unique among the rows that are not deleted
+        # the users an admin adds by e-mail address, with an optional name; they sign in by link and
+        # have the role user. The admins of the configuration are no rows. One live row per address
         - createTable:
             tableName: users
             columns:

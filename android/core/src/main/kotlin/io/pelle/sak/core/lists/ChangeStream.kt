@@ -13,10 +13,9 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 
-// the stream of the changes of the lists while the app is in the foreground (LIST-4), of a list-based
-// app. A stream that ends is opened again, after a longer wait each time, up to MAX_RETRY_DELAY_MS; the
-// wait starts short again only after a stream stayed open STABLE_STREAM, so one that closes at once
-// does not load everything every second (AN-52)
+// the changes of the lists while the app is in the foreground (LIST-4). A stream that ends is opened
+// again after a longer wait each time, up to MAX_RETRY_DELAY_MS; the wait starts short again only after
+// a stream stayed open STABLE_STREAM, so one that closes at once does not load everything every second
 class ChangeStream(
     private val scope: CoroutineScope,
     private val clock: Clock,
@@ -34,7 +33,7 @@ class ChangeStream(
 ) {
     private var listening: Job? = null
 
-    // whether a stream was open before, a new one may have missed changes
+    // a new stream after an open one may have missed changes
     private var openedBefore = false
 
     fun start() {
@@ -80,8 +79,6 @@ class ChangeStream(
     }
 
     companion object {
-        // the waits before the stream is opened again, and how long one stays open before the wait
-        // starts short again
         const val RETRY_DELAY_MS = 1_000L
         const val MAX_RETRY_DELAY_MS = 30_000L
         val STABLE_STREAM: Duration = Duration.ofSeconds(30)

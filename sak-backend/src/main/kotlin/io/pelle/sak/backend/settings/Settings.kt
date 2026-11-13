@@ -28,8 +28,7 @@ value class SettingName(
     }
 }
 
-// the name of a scope of settings, its key in the api and the scope its settings are stored in; at
-// most 255 characters
+// the key of a scope in the api and in the store; at most 255 characters
 @JvmInline
 value class SettingScopeName(
     val value: String,
@@ -47,14 +46,11 @@ enum class SettingType {
     TEXT,
 }
 
-// a setting of a scope, its values of type T: its name in the api, what the settings page shows
-// of it and the value it has while none is stored. SettingDefinition<T> takes and answers T, so
-// get(OpenRouterManager.ENABLED) answers a Boolean? and set(OpenRouterManager.ENABLED, "yes") does
+// a setting of a scope with values of type T; typed, so set(OpenRouterManager.ENABLED, "yes") does
 // not compile
 sealed class SettingDefinition<T : Any>(
     // its key in the api and the name it is stored under in its scope
     val name: SettingName,
-    // what the user reads, in their language
     val label: TextKey,
     val description: TextKey,
     val default: T,
@@ -156,10 +152,8 @@ open class TextSetting(
     override fun check(value: String) = if (value.length > maxLength) ErrorMessage(SettingsTexts.TOO_LONG, "label" to label, "max" to maxLength) else null
 }
 
-// what stands for the masked characters of a value
 const val MASKED = "••••••••"
 
-// a setting together with a value of its own type
 data class SettingValue<T : Any>(
     val setting: SettingDefinition<T>,
     val value: T,
@@ -194,11 +188,9 @@ data class Requirement(
     override fun toString() = "${scope.name}.${setting.name}"
 }
 
-// the settings that belong together, e.g. those of the whole system; the name is the key of the
-// scope in the api and the scope its settings are stored in
+// the settings that belong together, e.g. those of the whole system
 data class SettingScope(
     val name: SettingScopeName,
-    // what the user reads, in their language
     val label: TextKey,
     val description: TextKey,
     val settings: List<SettingDefinition<*>>,
@@ -212,7 +204,6 @@ data class SettingScope(
         require(enabledBy?.readOnly != true) { "the setting turning the scope $name on is read-only" }
     }
 
-    // the setting of the key in a request
     fun setting(name: String) = settings.firstOrNull { it.name.value == name }
 }
 
@@ -280,7 +271,7 @@ sealed interface Validation {
         val values: List<SettingValue<*>>,
     ) : Validation
 
-    // one readable sentence for each problem
+    // one sentence for each problem
     data class Invalid(
         val errors: List<ErrorMessage>,
     ) : Validation

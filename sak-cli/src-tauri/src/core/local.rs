@@ -57,8 +57,8 @@ fn not_written(path: &Path, error: impl std::fmt::Display) -> String {
     .to_string()
 }
 
-/// writes the settings of the deployment, encrypted with `key` (`keys::local_settings_key`, from
-/// its password); a file written before is replaced at once, never left half written. Where it is
+/// writes the settings of the deployment, encrypted with `key` (`keys::local_settings_key`), and
+/// answers the path; a file written before is replaced atomically, never left half written
 pub fn write_settings<T: Serialize>(
     name: &str,
     key: &BackupKey,

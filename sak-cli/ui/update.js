@@ -1,6 +1,5 @@
-// the footer of the window: the version of sakctl, one button and one line that says what happens.
-// The button goes through the steps of an update: check, update to the newer version, restart.
-// Only a click asks github, the line names it first; while a step runs the button is disabled
+// the footer of the window: the version of sakctl and one button for the steps of an update: check,
+// install, restart. Only a click asks the receiver, the line names it first
 import { setFailure, setStatus, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -8,11 +7,9 @@ const { invoke } = window.__TAURI__.core;
 const status = document.getElementById('update-status');
 const button = document.getElementById('update-button');
 let receiver = '';
-// the step the button does next: check, install or restart
 let step = 'check';
 let newest = null;
 
-// the one line: the button of the next step and the text of what happens or happened
 function show(next, message, { busy = false, failed = false } = {}) {
   step = next;
   button.textContent = {

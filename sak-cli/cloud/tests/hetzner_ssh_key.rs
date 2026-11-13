@@ -1,6 +1,5 @@
-//! the ssh key provisioner against the real api, the flow of HetznerSSHKeyProvisionerTest
-//! of blcks: missing, created, up to date, a changed key, the same key under another
-//! name, a new and a changed label, destroyed
+//! the ssh key provisioner against the real api: missing, created, up to date, a changed
+//! key, the same key under another name, a new and a changed label, destroyed
 
 mod support;
 

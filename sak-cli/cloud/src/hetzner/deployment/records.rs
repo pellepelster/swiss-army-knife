@@ -16,8 +16,8 @@ pub struct DeploymentRecord {
     pub labels: Labels,
 }
 
-/// the dns records with the name label `name` in the zones of the project (`list_all` of the
-/// dns zones). The deployment can remove only these records
+/// the records with the name label `name` in `listings` (`list_all` of the dns zones); the
+/// deployment can remove only these
 pub fn deployment_records(listings: &[HetznerDnsZoneListing], name: &str) -> Vec<DeploymentRecord> {
     let mut records = Vec::new();
     for listing in listings {
@@ -34,10 +34,10 @@ pub fn deployment_records(listings: &[HetznerDnsZoneListing], name: &str) -> Vec
     records
 }
 
-/// the records that block the records of `spec`, as log texts: each rrset of any type at a name
-/// that the deployment manages and without a label of its identity. So a name of another owner
-/// stops the plan before anything is created. At the zone apex (`@`, domain mode) only A, AAAA
-/// and CNAME block; the others there (SOA, NS, MX, TXT, CAA, …) belong to the zone and stay
+/// as log texts, each rrset of any type at a name the deployment manages and without its identity,
+/// so a name of another owner stops the plan before anything is created. At the zone apex (`@`,
+/// domain mode) only A, AAAA and CNAME block; the others there (SOA, NS, MX, TXT, CAA, …) belong to
+/// the zone
 pub fn foreign_records(listings: &[HetznerDnsZoneListing], spec: &DeploymentSpec) -> Vec<String> {
     let Some(root_domain) = &spec.root_domain else {
         return Vec::new();
@@ -68,9 +68,8 @@ pub fn foreign_records(listings: &[HetznerDnsZoneListing], spec: &DeploymentSpec
         .collect()
 }
 
-/// the records of `found` that are not in `declared`: all of them on a destroy, those of the
-/// old dns mode or root domain on a deploy. Only records with every label of `identity` (the
-/// name and the password hash) are included
+/// the records of `found` with every label of `identity` that are not in `declared`: all of them
+/// on a destroy, those of the old dns mode or root domain on a deploy
 pub fn stale_records(
     found: &[DeploymentRecord],
     declared: &[HetznerDnsRecord],

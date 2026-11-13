@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 import java.time.Duration
 
 class RateLimiterTest {
-    // SEC-5: many clients do not fill the heap, a new one beyond the most keys is refused
+    // many clients do not fill the heap, a new one beyond the most keys is refused
     @Test
     fun `keeps at most max keys and refuses a new one beyond them until old ones passed the window`() {
         val clock = MutableClock()
@@ -22,7 +22,7 @@ class RateLimiterTest {
         limiter.keys() shouldBe 1
     }
 
-    // SEC-5: a host has a /64 of IPv6 addresses, it counts as one client
+    // a host has a /64 of IPv6 addresses, it counts as one client
     @Test
     fun `counts an IPv6 client by its network of 64 bits, an IPv4 client by its address`() {
         clientNetwork("2001:db8:1:2:aaaa:bbbb:cccc:dddd") shouldBe "2001:db8:1:2::/64"

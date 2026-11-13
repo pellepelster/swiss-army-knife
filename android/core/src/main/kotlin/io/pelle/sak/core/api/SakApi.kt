@@ -55,8 +55,8 @@ class ApiException(
 ) : Exception(text.toString())
 
 // the one client of an app, shared by the api of every deployment and session; the engine does the io.
-// A request ends after REQUEST_TIMEOUT_MS, also one a server answers byte by byte (AN-39); an upload,
-// a download or a stream sets its own (longTransfer)
+// A request ends after REQUEST_TIMEOUT_MS, also one a server answers byte by byte; an upload, a
+// download or a stream sets its own (longTransfer)
 fun sakClient(engine: HttpClientEngine): HttpClient =
     HttpClient(engine) {
         expectSuccess = false
@@ -75,14 +75,13 @@ const val REQUEST_TIMEOUT_MS = 60_000L
 // an upload or a download of a file, e.g. a photo or a recording, over a slow connection
 const val TRANSFER_TIMEOUT_MS = 10 * 60_000L
 
-// the most pages all() asks for, a server that does not page can not keep it asking (AN-38)
+// the most pages all() asks for, so a server that does not page can not keep it asking
 const val MAX_PAGES = 1_000
 
 // the api of one deployment, below its url, e.g. https://api.example.org/v1; token is the session,
-// null before signing in. Cheap to make, the client is shared. Every call is suspending. The backend
-// answers its texts in the languages of the phone (Accept-Language, e.g. de-DE,en-US). What every app
-// calls: the deployment and the sign-in; an app adds its own calls in a subclass. loginClient names the
-// app the signin page of the web app hands a login link on to (LoginClient of sak-auth)
+// null before signing in. Cheap to make, the client is shared. The calls every app has; an app adds
+// its own in a subclass. loginClient names the app the signin page of the web app hands a login link on
+// to (LoginClient of sak-auth)
 open class SakApi(
     protected val client: HttpClient,
     protected val url: String,
@@ -90,13 +89,11 @@ open class SakApi(
     protected val languages: String? = null,
     private val loginClient: LoginRequest.Client,
 ) {
-    // the session and the languages, on every request
     protected fun HttpRequestBuilder.session() {
         token?.let { bearerAuth(it) }
         languages?.let { header(HttpHeaders.AcceptLanguage, it) }
     }
 
-    // an upload or a download of a file, which may take longer than a request (TRANSFER_TIMEOUT_MS)
     protected fun HttpRequestBuilder.longTransfer() {
         timeout {
             requestTimeoutMillis = TRANSFER_TIMEOUT_MS
@@ -106,12 +103,11 @@ open class SakApi(
 
     suspend fun info(): InfoResponse = client.get("$url/info") { session() }.answer(R.string.error_no_sak)
 
-    // where the api is, asked of the api of a SAK address: url is the SAK address then, not an api
-    // (SERVER-6)
+    // url is the SAK address here, not an api (SERVER-6)
     suspend fun wellKnown(): WellKnownResponse = client.get("$url/.well-known/sak.json").answer(R.string.error_no_sak_address)
 
     // the link goes out by mail if the address may sign in, the answer is the same for every address;
-    // the link signs in only with the nonce (AN-8)
+    // the link signs in only with the nonce
     suspend fun requestLink(
         email: String,
         nonce: String,
@@ -161,7 +157,7 @@ open class SakApi(
             }.answer(R.string.error_user_not_read)
 
     // every page of a list; a page shorter than asked for is the last, and at most MAX_PAGES are asked
-    // for, so a server that ignores the offset ends it too (AN-38)
+    // for, so a server that ignores the offset ends it too
     protected suspend inline fun <reified T> all(
         path: String,
         @StringRes failure: Int,
@@ -181,9 +177,9 @@ open class SakApi(
         return all
     }
 
-    // the ids of the lists of a list-based app that change, as the user sees them, the server-sent
-    // events at path, e.g. $url/todo/changes (LIST-4); opened calls once the stream is open. It ends
-    // with an exception when the connection ends, an ApiException with 401 when the session ended
+    // the ids of the lists that change, the server-sent events at path, e.g. $url/todo/changes (LIST-4);
+    // opened is called once the stream is open. It ends with an exception when the connection ends, an
+    // ApiException with 401 when the session ended
     protected fun listChanges(
         path: String,
         opened: suspend () -> Unit,
@@ -192,8 +188,7 @@ open class SakApi(
             client
                 .prepareGet(path) {
                     session()
-                    // the backend keeps the stream open with a comment every 25 seconds; the stream
-                    // itself has no end
+                    // the stream has no end; CHANGES_TIMEOUT_MS covers the keep-alive comments
                     timeout {
                         socketTimeoutMillis = CHANGES_TIMEOUT_MS
                         requestTimeoutMillis = HttpTimeoutConfig.INFINITE_TIMEOUT_MS
@@ -232,8 +227,7 @@ open class SakApi(
         // longer than the 25 seconds between the comments of the changes (listChanges)
         const val CHANGES_TIMEOUT_MS = 60_000L
 
-        // the exception of an answer that is no success: the messages of its error body, else a text
-        // of the app by its status
+        // the messages of the error body, else a text of the app by the status
         suspend fun failure(
             response: HttpResponse,
             @StringRes failure: Int,

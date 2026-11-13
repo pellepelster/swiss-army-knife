@@ -19,8 +19,8 @@ import java.time.Duration
 import io.pelle.sak.storage.BlobContent
 
 // writes down what is said in a recording with a speech to text model through openrouter's
-// transcriptions; the recording goes along as base64, streamed from the storage (base64Body), the language is detected. Only providers
-// that do not collect the data are asked.
+// transcriptions; the recording goes along as base64, streamed from the storage (base64Body), the
+// language is detected. Only providers that do not collect the data are asked.
 class OpenRouterSpeechTranscriber(
     url: String,
     private val apiToken: String,

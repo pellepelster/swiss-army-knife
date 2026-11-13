@@ -52,8 +52,8 @@ private val logger = KotlinLogging.logger {}
 
 const val SESSION_AUTH = "session"
 
-// the security scheme of the session token in the openapi document, named like the authentication
-// provider, which the security requirements of the routes behind it are taken from
+// the security scheme of the session token in the openapi document; named like the authentication
+// provider, the routes behind it take their security requirements from it
 val sessionSecurityScheme =
     HttpSecurityScheme(
         scheme = "bearer",
@@ -88,9 +88,8 @@ data class LoginApp(
     val name: String,
 )
 
-// routes below authenticate(SESSION_AUTH) accept the session tokens of the given service with
-// the roles of the token the address still has: the configured roles double as the revocation
-// list, a session left without any of them is rejected
+// a session keeps only the roles of its token the address still has: the configured roles are the
+// revocation list, a session left without any is rejected
 fun AuthenticationConfig.session(
     tokens: TokenService,
     rolesOf: (email: String) -> Set<Role>,
@@ -113,9 +112,8 @@ fun AuthenticationConfig.session(
     }
 }
 
-// the e-mail login, the only routes of the api without a session: link sends a link with a login
-// token to allowed addresses, the signin page of the app the login started from exchanges it for a
-// session token with the roles of the address; addresses without roles may not log in
+// the e-mail login, without a session: link mails a login token to an address with roles, the
+// signin page exchanges it for a session token
 @OptIn(ExperimentalKtorApi::class)
 fun Route.login(
     tokens: TokenService,
@@ -141,7 +139,7 @@ fun Route.login(
             call.respondErrors(AuthTexts.INVALID_EMAIL)
             return@post
         }
-        // an android app always sends its nonce, of 16 to 128 characters (AN-8)
+        // every client but the web app sends a nonce, of 16 to 128 characters
         val nonce = request.nonce
         if ((request.client != LoginClient.WEB && nonce == null) || (nonce != null && nonce.length !in 16..128)) {
             call.respondErrors(AuthTexts.INVALID_NONCE)
@@ -156,7 +154,6 @@ fun Route.login(
         // everything that depends on the address happens after the answer, so neither the answer
         // nor its timing tells whether the address may log in
         val redirect = safeRedirect(request.redirect)
-        // the mail in the language of the one who asked for it
         val language = call.language()
         call.application.launch(Dispatchers.IO) {
             if (rolesOf(email).isEmpty() || !mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
@@ -236,15 +233,12 @@ fun Route.login(
 
 }
 
-// who-am-i names a password session so, and the admin of a single user deployment is so; no e-mail
-// address, so no login link is ever sent for it
+// the user of a password session in who-am-i; no e-mail address, so no login link is ever sent for it
 const val ADMIN_USERNAME = "admin"
 
-// the password login of the admin: the admin password (the deployment password) for a session token
-// of the admin, the same user as by e-mail. The check is slow on purpose (argon2id), so the limits
-// come first: a client and the server altogether try only a few passwords an hour, a request over
-// the limit is refused before any hashing, and one password is checked at a time, for the memory a
-// check takes. A wrong password tells nothing but 401
+// the admin password (the deployment password) for a session of the admin, the same user as by
+// e-mail. The argon2id check is slow on purpose, so the limits per client and altogether come
+// before any hashing; AdminPassword checks one at a time for its memory. A wrong one is a bare 401
 @OptIn(ExperimentalKtorApi::class)
 fun Route.passwordLogin(
     tokens: TokenService,
@@ -301,9 +295,8 @@ fun Route.passwordLogin(
     }
 }
 
-// the token of a QR code an app scanned for a session (SECURITY-3), meant to be mounted without a
-// session next to the login: the user and the login method are the ones of the session that showed
-// the code, the roles the ones the address has now. A client tries only a few codes an hour
+// the token of a scanned QR code for a session (SECURITY-3), mounted without a session: the user
+// and the login method of the session that showed the code, the roles the address has now
 @OptIn(ExperimentalKtorApi::class)
 fun Route.connectExchange(
     tokens: TokenService,
@@ -355,10 +348,9 @@ fun Route.connectExchange(
     }
 }
 
-// the QR code that connects an app as the signed in user (SECURITY-3), meant to be mounted behind
-// authenticate(SESSION_AUTH): a link to the SAK address with a token of a few minutes in its fragment,
-// which a browser never sends; only a session shows one, not a signed request of sakctl. A user gets
-// only a few codes an hour
+// the QR code that connects an app as the signed in user (SECURITY-3), behind
+// authenticate(SESSION_AUTH): the token is in the fragment, which a browser never sends; a signed
+// request of sakctl (no expiry) gets 403
 @OptIn(ExperimentalKtorApi::class)
 fun Route.connect(
     tokens: TokenService,
@@ -428,10 +420,9 @@ fun Route.connect(
 // the key of the limit of all clients together
 private const val ALL_CLIENTS = "*"
 
-// the signed in user, meant to be mounted behind authenticate(SESSION_AUTH) with
-// authentication { session(tokens, rolesOf) }
+// the signed in user, behind authenticate(SESSION_AUTH); nameOf gives the name the apps show
+// instead of the address, null for none
 @OptIn(ExperimentalKtorApi::class)
-// nameOf is the name of an address, null when it has none; the apps show it instead of the address
 fun Route.whoAmI(nameOf: (email: String) -> String? = { null }) {
     installApi()
 
@@ -454,7 +445,7 @@ fun Route.whoAmI(nameOf: (email: String) -> String? = { null }) {
     }
 }
 
-// whether another link may be sent, the log tells when an allowed address asks in vain
+// whether another link may be sent; logs when an allowed address asks in vain
 private fun mayHaveLink(
     email: String,
     client: String,
@@ -487,8 +478,8 @@ fun normalizeEmail(email: String): String? {
     }
 }
 
-// only paths below the apps are followed after the login, the session token is stored
-// for the apps' origin only, anything else could redirect to a foreign site
+// only a path of the apps' origin, which holds the session token; anything else could lead to a
+// foreign site
 fun safeRedirect(redirect: String?): String {
     if (redirect == null || redirect.length > 2048 || !redirect.startsWith("/") || redirect.startsWith("//")) {
         return "/"
@@ -499,13 +490,13 @@ fun safeRedirect(redirect: String?): String {
     return redirect
 }
 
-// the controller is only reachable through caddy, which sets X-Forwarded-For to the client
+// the backend is only reachable through caddy, which sets X-Forwarded-For to the client
 internal fun ApplicationCall.clientAddress(): String =
     request.headers[HttpHeaders.XForwardedFor]?.substringAfterLast(',')?.trim()?.takeIf { it.isNotEmpty() }
         ?: request.local.remoteAddress
 
-// the client as the limits count it (SEC-5): an IPv6 address by its network of /64, which one host
-// has whole, an IPv4 address by itself
+// the client as the limits count it: an IPv6 address by its /64, which one host has whole, an IPv4
+// address by itself
 internal fun ApplicationCall.clientNetwork(): String = clientNetwork(clientAddress())
 
 internal fun clientNetwork(address: String): String {

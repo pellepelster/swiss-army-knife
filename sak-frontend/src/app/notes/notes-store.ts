@@ -118,31 +118,28 @@ export class NotesStore {
 
   // the photos and recordings whose text is being discovered
   readonly discovering = signal<ReadonlySet<number>>(new Set());
-  // whether the photos and recordings offer to discover their text: the AI turned on by an admin
-  // and a provider set up (GET /notes/settings, AN-26); off until it is known, also when it is not
+  // whether photos and recordings offer to discover their text (GET /notes/settings): the AI
+  // functions are on and a provider is set up; false until it is known
   readonly discoverAvailable = signal(false);
 
   // what was removed last while it can be brought back with undoRemove, null otherwise
   readonly removed = this.removal.current.asReadonly();
 
-  // what went wrong last and where (UX-15): in the card of a note, at the buttons that create a
-  // note (new) or in the place of the notes (page); null when everything is saved, every action
-  // clears it when it starts
+  // what went wrong last and where (UX-15); every action clears it when it starts
   readonly failure = signal<{ at: NoteErrorAt; message: string } | null>(null);
   readonly error = computed(() => this.failure()?.message ?? null);
 
-  // the error that went wrong at the place, null otherwise
   errorAt(at: NoteErrorAt): string | null {
     const failure = this.failure();
     return failure !== null && failure.at === at ? failure.message : null;
   }
 
-  // every label of a note, sorted
+  // the labels of the notes loaded, sorted
   readonly labels = computed(() =>
     [...new Set(this.all().flatMap((note) => note.labels))].sort((a, b) => a.localeCompare(b)),
   );
 
-  // the labels a note of the user has, by name (GET /notes/labels): the ones the notes filter by
+  // the labels of all notes of the user (GET /notes/labels): the ones the notes filter by
   readonly usedLabels = this.used.asReadonly();
 
   // the labels of all the apps and of the notes, to suggest them
@@ -151,8 +148,8 @@ export class NotesStore {
   );
 
   constructor() {
-    // the text typed and not saved yet and the note deleted last when the page goes away or into
-    // the background, e.g. the installed app is closed right after typing
+    // unsaved text and the pending removal go out when the page goes away or into the background,
+    // e.g. the installed app is closed right after typing
     const destroyRef = inject(DestroyRef);
     whenLeaving(destroyRef, () => this.saveLeaving(), this.document);
     destroyRef.onDestroy(() => {
@@ -164,9 +161,8 @@ export class NotesStore {
     });
   }
 
-  // the page of the notes starting at the offset, of the label or of all; a loading not answered
-  // yet is cancelled. The notes loaded take the place of the ones here, except the ones changed
-  // here that the backend may not know of yet; one of them that is not on the page loaded stays
+  // cancels a load not answered yet. The notes loaded replace the ones here, except the ones
+  // changed here that the backend may not know of yet; such a note not on the page loaded stays
   // only when the same page is loaded again
   load(offset = 0, label: string | null = null): void {
     this.loadingNotes?.unsubscribe();
@@ -209,8 +205,7 @@ export class NotesStore {
     this.loadUsed();
   }
 
-  // the labels the notes have, again; one not answered yet is cancelled. A label that could not be
-  // loaded keeps the list as it was
+  // cancels a load not answered yet; a failure keeps the labels as they were
   private loadUsed(): void {
     clearTimeout(this.usedTimer);
     this.loadingUsed?.unsubscribe();
@@ -220,7 +215,7 @@ export class NotesStore {
     });
   }
 
-  // the labels the notes have, once a row of changes calmed down
+  // debounced, after a row of changes
   private loadUsedSoon(): void {
     clearTimeout(this.usedTimer);
     this.usedTimer = setTimeout(() => this.loadUsed(), LOAD_USED_LABELS_AFTER_MS);
@@ -317,8 +312,7 @@ export class NotesStore {
     }
   }
 
-  // starts recording for the note or for a new note (`new`), a second call stops it; the recording
-  // is kept with the note, the robot on it writes it down
+  // starts recording for the note or for a new note (`new`), a second call stops it
   async record(target: number | 'new', labels: readonly string[] = []): Promise<Note | null> {
     if (this.recordingFor() !== null) {
       this.recorder.stop();
@@ -371,7 +365,6 @@ export class NotesStore {
     this.removeFile(id, fileId, 'recording');
   }
 
-  // the text the backend discovers in the photo or the recording is added to the text of the note
   // what the notes app may do for the signed in user, whatever their role
   loadSettings(): void {
     this.http.get<NotesSettings>('/api/v1/notes/settings').subscribe({
@@ -380,6 +373,7 @@ export class NotesStore {
     });
   }
 
+  // the text the backend discovers in the photo or the recording is added to the text of the note
   async discoverText(id: number, fileId: number): Promise<void> {
     this.failure.set(null);
     const recording = this.all()
@@ -459,7 +453,6 @@ export class NotesStore {
     );
   }
 
-  // brings back what was removed last, as long as the backend has not removed it
   undoRemove(): void {
     this.removal.undo();
   }
@@ -555,9 +548,7 @@ export class NotesStore {
       });
   }
 
-  // saves the notes whose text waits for typing to pause and deletes the note deleted last with
-  // requests the browser finishes after the page is gone (keepalive), their answers are not waited
-  // for
+  // sends the unsaved texts and the pending removal with keepalive, without waiting for answers
   private saveLeaving(): void {
     this.commitRemoval(true);
     for (const id of [...this.pendingText.keys()]) {
@@ -567,7 +558,6 @@ export class NotesStore {
     }
   }
 
-  // saves the note as it is now with a request the browser finishes after the page is gone
   private saveKeepalive(id: number): void {
     const note = this.all().find((n) => n.id === id);
     if (!note) return;

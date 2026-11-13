@@ -21,7 +21,7 @@ open class VictoriaLogsException(
     cause: Throwable? = null,
 ) : RuntimeException(message, cause)
 
-// an answer larger than the client reads (SEC-10)
+// an answer larger than the client reads
 class VictoriaLogsAnswerTooLargeException(
     maxBytes: Int,
 ) : VictoriaLogsException("the answer of victorialogs is larger than $maxBytes bytes")
@@ -37,14 +37,14 @@ data class StatsPoint(
     val value: Double,
 )
 
-// victorialogs runs next to the controller and only listens on localhost, so there is neither
+// victorialogs runs next to the backend and only listens on localhost, so there is neither
 // authentication nor tenant. The addresses are built once: a url that is none fails here, at the
 // start, not with every request. Only AccessLogsManager makes it (EXT-1)
 internal class VictoriaLogsClient(
     url: String,
     private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
     // the largest answer read, so what the clients of a site send (e.g. many user agents) can not fill
-    // the heap: a page of entries is limited, a grid of a month is small (SEC-10)
+    // the heap: a page of entries is limited, a grid of a month is small
     private val maxAnswerBytes: Int = DEFAULT_MAX_ANSWER_BYTES,
 ) {
     private val url = url.trimEnd('/')

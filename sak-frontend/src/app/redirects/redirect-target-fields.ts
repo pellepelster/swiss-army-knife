@@ -21,8 +21,7 @@ export function redirectTarget(
   return validDomain(domain) ? { type: 'domain', domain: domain.trim() } : null;
 }
 
-// where a redirect leads to, an external domain or a bucket served at a domain; shared by the
-// pages creating and editing a redirect
+// the target of a redirect, an external domain or a bucket; for the create and the edit page
 @Component({
   selector: 'app-redirect-target-fields',
   imports: [TranslatePipe],

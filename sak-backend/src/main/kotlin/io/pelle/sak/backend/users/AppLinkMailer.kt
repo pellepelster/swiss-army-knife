@@ -11,8 +11,8 @@ const val GROCERY_APP_DOWNLOAD_PATH = "/grocery/download/app"
 const val NOTES_APP_DOWNLOAD_PATH = "/notes/download/app"
 const val TODO_APP_DOWNLOAD_PATH = "/todo/download/app"
 
-// sends the links to the android apps (the grocery lists, the notes and the todo lists) by e-mail, from the mail
-// server of the login, e.g. to a user an admin just added
+// sends the links to the android apps by e-mail, from the mail server of the login, e.g. to a user
+// an admin just added
 class AppLinkMailer(
     private val mailSender: MailSender,
     private val app: LoginApp,

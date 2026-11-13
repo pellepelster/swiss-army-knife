@@ -10,10 +10,10 @@ import { PageHeader } from '../shared/page-header';
 
 // how often the page asks whether an app used the code
 export const POLL_MS = 2_000;
-// the light modules around the code a scanner needs to find it, in modules
+// the light border a scanner needs to find the code, in modules
 export const QUIET_ZONE = 4;
 
-// a code on the page: the modules of the qr code of its link as an svg path, never the link itself
+// a code on the page: its qr code as an svg path, never the link itself
 interface Code {
   readonly id: string;
   // the modules of the code with its quiet zone
@@ -33,10 +33,10 @@ type State =
 // what the watch of a shown code learns: a second passed, or the answer of the backend
 type Watch = 'tick' | 'used' | 'unused' | 'gone';
 
-// /connect-app: a QR code that connects an android app as the signed in user (SECURITY-3). The code
-// is asked for when the page opens, never before, shows until it expires or an app used it and is
-// never renewed on its own; its link holds the token, so it is neither shown nor logged, and leaving
-// the page forgets it. The modules are dark on light in both color schemes, a scanner needs that
+// /connect-app: a QR code that connects an android app as the signed in user (SECURITY-3). It is
+// requested when the page opens, shows until it expires or an app used it, and is never renewed on
+// its own. Its link holds the token: never shown or logged, forgotten with the page. Dark on light
+// in both color schemes, a scanner needs that
 @Component({
   selector: 'app-connect-page',
   imports: [PageHeader, TranslatePipe],
@@ -66,7 +66,7 @@ type Watch = 'tick' | 'used' | 'unused' | 'gone';
 
     @let current = state();
     @if (current.kind === 'failed') {
-      <!-- the error of the action of the page, next to its toolbar (UX-15) -->
+      <!-- next to the toolbar (UX-15) -->
       <p class="alert alert-danger" role="alert" data-testid="error">{{ current.error | t }}</p>
     }
 
@@ -190,8 +190,7 @@ export class ConnectPage {
   }
 }
 
-// the dark modules of the qr code of the text as one svg path, a square of one unit each, inside the
-// quiet zone
+// the dark modules of the qr code as one svg path, one unit square each, inside the quiet zone
 export function qrPath(text: string): { modules: number; path: string } {
   const qr = generate(text);
   let path = '';

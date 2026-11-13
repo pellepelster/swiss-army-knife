@@ -11,12 +11,12 @@ pub struct HetznerDnsZoneProvisioner {
     api: Arc<HetznerApi>,
 }
 
-/// a zone of the project with its rrsets. From it sakctl finds the domains it can use, the
-/// deployments that use them and the records of a deployment
+/// a zone with its rrsets: sakctl finds in it the domains it can use, the deployments that use
+/// them and the records of a deployment
 #[derive(Clone, Debug)]
 pub struct HetznerDnsZoneListing {
     pub zone: HetznerDnsZoneRuntime,
-    /// every rrset of the zone, also the rrsets without labels
+    /// also the rrsets without labels
     pub rrsets: Vec<RRSet>,
 }
 
@@ -148,8 +148,7 @@ pub(crate) mod tests {
         json!({ "id": format!("{name}/A"), "name": name, "type": "A", "ttl": null, "protection": { "change": false }, "records": [{ "value": "1.2.3.4" }], "zone": zone, "labels": labels })
     }
 
-    /// a mock of the project: `zones`, each with its rrsets. Keep the server while the api is
-    /// used
+    /// a mock of the project: `zones`, each with its rrsets. Keep the server while the api is used
     pub(crate) async fn mock_zones(zones: &[(Value, Vec<Value>)]) -> (MockServer, Arc<HetznerApi>) {
         let server = MockServer::start().await;
         let all: Vec<Value> = zones.iter().map(|(zone, _)| zone.clone()).collect();

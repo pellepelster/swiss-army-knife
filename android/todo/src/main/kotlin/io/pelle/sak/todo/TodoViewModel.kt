@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import io.pelle.sak.core.SakViewModel
 import io.pelle.sak.todo.api.TodoApi
 
-// the model of the app for the activity, kept across a rotation (SakViewModel)
 class TodoViewModel(
     application: Application,
 ) : SakViewModel<TodoModel>(application, app = "todo", selfUpdate = BuildConfig.SELF_UPDATE) {

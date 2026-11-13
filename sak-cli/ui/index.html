@@ -4,8 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Swiss Army Knife</title>
-    <!-- the theme of ../../sak-theme, copied to theme/ by mise run cli:theme: bootstrap, the
-         fonts, the tokens, bootstrap mapped onto the tokens, the components. style.css has the
+    <!-- the theme of ../../sak-theme, copied to theme/ by mise run cli:theme; style.css has the
          layout -->
     <link rel="stylesheet" href="theme/bootstrap.min.css">
     <link rel="stylesheet" href="theme/fonts.css">
@@ -16,12 +15,9 @@
     <script type="module" src="app.js"></script>
   </head>
   <body>
-    <!-- one view at a time, show() of views.js switches between them; data-text is the key of a
-         text of src-tauri/locales/. Buttons that move through the steps (back, next, cancel, plan,
-         create) are in the button group at the bottom right, back always its leftmost button. Buttons that act on the data
-         of the view (add a provider, create a deployment) are at the top right of the header -->
+    <!-- one view at a time (show() of views.js); data-text is the key of a text of
+         src-tauri/locales/ -->
     <main class="view splash" id="view-splash">
-      <!-- the icon and the title a third down the window, the checks hang below them -->
       <div class="splash-brand">
         <img class="splash-icon" src="theme/images/icon.svg" alt="">
         <h1 class="splash-title">Swiss Army Knife</h1>
@@ -30,7 +26,6 @@
           <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
         </div>
       </div>
-      <!-- quit, enabled only after a check failed -->
       <div class="splash-footer btn-group" role="group" id="splash-footer">
         <button type="button" class="btn btn-outline-secondary" id="splash-quit" data-text="ui.quit" disabled></button>
       </div>
@@ -127,7 +122,6 @@
         </div>
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-danger" id="deployment-destroy" data-text="ui.deployment.destroy"></button>
-          <!-- the maintenance of the server, each entry opens the maintenance view -->
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-outline-secondary dropdown-toggle" id="deployment-maintenance" aria-haspopup="menu" aria-expanded="false" data-text="ui.deployment.maintenance"></button>
             <ul class="dropdown-menu maintenance-menu" id="deployment-maintenance-menu" role="menu">
@@ -144,8 +138,7 @@
       <!-- the configuration, read once when the page opened, and where it comes from -->
       <p class="hint" id="deployment-config-source" aria-live="polite"></p>
       <ul class="resources deployment-config" id="deployment-config"></ul>
-      <!-- the resources as the list found them, then, after the check, as the plan of a deploy
-           has them, the provisioning included -->
+      <!-- the resources as the list found them, after the check as the plan has them -->
       <ul class="resources" id="deployment-resources"></ul>
       <p class="hint" id="deployment-message" aria-live="polite"></p>
       <div class="page-footer">
@@ -157,7 +150,6 @@
       </div>
     </main>
 
-    <!-- the password of a deployment before its page opens: next only with the right one -->
     <main class="view page" id="view-password" hidden>
       <header class="page-header">
         <div class="page-title">
@@ -169,7 +161,6 @@
         <p class="hint"><span data-text="ui.password.intro"></span> <strong class="sak-mono" id="password-name"></strong></p>
         <div>
           <label class="form-label" for="password-input" data-text="ui.password.title"></label>
-          <!-- the button at the end of the field shows the password as typed, and hides it again -->
           <div class="input-group">
             <input class="form-control" id="password-input" type="password" autocomplete="current-password" spellcheck="false">
             <button type="button" class="btn btn-outline-secondary password-toggle" id="password-toggle" aria-pressed="false">
@@ -199,7 +190,7 @@
         </div>
       </header>
       <form class="page-form" id="create-form">
-        <!-- the config of a deployment: where the settings of the form come from -->
+        <!-- a deploy of a new config: where the settings of the form come from -->
         <p class="hint" id="create-source" aria-live="polite" hidden></p>
         <div>
           <label class="form-label" for="create-name" data-text="ui.create.name"></label>
@@ -280,7 +271,6 @@
               <div class="form-text" id="create-smtp-password-hint" data-text="ui.create.smtp_password_again" hidden></div>
             </div>
           </div>
-          <!-- the sender of the login mails, noreply@<root domain> until the user changes it -->
           <div class="smtp-from">
             <label class="form-label" for="create-smtp-from" data-text="ui.create.smtp_from"></label>
             <input class="form-control" id="create-smtp-from" type="email" autocomplete="off" spellcheck="false" maxlength="254">
@@ -290,7 +280,6 @@
             <input class="form-check-input" type="checkbox" id="create-smtp-starttls" checked>
             <label class="form-check-label" for="create-smtp-starttls" data-text="ui.create.smtp_starttls"></label>
           </div>
-          <!-- a test e-mail with the mail server above, from this machine; its answer beside it -->
           <div class="smtp-test">
             <button type="button" class="btn btn-outline-secondary btn-sm" id="create-smtp-test" data-text="ui.create.smtp_test"></button>
             <span class="hint" id="create-smtp-status" aria-live="polite"></span>
@@ -329,8 +318,6 @@
       </div>
     </main>
 
-    <!-- an apply or a destroy as it runs, the resources as on the plan: done only when every
-         resource was done, cancel stops it -->
     <main class="view page" id="view-run" hidden>
       <header class="page-header">
         <div class="page-title">
@@ -348,9 +335,7 @@
         </div>
       </div>
     </main>
-    <!-- the status, the update or the reboot of the server of a deployment as it runs: each line
-         of the server, then the answer. It cannot be cancelled, so the view has no cancel; each step
-         has its timeout. Back to the page of the deployment once it ended -->
+    <!-- the maintenance has no cancel: a command on the server is not stopped halfway -->
     <main class="view page" id="view-maintenance" hidden>
       <header class="page-header">
         <div class="page-title">
@@ -368,7 +353,6 @@
         </div>
       </div>
     </main>
-    <!-- the last confirmation before a destroy: what goes, with the data volume when asked -->
     <dialog class="confirm" id="destroy-confirm">
       <form method="dialog">
         <h2 class="confirm-title" id="destroy-confirm-title"></h2>
@@ -379,7 +363,6 @@
         </div>
       </form>
     </dialog>
-    <!-- the confirmation before a reboot: the deployment is down until its server is back -->
     <dialog class="confirm" id="reboot-confirm">
       <form method="dialog">
         <h2 class="confirm-title" id="reboot-confirm-title"></h2>
@@ -390,7 +373,7 @@
         </div>
       </form>
     </dialog>
-    <!-- the recipient of the test e-mail of the mail server of the form of a deployment -->
+    <!-- the recipient of the test e-mail -->
     <dialog class="confirm" id="smtp-test">
       <form method="dialog">
         <h2 class="confirm-title" data-text="ui.create.smtp_test_title"></h2>
@@ -405,8 +388,7 @@
         </div>
       </form>
     </dialog>
-    <!-- below every view, one line: the version of sakctl, the button of the next step of its
-         update and what happens (update.js); github is asked on a click only -->
+    <!-- the version of sakctl and its update (update.js), below every view -->
     <footer class="app-footer">
       <span id="update-version"></span>
       <button type="button" class="btn btn-outline-secondary btn-sm" id="update-button"></button>

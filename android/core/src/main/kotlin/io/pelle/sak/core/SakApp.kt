@@ -27,10 +27,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
-// what lives as long as the process of an app: one engine and one client for every api, and the
-// scope of work that must not end with the screen (SakModel.launchLasting); never closed, the
-// process ends them (AN-29). The tests of an app put the engine of a fake backend and a store in
-// memory in their place before an activity starts (engine, sessionStore)
+// what lives as long as the process: one engine and one client for every api, and the scope of work
+// that must not end with the screen (SakModel.launchLasting); never closed, the process ends them. The
+// tests set a fake engine and store before an activity starts
 object SakProcess {
     private var engineOf: HttpClientEngine? = null
     private var clientOf: HttpClient? = null
@@ -55,11 +54,10 @@ object SakProcess {
     val scope: CoroutineScope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
 }
 
-// the model of an app for its activity, kept across a rotation: the store of the session of the app,
-// its updater and the languages of the phone for its api; app is the name of the app, e.g. grocery
-// (sak-grocery-<version>.apk, the key sak-grocery-session). The app makes its model with them.
-// selfUpdate is BuildConfig.SELF_UPDATE of the app: false in the build of google play, which has no
-// updater
+// the model of an app for its activity, kept across a rotation; the app makes its model with the store,
+// the updater and the languages. app is the name of the app, e.g. grocery (sak-grocery-<version>.apk,
+// the key sak-grocery-session). selfUpdate is BuildConfig.SELF_UPDATE: false in the build of google
+// play, which has no updater
 abstract class SakViewModel<M : SakModel<*>>(
     application: Application,
     app: String,
@@ -81,15 +79,12 @@ abstract class SakViewModel<M : SakModel<*>>(
     }
 }
 
-// the one activity of an app: its compose content in the theme of SAK, after the sign-in that every app
-// shares and with the scan of a QR code over it (SakContent), and the login links the signin page of the web app hands on
-// (<scheme>://signin?token=…). A link is taken once: not again after a rotation, and not when android
-// starts the activity again from the recent apps with the intent it had
-// (FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY, AN-2). The confirmation of an update the installer asked
-// for while the app was not seen shows when it is seen again (AN-12). The app comes to the foreground
-// and goes to the background with foreground() and background(), not with a rotation or another
-// change of the configuration: the activity is made anew then, the model and what it waits for stay
-// (e.g. an undo that runs)
+// the one activity of an app: its content after the shared sign-in (SakContent), and the login links
+// the signin page of the web app hands on (<scheme>://signin?token=…). A link is taken once: not again
+// after a rotation, and not when android starts the activity again from the recent apps with the intent
+// it had (FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY). The confirmation of an update the installer asked for
+// while the app was not seen shows when it is seen again. foreground() and background() do not run on
+// a rotation or another change of the configuration: the activity is made anew, the model stays
 abstract class SakActivity : ComponentActivity() {
     // the scheme of the login link, the package of the release, e.g. io.pelle.sak.grocery; the debug
     // build has a package of its own (.debug) and the same scheme
@@ -124,7 +119,6 @@ abstract class SakActivity : ComponentActivity() {
     protected open fun foreground() {}
 
     // the app is no longer seen, e.g. what waits to be sent goes now, it would be lost with the app
-    // (AN-29)
     protected open fun background() {}
 
     override fun onStart() {

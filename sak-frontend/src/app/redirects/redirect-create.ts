@@ -12,8 +12,7 @@ import {
 import { RedirectsService } from './redirects.service';
 import { PageHeader } from '../shared/page-header';
 
-// redirects a domain to an external domain or to the domain a bucket is served at, on a page
-// of its own; afterwards the redirect shows
+// redirects a domain to an external domain or to the domain of a bucket; then the redirect shows
 @Component({
   selector: 'app-redirect-create',
   imports: [PageHeader, RedirectTargetFields, RouterLink, TranslatePipe],
@@ -104,7 +103,6 @@ export class RedirectCreate {
   }
 }
 
-// what the api answered, or what its status tells
 function createErrorMessage(i18n: I18n, error: unknown, domain: string): string {
   return apiErrorMessage(error, i18n.t('redirects.create_page.failed'), {
     403: i18n.t('redirects.create_page.forbidden'),

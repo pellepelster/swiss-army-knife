@@ -57,8 +57,8 @@ impl HetznerServerProvisioner {
         identity::check_lookup(found, lookup)
     }
 
-    /// the server of the name; one Hetzner deletes is gone already: a plan creates it anew, a
-    /// destroy has nothing left to do
+    /// a server Hetzner is deleting counts as gone: a plan creates it anew, a destroy has nothing
+    /// left to do
     async fn find(&self, lookup: &HetznerServerLookup) -> Result<Option<HetznerServerRuntime>> {
         Ok(self
             .find_any(lookup)
@@ -158,8 +158,7 @@ impl HetznerServerProvisioner {
         }
     }
 
-    /// the labels of the server: the declared labels and the hashes of the ssh keys and the
-    /// user data it is created with
+    /// the declared labels and the hashes of the ssh keys and the user data it is created with
     fn labels(resource: &HetznerServer, dependencies: &Dependencies) -> Result<Labels> {
         let mut labels = HetznerLabels::new();
         labels.add_hashed(SSH_KEYS_LABEL, &dependencies.fingerprints())?;

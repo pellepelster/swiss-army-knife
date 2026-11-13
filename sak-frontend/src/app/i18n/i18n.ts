@@ -7,8 +7,8 @@ export type { TextKey } from './catalog.en';
 // the values of the placeholders of a text
 export type TextParams = Readonly<Record<string, string | number>>;
 
-// the first language of the browser there are texts for, else english; the browser sends the same
-// languages to the api (Accept-Language), so its errors are in the same language
+// the first language of the browser with texts, else english; the api answers in the same one
+// (Accept-Language)
 export function languageOf(languages: readonly string[]): Language {
   for (const tag of languages) {
     const language = tag.split('-')[0].toLowerCase();
@@ -24,8 +24,8 @@ export function browserLanguage(): Language {
   );
 }
 
-// the texts of the language of the visit: only its catalog is loaded, before the app starts
-// (main.ts), the other languages are never downloaded (TD-5)
+// only the catalog of the language of the visit is loaded, before the app starts (main.ts), so
+// the other languages are not in the bundle
 let current: { language: Language; texts: Strings } = { language: 'en', texts: {} };
 
 export function useTexts(language: Language, texts: Strings): void {

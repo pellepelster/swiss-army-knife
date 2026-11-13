@@ -70,10 +70,9 @@ import io.pelle.sak.core.Screen
 import io.pelle.sak.core.qr.QrCamera
 import io.pelle.sak.core.qr.QrScan
 
-// the content of an app: the screens before the sign-in, the same in every app (the SAK address, the
-// three ways to sign in, UX-7), else the screens of the app; the scan of a QR code over them while it
-// is open (SakModel.scan), the screen below stays, kept as it was, and is not read out by talkback
-// meanwhile. appName names the app on the first screen
+// the content of an app: the shared screens before the sign-in (UX-7), else the screens of the app;
+// the scan of a QR code over them while it is open. The screen below stays as it was and is hidden
+// from talkback meanwhile. appName names the app on the first screen
 @Composable
 fun SakContent(
     model: SakModel<*>,

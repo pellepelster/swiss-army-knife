@@ -1,4 +1,4 @@
-# the schema of the controller's database; jooq generates its classes from this changelog
+# the schema of the database of the backend; jooq generates its classes from this changelog
 # (sak-model/build.gradle.kts)
 databaseChangeLog:
   - include:

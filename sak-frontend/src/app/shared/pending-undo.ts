@@ -25,10 +25,10 @@ export function whenLeaving(
 // unless it is undone first (UX-4.2); a new change sends the one before at once. `leaving` tells the
 // commit that the page goes away, e.g. to send it with keepalive
 export class PendingUndo<T> {
-  // what can be undone now, null when nothing can
+  // null when nothing can be undone
   readonly current = signal<T | null>(null);
-  // the same as a list for `@for (each of undoable(); track each)`, so the toast and the bar showing
-  // the time left start anew for the next change
+  // current as a list for `@for (each of undoable(); track each)`: the toast and its time bar
+  // start anew for the next change
   readonly undoable = computed(() => {
     const current = this.current();
     return current === null ? [] : [current];
@@ -49,21 +49,19 @@ export class PendingUndo<T> {
     this.current.set(value);
   }
 
-  // sends what is pending now, nothing when nothing is
   commit(leaving = false): void {
     const pending = this.take();
     pending?.commit(leaving);
   }
 
-  // what is pending goes to the backend at once when the page goes away or into the background
-  // (leaving, see whenLeaving) and when destroyRef ends (not leaving: the app goes on, e.g. to
-  // another page). Call it in an injection context or give the document
+  // commits at once when the page goes away or into the background (leaving, see whenLeaving) and
+  // when destroyRef ends (not leaving: the app goes on). Call it in an injection context or give
+  // the document
   commitWhenLeaving(destroyRef: DestroyRef, document: Document = inject(DOCUMENT)): void {
     whenLeaving(destroyRef, () => this.commit(true), document);
     destroyRef.onDestroy(() => this.commit());
   }
 
-  // takes back what is pending, nothing when nothing is
   undo(): void {
     const pending = this.take();
     pending?.undo();

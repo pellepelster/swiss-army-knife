@@ -1,11 +1,11 @@
-//! the user mode and the acme ca of a deployment, each a label on its resources
+//! the user mode and the acme ca of a deployment
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// the user mode: who signs in to a deployment. `Single`: one user, the admin, with the password
-/// of the deployment. `Multi`: users with a link by e-mail, the admin also with the password; it
-/// needs a mail server and the address of the admin
+/// who signs in. `Single`: the admin alone, with the password of the deployment. `Multi`: users
+/// with a link by e-mail, the admin also with the password; needs a mail server and the address of
+/// the admin
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UserMode {
@@ -16,7 +16,7 @@ pub enum UserMode {
 impl UserMode {
     pub const ALL: [UserMode; 2] = [UserMode::Single, UserMode::Multi];
 
-    /// the value in the label and on the command line
+    /// the value on the command line and in the settings
     pub fn as_str(self) -> &'static str {
         match self {
             UserMode::Single => "single",
@@ -38,9 +38,8 @@ impl fmt::Display for UserMode {
     }
 }
 
-/// the acme ca the certificates of a deployment come from: production (the default issuers of
-/// caddy), or the staging ca of let's encrypt for the deployments of the tests, because it does not
-/// have the rate limits of production
+/// where the certificates come from: production (the default issuers of caddy), or the staging ca
+/// of let's encrypt for the deployments of the tests, as it has no rate limits of production
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AcmeCa {
@@ -52,7 +51,7 @@ pub enum AcmeCa {
 impl AcmeCa {
     pub const ALL: [AcmeCa; 2] = [AcmeCa::Production, AcmeCa::Staging];
 
-    /// the value in the label and on the command line
+    /// the value on the command line and in the settings
     pub fn as_str(self) -> &'static str {
         match self {
             AcmeCa::Production => "production",

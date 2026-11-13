@@ -334,8 +334,6 @@ impl Registry {
             } else {
                 self.provisioner_of(resource)?.diff(resource, &run).await?
             };
-            // a plan that would recreate a resource that must stay, or create a duplicate, fails
-            // here, before the apply
             if gate == Gate::Apply {
                 self.refuse(resource, &diff).await?;
             }

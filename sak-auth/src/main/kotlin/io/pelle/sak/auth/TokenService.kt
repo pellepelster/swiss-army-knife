@@ -20,8 +20,7 @@ data class LoginClaims(
     val redirect: String,
 )
 
-// a connect token of the QR code that connects an app (SECURITY-3): what it is, its id to ask whether
-// it was used, and when it expires
+// the token of the QR code that connects an app (SECURITY-3); the id tells whether it was used
 data class ConnectToken(
     val token: String,
     val id: String,
@@ -44,10 +43,9 @@ data class SessionToken(
 
 private val logger = KotlinLogging.logger {}
 
-// login tokens travel in the e-mailed link and connect tokens in the QR code that connects an app,
-// each only good for one exchange against a session token; session tokens are what the apps send
-// with every api request. All are ES256 jwts, the token_use claim keeps one from being accepted as
-// another
+// login tokens (in the e-mailed link) and connect tokens (in the QR code) are good for one exchange
+// for a session token, which the apps send with every request. All are ES256 jwts; token_use keeps
+// one kind from being accepted as another
 class TokenService(
     private val key: SigningKey,
     private val issuer: String,
@@ -62,21 +60,19 @@ class TokenService(
 
     private val connectVerifier = verifier(CONNECT)
 
-    // the ids of the connect tokens issued and not yet expired, with the user they were issued for:
-    // only that user asks whether one was used
+    // the connect tokens not yet expired by id, with their user: only that user asks whether one was used
     private val issuedConnectTokens = ConcurrentHashMap<String, Pair<String, Instant>>()
 
-    // session tokens without roles are from before there were roles
+    // a session token without the roles claim is refused
     val sessionVerifier: JWTVerifier =
         (JWT.require(algorithm).withIssuer(issuer).withClaim(TOKEN_USE, SESSION).withClaimPresence(ROLES) as JWTVerifier.BaseVerification)
             .build(clock)
 
-    // ids of exchanged login tokens until they expire, the controller runs as one instance so
-    // memory is enough; a restart only lets links that were valid anyway be used once more
+    // the ids of the exchanged login and connect tokens until they expire; the backend is one
+    // process, so memory is enough: a restart only lets a valid token be used once more
     private val usedLoginTokens = ConcurrentHashMap<String, Instant>()
 
-    // with the nonce of the login request, the token is exchanged only with it (its sha-256 travels in
-    // the token, not the nonce)
+    // with a nonce, the token is exchanged only with it; the token holds its sha-256, not the nonce
     fun issueLoginToken(
         email: String,
         redirect: String,
@@ -109,10 +105,9 @@ class TokenService(
             }
         val id = jwt.id ?: return null
         val email = jwt.subject ?: return null
-        // a token of a login with a nonce only with that nonce, and one without only without: who
-        // sends a nonce (an android app) waits for the link it asked for, a link asked for the web
-        // app must not sign it in as another user. Checked before the token counts as used, so a
-        // wrong nonce does not use up the link of the one who asked for it
+        // a token with a nonce only with that nonce, one without only without: a link asked for the
+        // web app must not sign an android app in as another user. Checked before the token counts
+        // as used, so a wrong nonce does not use up the link
         val expected = jwt.getClaim(NONCE).asString()
         val nonceMatches =
             when {
@@ -137,8 +132,7 @@ class TokenService(
         return LoginClaims(email, jwt.getClaim(REDIRECT).asString() ?: "/")
     }
 
-    // a token of the QR code that connects an app as the user of the session (SECURITY-3), good for one
-    // exchange within connectTokenTtl; a session of the admin password connects one too
+    // good for one exchange within connectTokenTtl (SECURITY-3); keeps the login method of the session
     fun issueConnectToken(
         email: String,
         withPassword: Boolean,
@@ -177,8 +171,7 @@ class TokenService(
         return ConnectClaims(email, jwt.getClaim(LOGIN_METHOD).asString() == PASSWORD)
     }
 
-    // whether the connect token of the id, issued for the user, was used; null when the user has no
-    // such token that is not expired
+    // null when the user has no such token that is not expired
     fun connectTokenUsed(
         email: String,
         id: String,
@@ -241,7 +234,7 @@ class TokenService(
         // the roles of a session token, unknown ones are ignored
         const val ROLES = "roles"
 
-        // how the session was signed in, password or email; sessions from before it are e-mail ones
+        // password or email; without it a session is an e-mail one
         const val LOGIN_METHOD = "login_method"
 
         const val PASSWORD = "password"
@@ -252,5 +245,4 @@ class TokenService(
     }
 }
 
-// the sha-256 of the text, lower case hex
 private fun sha256(text: String): String = MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

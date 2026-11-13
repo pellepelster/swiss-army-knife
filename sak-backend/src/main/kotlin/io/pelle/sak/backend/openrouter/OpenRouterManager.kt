@@ -23,9 +23,8 @@ import io.pelle.sak.openrouter.OpenRouterTextRecognizer
 import io.pelle.sak.openrouter.SpeechTranscriber
 import io.pelle.sak.openrouter.TextRecognizer
 
-// the connection to openrouter, the AI provider that discovers the text in photos and recordings and
-// the ingredients of recipes:
-// its settings, turned on and the api key, and the one place its clients are made
+// openrouter, the AI provider that discovers the text in photos and recordings and the ingredients
+// of recipes: its settings and the one place its clients are made
 class OpenRouterManager(
     private val config: SakConfig.OpenRouterConfig,
     settings: SettingService,
@@ -58,9 +57,8 @@ class OpenRouterManager(
     // reads the ingredients of a recipe with the vision model; null without an api key
     fun ingredientRecognizer(): IngredientRecognizer? = clients()?.ingredients
 
-    // turned on it needs an api key: turning it on without one, or taking the key away while it is
-    // on, is refused. A new api key is checked at openrouter, but only while it is turned on: nothing
-    // goes to openrouter before. Turning it on checks the key stored
+    // turned on it needs an api key. A new key, or the stored one when it is turned on, is checked at
+    // openrouter only while it is on: nothing goes to openrouter before
     override fun check(values: List<SettingValue<*>>): List<ErrorMessage> {
         val enabled = values.valueOf(ENABLED) ?: stored(ENABLED)
         val newKey = values.valueOf(API_KEY)

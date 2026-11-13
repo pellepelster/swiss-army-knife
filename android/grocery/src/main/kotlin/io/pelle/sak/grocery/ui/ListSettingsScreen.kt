@@ -101,12 +101,10 @@ internal fun ListSettingsScreen(
     ) { Categories(settings, model) }
 }
 
-// the categories of a list of the user's own in the order of the groups of its items (GROCERY-13),
-// each change saved at once, one after the other: the icon, the name when its field is left or done,
-// the place by dragging a row at its handle (or one place up or down from its menu, the ends
-// disabled, UX-8), a delete from the menu of its row after a confirmation (UX-12); a name typed below
-// adds one as the last. Their errors show here; categories that could not be loaded show no rows, but
-// why and a way to load them again
+// the categories of a list in the order of the groups of its items (GROCERY-13), each change saved at
+// once, one after the other; up and down in the menu are disabled at the ends (UX-8), a delete asks
+// for a confirmation (UX-12). Categories that could not be loaded show why and a way to load them
+// again
 @Composable
 private fun Categories(
     settings: ListSettings,
@@ -143,7 +141,7 @@ private fun Categories(
                 index in target until from -> (drag.heights[drag.id] ?: 0).toFloat()
                 else -> 0f
             }
-        // the state of a row stays with its category when the rows move (GC-1)
+        // the state of a row stays with its category when the rows move
         key(category.id) {
             CategoryRow(
                 category,
@@ -155,8 +153,8 @@ private fun Categories(
                 shift = shift,
                 onDragStart = { drag.start(category.id) },
                 onDrag = { drag.offset += it },
-                // the order of the categories as it is when the drag ends, not as it was when the row
-                // was first shown: an earlier move changed it (AN-7)
+                // the order of the categories when the drag ends, not when the row was first shown: an
+                // earlier move changed it
                 onDragEnd = { drag.end(categories)?.let { to -> model.moveCategory(category.id, to) } },
                 onDragCancel = drag::cancel,
                 onSize = { drag.heights[category.id] = it },
@@ -234,11 +232,9 @@ private class CategoryDrag {
     }
 }
 
-// a category in the settings: the handle it is dragged by after a long press, which a scroll does not
-// start, and which a screen reader moves up and down with its actions; its icon, a tap chooses another
-// (a neutral one when it has none); its name, kept by the model while it is typed, checked and saved
-// when its field is left or done (UX-6); its menu with the icon, up, down and the delete. A change
-// made while another one is sent waits for it
+// a category in the settings: the handle drags it after a long press, so a scroll does not start a
+// drag, and a screen reader moves it with its actions; the name is saved when its field is left or
+// done (UX-6). A change made while another one is sent waits for it
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CategoryRow(

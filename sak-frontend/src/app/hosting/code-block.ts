@@ -2,14 +2,13 @@ import { Component, computed, input, signal } from '@angular/core';
 import { TranslatePipe } from '../i18n/i18n';
 import { CopyButton } from '../shared/copy-button';
 
-// a file or a command to take over as it is, as a terminal window: its name in the bar with a
-// copy button, the code below; what is copied can differ from what is shown, e.g. a secret that
-// is shown masked
+// a file or a command to copy, as a terminal window; what is copied can differ from what is
+// shown, e.g. a masked secret
 @Component({
   selector: 'app-code-block',
   imports: [CopyButton, TranslatePipe],
   styles: `
-    // a terminal window, dark in light and dark mode alike (the terminal tokens of sak-theme)
+    // dark in both color schemes (the terminal tokens of sak-theme)
     :host {
       display: block;
       overflow: hidden;
@@ -95,13 +94,12 @@ import { CopyButton } from '../shared/copy-button';
 })
 export class CodeBlock {
   readonly name = input.required<string>();
-  // what is shown
   readonly code = input.required<string>();
-  // what is copied, the shown code when missing
+  // the shown code when null
   readonly copyText = input<string | null>(null);
   readonly copyLabel = input.required<string>();
   readonly testId = input<string | null>(null);
-  // a command: every line that does not continue the one before gets a prompt, which is not copied
+  // a command: a prompt before every line that does not continue the one before, not copied
   readonly command = input(false);
 
   protected readonly lines = computed(() => {

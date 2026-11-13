@@ -4,8 +4,8 @@ import { Observable } from 'rxjs';
 import { Redirect, RedirectTarget } from '../api/models';
 import { Page, PAGE_SIZE } from '../shared/api';
 
-// where a redirect leads to, told apart by its type; location is the domain the redirect leads to
-// now, missing for a bucket no longer served at a domain
+// a target is told apart by its type; location is the domain it leads to now, missing for a
+// bucket served at no domain
 export type { Redirect, RedirectTarget } from '../api/models';
 
 // the domains caddy redirects
@@ -13,7 +13,6 @@ export type { Redirect, RedirectTarget } from '../api/models';
 export class RedirectsService {
   private readonly http = inject(HttpClient);
 
-  // the page of the redirects starting at the offset
   page(offset: number): Observable<Page<Redirect>> {
     return this.http.get<Page<Redirect>>('/api/v1/redirects', {
       params: { offset, limit: PAGE_SIZE },
@@ -24,7 +23,7 @@ export class RedirectsService {
     return this.http.get<Redirect>(`/api/v1/redirects/${encodeURIComponent(sourceDomain)}`);
   }
 
-  // where it leads to, the redirected domain can not be changed
+  // only the target, the source domain can not be changed
   update(sourceDomain: string, target: RedirectTarget): Observable<Redirect> {
     return this.http.put<Redirect>(`/api/v1/redirects/${encodeURIComponent(sourceDomain)}`, {
       target,

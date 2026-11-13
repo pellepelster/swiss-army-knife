@@ -2,21 +2,21 @@ import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom, Subscription } from 'rxjs';
 import { ScopeValues, SettingsService } from './settings.service';
 
-// the values of the scopes loaded, which the whole app shares, for the settings page
+// the values of the loaded scopes, shared by the whole app
 @Injectable({ providedIn: 'root' })
 export class SettingsStore {
   private readonly service = inject(SettingsService);
 
-  // the loads not answered yet, by scope
+  // by scope
   private readonly loading = new Map<string, Subscription>();
 
-  // the stored values by scope, a scope missing until it is loaded
+  // by scope, missing until loaded
   readonly values = signal<Record<string, ScopeValues>>({});
 
-  // why a scope could not be loaded, by scope
+  // by scope
   readonly errors = signal<Record<string, unknown>>({});
 
-  // a load of the scope not answered yet is cancelled
+  // cancels a load of the scope not answered yet
   load(scope: string): void {
     this.loading.get(scope)?.unsubscribe();
     this.errors.update(({ [scope]: _, ...others }) => others);
@@ -32,8 +32,7 @@ export class SettingsStore {
     );
   }
 
-  // sets the values given of the scope and takes all of it the backend answers; rejects with the
-  // error of the api
+  // sends only the values given, takes the whole scope answered; rejects with the api error
   async update(scope: string, values: ScopeValues): Promise<void> {
     this.take(scope, await firstValueFrom(this.service.update(scope, values)));
   }

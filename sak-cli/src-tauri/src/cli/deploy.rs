@@ -109,13 +109,11 @@ pub(super) async fn plan_and_apply(
             .unwrap_or_else(|| resource.to_string())
     };
     for resource in &plan.resources {
-        // its status, then what the plan does to it
         let status = t!(resource.resource_status.text_key());
         let action = resource
             .action
             .map(|action| format!(", {}", t!(action.text_key())))
             .unwrap_or_default();
-        // a resource that the apply removes is a warning
         let level = if resource.action == Some(PlanAction::WillDestroy) {
             Level::Warn
         } else {
@@ -128,7 +126,6 @@ pub(super) async fn plan_and_apply(
         }
     }
 
-    // a plan that destroys or creates anew what exists asks first, the name typed or --yes
     let destroys = plan.resources.iter().any(|resource| {
         resource.action == Some(PlanAction::WillDestroy) || resource.working == Working::Recreate
     });
@@ -162,7 +159,7 @@ pub(super) async fn plan_and_apply(
                 log(Level::Info, format!("[ansible] {}", line.trim()))
             }
         }
-        // one line for each task of the playbook when it ends; a failure as an error
+        // one line for each task of the playbook when it ends
         DeploymentEvent::TaskDone {
             task,
             outcome,

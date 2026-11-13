@@ -33,7 +33,7 @@ fn rules_text(rules: &[FirewallRule]) -> String {
         .join("; ")
 }
 
-/// the selectors of the declared labels: one, of all of them; none without labels
+/// one selector of all the declared labels; none without labels
 fn declared_selectors(labels: &Labels) -> BTreeSet<String> {
     FirewallResource::label_selector(labels)
         .label_selector

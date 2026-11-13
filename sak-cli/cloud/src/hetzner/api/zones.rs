@@ -147,7 +147,6 @@ impl<'a> ZonesApi<'a> {
     }
 }
 
-/// the state of a zone at hetzner
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ZoneStatus {

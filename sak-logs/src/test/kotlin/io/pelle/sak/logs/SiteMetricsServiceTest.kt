@@ -132,8 +132,7 @@ class SiteMetricsServiceTest {
         queries.first()["step"] shouldBe "120s"
     }
 
-    // SEC-10: the clients of a site choose their user agents, very many of them are an answer too large
-    // to read; the metrics leave the user agents out instead of filling the heap
+    // the clients of a site choose their user agents, very many of them are an answer too large to read
     @Test
     fun `leaves out the user agents when their answer is larger than the client reads`() {
         val small = VictoriaLogsClient("http://127.0.0.1:${victoriaLogs.address.port}/", maxAnswerBytes = 2000)
@@ -214,7 +213,7 @@ class SiteMetricsServiceTest {
             json["series"]!!.jsonArray.first().jsonObject["values"]!!.jsonArray.sumOf { it.jsonPrimitive.long } shouldBe 5
             json["totalRequests"]!!.jsonPrimitive.long shouldBe 5
 
-            // over the 4 hours of the shortest range
+            // a shorter range, 4 hours in steps of 10 minutes
             val short = client.get("/sites/pelle.io/access-logs/metrics?range=4h")
             short.status shouldBe HttpStatusCode.OK
             short.bodyAsText().json().let {

@@ -175,8 +175,7 @@ class SakCaddyTest {
                 }
                 """.trimIndent(),
             )
-        // http, the two frontend routes, the api, the s3 api, the site, unmatched; no redirects and
-        // no console host any more
+        // http, the two frontend routes, the api, the s3 api, the site, unmatched; no redirects, no console host
         routes.size shouldBe 7
     }
 

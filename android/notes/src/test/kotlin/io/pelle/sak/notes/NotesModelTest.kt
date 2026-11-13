@@ -132,7 +132,7 @@ class NotesModelTest {
     @Test
     fun `signed in it opens on the wall of all notes, every page, with the labels and the AI off`() =
         runTest {
-            // a full first page, the second asked for at its offset; a short page is the last (AN-38)
+            // a full first page, the second asked for at its offset; a short page is the last
             val first = (1..100).map { note(1000 - it, "Note $it") }
             backend.answersByQuery["GET /notes?offset=0&limit=100"] =
                 HttpStatusCode.OK to """{"items":[${first.joinToString(",")}],"pagination":{"offset":0,"limit":100,"total":101}}"""
@@ -151,7 +151,7 @@ class NotesModelTest {
             assertEquals(101, screen.notes.size)
             assertEquals(101, screen.allCount)
             assertEquals(listOf("work", "shopping").sorted(), screen.labels)
-            // the switch of the AI every user may read (AN-26)
+            // every user may read whether the AI is on
             assertTrue(backend.requests.contains("GET /notes/settings"))
         }
 
@@ -227,7 +227,7 @@ class NotesModelTest {
             advanceUntilIdle()
             assertTrue(body("PUT /notes/1").contains(""""labels":[]"""))
 
-            // the changes made before the save runs go in one save (AN-4)
+            // the changes made before the save runs go in one save
             val saves = backend.requests.count { it.startsWith("PUT /notes/1") }
             (1..11).forEach { model.addLabel(1, "label $it") }
             assertEquals(MAX_LABELS, model.notes().note(1)!!.labels.size)

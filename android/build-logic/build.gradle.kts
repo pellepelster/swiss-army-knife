@@ -1,6 +1,5 @@
-// the convention plugins: what every app and every library of android/ shares, so a module keeps
-// only its id, its namespace and its own dependencies. The android gradle plugin comes from the
-// plugins block of each module (compileOnly here, so its version is the one of the catalog)
+// the convention plugins of the android modules. The android gradle plugin is compileOnly here: the
+// plugins block of each module brings it, in the version of the catalog
 plugins {
     `kotlin-dsl`
 }

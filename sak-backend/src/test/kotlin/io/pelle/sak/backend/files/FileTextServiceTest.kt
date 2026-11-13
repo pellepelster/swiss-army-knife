@@ -91,7 +91,7 @@ class FileTextServiceTest {
     }
 
     @Test
-    fun `a text can be discovered only with the AI turned on and a provider set up (AN-26)`() {
+    fun `a text can be discovered only with the AI turned on and a provider set up`() {
         FileTextService(files, { recognizer }, { null }) { true }.available() shouldBe true
         FileTextService(files, { null }, { transcriber }) { true }.available() shouldBe true
         FileTextService(files, { recognizer }, { transcriber }) { false }.available() shouldBe false

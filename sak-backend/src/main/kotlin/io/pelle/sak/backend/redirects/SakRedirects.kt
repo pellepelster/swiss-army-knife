@@ -47,12 +47,12 @@ private fun RedirectTarget.target(): TargetOfRedirect =
         is RedirectTarget.Bucket -> TargetOfRedirect.Bucket(bucket)
     }
 
-// the redirects caddy answers, meant to be mounted behind the authentication
+// mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.redirects(redirectService: RedirectService) {
     installApi()
 
-    // the location of a bucket is read from the database, the response is made on the io dispatcher
+    // the location of a bucket is read from the database
     suspend fun Redirect.response() =
         withContext(Dispatchers.IO) {
             RedirectResponse(sourceDomain, target.response(), redirectService.location(target), createdAt.apiTime(), updatedAt?.apiTime())

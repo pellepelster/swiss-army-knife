@@ -12,8 +12,8 @@ enum class HealthState {
     UNKNOWN,
 }
 
-// what a check found; the name tells the user what was checked, e.g. Bucket domains, the message
-// why, e.g. what failed; the details are the parts it checked one by one, e.g. each domain
+// what a check found: the name of what was checked (e.g. Bucket domains), the message why, the
+// details each part checked (e.g. each domain)
 data class HealthStatus(
     val name: Text,
     val state: HealthState,
@@ -21,16 +21,15 @@ data class HealthStatus(
     val details: List<HealthDetail> = emptyList(),
 )
 
-// one part of what a check checked, e.g. a domain, with its own state and why; the name is data,
-// e.g. the domain, the message a text
+// one part a check checked, with its own state; the name is data (e.g. the domain), the message a text
 data class HealthDetail(
     val name: String,
     val state: HealthState,
     val message: Text? = null,
 )
 
-// something that tells whether it works, e.g. a service or a server the backend depends on; check
-// never throws, a failure it finds is UNHEALTHY and one it can not tell about UNKNOWN
+// a service or server the backend depends on; check never throws: a failure is UNHEALTHY, a
+// result it can not tell UNKNOWN
 fun interface Health {
     fun check(): HealthStatus
 }

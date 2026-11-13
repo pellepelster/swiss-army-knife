@@ -1,6 +1,5 @@
-// the shapes of the api by readable names, from the types generated of openapi.json (schema.ts). A
-// field the schema marks optional may be missing or null alike: the backend leaves out a nullable
-// field with a default when it is null, so the apps test `== null`, never `=== null` alone
+// readable names for the shapes of schema.ts. An optional field may be missing or null (the backend
+// leaves out a nullable field with a default when it is null): test it with `== null`
 import { components } from './schema';
 
 type Schemas = components['schemas'];
@@ -11,8 +10,7 @@ export type Pagination = Schemas['PaginationResponse'];
 // auth
 export type ExchangeResponse = Schemas['ExchangeResponse'];
 export type WhoAmI = Schemas['WhoAmIResponse'];
-// who signs in to the deployment: multi, users by e-mail and the admin by password; single, only
-// the admin by password
+// multi user mode: users by e-mail and the admin by password; single: only the admin by password
 export type DeploymentInfo = Schemas['InfoResponse'];
 export type UserMode = DeploymentInfo['userMode'];
 // the QR code that connects an app (SECURITY-3): its link holds the token, never shown or logged
@@ -26,7 +24,7 @@ export type GroceryItem = Schemas['GroceryItemResponse'];
 export type GroceryNewItem = Schemas['GroceryNewItemRequest'];
 export type GrocerySuggestion = Schemas['GrocerySuggestionResponse'];
 
-// todo; the schema has the priority of a task as one of its strings already (TODO-5)
+// todo; the schema already narrows the priority (TODO-5)
 export type TodoList = Schemas['TodoListResponse'];
 export type TodoItem = Schemas['TodoItemResponse'];
 export type TodoPriority = TodoItem['priority'];
@@ -55,8 +53,8 @@ export type HealthStatus = Schemas['HealthStatusResponse'];
 export type HealthDetail = Schemas['HealthDetailResponse'];
 export type HealthState = HealthStatus['state'];
 
-// settings: the default is any primitive of the backend (its schema corrected in SakApiDoc), the
-// settings are a boolean or a text
+// settings: a value is a boolean or a text; the schema of a default (any primitive) is corrected in
+// SakApiDoc
 export type SettingValue = boolean | string;
 export type SettingRequirement = Schemas['SettingRequirementResponse'];
 export type SettingDefinition = Schemas['SettingResponse'];

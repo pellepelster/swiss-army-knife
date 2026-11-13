@@ -1,11 +1,11 @@
 # tests and builds everything: the unit tests of the backend, the frontend and the cli first, then,
 # when they are green, the images of the server (sak-backend-images: sak-backend and sak-ingress)
 # and of sak-cli (sak-cli-images: the tools and the canary), each in a job of its own, sakctl as a
-# native binary for linux, macOS and windows, and
-# the documentation of docs/ as a site. A push to main pushes the images to ghcr.io as latest; the
-# build of a tag v<version> (mise run release) publishes: the images pushed as <VERSION>-rc, then
-# all of them as <VERSION> (release), and after the release the documentation as the github pages
-# of the repository. Every image pushed is signed with cosign, keyless, as the workflow at its ref.
+# native binary for linux, macOS and windows, and the documentation of docs/ as a site. A push to
+# main pushes the images to ghcr.io as latest; the build of a tag v<version> (mise run release)
+# publishes: the images pushed as <VERSION>-rc, then all of them as <VERSION> (release), and after
+# the release the documentation as the github pages of the repository. Every image pushed is
+# signed with cosign, keyless, as the workflow at its ref.
 # Cached: the mise tools, gradle, npm, cargo (written by main only) and the docker layers (in the
 # registry). Every action is pinned to the commit of its version (renovate moves the pins), and the
 # actions of others are few: a moved tag of an action runs nothing here, the jobs sign the releases
@@ -332,9 +332,8 @@ jobs:
   # from a tag v<version> only, when all images, all zips of sakctl and the apks are built: the images
   # pushed as <VERSION>-rc as <VERSION> (mise run release:docker), the zips, their checksums and their
   # cosign signatures (keyless, with the id token of the job) as the github release of the tag (mise
-  # run cli:release), where the installation downloads them, and
-  # the signed apks of the android apps with their checksums and their bundles for google play (mise
-  # run android:release)
+  # run cli:release), where the installation downloads them, and the signed apks of the android apps
+  # with their checksums and their bundles for google play (mise run android:release)
   release:
     if: github.ref_type == 'tag'
     needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, docs-build]

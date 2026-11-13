@@ -141,7 +141,6 @@ class HetznerProject(
         list("ssh_keys", "ssh_keys", "name=" + URLEncoder.encode(name, Charsets.UTF_8)).forEach { call("DELETE", "ssh_keys/${it.id()}") }
     }
 
-    /** the names of the dns zones of the project */
     /** the public ipv4 of the server of the deployment `name`; a read only, sakctl creates and removes it */
     fun serverIpv4(name: String): String =
         list("servers", "servers", labeled)
@@ -154,6 +153,7 @@ class HetznerProject(
             .jsonPrimitive
             .content
 
+    /** the names of the dns zones of the project */
     fun zones(): List<String> = list("zones", "zones").map { it.name() }
 
     /** every resource and dns record whose name label `matches` */

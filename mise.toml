@@ -21,7 +21,7 @@ svu = "3.4.1"
 # the signatures of the zips of sakctl (cli:release), keyless with a certificate of the workflow
 cosign = "3.1.4"
 
-# the version of all artifacts (#127): the tag v<version> in the workflow without the v, latest
+# the version of all artifacts: the tag v<version> in the workflow without the v, latest
 # otherwise
 [env]
 VERSION = "{{ get_env(name='VERSION', default='latest') | trim_start(pat='v') }}"
@@ -163,8 +163,8 @@ cp -r ../sak-theme/icons ui/theme/icons
 cp -r ../sak-theme/images/sakctl ui/theme/images
 """
 
-# the tauri command line of sak-cli/package.json, exactly as its lockfile has it, with its dependencies
-# (SC-10): its build makes the binaries of sakctl, which become the signed zips
+# the tauri command line of sak-cli/package.json, exactly as its lockfile has it, with its
+# dependencies: its build makes the binaries of sakctl, which become the signed zips
 [tasks."cli:install"]
 description = "Install the tauri command line of sakctl"
 dir = "{{config_root}}/sak-cli"
@@ -234,8 +234,8 @@ rm -f "build/sak-cli-windows-x86_64-${VERSION}.zip"
 """
 
 # the zips of cli:build:<platform> and their checksums as the github release v<VERSION>, where the
-# installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job release)
-# each zip signed with cosign, keyless: a short-lived certificate of sigstore for the workflow run
+# installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job release).
+# Each zip signed with cosign, keyless: a short-lived certificate of sigstore for the workflow run
 # of the tag (its id token, permission id-token: write), the signature and the certificate in
 # <zip>.sigstore.json. Each signature is verified for the identity the installation names and
 # against the trusted root of sigstore that sakctl embeds (sak-cli/src-tauri/trusted_root.json, the
@@ -579,11 +579,12 @@ dir = "{{config_root}}"
 run = "./gradlew -q :sak-i18n:run --args=generate"
 
 # gradle/verification-metadata.xml and android/gradle/verification-metadata.xml, the sha256 of every
-# dependency and plugin of the two gradle builds, which gradle checks before it uses one (SC-9); after a
-# dependency changed by hand, Renovate writes them with its updates. Resolves every configuration and
-# builds what the workflow builds, so the dependencies of tasks are in it too. In an empty gradle home of
-# its own: gradle reads the parent poms and boms of a dependency only when it resolves it the first time,
-# a warm cache would leave them out and a fresh runner would refuse them. Downloads every dependency again
+# dependency and plugin of the two gradle builds, which gradle checks before it uses one; run after a
+# dependency changed by hand (Renovate writes them with its updates). Resolves every configuration
+# and builds what the workflow builds, so the dependencies of tasks are in it too. In an empty gradle
+# home of its own: gradle reads the parent poms and boms of a dependency only when it resolves it the
+# first time, a warm cache would leave them out and a fresh runner would refuse them. Downloads every
+# dependency again
 [tasks."gradle:verification"]
 description = "Write the checksums of the dependencies of the gradle builds"
 dir = "{{config_root}}"
@@ -906,7 +907,8 @@ done
 '''
 
 # the apks of android:release:build and the bundles for google play of android:play:build with their
-# maps of r8 into the github release v<VERSION> of cli:release; files are replaced, a failed release runs again
+# maps of r8 into the github release v<VERSION> of cli:release; files are replaced, a failed
+# release runs again
 [tasks."android:release"]
 description = "Add the release apks and bundles to the GitHub release"
 dir = "{{config_root}}/android"
@@ -922,9 +924,6 @@ for app in $(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' apps.txt); do
 done
 """
 
-# the signing secrets of the release apks: the keystore as base64 and its password, also the key's
-# in a pkcs12 keystore; only piped to gh, never an argument or in the environment. The alias
-# sak-grocery is from when grocery was the only app, renaming it means a new keystore
 # renovate.json against this checkout, nothing changed (docs/development/DEPENDENCIES.md): validates
 # it, then lists the pull requests Renovate would open and the dependencies it skips; the full log
 # in build/renovate/renovate.log. Renovate 44 needs node 24. GITHUB_COM_TOKEN, from pass unless set,
@@ -1000,7 +999,10 @@ echo "started, see gh run list --workflow renovate.yml --repo pellepelster/swiss
 
 # the secrets of the environment release of the repository, which only the jobs of a tag v* get
 # (the signed android apps): the keystore is the identity of the apps, no other job sees it. And the
-# GitHub App of the workflow renovate, its client id and its private key, secrets of the repository
+# GitHub App of the workflow renovate, its client id and its private key, secrets of the repository.
+# The signing secrets: the keystore as base64 and its password, also the key's in a pkcs12
+# keystore; only piped to gh, never an argument or in the environment. The alias sak-grocery is
+# from when grocery was the only app, renaming it means a new keystore
 [tasks."github:secrets:update"]
 description = "Set the GitHub secrets of the environment release and of Renovate from pass"
 run = """

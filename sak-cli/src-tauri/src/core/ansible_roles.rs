@@ -1,10 +1,9 @@
 //! the provisioning of the server as a resource of the plan: the roles of the playbook on the
-//! server of a deployment. It depends on the server and the data volume, so the registry plans
-//! and applies it after them, as any other resource. Its diff asks the server for the markers of
-//! the roles (`core::roles`): a server that changes in this run, a server without markers and a
-//! role whose marker is not its fingerprint need a run. Its apply runs the playbook in the image of
-//! the tools (`core::provision`), each line and task an event of the run. It has nothing to
-//! destroy: the markers go with the server. sakctl declares it, sak-cloud does not know ansible
+//! server of a deployment, planned and applied after the server and the data volume. Its diff
+//! reads the markers of the roles (`core::roles`): a server that changes in this run, a server
+//! without markers and a role whose marker is not its fingerprint need a run. Its apply runs the
+//! playbook in the image of the tools (`core::provision`). Nothing to destroy: the markers go with
+//! the server. sakctl declares it, sak-cloud does not know ansible
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::DeploymentEvent;
@@ -85,10 +84,8 @@ pub fn is_provisioning(reference: &ResourceRef) -> bool {
     reference.type_id == std::any::TypeId::of::<AnsibleRolesLookup>()
 }
 
-/// the provisioner of one run: what the playbook gets but the addresses and the device (the
-/// lookups of the server and the volume tell them), the container runtime, whether the deploy is
-/// forced and where the events of the playbook go. A failed playbook is an
-/// `Error::Provisioning` with its task
+/// the provisioner of one run: `run` without the addresses and the device (the lookups of the
+/// server and the volume tell them). A failed playbook is an `Error::Provisioning` with its task
 pub struct AnsibleRolesProvisioner {
     pub run: ProvisionRun,
     pub runtime: ContainerRuntime,

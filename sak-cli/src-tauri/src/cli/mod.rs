@@ -116,8 +116,7 @@ async fn update(check: bool) -> Result<i32, SakctlError> {
     Ok(EXIT_OK)
 }
 
-/// the checks the window runs on startup, each one logged; the token checked is the one of the
-/// command
+/// the startup checks of the window, each one logged, with the token of the command
 async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
     let tokens = ProviderTokensCheck::new(vec![(
         ProviderType::Hetzner,
@@ -176,7 +175,6 @@ async fn execute(command: ProjectCommand) -> Result<i32, SakctlError> {
     let token = hcloud_token(provider.hcloud_token, std::env::var("HCLOUD_TOKEN").ok())?;
     let runtime = check(&token).await?;
     let done = match command {
-        // its exit code is the one of the command on the server
         ProjectCommand::Ssh { name, command, .. } => {
             return ssh(&manager, &token, &runtime, &name, &password.0, &command).await;
         }

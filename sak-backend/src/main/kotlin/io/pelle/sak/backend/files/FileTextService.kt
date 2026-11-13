@@ -32,9 +32,8 @@ sealed interface DiscoverTextResult {
     ) : DiscoverTextResult
 }
 
-// discovers the text in the images and the recordings of the file storage; a file never changes
-// under its id, so the text is kept with the file (StoredFile.discovered) and the file is
-// not read again
+// discovers the text in the images and recordings of the file storage; a file never changes under
+// its id, so the text is kept with it (StoredFile.discovered) and the file is not read again
 class FileTextService(
     private val files: FileService,
     // asked for each file, null while none is set up (OpenRouterManager)
@@ -43,14 +42,13 @@ class FileTextService(
     // whether the files may be sent to the AI provider at all
     private val aiEnabled: () -> Boolean,
 ) {
-    // whether a text can be discovered now: the AI features turned on and an AI provider set up
-    // (AN-26); what every user of the notes may know, the switches themselves are for the admins
+    // the AI features on and a provider set up; every user may know this, the switches are for the
+    // admins
     fun available(): Boolean = aiEnabled() && (recognizer() != null || transcriber() != null)
 
-    // the text in a file of the owner, the address that uploaded it; the text once discovered is
-    // answered even when nothing is configured any more or the AI features are turned off.
-    // mayAsk is asked only right before the file goes to the AI provider, so a limit of what that
-    // costs counts nothing else (e.g. a known text, an unknown file, AI turned off)
+    // a text discovered once is answered also when the AI features are off or not set up any more.
+    // mayAsk is asked only right before the file goes to the AI provider, so the limit counts
+    // nothing else (e.g. a known text, an unknown file, the AI features off)
     fun discover(
         owner: String,
         id: Int,

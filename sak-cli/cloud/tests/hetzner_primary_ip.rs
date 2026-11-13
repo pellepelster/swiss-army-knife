@@ -1,6 +1,5 @@
-//! the primary ip provisioner against the real api, after the flow of the floating ip
-//! test of blcks: missing, created protected and unassigned, another type, a new and a
-//! changed label, the protection lifted, destroyed
+//! the primary ip provisioner against the real api: missing, created protected and
+//! unassigned, another type, a new and a changed label, the protection lifted, destroyed
 
 mod support;
 

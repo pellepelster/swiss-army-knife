@@ -10,9 +10,8 @@ import { PageHeader } from '../shared/page-header';
 // the longest name of a user (UserService.MAX_NAME_LENGTH)
 const MAX_NAME_LENGTH = 64;
 
-// adds a user by their address, with an optional name, on a page of its own; afterwards the users
-// show. The address is checked when it loses focus (UX-6); no mail is sent, the user requests a
-// link on the login page
+// adds a user by address, with an optional name. The address is checked when it loses focus
+// (UX-6); no mail is sent, the user requests a link on the login page
 @Component({
   selector: 'app-user-create',
   imports: [PageHeader, RouterLink, TranslatePipe],
@@ -91,7 +90,7 @@ export class UserCreate {
   protected readonly maxNameLength = MAX_NAME_LENGTH;
   protected readonly email = signal('');
   protected readonly name = signal('');
-  // the address was left since it was last typed in, its error shows (UX-6)
+  // left since it was last typed in, so its error shows (UX-6)
   protected readonly emailLeft = signal(false);
   protected readonly adding = signal(false);
   protected readonly addError = signal<string | null>(null);

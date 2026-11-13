@@ -68,8 +68,8 @@ private class LimitedInputStream(
     override fun close() = delegate.close()
 }
 
-// the blobs as files below the root, a segment of the path for each directory (MODEL-7). A write is staged in STAGING_DIRECTORY and moved into place
-// at once, a reader never sees half a blob
+// the blobs as files below the root, a directory for each segment of the path (MODEL-7). A write
+// is staged in STAGING_DIRECTORY and moved into place at once, a reader never sees half a blob
 class FilesystemBinaryStorage(
     private val rootPath: Path,
     // a staged file older than this is left from a write that ended without its move (e.g. the
@@ -195,7 +195,7 @@ class FilesystemBinaryStorage(
             return null
         }
         fsyncDirectory(target.parent)
-        // the directory the blob left too, so after a crash it shows at one path only (SR-9)
+        // the directory the blob left too, so after a crash it shows at one path only
         if (source.parent != target.parent) {
             try {
                 fsyncDirectory(source.parent)
@@ -241,7 +241,7 @@ class FilesystemBinaryStorage(
     // every file below dir; a file or directory that goes while it is walked (another delete, a
     // prune) is left out, dir itself missing is none. With deleteDirectories, each directory is
     // deleted after its files, unless a write put a new blob in it meanwhile, the root never. The
-    // staging directory is no blob: it is walked only when it is dir (SR-7)
+    // staging directory is no blob: it is walked only when it is dir
     private fun walk(
         dir: Path,
         deleteDirectories: Boolean = false,

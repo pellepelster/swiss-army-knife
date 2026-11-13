@@ -9,9 +9,8 @@ import liquibase.database.jvm.JdbcConnection
 import liquibase.resource.ClassLoaderResourceAccessor
 import java.sql.Connection
 
-// the only code that touches liquibase; loaded by MigrationClassLoader only, never by the class
-// loader of the application, so liquibase is unloaded after the migration. The changelog is read
-// from resources, the class loader of the application
+// the only code that touches liquibase; loaded by MigrationClassLoader only, so liquibase is
+// unloaded after the migration. The changelog comes from the class loader of the application
 fun migrate(
     connection: Connection,
     changelog: String,

@@ -19,9 +19,8 @@ data class User(
     val updatedAt: Instant?,
 )
 
-// the database access of the users, only UserService (sak-backend) uses it; the users are data of
-// the whole deployment, only the role admin reaches them (MODEL-6). It reads the users that are not
-// deleted only
+// the users, for UserService only; data of the whole deployment, only the role admin reaches them
+// (MODEL-6). Reads live users only
 class UserRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers

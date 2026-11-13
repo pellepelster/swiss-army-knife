@@ -5,9 +5,8 @@ import io.pelle.sak.api.Catalogs
 import io.pelle.sak.api.Language
 import io.pelle.sak.api.TextKey
 
-// what is wrong with the files of a catalog, empty when nothing is: every key of the catalog object
-// has a text in every language. sak-i18n checks the texts themselves (every language, the same
-// placeholders); a catalog may have texts the backend does not show, the common ones of its app
+// what is wrong with a catalog, empty when nothing: no keys, or a key without a text in a
+// language; sak-i18n checks the texts. A catalog may have more texts than keys (the common ones)
 fun catalogProblems(catalog: Catalog): List<String> {
     val keys =
         catalog.javaClass.declaredFields

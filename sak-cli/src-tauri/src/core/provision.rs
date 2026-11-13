@@ -1,13 +1,10 @@
-//! the provisioning of the server of a deployment: the container runtime runs ansible in the
-//! image of the tools, with the roles of the pelle_io.sak collection in the image.
+//! the provisioning of the server: ansible runs in the image of the tools, with the roles of the
+//! pelle_io.sak collection.
 //!
-//! sakctl never writes the private client key: it goes to an ssh-agent in the container through
-//! the standard input. The other files of a run (inventory, ssh configuration, public client key,
-//! known host key, environment of the backend, token of the events endpoint) go into a directory
-//! of the run. The directory has a random name, only the user can read it, and the container
-//! mounts it read-only. The directory goes when the run ends, is interrupted or the window closes;
-//! the next run removes one that a killed sakctl left. Every line ansible prints and every event
-//! its callback posts to the endpoint of the run (`core::events`) go to the caller
+//! The private client key is never written: it goes through the standard input to an ssh-agent
+//! in the container. The other files of a run go into a directory with a random name that only the
+//! user can read, mounted read-only. It goes when the run ends, is interrupted or the window
+//! closes; the next run removes one that a killed sakctl left
 
 use crate::core::container::{self, ContainerRuntime};
 use crate::core::events::{AnsibleEvent, EVENTS_PATH, EventServer, task_name};
@@ -21,28 +18,21 @@ use std::sync::{Mutex, mpsc};
 /// where the files of a run sit inside the container
 const RUN_DIR: &str = "/run/sak";
 
-/// the playbook of the collection a server is provisioned with
 pub const PLAYBOOK: &str = "pelle_io.sak.server";
 
-/// the longest a run may take; a run takes some minutes, one that hangs (a server that does not
-/// answer a task) is stopped then
+/// a run takes some minutes; one that hangs (a server that does not answer a task) is stopped
 const RUN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(45 * 60);
 
-/// a server to provision and what ansible needs to reach and set it up
 #[derive(Clone)]
 pub struct ProvisionRun {
     /// the name of the deployment: the host in the inventory and `sak_name`
     pub name: String,
-    /// `sak_dns_mode` of the backend configuration
     pub dns_mode: sak_cloud::hetzner::deployment::DnsMode,
-    /// `sak_root_domain` of the backend configuration
     pub root_domain: String,
-    /// `sak_api_public_key` of the backend configuration: the public half of the api key the
-    /// requests of sakctl are signed with, 32 bytes as base64
+    /// `sak_api_public_key`: the public half of the api key sakctl signs with, 32 bytes as base64
     pub api_public_key: String,
-    /// the public ipv4 of the server
+    /// the public ipv4
     pub host: String,
-    /// the public ipv6 of the server, when it has one
     pub host_ipv6: Option<String>,
     /// the key the server was created with; root logs in with it
     pub client_key: DerivedKey,
@@ -50,10 +40,9 @@ pub struct ProvisionRun {
     pub host_key: DerivedKey,
     /// the block device of the data volume, `/dev/disk/by-id/scsi-0HC_Volume_<id>`
     pub storage_device: String,
-    /// `sak_admin_email`: the admin of a multi user deployment who also signs in by e-mail, empty
-    /// without one and for a single user deployment
+    /// `sak_admin_email`, empty without one and for single user
     pub admin_email: String,
-    /// the mail server of the e-mail login; none for the password login only
+    /// none for the password login only
     pub smtp: Option<crate::core::deployments::Smtp>,
     /// `SAK_ADMIN_PASSWORD_HASH` of `backend.env`, the argon2id hash of the admin password
     pub admin_password_hash: String,
@@ -62,8 +51,8 @@ pub struct ProvisionRun {
 }
 
 impl ProvisionRun {
-    /// the variables the roles get from the inventory, by name, each as a string. The roles take
-    /// the flags with `| bool`. The fingerprints of the roles take them too (`core::roles`)
+    /// the variables of the roles, each as a string (the roles take the flags with `| bool`); also
+    /// the input of the fingerprints (`core::roles`)
     pub(crate) fn variables(&self) -> Vec<(&'static str, String)> {
         vec![
             ("storage_device", self.storage_device.clone()),
@@ -90,15 +79,13 @@ impl ProvisionRun {
                     .to_string(),
             ),
             ("backend_env_src", format!("{RUN_DIR}/backend.env")),
-            // the server runs the images of the version of this sakctl, or of SAK_DOCKER_IMAGE_TAG
             ("sak_version", crate::core::VERSION.to_string()),
             ("sak_image_tag", crate::core::image_tag().to_string()),
         ]
     }
 
-    /// the inventory of the run: the host, how ansible reaches it, the variables of the roles and
-    /// the fingerprints the last role writes as their markers, and the images the server pulls
-    /// (`pinned`: by the digests whose signatures sakctl verified, `core::images`); every value
+    /// the inventory: the host, the variables, the fingerprints the last role writes as markers,
+    /// and the images by the digests sakctl verified (`pinned`, `core::images`). Every value is
     /// quoted as json, which yaml reads as a string. The images are no input of the fingerprints:
     /// the plan names them by their tags, without asking the registry
     fn inventory(&self, pinned: &[(&'static str, String)]) -> String {
@@ -120,13 +107,10 @@ impl ProvisionRun {
         text
     }
 
-    /// the environment of the backend (`backend.env`), one `KEY=value` on each line as podman reads
-    /// it: the hash of the admin password, the addresses of the server and the settings of the mail
-    /// server. Secret, written for the run only. The quadlet passes it to `podman run --env-file`
-    /// (its `EnvironmentFile=` is in `[Container]`, systemd never parses it), and podman takes
-    /// what follows the first `=` as it is: no quotes, no escapes, nothing trimmed. So a value is
-    /// written verbatim and must not be quoted; only a line break, which `check_smtp` refuses,
-    /// would break it
+    /// `backend.env`, secret, written for the run only. The quadlet passes it to `podman run
+    /// --env-file` (systemd never parses it), which takes what follows the first `=` as it is: no
+    /// quotes, no escapes, nothing trimmed. So a value is written verbatim; only a line break,
+    /// which `check_smtp` refuses, would break it
     pub(crate) fn backend_env(&self) -> String {
         let mut lines = vec![
             format!("SAK_ADMIN_PASSWORD_HASH={}", self.admin_password_hash),
@@ -169,8 +153,7 @@ pub enum ProvisionOutput {
     Event(AnsibleEvent),
 }
 
-/// why a run failed: the task that stopped it when its events tell it, and the message that says
-/// what failed, with the task
+/// why a run failed: the task that stopped it when its events tell it, and the message
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProvisionFailure {
     pub task: Option<String>,
@@ -187,9 +170,9 @@ impl From<String> for ProvisionFailure {
     }
 }
 
-/// the arguments of `run` and the host of the url with which the container reaches the endpoint
-/// of the run on the loopback of the machine. On linux the container shares the network of the
-/// machine; docker desktop and a podman machine (macos, windows) give the machine a name
+/// the arguments of `run` and the host with which the container reaches the events endpoint on
+/// the loopback. On linux the container shares the network of the machine; docker desktop and a
+/// podman machine (macos, windows) give the machine a name
 fn events_host(runtime: &str) -> (Vec<&'static str>, &'static str) {
     if cfg!(target_os = "linux") {
         (vec!["--network", "host"], "127.0.0.1")
@@ -200,14 +183,12 @@ fn events_host(runtime: &str) -> (Vec<&'static str>, &'static str) {
     }
 }
 
-/// manages the provisioning of servers: one run of the playbook for each call, in the image of
-/// the tools
+/// manages the provisioning of servers: one run of the playbook for each call
 pub struct ProvisionManager;
 
 impl ProvisionManager {
-    /// runs the playbook against the server and gives every line of ansible and every event of
-    /// its callback to `on_output`, in the order they come. An error when the container did not
-    /// run or ansible failed; it names the failed task when the events tell it
+    /// gives every line of ansible and every event of its callback to `on_output`, in order. The
+    /// error names the failed task when the events tell it
     pub fn provision(
         &self,
         runtime: &ContainerRuntime,
@@ -231,8 +212,7 @@ impl ProvisionManager {
         let dir = RunDir::create(runtime)?;
         dir.write_run(run, &pinned)?;
 
-        // the lines and the events go into one channel in the order they arrive; the endpoint
-        // lives as long as the run
+        // the lines and the events go into one channel, in the order they arrive
         let (sender, receiver) = mpsc::channel();
         let events = {
             let sender = sender.clone();
@@ -267,7 +247,7 @@ impl ProvisionManager {
             on_output,
         );
         let status = child.wait().map_err(|e| e.to_string())?;
-        // a container the runtime created only after the stop removed nothing goes now
+        // a container created only after the stop is removed now
         if pumped.stopped {
             remove_container(runtime, &dir.container);
         }
@@ -281,9 +261,8 @@ impl ProvisionManager {
     }
 }
 
-/// the command that runs the playbook in the image of the tools: a container of the name of the
-/// run, as the user that owns its files, with the directory of the run mounted read-only and the
-/// endpoint of the events at `events_port`. The private key comes through the standard input
+/// the container of the run, as the user that owns its files; the private key comes through the
+/// standard input
 fn container_command(
     runtime: &str,
     dir: &RunDir,
@@ -291,7 +270,7 @@ fn container_command(
 ) -> Result<std::process::Command, String> {
     let (network, host) = events_host(runtime);
     let mut command = container::command(runtime);
-    // a name of its own, so that `stop_runs` can stop it
+    // a name of its own for `stop_runs`
     command.args(["run", "--rm", "-i", "--name", &dir.container]);
     // the files belong to the user, the container reads them as that user
     #[cfg(unix)]
@@ -335,8 +314,7 @@ fn container_command(
     Ok(command)
 }
 
-/// what the output of a run told: the failure of a task that stopped it, whether it took
-/// longer than its timeout and whether `stop_runs` stopped it
+/// what the output of a run told: the failed task, a timeout, a stop by `stop_runs`
 #[derive(Default)]
 struct Pumped {
     failed: Option<(String, Option<String>)>,
@@ -354,10 +332,9 @@ impl Pumped {
     }
 }
 
-/// both output streams of `child` line by line into the channel of `sender`, and everything of
-/// `receiver` to `on_output`, until both streams are read to the end: the endpoint holds a
-/// sender until it stops, so the channel does not close before. A run longer than `timeout` or
-/// `stopped` is stopped with `stop` and a kill; its streams end once the container is gone
+/// both output streams of `child` line by line into the channel, and everything of `receiver` to
+/// `on_output`, until both streams end (the endpoint holds a sender, so the channel does not
+/// close). A run longer than `timeout` or `stopped` is stopped with `stop` and a kill
 fn pump_output(
     child: &mut std::process::Child,
     sender: mpsc::Sender<ProvisionOutput>,
@@ -409,7 +386,7 @@ fn pump_output(
             Err(mpsc::RecvTimeoutError::Timeout) if !readers_done.is_finished() => {}
             Err(_) => break,
         }
-        // a stop that came before the container was there removed nothing: it is removed here
+        // a stop before the container was there removed nothing: it is removed here
         if !pumped.timed_out && !pumped.stopped {
             pumped.stopped = stopped();
             pumped.timed_out = !pumped.stopped && started.elapsed() > timeout;
@@ -422,9 +399,7 @@ fn pump_output(
     pumped
 }
 
-/// the result of a run from the status of its container and what its output told: a stop, else
-/// a timeout, else the failed task, else the exit status. A failure names the task that failed
-/// first
+/// a stop, else a timeout, else the first failed task, else the exit status
 fn outcome(status: std::process::ExitStatus, pumped: Pumped) -> Result<(), ProvisionFailure> {
     let task = pumped.failed.as_ref().map(|(task, _)| task.clone());
     let message = if pumped.stopped {
@@ -454,8 +429,7 @@ fn outcome(status: std::process::ExitStatus, pumped: Pumped) -> Result<(), Provi
     })
 }
 
-/// the task of a failure that stops the run and what ansible says about it; none for an ignored
-/// failure
+/// the task and message of a failure that stops the run; none for an ignored failure
 fn failure_of(event: &AnsibleEvent) -> Option<(String, Option<String>)> {
     match event {
         AnsibleEvent::Failed {
@@ -469,9 +443,8 @@ fn failure_of(event: &AnsibleEvent) -> Option<(String, Option<String>)> {
     }
 }
 
-/// a run going on, as `stop_runs` stops and removes it: the directory, the runtime, the
-/// container and whether it was stopped. It stays until its drop, so that a container started
-/// after the stop sees it
+/// a run going on, for `stop_runs`. It stays until its drop, so a container started after the
+/// stop sees it is stopped
 struct Run {
     path: PathBuf,
     runtime: String,
@@ -479,7 +452,6 @@ struct Run {
     stopped: bool,
 }
 
-/// the runs going on
 static RUNS: Mutex<Vec<Run>> = Mutex::new(Vec::new());
 
 /// registers a run of `container`; `path` is empty for a container without a directory
@@ -494,8 +466,8 @@ fn track(path: PathBuf, runtime: &str, container: &str) {
     }
 }
 
-/// whether `stop_runs` stopped the run of `container`: what is about to start it starts
-/// nothing, what started it removes it
+/// whether `stop_runs` stopped the run of `container`: what is about to start it starts nothing,
+/// what started it removes it
 pub(crate) fn stopped(container: &str) -> bool {
     RUNS.lock().is_ok_and(|runs| {
         runs.iter()
@@ -503,9 +475,8 @@ pub(crate) fn stopped(container: &str) -> bool {
     })
 }
 
-/// the directory of a run and the name of its container. The directory has a random name below
-/// the runtime directory of the user (a tmpfs only the user reads), else below the temporary
-/// directory. Only the user can read it, and it goes with the run
+/// the directory of a run and the name of its container. Below the runtime directory of the user
+/// (a tmpfs only the user reads), else below the temporary directory
 struct RunDir {
     path: PathBuf,
     container: String,
@@ -543,8 +514,7 @@ impl RunDir {
         })
     }
 
-    /// the files of `run`: inventory, ssh configuration, known host key, public client key and
-    /// environment of the backend. The token of the events endpoint follows once it runs
+    /// the token of the events endpoint follows once it runs
     fn write_run(
         &self,
         run: &ProvisionRun,
@@ -586,9 +556,9 @@ impl Drop for RunDir {
 /// the start of the name of a run directory; the process id of its sakctl follows
 const RUN_PREFIX: &str = "sakctl-run-";
 
-/// stops the containers of the runs going on and removes their directories: on ctrl+c, a
-/// termination, a hangup, a cancel or when the window closes, when no `Drop` runs any more. Each
-/// run is marked stopped: a container that is not there yet is removed once it starts
+/// stops the containers of the runs and removes their directories, for when no `Drop` runs any
+/// more (a signal, a cancel, the window closes). A container not there yet is removed once it
+/// starts
 pub fn stop_runs() {
     let runs: Vec<(PathBuf, String, String)> = RUNS
         .lock()
@@ -632,7 +602,7 @@ pub(crate) fn untrack_container(name: &str) {
     }
 }
 
-/// stops and removes the container of a run, whatever state it is in
+/// whatever state the container is in
 pub(crate) fn remove_container(runtime: &str, name: &str) {
     let _ = container::command(runtime)
         .args(["rm", "--force", name])
@@ -699,8 +669,7 @@ fn remove_left_behind(base: &Path) {
     }
 }
 
-/// whether the process `pid` lives: signal 0 checks without sending anything. A process of
-/// another user answers EPERM, and lives too
+/// signal 0 checks without sending anything; a process of another user answers EPERM, and lives
 #[cfg(unix)]
 fn alive(pid: u32) -> bool {
     let Ok(pid) = libc::pid_t::try_from(pid) else {

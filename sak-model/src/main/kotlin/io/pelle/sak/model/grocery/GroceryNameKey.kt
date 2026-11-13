@@ -5,8 +5,8 @@ import java.util.Locale
 
 private val WHITESPACE = Regex("\\s+")
 
-// the identity of the name of an item or a category, stored as name_key: NFKC, trimmed, whitespace collapsed, lower
-// case in any script; accents stay ("Müsli" is not "Musli"). Computed here because sqlite's lower()
+// the identity of a name of an item or a category (name_key): NFKC, trimmed, whitespace collapsed,
+// lower case in any script; accents stay ("Müsli" is not "Musli"). Not in sql: sqlite's lower()
 // folds A-Z only
 internal fun groceryNameKey(name: String): String =
     Normalizer

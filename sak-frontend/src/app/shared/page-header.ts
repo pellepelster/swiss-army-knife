@@ -1,8 +1,9 @@
 import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-// the header of a page: the arrow back to where the page was opened from, then what the header
-// holds, its h1 and the actions of the page at the right (UX-10). On a <header>, so it stays one
+// the header of a page: the arrow back to where the page was opened from, then its content, the h1
+// and the actions of the page at the right (UX-10). The selector is a <header>, so the host is the
+// header element itself
 @Component({
   selector: 'header[appPageHeader]',
   imports: [RouterLink],

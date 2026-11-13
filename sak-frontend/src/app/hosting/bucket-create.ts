@@ -8,7 +8,7 @@ import { BUCKET_NAME_PATTERN, BucketsService } from './buckets.service';
 import { DomainList } from './domain-list';
 import { PageHeader } from '../shared/page-header';
 
-// creates a bucket with its domains on a page of its own, the new bucket opens afterwards
+// creates a bucket with its domains, then opens it
 @Component({
   selector: 'app-bucket-create',
   imports: [PageHeader, DomainList, RouterLink, TranslatePipe],

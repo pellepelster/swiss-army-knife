@@ -36,11 +36,11 @@ val apiSignatureSecurityScheme =
                 "config show: the signature holds for the host, the method, the path, the time and a nonce of its own.",
     )
 
-// the requests of sakctl to the api, signed with the ed25519 key it derives from the password of the
-// deployment; the backend knows only the public half (api_public_key), no request carries a secret.
-// The signature holds for this host, the method, the path with its query (without the prefix caddy
-// puts before it), the time and a nonce: a request that was sent to another host, is older than
-// MAX_AGE_SECONDS or seen before is refused. A signed request carries no body, sakctl only reads
+// the requests of sakctl, signed with the ed25519 key it derives from the deployment password; the
+// backend knows only the public half (api_public_key), no request carries a secret. The signature
+// holds for the host, the method, the path and query (without the prefix of caddy), the time and a
+// nonce, so a replay, an old request (MAX_AGE_SECONDS) or one for another host is refused. No body:
+// sakctl only reads
 class ApiSignature(
     publicKey: String,
     private val host: String,
@@ -104,9 +104,8 @@ class ApiSignature(
         // the der prefix of an ed25519 public key (rfc 8410) before its 32 bytes
         private val ED25519_X509_PREFIX = HexFormat.of().parseHex("302a300506032b6570032100")
 
-        // what sakctl signs (signed_text in sak-cli/src-tauri/src/core/config.rs), one part a line:
-        // the version, the method, the host, the path with its query, the time, the nonce and the
-        // sha-256 of the body, which is always empty
+        // must match signed_text in sak-cli/src-tauri/src/core/config.rs; the body hash is of an
+        // empty body
         fun signedText(
             method: String,
             host: String,
@@ -169,9 +168,8 @@ internal fun maskedAddress(address: String): String =
         address.split('.').take(3).joinToString(".") + ".0"
     }
 
-// routes below authenticate(API_SIGNATURE_AUTH) take the signed requests of sakctl as an admin that
-// never expires; without a public key every signed request is refused
-// owner is the user sakctl acts as, the admin of the password login
+// a signed request of sakctl is an admin that never expires, acting as owner (the admin of the
+// password login); without a public key every signed request is refused
 fun AuthenticationConfig.apiSignature(
     signature: ApiSignature?,
     owner: String,

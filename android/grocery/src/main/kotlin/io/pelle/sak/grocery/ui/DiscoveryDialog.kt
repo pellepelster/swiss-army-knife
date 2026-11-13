@@ -49,9 +49,8 @@ import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.amountOf
 
-// the items the AI read in a photo, over the list (GROCERY-16): while the photo is sent and read a
-// dialog says so, Cancel drops it; no item found says so; else the items to correct on the whole
-// screen, each added unless it is unchecked. Add adds the ones checked, Cancel and back add none
+// the items the AI read in a photo (GROCERY-16): a dialog while it is sent and read (Cancel drops
+// it), then the items to correct on the whole screen; Add adds the ones checked, Cancel and back none
 @Composable
 internal fun DiscoveryDialog(
     discovery: Discovery,
@@ -130,8 +129,7 @@ private fun DiscoveredItems(
     }
 }
 
-// one item of the photo: whether it is added, its name, required, and its quantity (GROCERY-15); the
-// errors of a row left out do not show
+// one item of the photo (GROCERY-15 for its quantity); the errors of a row left out do not show
 @Composable
 private fun DiscoveredItem(
     index: Int,

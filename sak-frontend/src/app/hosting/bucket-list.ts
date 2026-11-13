@@ -11,9 +11,8 @@ import { BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.servi
 import { PageHeader } from '../shared/page-header';
 import { RowError } from '../shared/row-error';
 
-// the buckets with their domains, objects and size, a page at a time; the numbers are counted in
-// the background, the list asks again while a bucket of the page is still being counted; the menu
-// of a row deletes its bucket
+// the buckets, a page at a time; the backend counts objects and size in the background, the list
+// polls while a bucket of the page is counted
 @Component({
   selector: 'app-bucket-list',
   imports: [PageHeader, PaginationControl, RouterLink, ActionMenu, TranslatePipe],
@@ -69,7 +68,7 @@ import { RowError } from '../shared/row-error';
                 ><i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'shared.edit' | t }}</a
               >
             </app-action-menu>
-            <!-- the error of the menu of the row, in the row (UX-15), above its link -->
+            <!-- in the row (UX-15), above its link -->
             @if (rowError.of(bucket.name); as error) {
               <p class="alert alert-danger mb-0 w-100 position-relative z-2" role="alert">
                 {{ error }}
@@ -97,7 +96,7 @@ export class BucketList {
   private readonly service = inject(BucketsService);
   private readonly i18n = inject(I18n);
 
-  // the route's offset query parameter, where the page shown starts
+  // the offset query parameter
   readonly offset = input(0, { transform: pageOffset });
 
   protected readonly list = pagedList({
@@ -118,7 +117,7 @@ export class BucketList {
   protected readonly formatCount = formatCount;
   protected readonly served = servedDomains;
 
-  // the error of a delete from the menu of a row, by the name of its bucket
+  // by bucket name
   protected readonly rowError = new RowError<string>();
   protected strayError(): string | null {
     return this.rowError.stray((name) => this.list.items().some((bucket) => bucket.name === name));

@@ -15,8 +15,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import kotlin.coroutines.coroutineContext
 
-// records the microphone with AudioRecord as 16 kHz mono 16 bit samples, written as a wav when it
-// stops; the ui asks for the permission to record before (RECORD_AUDIO)
+// 16 kHz mono 16 bit, a wav when it stops; the ui asks for RECORD_AUDIO before
 class MicrophoneRecorder : Recorder {
     @Volatile
     private var stopped = false
@@ -27,14 +26,14 @@ class MicrophoneRecorder : Recorder {
             stopped = false
             val buffer =
                 AudioRecord.getMinBufferSize(RECORDING_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT).coerceAtLeast(RECORDING_RATE)
-            // the source of speech recognition: tuned for a voice, as the noise suppression of the web app (AN-51)
+            // tuned for a voice, as the noise suppression of the web app
             val record = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, RECORDING_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, buffer)
             if (record.state != AudioRecord.STATE_INITIALIZED) {
                 record.release()
                 throw IOException("the microphone can not be used")
             }
             val most = RECORDING_RATE * 2 * MAX_RECORDING_SECONDS
-            // sized for a minute up front, so it grows less often (AN-51)
+            // sized for a minute up front, so it grows less often
             val pcm = ByteArrayOutputStream(minOf(most, RECORDING_RATE * 2 * 60))
             val chunk = ByteArray(buffer)
             try {

@@ -6,7 +6,6 @@ import { AccessLogs, SiteMetrics } from '../../api/models';
 // the access logs of a bucket: its site and the ranges of the metrics, and the metrics of a range
 export type { AccessLogs, SiteMetrics } from '../../api/models';
 
-// the access logs of a bucket
 function accessLogsUrl(bucket: string): string {
   return `/api/v1/static-hosting/${encodeURIComponent(bucket)}/access-logs`;
 }

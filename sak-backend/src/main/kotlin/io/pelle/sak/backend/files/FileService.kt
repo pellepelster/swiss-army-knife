@@ -52,12 +52,11 @@ sealed interface StoreFileResult {
     data object RecordingTooLong : StoreFileResult
 }
 
-// the generic file storage every application keeps its files in, the only way to them; every
-// upload is a file of its own with an id, its content is a blob of the binary storage (MODEL-7) in
-// dir below the first two characters of its sha-256, the same content is stored once. The type is told by the first bytes, never taken
-// from the uploader. The thumbnails of the images are made when they are first asked for and kept
-// next to them; at most one decode for each processor runs at a time, a decoded photo takes up to
-// 17 MB of the heap.
+// the file storage of every app, the only way to the files. Every upload is a file with an id; its
+// content is a blob (MODEL-7) below the first two characters of its sha-256, stored once. The type
+// comes from the first bytes, never from the uploader. Thumbnails are made on the first request and
+// kept next to the blob; at most one decode for each processor runs at a time, as a decoded photo
+// takes up to 17 MB of the heap.
 class FileService(
     private val repository: FileRepository,
     private val dir: Path,
@@ -100,10 +99,9 @@ class FileService(
     // the content of a stored file, null when it is not in the storage
     fun content(file: StoredFile): BlobContent? = storage.content(blob(file.sha256))
 
-    // a jpeg of at most size pixels on the longer side, one of SCALED_SIZES: of an image the image
-    // itself, scaled down when it is larger, of a recording its waveform; null when the file can
-    // not be read, which a marker next to it remembers, so it is not decoded again. Each size is made
-    // once and kept next to the file; one content and size is decoded once at a time
+    // a jpeg of at most size (one of SCALED_SIZES) pixels on the longer side: an image scaled down,
+    // a recording as its waveform. Null when the file can not be read; a marker next to it keeps it
+    // from being decoded again. Each size is made once, one content and size decodes at a time
     fun thumbnail(
         file: StoredFile,
         size: Int = THUMBNAIL_SIZE,
@@ -137,8 +135,7 @@ class FileService(
                 return storage.content(thumbnail)
             }
         } finally {
-            // the one waiting for the lock meanwhile finds the thumbnail made, as does one with a
-            // lock of its own after this
+            // who waits for the lock, or takes a new one after this, finds the thumbnail made
             thumbnailLocks.remove(key, lock)
         }
     }
@@ -165,8 +162,8 @@ class FileService(
             null
         }
 
-    // reads the content to its end, at most maxSize bytes are taken. It is written to a blob of its
-    // own while its sha-256 is computed, then moved to the path of the sha-256
+    // reads at most maxSize bytes into a blob of its own while the sha-256 is computed, then moves
+    // it to the path of the sha-256
     fun store(
         content: InputStream,
         owner: String,
@@ -218,14 +215,14 @@ class FileService(
         // (16 kHz mono 16 bit, 9.6 MB); the photos of the apps are jpegs of at most 2 MB
         const val DEFAULT_MAX_SIZE = 10L * 1024 * 1024
 
-        // the apps scale the photos down to this many pixels on the longer side, they record at
-        // most this long; the storage takes no more
+        // the largest photo (pixels of the longer side) and the longest recording the apps make; the
+        // storage takes no more
         const val MAX_IMAGE_SIZE = 2048
 
         const val MAX_RECORDING_SECONDS = 300
 
-        // how long a recording is, null when its header leaves the number or the rate of its frames
-        // open (AudioSystem.NOT_SPECIFIED), its length can not be told then
+        // null when the header leaves the number or the rate of the frames open
+        // (AudioSystem.NOT_SPECIFIED)
         fun recordingSeconds(format: AudioFileFormat): Float? =
             format.takeIf { it.frameLength >= 0 && it.format.frameRate > 0 }?.let { it.frameLength / it.format.frameRate }
 
@@ -300,11 +297,9 @@ class FileService(
 
         private const val WAVEFORM_BARS = 48
 
-        // the image, read with every subsampling-th pixel of each row and column when it is at
-        // least SUBSAMPLED_SIZE times the size: a fraction of its memory (a photo of 2048 pixels
-        // for 128 pixels is read with 512 pixels, 1 MB instead of 17 MB). Taking single pixels
-        // aliases, the halving steps of scaled() from SUBSAMPLED_SIZE times the size smooth it;
-        // null when no reader knows the image
+        // subsampled when the image is at least SUBSAMPLED_SIZE times the size, which takes a
+        // fraction of the memory (2048 pixels for 128 are read as 512: 1 MB instead of 17 MB); the
+        // halving steps of scaled() smooth the aliasing. Null when no reader knows the image
         internal fun decode(
             image: BlobContent,
             size: Int,
@@ -313,7 +308,6 @@ class FileService(
                 MemoryCacheImageInputStream(stream).use { input -> read(input, size) }
             }
 
-        // the image of the stream, see decode
         private fun read(
             input: ImageInputStream,
             size: Int,

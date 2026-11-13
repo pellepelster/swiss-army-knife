@@ -17,10 +17,8 @@ pub fn user_data(host_key: &DerivedKey) -> String {
     )
 }
 
-/// a deployment checked and ready to plan and apply: where it goes and what it consists of. The
-/// command line plans and applies with the same one (`Planned`), so it reads the project and the
-/// markers one time. The window prepares and plans again for the apply, because the user can wait
-/// a long time on the check
+/// a deployment checked and ready to plan and apply. The command line plans and applies the same
+/// one (`Planned`); the window prepares again for the apply, as the user can wait long on the check
 pub struct Prepared {
     pub(super) provider: ProviderType,
     pub(super) runtime: HetznerProviderRuntime,
@@ -29,14 +27,12 @@ pub struct Prepared {
     pub(super) stale_records: Vec<HetznerDnsRecordLookup>,
     /// a create or deploy with what it provisions the server with, or a destroy
     pub(super) purpose: Purpose<Provisioning>,
-    /// a second server, ssh key or firewall of the deployment: the plan shows it, nothing changes
-    /// it
+    /// a second server, ssh key or firewall: the plan shows it, nothing changes it
     pub(super) left_out: Vec<sak_cloud::hetzner::deployment::LeftOut>,
 }
 
-/// what a plan or an apply is for, typed: a create and a deploy with `P`, what they provision
-/// with; a destroy with only whether the data volume goes too. `prepare` builds it from the
-/// `Intent` of the request, one step at a time
+/// what a plan or an apply is for: a create and a deploy with `P`, what they provision with; a
+/// destroy with whether the data volume goes too. `prepare` builds it from the `Intent`
 pub(super) enum Purpose<P> {
     Create { provisioning: P },
     Deploy { provisioning: P },
@@ -76,9 +72,8 @@ impl<P> Purpose<P> {
     }
 }
 
-/// who signs in to a create or deploy: the admin always with the password; in multi user also the
-/// users with a link by e-mail, which needs the mail server. The address of the admin is optional
-/// there, with it the admin also signs in by e-mail; single user has no e-mail login, so none
+/// who signs in: the admin always with the password; in multi user also the users by an e-mail
+/// link, which needs the mail server, and the admin by e-mail when its address is given
 pub(super) enum Users {
     Single,
     Multi {
@@ -96,9 +91,8 @@ impl Users {
     }
 }
 
-/// who signs in to a create or deploy, from the user mode given or on the deployment: multi user
-/// needs the mail server and takes the address of the admin when it is given, single user takes
-/// neither and refuses an address, which it would not use
+/// who signs in, from the user mode: multi user needs the mail server, single user refuses an
+/// address of the admin, which it would not use
 pub(super) fn users(
     user_mode: Option<UserMode>,
     smtp: Option<&Smtp>,
@@ -171,9 +165,8 @@ pub(super) struct Provisioning {
     pub(super) local_key: crate::core::keys::BackupKey,
 }
 
-/// a prepared deployment with its plan: `plan` is what sakctl shows, the apply applies its diffs,
-/// so the markers of the server are read once for both. A destroy applies no diffs, it removes
-/// what it finds
+/// a prepared deployment with its plan: the apply applies its diffs, so the markers of the server
+/// are read once for both. A destroy applies no diffs, it removes what it finds
 pub struct Planned {
     pub plan: PlanResponse,
     prepared: Prepared,
@@ -207,11 +200,9 @@ impl Prepared {
         }
     }
 
-    /// the resources a create or deploy plans and applies: those of the spec and, after the
-    /// server and the volume, the roles of the playbook on the server (`core::ansible_roles`),
-    /// whose provisioner `provisioner` makes of the run and the force. A destroy has no roles,
-    /// they go with the server; and it creates nothing, so no resource of its plan is refused for
-    /// a recreate (a volume smaller than the size of today is no reason)
+    /// the resources of the spec and, after the server and the volume, the roles of the playbook
+    /// (`core::ansible_roles`). A destroy has no roles and creates nothing, so it refuses no
+    /// recreate (e.g. of a volume smaller than today)
     pub(super) fn registry(
         &self,
         provisioner: impl FnOnce(ProvisionRun, bool) -> AnsibleRolesProvisioner,
@@ -260,10 +251,9 @@ pub(super) fn failed(provider: ProviderType, error: impl ToString) -> String {
     message("common.deployments.failed", provider, error)
 }
 
-/// a failure of the provider in a plan or an apply. A resource of a declared name that belongs
-/// to someone else, and a resource that must stay but would be created anew, each have an exit
-/// code of their own; nothing of them was changed. A failed playbook says what failed in its own
-/// words, without the name of the provider
+/// a failure of the provider in a plan or an apply. A resource of someone else and a refused
+/// recreate each have their own exit code; nothing of them changed. A failed playbook keeps its
+/// own message, without the provider
 pub(super) fn cloud_failure(
     key: &str,
     provider: ProviderType,
@@ -291,9 +281,8 @@ pub(super) fn message(key: &str, provider: ProviderType, error: impl ToString) -
     t!(key, provider = provider.name(), error = error.to_string()).to_string()
 }
 
-/// manages the sak deployments at the providers: finds them by the name label, diffs them
-/// against the resource group of a deployment, plans and applies a create, deploy or destroy.
-/// Every call gets the provider tokens, so a token added later counts immediately
+/// manages the sak deployments at the providers: finds them by the name label, plans and applies
+/// a create, deploy or destroy. Every call gets the tokens, so a token added later counts at once
 #[derive(Default)]
 pub struct DeploymentManager;
 
@@ -323,9 +312,8 @@ impl DeploymentManager {
         Ok(deployments)
     }
 
-    /// the check of a deployment, as the page of a deployment shows it: a deploy of the deployment
-    /// as it is, completed from it as the command line does, and its plan. The deploy is what an
-    /// apply of the check applies
+    /// the check of the page of a deployment: a deploy of the deployment as it is, completed from
+    /// it, and its plan. An apply of the check applies that deploy
     pub async fn check(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -344,10 +332,8 @@ impl DeploymentManager {
         Ok((deployment, plan))
     }
 
-    /// a deploy with what is not given taken from the deployment, for the window and the command
-    /// line alike: its user mode and, for multi user, the admin and the mail server (`detected`,
-    /// `complete`). A deploy that gives them all is not completed; a deployment that cannot be
-    /// read (no provider, not found, a wrong password) is the error
+    /// a deploy with what is not given taken from the deployment (`detected`): the user mode, the
+    /// acme ca and, for multi user, the admin and the mail server. A complete deploy reads nothing
     pub async fn completed(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -363,8 +349,7 @@ impl DeploymentManager {
         completed_from(deployment, &detected, smtp_password)
     }
 
-    /// the deployment `name` at the hetzner project of `tokens`, its name checked first: a wrong
-    /// name is a usage error (`EXIT_USAGE`)
+    /// the deployment `name` at the hetzner project; a wrong name is a usage error (`EXIT_USAGE`)
     pub(super) async fn find(
         &self,
         tokens: &[(ProviderType, String)],
@@ -389,11 +374,9 @@ impl DeploymentManager {
             })
     }
 
-    /// the settings a deploy can take from an existing deployment, for the window and the command
-    /// line: what the running deployment answers (`GET /v1/deployment`, signed with the api key);
-    /// when it does not answer, what this machine kept of its last create or deploy
-    /// (`~/.sak/<name>/config.json`), else the root domain and the dns mode of its dns records.
-    /// Why it did not answer is `unread`
+    /// the settings a deploy can take from a deployment: what it answers (`GET /v1/deployment`,
+    /// signed with the api key); else what this machine kept (`~/.sak/<name>/config.json`), else
+    /// the root domain and dns mode of its dns records. Why it did not answer is `unread`
     pub async fn detected(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -413,8 +396,8 @@ impl DeploymentManager {
         })
     }
 
-    /// whether `password` is the one of the deployment `name`: checked against the password
-    /// hashes on its resources, or its ssh key; the window asks it while the password is typed
+    /// whether `password` is the one of the deployment `name`, by the password hashes on its
+    /// resources or its ssh key
     pub async fn check_password(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -425,8 +408,7 @@ impl DeploymentManager {
         Ok(verify_password(&deployment, &deployment.name, password)?)
     }
 
-    /// the server of the deployment `name` and the keys of `password` to reach it, the password
-    /// checked against the deployment first
+    /// the server of the deployment `name` and the keys of `password` to reach it, password checked
     pub async fn ssh_target(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -454,7 +436,7 @@ impl DeploymentManager {
         })
     }
 
-    /// where the deployment `name` answers its users (`Endpoint`), the password checked first
+    /// where the deployment `name` answers its users, password checked
     pub async fn public_endpoint(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -488,11 +470,9 @@ impl DeploymentManager {
             .collect())
     }
 
-    /// checks the name (free for a create, an existing deployment for a deploy), the password
-    /// (long enough, the same two times, hard to guess for a create, the one of the deployment
-    /// otherwise) and, but for a destroy, the root domain (a zone of the project that allows the
-    /// dns mode). Then derives the keys and labels and lays out the resource group at the first
-    /// hetzner project. The request becomes its typed `Purpose` here
+    /// checks the name (free for a create, existing otherwise), the password (hard to guess for a
+    /// create, the one of the deployment otherwise) and, but for a destroy, the root domain (a zone
+    /// that allows the dns mode). Then derives the keys and lays out the resource group
     pub async fn prepare(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -517,8 +497,7 @@ impl DeploymentManager {
                 .as_ref()
                 .and_then(DiscoveredDeployment::root_domain),
         )?;
-        // one read of the zones gives the root domains, the records of the deployment and the
-        // records in the way
+        // one read of the zones: the root domains, the records of the deployment, those in the way
         let listings = HetznerDnsZoneProvisioner::new(api.clone())
             .list_all()
             .await
@@ -541,7 +520,6 @@ impl DeploymentManager {
             &records,
         )?;
         let runtime = HetznerProviderRuntime::from_api(api);
-        // a create or deploy gets its root domain checked against the zones; a destroy has none
         let purpose = purpose.then(|users| {
             let domains: Vec<RootDomain> = listings.iter().map(RootDomain::of).collect();
             Ok::<_, SakctlError>(Settings {
@@ -562,7 +540,7 @@ impl DeploymentManager {
         if intent != Intent::Destroy {
             check_records_in_the_way(&listings, &spec)?;
         }
-        // a destroy provisions nothing, the argon2id of the admin password would be for nothing
+        // not for a destroy: the argon2id of the admin password is slow
         let purpose = purpose.then(|settings| {
             Ok::<_, SakctlError>(Provisioning {
                 root_domain: settings.root_domain,
@@ -586,8 +564,8 @@ impl DeploymentManager {
         })
     }
 
-    /// prepares the deployment and plans it: its resources diffed against the project, the roles
-    /// of the server against its markers, read through ssh in the image of the tools
+    /// the resources diffed against the project, the roles against the markers of the server
+    /// (read through ssh in the image of the tools)
     pub async fn plan(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -606,7 +584,6 @@ impl DeploymentManager {
     ) -> Result<Planned, SakctlError> {
         let intent = prepared.purpose.intent();
         let delete_data = matches!(prepared.purpose, Purpose::Destroy { delete_data: true });
-        // a destroy has no roles and so nothing to force
         let force = prepared
             .purpose
             .provisioning()
@@ -618,7 +595,7 @@ impl DeploymentManager {
             force,
             events: None,
         })?;
-        // a destroy creates nothing: what a create or deploy must not do does not stop its plan
+        // a destroy creates nothing, so no refused recreate stops its plan
         let diffs = match prepared.purpose {
             Purpose::Destroy { .. } => registry.compare_all().await,
             Purpose::Create { .. } | Purpose::Deploy { .. } => registry.diff_all().await,
@@ -651,8 +628,6 @@ impl DeploymentManager {
                         kind,
                         name: diff.resource.name.clone(),
                         resource_status: ResourceStatus::of(diff.status),
-                        // the playbook runs when a role is not up to date, an up to date one only
-                        // on a forced deploy
                         action: if provisioning {
                             Some(if diff.status == DiffStatus::UpToDate && !force {
                                 PlanAction::RunsWhenForced
@@ -712,14 +687,11 @@ impl DeploymentManager {
         })
     }
 
-    /// prepares the deployment and applies it. A create or deploy applies the resources in the
-    /// order of their dependencies, the roles of the playbook after the server and the volume
-    /// (`core::ansible_roles`), then removes the dns records of an old dns mode or root domain.
-    /// After a provisioning sakctl sets the version label of the server and waits for the api.
-    /// Each resource, line and task goes to `on_event`. What is up-to-date stays as it is,
-    /// so the next run finishes a run that failed. A destroy removes the dns records of the
-    /// deployment, then every resource but the data volume (also that with `delete_data`),
-    /// dependents first
+    /// A create or deploy applies the resources by their dependencies, the roles after the server
+    /// and the volume, then removes the dns records of an old dns mode or root domain, sets the
+    /// version label and waits for the api. What is up to date stays, so a next run finishes a
+    /// failed one. A destroy removes the dns records, then every resource, dependents first; the
+    /// data volume only with `delete_data`
     pub async fn prepare_and_apply(
         &self,
         tokens: Vec<(ProviderType, String)>,
@@ -732,8 +704,7 @@ impl DeploymentManager {
             .await
     }
 
-    /// applies a deployment planned already, as `prepare_and_apply` does, with the diffs of its
-    /// plan
+    /// `prepare_and_apply` with the diffs of a plan made already
     pub async fn apply(
         &self,
         planned: Planned,
@@ -747,8 +718,7 @@ impl DeploymentManager {
             .await
     }
 
-    /// the apply of `prepare_and_apply` and `apply`: a create or deploy applies the `planned`
-    /// diffs, or plans first without them
+    /// a create or deploy applies the `planned` diffs, or plans first without them
     async fn apply_prepared(
         &self,
         prepared: Prepared,
@@ -772,8 +742,8 @@ impl DeploymentManager {
                 return Ok(());
             }
         };
-        // the config is kept before anything changes: a deploy that fails or is cancelled midway
-        // leaves the config it was started with, which a new try or the config form finds
+        // kept before anything changes: a deploy that fails or is cancelled leaves the config it
+        // started with for a new try or the config form
         keep_settings(&prepared, provisioning, on_event);
         let provisioned = self
             .apply_resources(&prepared, planned, container, on_event)
@@ -790,8 +760,8 @@ impl DeploymentManager {
         Ok(())
     }
 
-    /// a destroy: the dns records of the deployment, then every resource but the data volume
-    /// (also that with `DataVolume::Delete`), dependents first
+    /// the dns records of the deployment, then every resource, dependents first; the data volume
+    /// only with `DataVolume::Delete`
     async fn destroy(
         &self,
         prepared: &Prepared,
@@ -832,10 +802,8 @@ impl DeploymentManager {
         Ok(())
     }
 
-    /// the resources of a create or deploy in the order of their dependencies, the roles of the
-    /// playbook after the server and the volume. Their events and those of the playbook go
-    /// through one channel to `on_event` while the registry applies, the `planned` diffs when
-    /// there are, else after a plan of its own. Whether the roles ran
+    /// applies the resources and the roles; their events and those of the playbook go through one
+    /// channel to `on_event`. Whether the roles ran
     async fn apply_resources(
         &self,
         prepared: &Prepared,
@@ -895,17 +863,14 @@ impl DeploymentManager {
         Ok(provisioned.load(Ordering::SeqCst))
     }
 
-    /// after the roles ran: sets the version label of the server, then waits until the deployment
-    /// answers as its users reach it, through its ingress with its certificate. A backend that
-    /// did not start or a missing certificate stops the apply here
+    /// sets the version label of the server, then waits until the deployment answers through its
+    /// ingress with its certificate. A backend that did not start or a missing certificate fails
     async fn after_provisioning(
         &self,
         prepared: &Prepared,
         provisioning: &Provisioning,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
     ) -> Result<(), SakctlError> {
-        // the server just provisioned, by its declared name: the wait for the api goes to its
-        // address, its label gets the version
         let server = prepared
             .runtime
             .api
@@ -916,8 +881,7 @@ impl DeploymentManager {
             .ok_or_else(|| {
                 t!("common.deployments.not_found", name = prepared.spec.name).to_string()
             })?;
-        // the server runs the images of this version now, its version label says so; before the
-        // wait, which a next deploy does not repeat: the markers tell it the provisioning is done
+        // before the wait, which a next deploy does not repeat: its markers say it is provisioned
         set_server_labels(
             &prepared.runtime.api,
             server.id,
@@ -949,8 +913,7 @@ impl DeploymentManager {
         Ok(())
     }
 
-    /// removes the stale dns records of the deployment and reports each when it starts and when
-    /// it is done
+    /// removes the stale dns records, with an event when each starts and when it is done
     pub(super) async fn remove_records(
         &self,
         prepared: &Prepared,
@@ -975,9 +938,8 @@ impl DeploymentManager {
     }
 }
 
-/// the checks of a request that need nothing of the project: the name, a location sakctl knows
-/// (a destroy needs none) and the password, long enough, the same two times and, for a create,
-/// hard to guess. Gives the name, trimmed
+/// the checks that need nothing of the project: the name, the location and the password. Gives
+/// the name, trimmed
 fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakctlError> {
     let DeploymentRequest {
         name,
@@ -988,8 +950,7 @@ fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakctlError> 
         ..
     } = deployment;
     let name = checked_name(name)?;
-    // a location Hetzner added after this release can be read, but nothing is created in it; a
-    // destroy needs no location
+    // a location Hetzner added after this release can be read, but nothing is created in it
     if *location == Location::unknown && *intent != Intent::Destroy {
         return Err(SakctlError::new(
             t!("common.deployments.unknown_location", name = name),
@@ -1009,8 +970,7 @@ fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakctlError> 
             .to_string()
             .into());
     }
-    // a new password must be hard to guess: whoever reads the project can try guesses offline
-    // against the label and the public keys of the deployment
+    // whoever reads the project can guess offline against the label and the public keys
     if *intent == Intent::Create
         && let Some(hint) = crate::core::keys::weak_password(name, password)
     {
@@ -1034,9 +994,8 @@ fn hetzner_api(
     Ok((provider, Arc::new(HetznerApi::new(&token))))
 }
 
-/// keeps the settings of the create or deploy on this machine, encrypted for its password
-/// (`local`), when it starts, so the config form finds them when the deployment does not answer. A
-/// deploy does not stop when they cannot be written: it says so
+/// keeps the settings on this machine, encrypted for the password (`local`), for the config form
+/// when the deployment does not answer. A failed write does not stop the deploy, it says so
 fn keep_settings(
     prepared: &Prepared,
     provisioning: &Provisioning,
@@ -1068,16 +1027,14 @@ fn keep_settings(
     on_event(DeploymentEvent::Provisioning { message });
 }
 
-/// the settings this machine kept of the deployment `name` (`local`), none when there are none or
-/// they do not open with the password
+/// the settings this machine kept of `name`, none when they do not open with the password
 pub(super) fn local_settings(name: &str, password: &str) -> Option<LocalSettings> {
     let key = crate::core::keys::local_settings_key(name, password).ok()?;
     crate::core::local::read_settings(name, &key).ok().flatten()
 }
 
-/// the purpose of the request with who signs in for a create or deploy, and the acme ca, as the
-/// request has them: a deploy is completed from the deployment first (`completed`); the ca else
-/// production
+/// the purpose with who signs in, and the acme ca (production by default), as the request has
+/// them; a deploy is completed before (`completed`)
 fn users_and_acme_ca(
     deployment: &DeploymentRequest,
 ) -> Result<(Purpose<Users>, AcmeCa), SakctlError> {
@@ -1104,11 +1061,10 @@ fn users_and_acme_ca(
     Ok((purpose, acme_ca))
 }
 
-/// where the deployment goes, once its existence fits the intent: a create needs a free name, a
-/// deploy an existing deployment. The password is checked against the `existing` deployment, or
-/// for a destroy of what is left against the hashes of its `records`. An existing deployment
-/// stays where it is; the `given` location counts only when none of its server, volume and
-/// addresses exists
+/// where the deployment goes, once its existence fits the intent; the password checked against
+/// the `existing` deployment, or for a destroy of what is left against its `records`. An existing
+/// deployment stays where it is; `given` counts only when none of its server, volume and addresses
+/// exists
 fn location_of(
     name: &str,
     password: &str,
@@ -1125,10 +1081,8 @@ fn location_of(
         (Intent::Deploy, None) => Err(t!("common.deployments.not_found", name = name)
             .to_string()
             .into()),
-        // destroyed already, maybe with records left: check the password against their hashes.
-        // A destroy removes only records with the hash of the password (the identity of the
-        // spec), so records without one stay and need no check; without records nothing of the
-        // deployment is left to change, the plan stops at a resource of someone else
+        // destroyed already, maybe with records left. A destroy removes only records with the
+        // hash of the password, so records without one need no check
         (Intent::Destroy, None) => {
             let hashes: Vec<String> = records
                 .iter()
@@ -1156,8 +1110,7 @@ fn location_of(
     }
 }
 
-/// what a create or deploy is set up with, its root domain checked against the zones; the keys
-/// come with the spec
+/// what a create or deploy is set up with, its root domain checked against the zones
 struct Settings {
     users: Users,
     root_domain: String,
@@ -1171,11 +1124,10 @@ struct Keys {
     api_public_key: String,
 }
 
-/// the keys of `name` and `password` and the resource group they lay out in `location`, the server
-/// of `server_type`: every
-/// resource with the dns mode and the hash of the password, the server with the cloud-init of its
-/// host key. A create or deploy also puts its root domain, user mode, acme ca and the version on
-/// every resource, so a deploy keeps them; `settings` is none for a destroy
+/// the keys of `name` and `password` and the resource group they lay out: every resource with the
+/// dns mode and the hash of the password, the server with the cloud-init of its host key. With
+/// `settings` (none for a destroy) also the root domain, user mode, acme ca and version, so a
+/// deploy keeps them
 fn laid_out(
     name: &str,
     password: &str,
@@ -1210,8 +1162,8 @@ fn laid_out(
     Ok((spec, keys))
 }
 
-/// a record of another owner, of any type, on a name of the deployment stops a create or deploy
-/// here, before anything is created
+/// a record of another owner on a name of the deployment stops a create or deploy before anything
+/// is created
 fn check_records_in_the_way(
     listings: &[HetznerDnsZoneListing],
     spec: &DeploymentSpec,
@@ -1241,8 +1193,7 @@ fn incomplete(deployment: &DeploymentRequest) -> bool {
             && (deployment.smtp.is_none() || deployment.admin_email.is_none()))
 }
 
-/// `completed` with the settings of the deployment read before, e.g. once when the window opened
-/// its page: nothing is read again
+/// `completed` with the settings of the deployment read before: nothing is read again
 pub fn completed_with(
     deployment: DeploymentRequest,
     detected: &Detected,

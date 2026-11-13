@@ -1,5 +1,5 @@
 package io.pelle.sak.api
 
-// what is wrong, as one readable sentence of a catalog; the internal form of every error that may
-// reach a client, answered in the language of the user with its code (respondErrors)
+// an error that may reach a client, one sentence of a catalog, answered with its code in the
+// language of the user (respondErrors)
 typealias ErrorMessage = Text

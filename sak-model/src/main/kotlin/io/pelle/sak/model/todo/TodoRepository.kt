@@ -21,7 +21,7 @@ private val PRIORITY_ORDER =
         .`when`(TODO_ITEMS.PRIORITY.eq(TodoPriority.NORMAL.key), 1)
         .otherwise(2)
 
-// how urgent a task is (TODO-5), the list shows the high ones first; key is how it is stored and sent
+// how urgent a task is (TODO-5); key is how it is stored and sent
 enum class TodoPriority(
     val key: String,
 ) {
@@ -50,10 +50,9 @@ data class TodoItem(
     val doneAt: Instant? = null,
 )
 
-// the database access of the todo app: its lists and their tasks; only TodoService (sak-backend)
-// uses it. It reads the rows that are not deleted only, and checks who sees and changes them in the
-// sql of each method (MODEL-6): a user sees and changes their own lists and the shared ones of the
-// others, their names, icons and tasks (LIST-2); only the owner shares, unshares and deletes a list
+// the lists and tasks of the todo app, for TodoService only. Reads live rows only and checks who
+// sees and changes them in the sql of each method (MODEL-6): a user changes their own lists and the
+// shared ones of the others (LIST-2); only the owner shares, unshares and deletes a list
 class TodoRepository(
     private val database: SakDatabase,
     private val clock: Clock = Clock.systemUTC(),
@@ -126,9 +125,8 @@ class TodoRepository(
                 .execute()
         }
 
-    // the tasks of the list, open and done alike, so a task keeps its place when it is done (TODO-3): by
-    // priority, the high ones first (TODO-5), then in the order they were added; null when the user does
-    // not see the list
+    // open and done alike, so a task keeps its place when it is done (TODO-3): by priority (TODO-5),
+    // then in the order they were added; null when the user does not see the list
     fun items(
         user: String,
         listId: Int,
@@ -229,9 +227,8 @@ class TodoRepository(
             .fetchOne()
             ?.toItem()
 
-    // the tasks of a list the user sees that are done are deleted, of the ids given only: the ones the
-    // user saw done when they purged, not one done meanwhile (TODO-6); they stay as deleted. Null when
-    // the user does not see the list, else how many went
+    // deletes the done tasks of the ids given only, the ones the user saw, not one done meanwhile
+    // (TODO-6); they stay as deleted. Null when the user does not see the list, else how many went
     fun purge(
         user: String,
         listId: Int,

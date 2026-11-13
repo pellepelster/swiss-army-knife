@@ -4,7 +4,7 @@ import { I18n } from '../i18n/i18n';
 import { apiErrorMessage } from '../shared/api';
 import { Redirect, RedirectsService } from './redirects.service';
 
-// the redirect of a redirect's page, shared by the page and its tabs; provided by the page
+// the redirect of a redirect's page and its tabs; provided by the page
 @Injectable()
 export class RedirectStore {
   private readonly destroyRef = inject(DestroyRef);
@@ -22,7 +22,7 @@ export class RedirectStore {
     this.destroyRef.onDestroy(() => this.loading.unsubscribe());
   }
 
-  // what was shown of another redirect goes
+  // clears another redirect
   load(sourceDomain: string): void {
     if (sourceDomain !== this.sourceDomain) {
       this.redirect.set(null);
@@ -40,7 +40,6 @@ export class RedirectStore {
   }
 }
 
-// what to tell about a delete that failed
 export function redirectDeleteErrorMessage(i18n: I18n, error: unknown, domain: string): string {
   return apiErrorMessage(error, i18n.t('redirects.view.delete_failed', { domain }), {
     403: i18n.t('redirects.view.delete_forbidden'),

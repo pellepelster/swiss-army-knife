@@ -109,7 +109,7 @@ class GroceryRepositoryTest {
         repository.insertItem(OTHER, party.id, values("Beer"))!!.owner shouldBe OTHER
         repository.checkItem(OTHER, chips.id) shouldBe true
         // every user changes the icon of a shared list, only its owner renames, unshares and deletes it
-        // (LIST-2); a rename of another user would tell the names of the private lists (SEC-19)
+        // (LIST-2); a rename of another user would tell the names of the private lists
         (repository.updateList(OTHER, party.id, "Party", shared = true, icon = "🎉") as ListUpdate.Updated).list.let {
             it.icon shouldBe "🎉"
             it.owner shouldBe PELLE

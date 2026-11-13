@@ -1,11 +1,11 @@
 //! the secrets of the command line: the token, the password of a deployment and of the mail
-//! server, each from the environment or typed without echo, never an argument
+//! server, each from the environment or typed without echo. Never an argument, because every
+//! process of the machine can read the arguments
 
 use super::*;
 
-/// the token of the project: HCLOUD_TOKEN unless `ask`, else typed on the terminal without echo.
-/// Never an argument, because every process of the machine can read the arguments. Without a token
-/// and a terminal, a usage error
+/// the token of the project: HCLOUD_TOKEN unless `ask`, else typed. Without a token and a terminal,
+/// a usage error
 pub(super) fn hcloud_token(
     ask: bool,
     from_env: Option<String>,
@@ -29,9 +29,8 @@ pub(super) enum Typed {
     Twice,
 }
 
-/// the password of the deployment and its repetition: SAK_PASSWORD unless `ask`, else typed on the
-/// terminal without echo, two times for a create. Never an argument, because every process of the
-/// machine can read the arguments. Without SAK_PASSWORD and a terminal, a usage error
+/// the password of the deployment and its repetition: SAK_PASSWORD unless `ask`, else typed.
+/// Without SAK_PASSWORD and a terminal, a usage error
 pub(super) fn password(
     ask: bool,
     typed: Typed,
@@ -54,9 +53,8 @@ pub(super) fn password(
     Ok((first, second))
 }
 
-/// the password at the mail server: SAK_SMTP_PASSWORD unless `ask`, else typed on the terminal
-/// without echo; empty when the variable is not set. Never an argument, because every process of
-/// the machine can read the arguments
+/// the password at the mail server: SAK_SMTP_PASSWORD unless `ask`, else typed; empty when the
+/// variable is not set
 pub(super) fn smtp_password(ask: bool, from_env: Option<String>) -> Result<String, SakctlError> {
     if !ask {
         return Ok(from_env.unwrap_or_default());
@@ -68,12 +66,10 @@ pub(super) fn smtp_password(ask: bool, from_env: Option<String>) -> Result<Strin
         .map_err(|error| error.to_string().into())
 }
 
-/// SAK_SMTP_PASSWORD of the environment of the process
 pub(super) fn smtp_password_variable() -> Option<String> {
     std::env::var(SMTP_PASSWORD_VARIABLE).ok()
 }
 
-/// SAK_PASSWORD of the environment of the process
 pub(super) fn password_variable() -> Option<String> {
     std::env::var(PASSWORD_VARIABLE).ok()
 }

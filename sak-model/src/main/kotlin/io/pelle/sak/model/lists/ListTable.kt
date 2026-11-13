@@ -53,10 +53,9 @@ sealed interface ListUpdate {
     data object NotOwner : ListUpdate
 }
 
-// the table of the lists of a list-based app and how many items are left on each, what every such app
-// does with its lists the same way (LIST-1, LIST-2, MODEL-6): a user sees and changes their own lists
-// and the shared ones of the others, their names and icons; only the owner shares, unshares and
-// deletes a list. Only the rows that are not deleted are read
+// the lists of a list-based app, shared by every such app (LIST-1, LIST-2, MODEL-6): a user sees
+// their own lists and the shared ones of the others; only the owner renames, shares, unshares and
+// deletes a list. Reads live rows only
 class ListTable<R : Record>(
     private val database: SakDatabase,
     private val clock: Clock,
@@ -134,9 +133,9 @@ class ListTable<R : Record>(
             null
         }
 
-    // a list the user sees: their own, or a shared one of another user, whose icon every user changes
-    // (LIST-2); only the owner renames, shares or unshares a list. A rename of another user would
-    // also tell the names of the owner's private lists, which are unique with the shared ones (SEC-19)
+    // every user who sees the list changes its icon (LIST-2), only the owner renames, shares or
+    // unshares it: a rename of another user would tell the names of the owner's private lists, which
+    // are unique with the shared ones
     fun update(
         user: String,
         id: Int,

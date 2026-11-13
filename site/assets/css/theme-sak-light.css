@@ -1,6 +1,7 @@
 :root {
-  /* sak-light: the "paper" surface of sak-theme; tokens.css switches its surfaces with the scheme of the system, as relearn
-     switches between sak-light and sak-dark (themeVariant sak-auto in hugo.toml) */
+  /* sak-light: the "paper" surface of sak-theme; tokens.css switches its surfaces with the scheme
+     of the system, as relearn switches between sak-light and sak-dark (themeVariant sak-auto in
+     hugo.toml) */
   /* sak-theme (tokens.css, linked by custom-header.html) onto relearn: no color of its own */
   --PRIMARY-color: var( --sak-accent );
   --PRIMARY-HOVER-color: var( --sak-accent );

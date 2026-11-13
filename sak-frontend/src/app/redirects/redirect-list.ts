@@ -16,9 +16,8 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
   bucket: 'redirects.types.bucket',
 };
 
-// the domains caddy redirects, to an external domain or to the domain a bucket is served at;
-// a page at a time, each leads to its page and its menu deletes it, a redirect is created on a
-// page of its own
+// the domains caddy redirects, to an external domain or to the domain of a bucket; a page at a
+// time, the menu of a row deletes it
 @Component({
   selector: 'app-redirect-list',
   imports: [PageHeader, PaginationControl, RouterLink, ActionMenu, TranslatePipe],
@@ -80,7 +79,7 @@ const TARGET_TYPES: Record<RedirectTarget['type'], TextKey> = {
                 ><i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'shared.edit' | t }}</a
               >
             </app-action-menu>
-            <!-- the error of the menu of the row, in the row (UX-15) -->
+            <!-- in the row (UX-15) -->
             @if (rowError.of(redirect.sourceDomain); as error) {
               <p class="alert alert-danger mb-0 w-100" role="alert">{{ error }}</p>
             }
@@ -104,10 +103,9 @@ export class RedirectList {
   private readonly service = inject(RedirectsService);
   private readonly i18n = inject(I18n);
 
-  // the name of the type of a target
   protected readonly TYPES = TARGET_TYPES;
 
-  // the route's offset query parameter, where the page shown starts
+  // the offset query parameter
   readonly offset = input(0, { transform: pageOffset });
 
   protected readonly list = pagedList({
@@ -120,7 +118,7 @@ export class RedirectList {
       }),
   });
 
-  // the error of a delete from the menu of a row, by the source domain of its redirect
+  // by the source domain
   protected readonly rowError = new RowError<string>();
   protected strayError(): string | null {
     return this.rowError.stray((domain) =>

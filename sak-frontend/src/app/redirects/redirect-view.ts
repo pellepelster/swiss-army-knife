@@ -9,7 +9,7 @@ import { RedirectsService } from './redirects.service';
 import { PageHeader } from '../shared/page-header';
 
 // one redirect: its overview on top, its details in the tabs below, the first one its
-// configuration; it is edited on a page of its own and deleted after a second click
+// configuration
 @Component({
   selector: 'app-redirect-view',
   imports: [
@@ -119,7 +119,7 @@ export class RedirectView {
   protected readonly confirming = signal(false);
 
   constructor() {
-    // the redirect of the route, again when the route names another one
+    // loads again for another route
     effect(() => {
       const source = this.source();
       untracked(() => this.store.load(source));

@@ -20,7 +20,6 @@ object PhotoScaling {
     private const val JPEG_QUALITY = 85
 
     // an image too large for the memory of the phone is an IOException, as one that can not be read
-    // (AN-36)
     fun jpeg(
         context: Context,
         uri: Uri,
@@ -36,8 +35,7 @@ object PhotoScaling {
         uri: Uri,
     ): ByteArray {
         val resolver = context.contentResolver
-        // the stream opened anew for each read; what the block answers may be null, e.g. the bounds
-        // only decoding answers none and fills its options
+        // the stream opened anew for each read
         fun <T> read(block: (java.io.InputStream) -> T): T =
             (resolver.openInputStream(uri) ?: throw IOException("$uri can not be opened")).use(block)
 

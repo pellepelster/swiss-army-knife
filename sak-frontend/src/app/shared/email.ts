@@ -6,7 +6,7 @@ export function validEmail(email: string): boolean {
 }
 
 // one @ with something on both sides, no spaces: the address a login link is asked for, which the
-// backend takes as an address of the mail (normalizeEmail), also one without a dot in its domain,
+// backend takes as an address (UserService.normalize), also one without a dot in its domain,
 // e.g. an admin of the configuration at admin@localhost
 export function validLoginEmail(email: string): boolean {
   const address = email.trim();

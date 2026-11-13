@@ -33,10 +33,8 @@ data class NoteRow(
     val updatedAt: Instant?,
 )
 
-// the database access of the notes and the links to their labels and files; only NoteService
-// (sak-backend) uses it. It reads and changes the notes of one owner that are not deleted only. A
-// label or a file removed from a note, and those of a deleted note, stay as links with deleted_at
-// set
+// the notes and their links to labels and files, for NoteService only; reads and changes the live
+// notes of one owner. A link removed, also of a deleted note, stays with deleted_at set
 class NoteRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers
@@ -105,9 +103,8 @@ class NoteRepository(
             .limit(1)
             .fetchOne(NOTE_LISTS.ID)
 
-    // a private list of the name for the owner when they have no list of their own (NOTES-1); a
-    // list made at the same time, e.g. by another sign-in, is the one (the name is unique among the
-    // lists of the owner)
+    // a private list for an owner without a list of their own (NOTES-1); a list made at the same
+    // time, e.g. by another sign-in, wins, the name is unique per owner
     fun ensureList(
         owner: String,
         name: String,

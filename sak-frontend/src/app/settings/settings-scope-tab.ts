@@ -8,9 +8,8 @@ import { ScopeValues, SettingDefinition, SettingValue } from './settings.service
 
 type Requirement = NonNullable<SettingDefinition['requires']>;
 
-// the settings of one scope, an input for each by its type, saved together with the values changed
-// only; while the switch of the scope (enabledBy) is off, its other settings are greyed out. What is
-// not saved is gone with another tab
+// the settings of one scope; a save sends only the changed values. While the switch of the scope
+// (enabledBy) is off, its other settings are greyed out. Unsaved changes go with another tab
 @Component({
   selector: 'app-settings-scope-tab',
   imports: [RouterLink, TranslatePipe],
@@ -89,7 +88,7 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
           <p class="alert alert-danger mb-0" role="alert" data-testid="save-error">{{ error }}</p>
         }
 
-        <!-- the actions of the form, one group (UX-9) -->
+        <!-- one group (UX-9) -->
         <div class="d-flex justify-content-end">
           <div class="btn-group" role="group" [attr.aria-label]="'shared.form_actions' | t">
             <button class="btn btn-primary" type="submit" [disabled]="!changed() || saving()">
@@ -109,7 +108,7 @@ export class SettingsScopeTab {
   private readonly store = inject(SettingsStore);
   private readonly i18n = inject(I18n);
 
-  // the route parameter, the name of the scope
+  // the route parameter
   readonly name = input.required<string>({ alias: 'scope' });
 
   protected readonly scope = computed(
@@ -174,8 +173,8 @@ export class SettingsScopeTab {
     return setting.mask == null ? this.value(setting) : (this.edits()[setting.name] ?? '');
   }
 
-  // whether the setting is greyed out: its scope is turned off, as shown, and it is not the
-  // switch, or a setting it requires is off; its stored value stays
+  // greyed out: the switch of its scope is off (as shown), or a setting it requires is off; its
+  // stored value stays
   protected off(setting: SettingDefinition): boolean {
     const scope = this.scope();
     const switchSetting = scope?.settings.find((s) => s.name === scope.enabledBy);
@@ -184,8 +183,8 @@ export class SettingsScopeTab {
     return scopeOff || (!!setting.requires && !this.met(setting.requires));
   }
 
-  // whether a required setting is on: its value, the switch of its scope and its own requirement;
-  // here as shown, in another scope as stored
+  // a required setting is on with the switch of its scope and its own requirement; in this scope
+  // as shown, in another as stored
   protected met(requires: Requirement): boolean {
     const scope = this.scopes.scopes()?.find((s) => s.name === requires.scope);
     const setting = scope?.settings.find((s) => s.name === requires.setting);

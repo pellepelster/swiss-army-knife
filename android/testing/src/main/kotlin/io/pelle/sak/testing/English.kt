@@ -5,13 +5,12 @@ import java.io.File
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
 
-// the package of the app whose tests run, e.g. io.pelle.sak.grocery: its R class names the texts of the
-// app, core's the texts of no app. The build of the app sets it for its tests (sak.app.package)
+// the package of the app whose tests run, e.g. io.pelle.sak.grocery, set by its build (sak.app.package)
 private val appPackage: String by lazy { System.getProperty("sak.app.package") ?: error("sak.app.package is not set for the tests") }
 
-// the english texts of core and of the app, res/values/strings.xml as android reads them, by their
-// names; the tests run in the directory of the module of the app. Core's are always there, a test that
-// runs elsewhere fails here and says so (AN-48); the app may have none (e.g. the tests of testing)
+// the english texts of core and of the app by their names, unescaped as android reads them. The tests
+// run in the directory of the app's module: without core's texts this fails loudly instead of answering
+// wrong texts; the app may have none (e.g. the tests of testing)
 private val strings: Map<String, String> by lazy {
     val core = File("../core/src/main/res/values/strings.xml")
     check(core.exists()) { "the texts of core are not at ${core.absolutePath}, the tests must run in the directory of a module of android/" }
@@ -26,7 +25,6 @@ private val strings: Map<String, String> by lazy {
     }
 }
 
-// the name of a string resource, e.g. error_session_ended, in the R class of the app or of core
 private fun nameOf(id: Int): String =
     listOf("$appPackage.R\$string", "io.pelle.sak.core.R\$string")
         .asSequence()
@@ -35,7 +33,6 @@ private fun nameOf(id: Int): String =
         .first { it.getInt(null) == id }
         .name
 
-// a text as the user of a phone in english reads it
 fun UiText?.english(): String? =
     when (this) {
         null -> null

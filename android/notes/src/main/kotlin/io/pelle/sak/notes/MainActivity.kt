@@ -10,8 +10,7 @@ import io.pelle.sak.core.SakActivity
 import io.pelle.sak.notes.ui.NotesApp
 import kotlinx.coroutines.async
 
-// the one activity; core takes the login links (io.pelle.sak.notes://signin?token=…), the activity the
-// photos another app shares, which become a new note
+// core takes the login links; the activity takes the photos another app shares, they become a new note
 class MainActivity : SakActivity() {
     private val viewModel: NotesViewModel by viewModels()
 
@@ -24,10 +23,9 @@ class MainActivity : SakActivity() {
     @Composable
     override fun Content() = NotesApp(viewModel.model)
 
-    // the photos are read at once: the app may read a shared photo only while the activity that got it
-    // lives. They are scaled one after the other (each decoded is many MB), the ones a note takes only,
-    // in the scope of the view model, which a rotation keeps; the model waits for them and says so for
-    // the ones left out
+    // read at once: a shared photo is readable only while the activity that got it lives. Scaled one
+    // after the other (each decoded is many MB), only the ones a note takes, in the scope of the view
+    // model, which a rotation keeps; the model says so for the ones left out
     override fun receive(intent: Intent): Boolean {
         val streams =
             if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
@@ -45,9 +43,8 @@ class MainActivity : SakActivity() {
         return true
     }
 
-    // the notes have no stream of changes: loaded again when the app comes to the front again (a new
-    // activity of a rotation is not restarted), the text typed saved when it goes; not on a rotation, a
-    // recording goes on and an undo stays (SakActivity)
+    // the notes have no stream of changes: loaded again when the app comes back to the front, the typed
+    // text saved when it goes; a rotation does neither, so a recording goes on and an undo stays
     override fun onRestart() {
         super.onRestart()
         viewModel.model.resume()

@@ -1,39 +1,26 @@
 # pelle_io.sak
 
-Ansible collection that provisions the `sak-backend` server.
+The Ansible collection that provisions the server of a deployment. sakctl writes the inventory and the variables
+for each run.
 
-| Role                | Purpose                                                                           |
-|---------------------|-----------------------------------------------------------------------------------|
-| `pelle_io.sak.common`  | Base setup, enables automatic unattended upgrades, key based ssh login only, blocks the cloud metadata service (it serves the ssh host key) for everything but root |
-| `pelle_io.sak.storage` | Formats the data volume (only if it has no filesystem yet) and mounts it at `/storage/data` (`sak_mount_dir`) |
-| `pelle_io.sak.backend` | Pulls the `sak-backend` and `sak-ingress` images (caddy, denies everything until the backend configures it, storage in `/storage/data/<name>/ingress`, json logs in `/storage/data/<name>/ingress/log`) from ghcr.io on every run, restarts a container whose image changed, and runs them as quadlets; all data of the deployment lives below `/storage/data/<name>` (`sak_data_dir`, `<name>` is `sak_name`), the s3 buckets in `/storage/data/<name>/backend/data/s3`, readable by the ingress; both images and the host run as user `sak` (uid/gid 10000). |
-| `pelle_io.sak.role_markers` | The last role of a run: writes the fingerprint of each role the run applied (`sak_role_markers`, set by sakctl) to `/var/lib/sak/roles/<role>`, readable by root only. The playbook removes them before the roles run, so only a run that succeeded leaves them; the plan of sakctl compares them to find a role that has to run again |
+| Role | Purpose |
+|---|---|
+| `common` | The base setup: unattended upgrades, ssh login with a key only, nftables. Only root reaches the cloud metadata service (it serves the ssh host key). |
+| `storage` | Formats the data volume `storage_device` (only if it has no filesystem) and mounts it at `/storage/data` (`sak_mount_dir`). |
+| `backend` | Pulls the images `sak-backend`, `sak-ingress` (caddy) and the two log images on every run, restarts a container whose image changed, and runs them as quadlets. All data is below `/storage/data/<sak_name>`. The images and the host user `sak` have uid/gid 10000. |
+| `role_markers` | The last role: writes the fingerprint of each applied role (`sak_role_markers`) to `/var/lib/sak/roles/<role>`, readable by root only. The playbook removes them first, so only a successful run leaves them. The plan of sakctl compares them to find a role that must run again. |
 
-`playbooks/server.yml` (`pelle_io.sak.server`) is what sakctl runs against the server of a
-deployment right after creating it: it waits for ssh, then `common` and `storage`; the
-`backend` role follows once its images and configuration come from the wizard.
+`playbooks/server.yml` is the playbook that sakctl runs: it waits for ssh, then runs all roles.
+`playbooks/backend.yml` runs the same roles without the wait and the markers.
 
-The `storage` role needs `storage_device`, the data volume's device (sakctl sets it in the inventory of the run).
-The `backend` role pulls its images (`backend_image`, `backend_ingress_image` and the two
-log images) on every run. The tag of `backend_image` and `backend_ingress_image` is `sak_image_tag`,
-`sak_version` by default (`latest`); sakctl sets its own version, so a server runs the version of the sakctl that
-deployed it, and `SAK_DOCKER_IMAGE_TAG` of sakctl sets another tag, e.g. `<version>-rc` for the tests.
-It needs `sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain`, `sak_api_public_key`
-(the public half of the key sakctl signs its requests with, never the key), and, for the e-mail login (multi user),
-`sak_smtp_enabled`, `sak_smtp_tls` and `sak_smtp_starttls`, optionally `sak_admin_email` (the admin, who always signs
-in with the password, then also signs in by e-mail). It writes them into the
-backend configuration it renders from `templates/backend-config.yaml.j2`; the frontend is then
-at `sak.<base domain>`, the api at `api.<base domain>`. It also needs `backend_env_src`, the
-environment file of the backend: `SAK_ADMIN_PASSWORD_HASH`, `SAK_IPV4`, `SAK_IPV6` and, with a mail
-server, `SAK_SMTP_HOST`, `SAK_SMTP_PORT`, `SAK_SMTP_USERNAME`, `SAK_SMTP_PASSWORD` and `SAK_SMTP_FROM`, the
-sender of the login mails (sakctl writes `noreply@<root domain>` unless another is given). sakctl writes
-the inventory and this file for each run and runs the `server` playbook, which includes the role.
+## Variables of the backend role
 
-```yaml
-- hosts: backend
-  roles:
-    - pelle_io.sak.common
-    - role: pelle_io.sak.storage
-      vars:
-        storage_device: /dev/disk/by-id/scsi-0HC_Volume_12345678
-```
+- The image tag is `sak_image_tag`, by default `sak_version`. sakctl sets its own version, so a server runs the
+  version of the sakctl that deployed it. `SAK_DOCKER_IMAGE_TAG` of sakctl sets another tag, e.g. `<version>-rc`.
+- `templates/backend-config.yaml.j2` gets `sak_name`, `sak_dns_mode` (`domain` or `subdomain`), `sak_root_domain`,
+  `sak_api_public_key` (the public half of the key that sakctl signs its requests with) and, for the e-mail login
+  (multi user), `sak_smtp_enabled`, `sak_smtp_tls`, `sak_smtp_starttls` and `sak_admin_email`. The frontend is at
+  `sak.<base domain>`, the api at `api.<base domain>`.
+- `backend_env_src` is the environment file of the backend: `SAK_ADMIN_PASSWORD_HASH`, `SAK_IPV4`, `SAK_IPV6` and,
+  with a mail server, `SAK_SMTP_HOST`, `SAK_SMTP_PORT`, `SAK_SMTP_USERNAME`, `SAK_SMTP_PASSWORD` and
+  `SAK_SMTP_FROM` (by default `noreply@<root domain>`).

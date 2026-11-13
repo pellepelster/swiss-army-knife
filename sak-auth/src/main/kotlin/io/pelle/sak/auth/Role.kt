@@ -28,9 +28,8 @@ class RequireRoleConfig {
     var roles: Set<Role> = emptySet()
 }
 
-// the routes it is installed on below authenticate answer 401 without a principal and 403 to one
-// with none of the roles; a provider that refuses nothing on its own (e.g. API_SIGNATURE_AUTH
-// alone, which has no challenge) leaves no route open
+// 401 without a principal, 403 with none of the roles; so a provider without a challenge of its
+// own (e.g. API_SIGNATURE_AUTH alone) leaves no route open
 val RequireRole =
     createRouteScopedPlugin("RequireRole", ::RequireRoleConfig) {
         // a route without a role would be open to every session, it must not start
@@ -45,5 +44,4 @@ val RequireRole =
         }
     }
 
-// the routes below answer 403 to sessions with none of the roles
 fun Route.requireRole(vararg roles: Role) = install(RequireRole) { this.roles = roles.toSet() }

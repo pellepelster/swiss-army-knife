@@ -14,11 +14,12 @@ import {
 import { I18n, TranslatePipe } from '../i18n/i18n';
 import { ConfirmDelete } from './confirm-delete';
 
-// a menu behind a ⋮ button, at the right end of a row of a list or of the header of a page; its
-// entries come as content, e.g. `<a class="dropdown-item" role="menuitem">`. With `deletes`, its
-// last entry deletes what the row shows: it asks inline in place of the button, Keep is the safe
-// default (UX-4.1, WEB-3); a delete that does not apply stays disabled and says why (UX-8). The menu is fixed to the window, so a
-// card or a scrolling table does not cut it off; it closes on a click elsewhere, Escape, a scroll
+// a menu behind a ⋮ button, at the right end of a row or of a page header; its entries come as
+// content, e.g. `<a class="dropdown-item" role="menuitem">`. With `deletes`, its last entry deletes
+// what the row shows: it asks inline in place of the button, Keep is the safe default (UX-4.1,
+// WEB-3); a delete that does not apply stays disabled and says why (UX-8). The menu is fixed to the
+// window, so a card or a scrolling table does not cut it off; it closes on a click elsewhere,
+// Escape, a scroll
 @Component({
   selector: 'app-action-menu',
   imports: [ConfirmDelete, TranslatePipe],

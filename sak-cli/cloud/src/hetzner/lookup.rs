@@ -2,8 +2,8 @@ use crate::api::{Labels, Lookup, Runtime};
 use std::fmt;
 use std::marker::PhantomData;
 
-/// a runtime that a lookup finds by its name alone, a volume or a server; the dns record has a
-/// lookup of its own
+/// a runtime found by its name alone, e.g. a volume or a server; the dns record has a lookup of
+/// its own
 pub trait NamedRuntime: Runtime {
     /// the kind in the log text of the lookup, `volume` in `volume 'data'`
     const KIND: &'static str;
@@ -27,7 +27,7 @@ impl<R> NamedLookup<R> {
         }
     }
 
-    /// the lookup that also checks these labels, see `api::identity`
+    /// also checks these labels, see `api::identity`
     pub fn with_identity(mut self, identity: Labels) -> Self {
         self.identity = identity;
         self

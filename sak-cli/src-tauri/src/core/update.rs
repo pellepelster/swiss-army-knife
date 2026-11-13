@@ -1,10 +1,9 @@
-//! the update of sakctl to the newest release on github. Only on request, never on its own:
-//! github sees the address of the machine (architecture/SYSTEM.md, "Privacy"), so the window and the
-//! command line name it (`RECEIVER`) before they ask. The zip of the platform is checked against
-//! the sha-256 of the same release and against its cosign signature, by the release workflow of
-//! the tag of the release (`signer`), before its binary replaces the running one; the signature is
-//! checked offline against the trusted root of sigstore built into sakctl, no host but github sees
-//! the update. A build that is no release (`latest`) asks nothing, it has no version to compare with
+//! the update of sakctl to the newest release on github. Only on request: github sees the address
+//! of the machine (architecture/SYSTEM.md, "Privacy"), so the ui names it (`RECEIVER`) before it
+//! asks. The zip is checked against the sha-256 of the release and its cosign signature by the
+//! release workflow at the tag (`signer`), offline against the trusted root of sigstore built into
+//! sakctl, so no host but github sees the update. A build that is no release (`latest`) asks
+//! nothing
 
 use crate::core::VERSION;
 use crate::core::config::with_causes;
@@ -18,29 +17,25 @@ use std::io::{Cursor, Read};
 use std::path::Path;
 use std::time::Duration;
 
-/// who the check and the download of an update go to
 pub const RECEIVER: &str = "github.com";
 
 /// the releases of the repository; `releases/latest` is the newest one that is neither a draft nor
 /// a pre-release
 const API: &str = "https://api.github.com/repos/pellepelster/swiss-army-knife";
 
-/// who signs the zips of a release (`mise run cli:release`): the release workflow of the
-/// repository at the tag of the release, with a certificate of sigstore for its id token
+/// who signs the zips of a release (`mise run cli:release`): the release workflow, with a
+/// certificate of sigstore for its id token
 const SIGNER_WORKFLOW: &str =
     "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml";
 const SIGNER_ISSUER: &str = "https://token.actions.githubusercontent.com";
 
-/// the identity in the certificate of the signature of the zips of `version`: the workflow at its
-/// tag, so a signed zip of another release or another branch is no zip of this one
+/// the workflow at the tag of `version`, so a signed zip of another release or branch fails
 fn signer(version: &Version) -> String {
     format!("{SIGNER_WORKFLOW}@refs/tags/v{version}")
 }
 
-/// the system and architecture in the names of the zips of a release,
-/// `sak-cli-<system>-<architecture>-<version>.zip`: `linux-x86_64`, `windows-x86_64`, and
-/// `macos-universal` for the one binary of both macOS architectures. A sakctl of an architecture
-/// the release does not build finds no zip of its own and installs nothing
+/// `<system>-<architecture>` of `sak-cli-<system>-<architecture>-<version>.zip`; `macos-universal`
+/// for both macOS architectures. An architecture the release does not build finds no zip
 fn platform() -> String {
     match std::env::consts::OS {
         "macos" => "macos-universal".to_string(),
@@ -48,16 +43,14 @@ fn platform() -> String {
     }
 }
 
-/// the binaries in the zip: on windows the window (sakctl.exe, without a console) and the
-/// console program for the command line (sakctl-cli.exe, the feature `console`); the update
-/// replaces all of them
+/// the binaries in the zip, the update replaces all: on windows the window (sakctl.exe, without a
+/// console) and the command line (sakctl-cli.exe, the feature `console`)
 #[cfg(windows)]
 const BINARIES: &[&str] = &["sakctl.exe", "sakctl-cli.exe"];
 #[cfg(not(windows))]
 const BINARIES: &[&str] = &["sakctl"];
 
-/// the binary of the zip that runs: the one of the name of this program, the first one when it
-/// was renamed
+/// the binary of the zip that runs: by the name of this program, the first when it was renamed
 fn running() -> &'static str {
     let name = std::env::current_exe().ok().and_then(|path| {
         path.file_name()
@@ -69,25 +62,21 @@ fn running() -> &'static str {
         .unwrap_or(&BINARIES[0])
 }
 
-/// what a check found
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum Status {
-    /// this build is no release, nothing was asked
+    /// nothing was asked
     NoRelease,
     /// this version is the newest release, or newer
     UpToDate { current: String },
-    /// a newer release exists
     Newer { current: String, newest: String },
 }
 
-/// whether this build is a release, which has a version to compare with
 pub fn is_release() -> bool {
     Version::parse(VERSION).is_ok()
 }
 
 impl Status {
-    /// the status in the language of the user, as the window and the command line show it
     pub fn message(&self) -> String {
         match self {
             Status::NoRelease => t!("common.update.no_release", version = VERSION).to_string(),
@@ -100,7 +89,6 @@ impl Status {
         }
     }
 
-    /// the status after an install: the versions it updated from and to, else as `message`
     pub fn installed_message(&self) -> String {
         match self {
             Status::Newer { current, newest } => t!(
@@ -114,8 +102,8 @@ impl Status {
     }
 }
 
-/// the newest release and the addresses of its zip for this platform, of its sha-256 and of its
-/// cosign signature (`<zip>.sigstore.json`)
+/// the newest release with its zip for this platform, its sha-256 and its cosign signature
+/// (`<zip>.sigstore.json`)
 #[derive(Debug, PartialEq, Eq)]
 struct Release {
     version: Version,
@@ -130,20 +118,17 @@ struct Asset {
     browser_download_url: String,
 }
 
-/// what `GET /releases/latest` answers, the fields sakctl reads
 #[derive(Deserialize)]
 struct LatestRelease {
     tag_name: String,
     assets: Vec<Asset>,
 }
 
-/// compares this sakctl with the newest release on github
 pub async fn check() -> Result<Status, String> {
     Updater::github().check().await
 }
 
-/// replaces this sakctl with the newest release on github when it is newer; the status tells
-/// what was installed, the new version runs from the next start
+/// replaces this sakctl with the newest release when it is newer; it runs from the next start
 pub async fn install() -> Result<Status, String> {
     Updater::github()
         .install(&|binary| self_replace::self_replace(binary))
@@ -154,8 +139,8 @@ pub async fn install() -> Result<Status, String> {
 type SignatureCheck =
     fn(zip: &[u8], bundle: &[u8], name: &str, version: &Version) -> Result<(), String>;
 
-/// the update against an api, for the tests a mock server over plain http and a check of the
-/// signature that needs no zip signed by the release workflow
+/// the tests use a mock server over plain http and a signature check that needs no zip signed by
+/// the release workflow
 struct Updater {
     api: String,
     current: &'static str,
@@ -173,7 +158,7 @@ impl Updater {
         }
     }
 
-    /// the version of this build, none for one that is no release
+    /// none for a build that is no release
     fn current(&self) -> Option<Version> {
         Version::parse(self.current).ok()
     }
@@ -185,9 +170,8 @@ impl Updater {
         Ok(status(&current, &self.latest().await?.version))
     }
 
-    /// downloads the zip of the newest release when it is newer, checks it against its sha-256
-    /// and its signature and hands its binary to `replace`. Nothing is replaced when anything
-    /// fails before
+    /// checks the zip of a newer release against its sha-256 and its signature before `replace`
+    /// gets its binary
     async fn install(
         &self,
         replace: &(dyn Fn(&Path) -> std::io::Result<()> + Sync),
@@ -297,7 +281,7 @@ impl Updater {
             })?;
         match response.status() {
             status if status.is_success() => Ok(response),
-            // also a redirect the client did not follow, to a host that is not github's
+            // also a redirect not followed, to a host that is not github's
             status => Err(t!(
                 "common.update.failed",
                 url = url,
@@ -308,7 +292,7 @@ impl Updater {
     }
 }
 
-/// newer only when the release is newer, an older one is no update
+/// an older release is no update
 fn status(current: &Version, newest: &Version) -> Status {
     if newest > current {
         Status::Newer {
@@ -322,8 +306,8 @@ fn status(current: &Version, newest: &Version) -> Status {
     }
 }
 
-/// the client of github: https only (plain http for the tests), redirects only to github and its
-/// storage, where github sends the download of an asset
+/// https only (plain http for the tests), redirects only to github and its storage, where github
+/// sends the download of an asset
 fn client(https_only: bool) -> Result<Client, String> {
     Client::builder()
         .user_agent(concat!("sakctl/", env!("SAK_VERSION")))
@@ -344,7 +328,7 @@ fn follow_to_github(attempt: Attempt) -> reqwest::redirect::Action {
     }
 }
 
-/// the first url as the redirects after it: https, to github or its storage
+/// the first url as `follow_to_github` checks the redirects
 fn to_github(url: &str) -> Result<(), String> {
     if !url.starts_with("https://") {
         return Err(t!("common.update.not_https", url = url).to_string());
@@ -377,8 +361,7 @@ fn verify(zip: &[u8], checksum: &[u8], name: &str) -> Result<(), String> {
     }
 }
 
-/// the zip `name` of the release `version` against its cosign signature: signed by the release
-/// workflow at the tag of `version` (`signer`)
+/// signed by the release workflow at the tag of `version` (`signer`)
 fn verify_signature(
     zip: &[u8],
     bundle: &[u8],
@@ -389,9 +372,8 @@ fn verify_signature(
     verify_signed_by(zip, bundle, name, version, identity, SIGNER_ISSUER)
 }
 
-/// the zip against the bundle of its signature: the certificate of sigstore for `identity` of
-/// `issuer`, the signature of the zip with it and its entry in the transparency log, all against
-/// the trusted root of sigstore built into sakctl
+/// the certificate for `identity` of `issuer`, the signature and the entry in the transparency
+/// log, all against the trusted root of sigstore built into sakctl
 fn verify_signed_by(
     zip: &[u8],
     bundle: &[u8],
@@ -434,8 +416,7 @@ fn unzip(zip: &[u8], name: &str, binary: &str) -> Result<Vec<u8>, String> {
     Ok(binary)
 }
 
-/// the binary into a file of its own, executable, which `replace` puts in the place of the
-/// running one; the file goes afterwards
+/// writes the binary to a temporary executable file that `replace` puts in place of the running one
 fn write_and_replace(
     binary: &[u8],
     replace: &(dyn Fn(&Path) -> std::io::Result<()> + Sync),
@@ -465,8 +446,8 @@ fn write_and_replace(
     })
 }
 
-/// a binary that does not run, next to the running one: written beside it and renamed over it,
-/// so a failed write leaves the old one
+/// a binary that does not run: written beside it and renamed over it, so a failed write leaves the
+/// old one
 fn write_beside(name: &str, binary: &[u8]) -> Result<(), String> {
     let target = std::env::current_exe()
         .map(|path| path.with_file_name(name))

@@ -29,7 +29,6 @@ enum class Language(
     }
 }
 
-// the language of the user that asked
 fun ApplicationCall.language(): Language = Language.of(request.headers[HttpHeaders.AcceptLanguage])
 
 // a text in a catalog: the catalog, e.g. backend, and the path of the text in it, e.g.
@@ -66,11 +65,10 @@ data class Joined(
     val separator: String,
 )
 
-// the texts of one module, `i18n/<name>.<language>.yml` on the class path, one file per language
-// (Language), generated into sak-api from i18n/texts.yml: backend.<name>, or common and backend of
-// the app <name>. Every key of the module is a property of its object, made with text(); a test of
-// the module checks the files against them (the test fixture catalogProblems). The yaml is read by
-// ktor, which reads $NAME as a variable of the environment: sak-i18n refuses a text with a $
+// the texts of one module, `i18n/<name>.<language>.yml` on the class path, generated from
+// i18n/texts.yml. Each key is a property made with text(); a test of the module checks the files
+// against them (catalogProblems). Ktor reads $NAME in yaml as an environment variable, so sak-i18n
+// refuses a text with a $
 abstract class Catalog(
     val name: String,
 ) {

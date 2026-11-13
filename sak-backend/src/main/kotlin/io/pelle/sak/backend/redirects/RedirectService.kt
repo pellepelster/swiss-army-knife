@@ -18,7 +18,7 @@ sealed interface CreateRedirectResult {
         val redirect: Redirect,
     ) : CreateRedirectResult
 
-    // no valid domain, the source is the target, or a domain the controller or a bucket serves
+    // no valid domain, the source is the target, or a domain the backend or a bucket serves
     data object InvalidDomain : CreateRedirectResult
 
     data object UnknownBucket : CreateRedirectResult
@@ -55,7 +55,7 @@ sealed interface DeleteRedirectResult {
 class RedirectService(
     private val repository: RedirectRepository,
     private val buckets: S3BucketService,
-    // the domains the controller serves itself, which can not be redirected
+    // the domains the backend serves itself, which can not be redirected
     private val domains: DomainRegistry,
 ) {
     constructor(
@@ -82,8 +82,7 @@ class RedirectService(
             is RedirectTarget.Bucket -> buckets.byName(target.bucket)?.let { buckets.servedDomains(it).firstOrNull() }
         }
 
-    // every redirected domain with the domain it leads to, what caddy redirects; a bucket no
-    // longer served at a domain leads nowhere, its redirect is left out
+    // for caddy; a redirect to a bucket no longer served at a domain is left out
     fun locations(): Map<String, String> =
         all()
             .mapNotNull { redirect ->
@@ -115,7 +114,7 @@ class RedirectService(
         return CreateRedirectResult.Created(redirect)
     }
 
-    // the target the redirect of the source leads to, checked as when it is created
+    // the target is checked as when it is created
     fun update(
         sourceDomain: String,
         target: RedirectTarget,

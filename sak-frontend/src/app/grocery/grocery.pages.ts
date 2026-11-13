@@ -41,8 +41,7 @@ export const GROCERY_LIST_APP: ListApp = {
   },
 };
 
-// the pages of the grocery app below /grocery, loaded with the first of them (grocery.routes.ts): all lists
-// first (LIST-3), then one list, a page to create a list and one to edit it
+// all lists first (LIST-3)
 export const GROCERY_PAGES: Routes = [
   {
     path: '',

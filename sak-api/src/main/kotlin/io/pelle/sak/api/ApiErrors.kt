@@ -52,9 +52,8 @@ fun errorResponse(
     language: Language,
 ) = ApiErrorResponse(errors.map { ApiErrorMessage(it.key.code, it.render(language)) })
 
-// a body that can not be read, a malformed one or one of the wrong type, is answered like every
-// other bad request, a body larger than the route takes (RequestBodyLimit) with a 413 of the same
-// shape; needs content negotiation for json
+// a body that can not be read is a 400, a body over the RequestBodyLimit a 413, both with the error
+// body; needs content negotiation for json
 val ApiErrors =
     createRouteScopedPlugin("ApiErrors") {
         on(CallFailed) { call, cause ->
@@ -71,7 +70,7 @@ fun Route.installApi() {
     install(ApiErrors)
 }
 
-// the path the api is below, of the backend (/api/v1) and of api.<base domain> after caddy rewrote it
+// the prefix of the backend api (/api/v1) and of api.<base domain> after caddy rewrote it
 private const val API_ERRORS_PREFIX = "/api"
 
 // the errors a route answers with its status alone, below /api/, and the message each gets (API-1);
@@ -102,12 +101,10 @@ private val BareApiErrors =
         }
     }
 
-// every failure no route answered, installed once for the whole application: a malformed request
-// is a 400, a too large body a 413, everything else is logged and answered with a 500 that tells nothing of it; no
-// exception, message or stack trace ever reaches the client. An error of the api answered with its
-// status alone (a 401, 403, 404, 429 or 503, also one of routing for an unknown path) gets the
-// error body with its message (API-1); the pages, the s3 api and the rest keep it empty. The body is
-// written as it is, the routes it covers may have no content negotiation
+// every failure no route answered, installed once for the application: a malformed request is a
+// 400, a too large body a 413, all else is logged and a 500; no exception, message or stack trace
+// reaches the client. A bare status of the api gets its error body (API-1), other paths (pages, s3
+// api) stay empty. Written without content negotiation, the routes it covers may have none
 fun Application.installUnexpectedErrors() {
     install(BareApiErrors)
     install(StatusPages) {
@@ -130,8 +127,8 @@ fun Application.installUnexpectedErrors() {
     }
 }
 
-// the error of a status alone (401, 403, 404, 429, 503) with its message, written without content
-// negotiation, for what answers before a route, e.g. the challenge of the authentication
+// the error body of a status of STATUS_TEXTS without content negotiation, for what answers before
+// a route, e.g. the challenge of the authentication
 suspend fun ApplicationCall.respondStatusError(status: HttpStatusCode) =
     respondText(errorBody(this, STATUS_TEXTS.getValue(status)), ContentType.Application.Json, status)
 

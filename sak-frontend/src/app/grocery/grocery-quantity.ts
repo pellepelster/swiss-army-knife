@@ -1,7 +1,6 @@
 import { I18n } from '../i18n/i18n';
 
-// the usual units in the order the list offers them; an item stores the label in the language of
-// the user, e.g. EL (GROCERY-15)
+// in the order offered; an item stores the label in the language of the user, e.g. EL (GROCERY-15)
 const UNITS = [
   'g',
   'kg',
@@ -19,14 +18,13 @@ const UNITS = [
 // the largest amount the backend stores
 const MAX_AMOUNT = 9_999_999.999;
 
-// one unit to choose: the text stored and the one shown, both the label
+// value and label are the same: the label is stored
 export interface UnitOption {
   value: string;
   label: string;
 }
 
-// the units to choose, a unit the item has that is not one of them after them, so it is not lost;
-// no unit is the empty value before them
+// a unit the item has that is not one of them comes last, so it is not lost
 export function unitOptions(i18n: I18n, unit: string | null | undefined): UnitOption[] {
   const units = UNITS.map((key) => {
     const label = i18n.t(`grocery.quantity.units.${key}`);
@@ -38,8 +36,8 @@ export function unitOptions(i18n: I18n, unit: string | null | undefined): UnitOp
   return units;
 }
 
-// the amount typed, with a point or a comma: null for none, undefined for one that is no positive
-// number with at most 3 decimal places
+// a point or a comma: null for none, undefined for one that is no positive number with at most 3
+// decimal places
 export function parseAmount(text: string): number | null | undefined {
   const typed = text.trim();
   if (typed === '') return null;
@@ -48,7 +46,6 @@ export function parseAmount(text: string): number | null | undefined {
   return amount > 0 && amount <= MAX_AMOUNT ? amount : undefined;
 }
 
-// the amount in its field, as the row shows it
 export function amountText(amount: number | null | undefined): string {
   return amount == null ? '' : String(amount);
 }

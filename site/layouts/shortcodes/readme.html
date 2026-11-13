@@ -1,7 +1,5 @@
-{{- /* the README.md of the repository (mounted as assets/readme.md), without its h1: the page has
-   the same title; without the link to the docs, it is the docs, and only up to the comment that
-   ends it on the docs home: the features page has the rest in detail, the home links it
-   (content/_index.md) */ -}}
+{{- /* README.md of the repository (assets/readme.md) without its h1 (the page has that title), without the
+   docs link (this is the docs), and only up to the comment that ends it on the docs home */ -}}
 {{- with resources.Get "readme.md" }}
 {{- $markdown := replaceRE `\A#\s[^\n]*\n` "" .Content }}
 {{- $markdown = replaceRE `(?s)<!-- docs-link.*?<!-- /docs-link -->\n*` "" $markdown }}

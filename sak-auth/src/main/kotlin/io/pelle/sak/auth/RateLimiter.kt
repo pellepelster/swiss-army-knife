@@ -4,10 +4,9 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 
-// allows at most maxEvents per key within a sliding window. It keeps at most maxKeys keys: a new key
-// beyond them is refused rather than kept, so many clients can not fill the heap (SEC-5). The events
-// of a key that passed the window go when the key is asked again, and with a sweep of all keys at most
-// once a minute, not with every call
+// at most maxEvents per key in a sliding window. A new key beyond maxKeys is refused, so many
+// clients can not fill the heap. Old events go when their key is asked again, and with a sweep of
+// all keys at most once a minute
 class RateLimiter(
     private val maxEvents: Int,
     private val window: Duration,

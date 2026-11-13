@@ -34,10 +34,10 @@ data class SakConfig(
     @SerialName("caddy_admin_url")
     val caddyAdminUrl: String = DEFAULT_CADDY_ADMIN_URL,
     // the bytes the s3 api keeps free on the data volume: a write to a bucket starts only above it
-    // and stops when it falls below (SEC-9)
+    // and stops when it falls below
     @SerialName("s3_min_free_bytes")
     val s3MinFreeBytes: Long = DEFAULT_S3_MIN_FREE_BYTES,
-    // sak-frontend and its e-mail login are only served when configured
+    // sak-frontend and its login are only served when configured
     val auth: AuthConfig? = null,
     val logs: LogsConfig = LogsConfig(),
     // where the text discovery in the photos and recordings of notes goes; its api key and whether
@@ -87,9 +87,8 @@ data class SakConfig(
     // the login links of sak-frontend point here
     val frontendUrl: String get() = auth?.frontendUrl ?: "https://$frontendHost"
 
-    // each a comma separated list, the provisioning of the server writes them to backend.env;
-    // every one must be an address of its family, the
-    // backend refuses to start otherwise
+    // each a comma separated list, written to backend.env by the provisioning of the server; the
+    // backend does not start when one is no address of its family
     @Serializable
     data class AddressesConfig(
         @Serializable(with = Ipv4ListSerializer::class)

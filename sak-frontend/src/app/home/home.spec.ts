@@ -94,7 +94,7 @@ describe('Home', () => {
     expect(page.querySelector('[data-testid=username]')?.textContent).toBe('admin');
   });
 
-  // SEC-18: as a new page, nothing of the user before stays in the tab
+  // as a new page, nothing of the user before stays in the tab
   it('signs out and opens the login as a new page', async () => {
     signIn();
     const harness = await RouterTestingHarness.create('/');

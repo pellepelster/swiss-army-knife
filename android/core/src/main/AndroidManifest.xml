@@ -3,8 +3,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- the scan of the QR code of the web app that connects the app, asked for only when the user
-         scans (PRIVACY-7); a phone without a camera signs in without it -->
+    <!-- the scan of the QR code that connects the app, asked for only when the user scans (PRIVACY-7);
+         a phone without a camera signs in without it -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature
         android:name="android.hardware.camera"
@@ -12,7 +12,7 @@
     <!-- the update to the version of the deployment, the apk of its release (AndroidUpdater) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-    <!-- nothing of the app goes to a backup or a new phone (AN-14) -->
+    <!-- nothing of the app goes to a backup or a new phone -->
     <application android:dataExtractionRules="@xml/data_extraction_rules">
         <!-- what the installer of android answers to an update -->
         <receiver

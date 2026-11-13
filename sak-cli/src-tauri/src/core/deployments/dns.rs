@@ -2,8 +2,8 @@
 
 use super::*;
 
-/// a dns zone of the project as the page offers it as root domain: the dns modes the deployment
-/// can use it in (none when another deployment manages it in domain mode), and why
+/// a dns zone of the project as a root domain, with the dns modes the deployment can use it in
+/// (none when another deployment manages it in domain mode)
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RootDomainResponse {
@@ -13,7 +13,6 @@ pub struct RootDomainResponse {
     pub(crate) note: Option<String>,
 }
 
-/// the root domain as the deployment `name` can use it
 pub(super) fn root_domain_response(domain: &RootDomain, name: &str) -> RootDomainResponse {
     let note = DnsMode::ALL
         .into_iter()
@@ -52,7 +51,6 @@ pub(super) fn conflict_text(domain: &str, conflict: &RootDomainConflict) -> Stri
     t!(key, domain = domain, by = by_text(by)).to_string()
 }
 
-/// the exit code of the command line for a root domain that cannot be used
 pub(super) fn conflict_exit_code(conflict: &RootDomainConflict) -> i32 {
     match conflict {
         RootDomainConflict::DomainTaken { .. } => EXIT_DOMAIN_TAKEN,
@@ -60,8 +58,7 @@ pub(super) fn conflict_exit_code(conflict: &RootDomainConflict) -> i32 {
     }
 }
 
-/// checks the root domain `chosen` for the deployment `name` in `dns_mode`: it is a zone of the
-/// project and has no conflict with the deployments that use it
+/// `chosen` is a zone of the project without a conflict with the deployments that use it
 pub(super) fn check_root_domain(
     domains: &[RootDomain],
     chosen: Option<&str>,
@@ -101,9 +98,8 @@ pub(super) fn check_root_domain(
     Ok(domain.name.clone())
 }
 
-/// the dns mode and the root domain of a deployment: the given values, else for a deploy the
-/// values on the labels of the deployment. A create without a mode, and a deploy without a mode
-/// on the labels, use subdomain. A deploy without a root domain is refused. A destroy needs neither
+/// the given values, else for a deploy those on the labels; the mode defaults to subdomain. A
+/// deploy without a root domain is refused, a destroy needs neither
 pub(super) fn resolve_dns(
     name: &str,
     intent: Intent,

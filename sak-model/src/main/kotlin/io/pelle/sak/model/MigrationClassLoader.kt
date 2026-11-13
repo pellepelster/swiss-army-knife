@@ -8,11 +8,10 @@ import java.net.URLClassLoader
 import java.sql.Connection
 import java.util.Enumeration
 
-// liquibase (approximately 1000 classes with snakeyaml, 10 MB of metaspace) is needed only while
-// the schema is migrated at the start. It is loaded by a class loader of its own, on a thread of
-// its own (liquibase keeps its scope in a ThreadLocal), so both are gone after the migration and
-// the next full gc unloads its classes. The caches of java.beans would keep them (soft references,
-// which the serial gc seldom clears), they are flushed
+// liquibase (about 1000 classes with snakeyaml, 10 MB of metaspace) is needed only for the
+// migration at the start: a class loader and a thread of its own (liquibase keeps its scope in a
+// ThreadLocal) let the next full gc unload it. The caches of java.beans are flushed, their soft
+// references would keep it (the serial gc seldom clears them)
 internal fun migrateIsolated(
     connection: Connection,
     changelog: String,
@@ -53,9 +52,8 @@ private fun classpath(): Array<URL> =
         .map { File(it).toURI().toURL() }
         .toTypedArray()
 
-// loads liquibase, snakeyaml and the migration itself before asking its parent, everything else
-// from the parent. Resources come from the parent only, liquibase finds its services and the
-// changelog once
+// child first for liquibase, snakeyaml and the migration, else the parent. Resources from the
+// parent only, so liquibase finds its services and the changelog once
 private class MigrationClassLoader(
     urls: Array<URL>,
     parent: ClassLoader,

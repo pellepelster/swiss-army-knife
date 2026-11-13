@@ -26,7 +26,7 @@ export class TodoService extends ListsService<TodoList> {
     return this.http.post<TodoItem>('/api/v1/todo/items', { listId, title, dueDate, priority });
   }
 
-  // done, struck through, or open again (TODO-3)
+  // done or open again (TODO-3)
   setDone(id: number, done: boolean): Observable<TodoItem> {
     return this.http.put<TodoItem>(`/api/v1/todo/items/${id}/done`, { done });
   }

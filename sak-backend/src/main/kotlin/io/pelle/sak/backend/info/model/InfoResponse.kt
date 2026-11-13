@@ -4,16 +4,15 @@ import io.pelle.sak.config.DnsMode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// what the info answers: the deployment the backend belongs to
+// the deployment the backend belongs to
 @Serializable
 data class InfoResponse(
-    // its name
     val name: String,
-    // its dns mode, domain or subdomain
+    // domain or subdomain
     val dnsMode: DnsMode,
-    // its user mode: multi with a mail server for the login links, single without one
+    // multi with a mail server for the login links, single without one
     val userMode: UserMode,
-    // the version of sak it runs, e.g. 0.1.15, none without one; the grocery app updates itself to it
+    // the version of sak it runs, e.g. 0.1.15, none without one; the android apps update themselves to it
     val version: String?,
 )
 

@@ -1,6 +1,5 @@
-//! the sak deployments at the providers: every resource with a name label, grouped by the name
-//! and diffed against the resource group of a deployment. A create, deploy or destroy of a
-//! deployment, planned and applied from its name and password
+//! the sak deployments at the providers: the resources grouped by their name label and diffed
+//! against the resource group of a deployment, planned and applied from its name and password
 
 mod detect;
 mod dns;
@@ -56,14 +55,14 @@ pub struct DeploymentResponse {
     pub(crate) name: String,
     pub(crate) status: DeploymentStatus,
     pub(crate) location: Option<Location>,
-    /// the dns mode on its resources, none for a deployment created before it was kept
+    /// the dns mode on its resources, if any
     pub(crate) dns_mode: Option<DnsMode>,
-    /// the root domain on its resources, none for a deployment created before it was kept
+    /// the root domain on its resources, if any
     pub(crate) root_domain: Option<String>,
     /// where its frontend is, `https://sak.<base domain>`; none without a root domain
     pub(crate) frontend_url: Option<String>,
     pub(crate) resources: Vec<ResourceState>,
-    /// why the deployment could not be compared with its declaration, with the status `unknown`
+    /// why the deployment could not be compared with its declaration (status `unknown`)
     pub(crate) error: Option<String>,
 }
 

@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.Flow
 import java.time.Clock
 import java.time.LocalDate
 
-// what adding a task came to
 sealed interface TodoNewItemResult {
     data class Saved(
         val item: TodoItem,
@@ -31,7 +30,6 @@ sealed interface TodoNewItemResult {
     data object UnknownList : TodoNewItemResult
 }
 
-// what changing a task came to
 sealed interface TodoItemResult {
     data class Saved(
         val item: TodoItem,
@@ -67,7 +65,7 @@ class TodoService(
         id: Int,
     ): SakList? = repository.list(user, id)
 
-    // an task of a list the user sees, null when there is none
+    // a task of a list the user sees, null when there is none
     fun item(
         user: String,
         id: Int,
@@ -103,15 +101,15 @@ class TodoService(
         id: Int,
     ): ListDelete = repository.deleteList(user, id).also { if (it == ListDelete.Deleted) changes.changed(id) }
 
-    // the tasks of a list the user sees, done ones in their place, by priority (TODO-3, TODO-5); null for another list
+    // the tasks of a list the user sees, done ones in their place, by priority (TODO-3, TODO-5); null
+    // for another list
     fun items(
         user: String,
         listId: Int,
     ): List<TodoItem>? = repository.items(user, listId)
 
-    // on a list the user sees, a task names its list (LIST-1); the due date is a day as yyyy-mm-dd,
-    // none or empty for no day (TODO-4), also one that passed; the priority high, normal or low, none
-    // for normal (TODO-5)
+    // on a list the user sees (LIST-1); the due date yyyy-mm-dd, also one that passed, none or empty
+    // for no day (TODO-4); the priority high, normal or low, none for normal (TODO-5)
     fun addItem(
         user: String,
         listId: Int,
@@ -143,7 +141,7 @@ class TodoService(
         done: Boolean,
     ): TodoItemResult = saved(repository.setDone(user, id, done))
 
-    // the priority of a task, high, normal or low (TODO-5), by any user who sees its list (LIST-2)
+    // high, normal or low (TODO-5), by any user who sees its list (LIST-2)
     fun setPriority(
         user: String,
         id: Int,
@@ -153,8 +151,7 @@ class TodoService(
         return saved(repository.setPriority(user, id, value))
     }
 
-    // the day a task is to be done by, yyyy-mm-dd, none or empty to take it away (TODO-4), by any user
-    // who sees its list (LIST-2)
+    // yyyy-mm-dd, none or empty to take it away (TODO-4), by any user who sees its list (LIST-2)
     fun setDueDate(
         user: String,
         id: Int,
@@ -164,8 +161,8 @@ class TodoService(
         return saved(repository.setDueDate(user, id, day))
     }
 
-    // the done tasks of a list the user sees are deleted, of the ids given only, the ones the user saw
-    // done (TODO-6); null for another list, else how many went
+    // deletes the done tasks among the ids, the ones the user saw done (TODO-6); null for another
+    // list, else how many went
     fun purge(
         user: String,
         listId: Int,

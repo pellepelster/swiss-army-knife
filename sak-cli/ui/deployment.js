@@ -1,14 +1,7 @@
-// the page of one deployment, opened with its password: its state, its configuration and its
-// resources. When it opens it reads the configuration once, from the running deployment, else from
-// this machine; the check, the config form and the deploys use what it read. With a
-// configuration it checks the deployment: a deploy of the deployment as it is, planned in rust, its
-// rows those of the plan, the provisioning included. Without one there is nothing to deploy with:
-// check and the deploys stay disabled, config… gives one. The toolbar at the top right: destroy,
-// which opens the form of a destroy, maintenance, a menu of status, update and reboot that each
-// open the maintenance view (a reboot after a confirmation), config…, the form of a deploy with
-// the configuration filled in, and check, which checks again. At the bottom right, one group: back
-// to the list, force deploy (after a check, the playbook runs again) and deploy changes (only when
-// the check found changes). The one green button is check, or deploy changes when there are changes
+// the page of one deployment, opened with its password. It reads the configuration once, from the
+// running deployment, else from this machine; the check, the config form and the deploys use it.
+// The check is a plan of a deploy as the deployment is. Without a configuration check and the
+// deploys stay disabled, config… gives one. Force deploy runs the playbook again
 import { showCreate } from './create.js';
 import { STATES, frontendLink, resource } from './deployments.js';
 import { showMaintenance } from './maintenance.js';
@@ -30,21 +23,20 @@ const maintenanceButton = document.getElementById('deployment-maintenance');
 const maintenanceMenu = document.getElementById('deployment-maintenance-menu');
 const rebootDialog = document.getElementById('reboot-confirm');
 let current = null;
-// the plan of the last check, its rows are those of the run
+// the plan of the last check; the run shows its rows
 let checked = null;
 // the configuration read when the page opened (`deployment_settings`), null while it is read or
 // when it could not be
 let settings = null;
 
 
-// the state the check found; none before it
+// none before the check
 function setState(state) {
   badge.hidden = !state;
   badge.dataset.sakState = STATES[state] ?? 'neutral';
   badge.textContent = state ? text(`common.deployments.status.${state}`) : '';
 }
 
-// the green button of the page
 function setPrimary(primary) {
   for (const button of [checkButton, deployButton]) {
     button.classList.toggle('btn-primary', button === primary);
@@ -64,19 +56,16 @@ export function showDeployment(deployment) {
   loadConfig();
 }
 
-// a configuration to deploy with: the running deployment answered it or this machine kept it
 function hasConfig() {
   return settings?.source === 'running' || settings?.source === 'local';
 }
 
-// a row of the configuration, as a resource row: its label, its value and a detail
 function configRow(label, value, detail = '') {
   return resource({ label, name: value, detail });
 }
 
-// what the configuration holds, as far as it is known
 function showConfig() {
-  // the SAK address first, the address its users open (the list knows it from the resources)
+  // the address of the frontend first (the list knows it from the resources)
   const rows = current?.frontendUrl ? [frontendLink(current.frontendUrl, configSource)] : [];
   if (settings?.rootDomain) {
     rows.push(configRow(text('ui.create.root_domain'), settings.rootDomain));
@@ -92,7 +81,6 @@ function showConfig() {
     if (settings.smtp) {
       const { host, port, username } = settings.smtp;
       rows.push(configRow(text('ui.create.smtp'), `${host}:${port}`, username));
-      // the sender of the login mails, noreply@<root domain> unless another was given
       rows.push(configRow(text('ui.create.smtp_from'), settings.smtp.from || `noreply@${settings.rootDomain ?? ''}`));
     }
   }
@@ -101,7 +89,7 @@ function showConfig() {
   setStatus(configSource, text(`ui.deployment.config.source_${hasConfig() ? settings.source : 'none'}`, values));
 }
 
-// the configuration, read once when the page opens; then the check, when there is one to deploy with
+// then the check, when there is a configuration to deploy with
 async function loadConfig() {
   const shown = current;
   const visit = currentVisit();
@@ -128,7 +116,7 @@ async function loadConfig() {
   }
 }
 
-// check, force deploy and deploy changes need a configuration; deploy changes also changes
+// deploy and force deploy stay disabled until a check
 function setButtons(checkable) {
   checkButton.disabled = !checkable;
   deployButton.disabled = true;
@@ -136,7 +124,7 @@ function setButtons(checkable) {
   setPrimary(checkButton);
 }
 
-// the check: the rows of the plan and the buttons it allows; a page left meanwhile stays as it is
+// a page left meanwhile stays as it is
 async function check() {
   const shown = current;
   const visit = currentVisit();
@@ -178,12 +166,9 @@ function deploy(force) {
   runChecked(checked, current.name, password, force);
 }
 
-// the menu of the maintenance opens below its button and closes on a choice, a click elsewhere and
-// escape
 function setMenu(open) {
   maintenanceMenu.classList.toggle('show', open);
   maintenanceButton.setAttribute('aria-expanded', String(open));
-  // an open menu has the focus on its first entry, the arrow keys move it
   if (open) {
     menuItems()[0].focus();
   }
@@ -214,7 +199,6 @@ maintenanceMenu.addEventListener('keydown', (event) => {
     setMenu(false);
   }
 });
-// whether the user confirms the reboot of the deployment `name`
 function confirmReboot(name) {
   document.getElementById('reboot-confirm-title').textContent = text('ui.maintenance.confirm_title', { name });
   rebootDialog.returnValue = '';
@@ -232,7 +216,7 @@ maintenanceMenu.addEventListener('click', async (event) => {
   setMenu(false);
   const { action } = item.dataset;
   if (action === 'reboot' && !(await confirmReboot(current.name))) {
-    // the entry that had the focus is hidden, the button of the menu takes it
+    // the closed menu had the focus
     maintenanceButton.focus();
     return;
   }
@@ -252,8 +236,6 @@ forceButton.addEventListener('click', () => deploy(true));
 document.getElementById('deployment-destroy').addEventListener('click', () =>
   showCreate({ existing: current, intent: 'destroy' }),
 );
-// config…: the form of a deploy with the config, filled in with the configuration read when the page
-// opened; empty without one
 document.getElementById('deployment-edit-config').addEventListener('click', () =>
   showCreate({ existing: current, intent: 'deploy', settings }),
 );

@@ -2,20 +2,19 @@
 
 use super::*;
 
-/// what an apply reports while it runs: a resource started, a resource done, the provisioning.
-/// The command itself answers when everything is done or failed
+/// what an apply reports while it runs; the command itself answers when it is done or failed
 #[derive(Clone, Serialize)]
 #[serde(tag = "event", rename_all = "camelCase")]
 pub enum DeploymentEvent {
     Started {
         resource: String,
     },
-    /// a resource done; `text` is the key of what was done, for the command line and the window
+    /// `text` is the key of what was done
     Applied {
         resource: String,
         text: &'static str,
     },
-    /// a resource removed, or gone already; `text` is the key of which
+    /// removed or gone already; `text` is the key of which
     Destroyed {
         resource: String,
         text: &'static str,
@@ -24,7 +23,7 @@ pub enum DeploymentEvent {
     Provisioning {
         message: String,
     },
-    /// a line ansible printed while provisioning the server
+    /// a line ansible printed
     Output {
         line: String,
     },
@@ -33,7 +32,7 @@ pub enum DeploymentEvent {
         resource: String,
         task: String,
     },
-    /// a task of the playbook ended on the server; `message` is what ansible says when it failed
+    /// `message` is what ansible says when it failed
     TaskDone {
         resource: String,
         task: String,
@@ -48,7 +47,6 @@ pub enum DeploymentEvent {
     },
 }
 
-/// how a task of the playbook ended on the server
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskOutcome {

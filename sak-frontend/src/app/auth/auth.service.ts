@@ -20,15 +20,14 @@ interface Session {
   roles: string[];
 }
 
-// how a user can sign in, what GET /api/v1/info tells about the deployment (no version for a build
-// that is no release) and who the backend takes the session for (admin for the password login, else
-// the e-mail address; the name an admin gave the user)
+// DeploymentInfo: no version for a build that is no release. WhoAmI: admin for the password login,
+// else the e-mail address, and the name an admin gave the user
 export type { DeploymentInfo, UserMode, WhoAmI } from '../api/models';
 
 export const SESSION_STORAGE_KEY = 'sak.session';
 
-// loads the url as a new page: what the app kept of the user before (the stores of the pages, the
-// thumbnails) goes with the old one, nothing of it shows to the next user of the tab (SEC-18)
+// loads the url as a new page, so nothing the app kept of the user before (stores, thumbnails)
+// shows to the next user of the tab
 export const LEAVE_PAGE = new InjectionToken<(url: string) => void>('LEAVE_PAGE', {
   factory: () => {
     const document = inject(DOCUMENT);
@@ -55,11 +54,10 @@ export function safeRedirect(redirect: string | null | undefined): string {
   return redirect;
 }
 
-// the session lives in localStorage: the installed app starts without the network and the swagger
-// page takes the token from there, the content security policy (script-src 'self', object-src
-// 'none') keeps other scripts from reading it. What is stored besides the token (its expiry, the
-// roles) can be changed by anybody with the browser and only tells whether the token is worth
-// sending; nothing is shown or allowed by it, the backend decides with every request
+// the session is in localStorage: the installed app starts offline and the swagger page reads the
+// token there; the content security policy keeps other scripts out. The expiry and the roles can
+// be changed in the browser, so they only tell whether the token is worth sending; the backend
+// decides with every request
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -88,9 +86,7 @@ export class AuthService {
       .pipe(map(() => undefined));
   }
 
-  // what the login page offers: the e-mail login only with a mail server, the password login only
-  // with an admin password
-  // the user mode of the deployment, which the sign-in follows (UX-7)
+  // the sign-in follows the user mode of the deployment (UX-7)
   userMode(): Observable<UserMode> {
     return this.info().pipe(map((info) => info.userMode));
   }
@@ -151,15 +147,14 @@ export class AuthService {
     this.store(null);
   }
 
-  // the session ends and the login opens as a new page (SEC-18)
+  // the login opens as a new page, see LEAVE_PAGE
   signOut(): void {
     this.logout();
     this.leavePage('/login');
   }
 
-  // the backend rejected the session (401): it ends and the login leads back to the page, opened as
-  // a new page (SEC-18); a page asks for several things at once, only the first rejection leads to
-  // the login
+  // a 401: the login opens as a new page and leads back here. A page sends several requests at once,
+  // only the first rejection acts
   sessionRejected(): void {
     if (!this.token()) return;
     this.logout();
@@ -191,7 +186,7 @@ function loadSession(): Session | null {
       typeof session.expiresAt === 'string' &&
       !Number.isNaN(Date.parse(session.expiresAt))
     ) {
-      // sessions stored before there were roles have none, their token is rejected anyway
+      // a session without roles has a token the backend rejects anyway
       const roles = Array.isArray(session.roles)
         ? session.roles.filter((role) => typeof role === 'string')
         : [];

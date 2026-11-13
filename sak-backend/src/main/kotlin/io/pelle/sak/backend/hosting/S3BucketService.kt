@@ -20,10 +20,10 @@ sealed interface CreateBucketResult {
 
     data object NameTaken : CreateBucketResult
 
-    // <name>.<base_domain> is a domain of another bucket, a redirect or the controller
+    // <name>.<base_domain> is a domain of another bucket, a redirect or the backend
     data object SubdomainTaken : CreateBucketResult
 
-    // no valid domain, or one the controller serves itself or redirects
+    // no valid domain, or one the backend serves itself or redirects
     data object InvalidDomain : CreateBucketResult
 
     // another bucket is served at it
@@ -53,14 +53,12 @@ sealed interface UpdateDomainsResult {
     data object DomainTaken : UpdateDomainsResult
 }
 
-// the buckets of the s3 api, the key pair of each and the domains they are served at, the only
-// way to them; listeners hear of every change of the domains. Every bucket is also served at
-// <name>.<base_domain> when the root domain is given
+// the only way to the buckets, their key pairs and domains; listeners hear of every change of the
+// domains. With a base domain, every bucket is also served at <name>.<base_domain>
 class S3BucketService(
     private val repository: S3BucketRepository,
-    // the domain the buckets get their subdomain of, the base domain of the deployment
     private val baseDomain: String?,
-    // names that are no buckets, e.g. the controller's own sites
+    // names that are no buckets, e.g. the backend's own sites
     private val reservedNames: Set<String>,
     // domains no bucket can be served at, the ones of the apps and the redirected ones
     private val domains: DomainRegistry,
@@ -109,7 +107,7 @@ class S3BucketService(
     // the domains of the bucket, then its subdomain of the base domain
     fun servedDomains(bucket: S3Bucket): List<String> = (bucket.domains + listOfNotNull(subdomain(bucket.name))).distinct()
 
-    // the domains every bucket is served at, what caddy serves them at
+    // the served domains of every bucket, for caddy
     fun domains(): Map<String, List<String>> = all().associate { it.name to servedDomains(it) }
 
     // a bucket with a new key pair for it alone, served at the domains
@@ -145,8 +143,8 @@ class S3BucketService(
         return CreateBucketResult.Created(bucket)
     }
 
-    // a new key pair for the bucket, the one before stops working at once: a leaked key pair ends
-    // without the bucket (SEC-12); null when there is no such bucket
+    // the old key pair stops working at once, so a leaked one ends without the bucket; null for an
+    // unknown bucket
     fun replaceKeyPair(name: String): Pair<String, Secret>? {
         if (repository.byName(name) == null) return null
         // an access key id another bucket has (one in 2^100) is drawn again
@@ -180,9 +178,8 @@ class S3BucketService(
         return UpdateDomainsResult.Updated(repository.byName(name) ?: bucket.copy(domains = normalized))
     }
 
-    // the bucket stays as deleted and is served nowhere any more, its key pair is refused; its name
-    // stays taken and its objects stay in the storage until it is purged
-    // not while a redirect leads to it
+    // not while a redirect leads to it. The bucket stays as deleted, served nowhere, its key pair
+    // refused; its name stays taken and its objects stay in the storage until it is purged
     fun delete(name: String): DeleteBucketResult {
         domains.redirectsTo(name).takeIf { it.isNotEmpty() }?.let { return DeleteBucketResult.Redirected(it) }
         if (!repository.delete(name)) return DeleteBucketResult.NotFound
@@ -200,8 +197,8 @@ class S3BucketService(
         data object Taken : DomainCheck
     }
 
-    // lower case, without duplicates, none reserved or served for another bucket, its subdomain
-    // of the root domain included
+    // lower case, without duplicates, none reserved or served for another bucket (also as its
+    // subdomain of the base domain)
     private fun checkDomains(
         name: String,
         domains: List<String>,

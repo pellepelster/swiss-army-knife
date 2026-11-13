@@ -6,7 +6,7 @@ import java.time.Instant
 
 // a login link the app asked for and waits for: a link is only taken while one is pending, from the
 // same deployment and at most PENDING_FOR old, and only with the nonce the app sent with the request,
-// so nobody signs the user in with a link of their own (AN-8)
+// so nobody signs the user in with a link of their own
 data class PendingLogin(
     val apiUrl: String,
     val startedAt: Instant,

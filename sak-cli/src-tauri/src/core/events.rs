@@ -52,7 +52,7 @@ pub enum AnsibleEvent {
 }
 
 impl AnsibleEvent {
-    /// the event with its text as sakctl prints it, without control characters (SEC-25)
+    /// the event with its text as sakctl prints it, without control characters
     pub fn printable(self) -> Self {
         use crate::core::encoding::printable;
         let message = |msg: Option<String>| msg.map(|text| printable(&text));

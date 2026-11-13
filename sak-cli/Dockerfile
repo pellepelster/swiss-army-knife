@@ -1,7 +1,6 @@
-# the tools sakctl runs in a container instead of on the user's machine: ansible, the version
-# of the root mise.toml (ansible-core 2.18 of ansible 11), and the
-# pelle_io.sak collection of ../ansible that provisions the server of a deployment. The build context
-# is the repository (mise run tools:image:build), Dockerfile.dockerignore lets only ansible/ in
+# the tools sakctl runs in a container instead of on the user's machine: ansible (its ansible-core
+# the minor version of the root mise.toml) and the pelle_io.sak collection of ../ansible. The build
+# context is the repository (mise run tools:image:build), Dockerfile.dockerignore lets only ansible/ in
 FROM debian:13.7-slim
 
 # renovate: datasource=pypi depName=ansible
@@ -13,14 +12,12 @@ RUN apt-get update \
         ca-certificates git openssh-client python3 python3-venv rsync sshpass \
     && rm -rf /var/lib/apt/lists/*
 
-# the full ansible package, ansible-core with the community collections, and the python
-# libraries their filters use (json_query, ipaddr), in a venv of its own
+# jmespath and netaddr for the filters json_query and ipaddr
 ENV PATH="/opt/ansible/bin:${PATH}"
 RUN python3 -m venv /opt/ansible \
     && pip install --no-cache-dir "ansible==${ANSIBLE_VERSION}" jmespath netaddr
 
-# the collection with the collections it depends on, the versions its requirements.yml pins,
-# where every user of the image finds them
+# the collection with the versions of its requirements.yml, in a path every user of the image reads
 ENV ANSIBLE_COLLECTIONS_PATH=/opt/ansible/collections
 COPY ansible /tmp/pelle_io.sak
 RUN ansible-galaxy collection install --collections-path /opt/ansible/collections \

@@ -8,6 +8,5 @@ data class BlobListEntry(
     val size: Long,
     val lastModified: Instant,
 ) {
-    // the segments joined with '/'
     val path get() = segments.joinToString("/")
 }

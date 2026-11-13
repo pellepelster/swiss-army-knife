@@ -9,10 +9,9 @@ use sak_cloud::hetzner::TOKEN_CHECK_LABEL;
 use sak_cloud::hetzner::api::ssh_keys::SshKeyCreate;
 use sak_cloud::hetzner::api::{ApiError, ErrorCode, HetznerApi, ListQuery};
 
-/// a read only token can list but not create, so the check writes: an ssh key is the cheapest
-/// resource there is, it costs nothing and is deleted right away. It carries the label
-/// `sak.pelle.io/token-check`, so a key a check left behind (a delete that failed) is told from
-/// every other key and removed by the next check
+/// a read only token can list but not create, so the check creates an ssh key (free) and deletes
+/// it at once. Its label `sak.pelle.io/token-check` lets the next check find and remove a key a
+/// failed delete left behind
 pub async fn validate(api: &HetznerApi) -> Result<(), String> {
     let name = format!("sakctl-token-check-{}", random_hex::<8>()?);
     let created = api

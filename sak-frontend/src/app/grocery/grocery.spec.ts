@@ -860,7 +860,7 @@ describe('Grocery', () => {
       await harness.fixture.whenStable();
     };
 
-    // deleted while it waits to be checked: its check and its toast go with it (GB-1)
+    // deleted while it waits to be checked: its check and its toast go with it
     input('item-2').click();
     await harness.fixture.whenStable();
     await deleteFromRow('Milk');
@@ -870,7 +870,7 @@ describe('Grocery', () => {
     vi.advanceTimersByTime(GROCERY_UNDO_MS);
     http.expectNone({ method: 'POST' });
 
-    // renamed while it waits: the field closes once it is checked (GB-14)
+    // renamed while it waits: the field closes once it is checked
     input('item-3').click();
     await harness.fixture.whenStable();
     button('Rename', await rowMenu('Bread')).click();
@@ -900,7 +900,7 @@ describe('Grocery', () => {
     http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
     await flushBought([item(6, 'Butter', 12), eggs, bread]);
 
-    // bought on another device while it waits: a second tap still undoes it (GB-6)
+    // bought on another device while it waits: a second tap still undoes it
     input('item-6').click();
     await harness.fixture.whenStable();
     const butter = { ...item(6, 'Butter', 12), checkedAt: '2026-11-01T12:00:00Z' };
@@ -957,7 +957,7 @@ describe('Grocery', () => {
     ]);
     expect(page().querySelector('[role=alert]')).toBeNull();
 
-    // the page left while Bread waits: its check goes out, nothing is loaded again (GB-5)
+    // the page left while Bread waits: its check goes out, nothing is loaded again
     input('item-3').click();
     await harness.fixture.whenStable();
     await open('/grocery');

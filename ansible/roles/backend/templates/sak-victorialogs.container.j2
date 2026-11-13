@@ -6,8 +6,8 @@ Description=sak-victorialogs
 ContainerName=sak-victorialogs
 Image={{ backend_victorialogs_image }}
 Pull=missing
-# listens on localhost only, vector ships to it and the backend queries it there
-# its own network with vector, published on the loopback of the host only (SEC-14)
+# its own network with vector, published on the loopback of the host only, where the backend
+# queries it
 Network=sak-logs.network
 PublishPort=127.0.0.1:9428:9428
 User={{ backend_uid }}

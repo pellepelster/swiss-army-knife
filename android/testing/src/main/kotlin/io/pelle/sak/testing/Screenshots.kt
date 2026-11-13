@@ -16,10 +16,9 @@ import com.github.takahirom.roborazzi.captureRoboImage
 import io.pelle.sak.core.ui.SakTheme
 import java.io.File
 
-// the screenshots of the docs (docs/screenshots/), each in the light and in the dark mode of the
-// phone: the content of an app in its theme, captured as android-<name>.png and
-// android-<name>-dark.png into the directory of the system property sak.screenshots
-// (mise run android:screenshots). The colors of the wallpaper are android's defaults
+// the screenshots of the docs, light and dark: android-<name>.png and android-<name>-dark.png into the
+// directory of the system property sak.screenshots (mise run android:screenshots). The colors of the
+// wallpaper are android's defaults
 class Screenshots(
     private val compose: ComposeContentTestRule,
 ) {
@@ -58,8 +57,8 @@ class Screenshots(
     }
 }
 
-// the texts of the debug build the screenshots are taken with, its name as the release has it: "SAK
-// Notes", not "SAK Notes (debug)"
+// the screenshots are of the debug build, but show the name of the release: "SAK Notes", not
+// "SAK Notes (debug)"
 @Suppress("DEPRECATION")
 private class ReleaseNames(
     base: Resources,

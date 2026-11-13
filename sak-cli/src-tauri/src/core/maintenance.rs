@@ -1,7 +1,6 @@
-//! the maintenance of the server of a deployment: whether a reboot is pending, an update of all
-//! packages, a restart of the services on old libraries, a coordinated reboot. `sak-backend` on the server does the work and answers as json
-//! on its standard output; each line it writes to standard error goes to the caller while it runs.
-//! The answers as lines are the same on the command line and in the window
+//! the maintenance of the server of a deployment: reboot status, package update, restart of the
+//! services on old libraries, coordinated reboot. `sak-backend` on the server does the work and
+//! answers as json on stdout; each line of its stderr goes to the caller while it runs
 
 use crate::core::deployments::DeploymentManager;
 use crate::core::error::SakctlError;
@@ -55,7 +54,6 @@ pub struct Kernel {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct RebootStatus {
     pub reboot_pending: bool,
-    /// `reboot-required` (a package asked for it), `kernel` (a newer one is installed)
     pub reasons: Vec<Reason>,
     pub kernel: Kernel,
     /// the services that still run old libraries
@@ -150,9 +148,8 @@ fn reboot(
     )
 }
 
-/// `command`, one of the commands above, until it ends or `limit` passes: then its ssh session is
-/// stopped, and with it the wait of sakctl; what the server started may still finish there. Only
-/// its own session: a provisioning at the same time goes on
+/// `command` until it ends or `limit` passes: then only its own ssh session is stopped (a
+/// provisioning at the same time goes on); what the server started may still finish there
 async fn limited<T: Send + 'static>(
     limit: Duration,
     command: impl FnOnce() -> Result<T, String> + Send + 'static,
@@ -308,7 +305,6 @@ pub async fn perform(
     }
 }
 
-/// the restart of the services on old libraries
 async fn restart(
     runtime: &'static str,
     target: Arc<SshTarget>,

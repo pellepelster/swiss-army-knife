@@ -36,7 +36,7 @@ import java.util.Base64
 // how long a login link the app asked for is taken (the login token of the backend lives as long)
 val PENDING_FOR: Duration = Duration.ofMinutes(15)
 
-// a nonce of a login request: 32 random bytes, base64url without padding (43 characters, AN-8)
+// a nonce of a login request: 32 random bytes, base64url without padding (43 characters)
 fun randomNonce(): String = ByteArray(32).also(SecureRandom()::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
 // what an app shows: until the user is signed in the screens of core, then the app's own, an
@@ -51,9 +51,7 @@ interface Screen {
         val error: UiText? = null,
     ) : Screen
 
-    // the sign-in follows the user mode (UX-7): in the multi user mode the e-mail login with a link to
-    // the password login, in the single user mode only the password login
-    // a way to sign in, beside the QR code of the web app
+    // a way to sign in, beside the QR code of the web app; EMAIL only in the multi user mode (UX-7)
     enum class SignInMethod { PASSWORD, EMAIL }
 
     data class SignIn(
@@ -91,12 +89,10 @@ interface AppScreen : Screen {
     ): AppScreen
 }
 
-// the logic every app shares, without android: the deployment, the sign-in by link or password, the
-// session that ends, the sign-out and the update of the app. An app shows its own screen once the user
-// is signed in (showApp) and reacts to the session going (the hooks). apiOf makes the api of a url
-// with a session token or none.
-// Every change of the session (a sign-in, the sign-out, its end, another deployment) counts up the
-// epoch; what a request of an older epoch answers changes nothing (AN-3)
+// the logic every app shares, without android. An app shows its own screen once the user is signed in
+// (showApp) and reacts to the session going (the hooks). apiOf makes the api of a url with a session
+// token or none. Every change of the session (a sign-in, the sign-out, its end, another deployment)
+// counts up the epoch; what a request of an older epoch answers changes nothing
 abstract class SakModel<A : SakApi>(
     protected val store: SessionStore,
     protected val apiOf: (url: String, token: String?) -> A,
@@ -117,8 +113,8 @@ abstract class SakModel<A : SakApi>(
     val updates: Boolean get() = updater != null
     val screen: StateFlow<Screen> = state.asStateFlow()
 
-    // where work goes that must not end with the screen, e.g. the last save when the app closes
-    // (AN-29); the scope of the process in the app (SakProcess), the scope of the model in the tests
+    // where work goes that must not end with the screen, e.g. the last save when the app closes; the
+    // scope of the process in the app (SakProcess), the scope of the model in the tests
     var lasting: CoroutineScope = scope
 
     // the activity stopped for a change of the configuration, e.g. a rotation: the next one that starts
@@ -128,7 +124,7 @@ abstract class SakModel<A : SakApi>(
     // start(), which a link of a cold start waits for, so its screen does not come after the app's
     private var starting: Job? = null
 
-    // one login link or QR code at a time (AN-2)
+    // one login link or QR code at a time
     private val links = Mutex()
 
     private val scanning = MutableStateFlow<QrScan?>(null)
@@ -142,12 +138,12 @@ abstract class SakModel<A : SakApi>(
     // the work of the code scanned, cancelled when the scan closes
     private var exchanging: Job? = null
 
-    // counts up with every change of the session (AN-3)
+    // counts up with every change of the session
     @Volatile
     private var epoch = 0
 
-    // work that is done also when the screen, the activity or the model goes (AN-29), e.g. a save the
-    // user expects to happen; on the lasting scope, not cancelled with the screen
+    // work that is done also when the screen, the activity or the model goes, e.g. a save the user
+    // expects to happen
     protected fun launchLasting(block: suspend CoroutineScope.() -> Unit): Job = lasting.launch { withContext(NonCancellable) { block() } }
 
     // the screen of the app for a session, set as the state; its data loads after it
@@ -329,15 +325,14 @@ abstract class SakModel<A : SakApi>(
     fun changeDeployment() =
         scope.launch {
             epoch++
-            // a store that fails to write is no reason to stay (AN-46)
+            // a store that fails to write is no reason to stay
             runCatchingNonCancel { store.save(Stored()) }
             clearSession()
             sessionChanged()
             state.value = Screen.Deployment()
         }
 
-    // a link to the address, with a nonce of this request; again to the same address from the screen
-    // that says it went (AN-42)
+    // a link to the address, with a nonce of this request; also again to the same address
     fun requestLink(email: String) {
         val signIn = state.value as? Screen.SignIn ?: return
         if (signIn.busy) return
@@ -369,13 +364,13 @@ abstract class SakModel<A : SakApi>(
         }
     }
 
-    // after a link went: another address is typed in (AN-42)
+    // after a link went: another address is typed in
     fun otherAddress() {
         val signIn = state.value as? Screen.SignIn ?: return
         if (!signIn.busy) state.value = signIn.copy(linkSentTo = null, error = null)
     }
 
-    // the deployment did not answer on the sign-in: asked again (AN-42)
+    // the deployment did not answer on the sign-in: asked again
     fun retrySignIn() {
         val signIn = state.value as? Screen.SignIn ?: return
         if (signIn.busy) return
@@ -417,8 +412,7 @@ abstract class SakModel<A : SakApi>(
 
     // the token of a login link the signin page of the web app handed on; taken only for a login
     // this app asked for, on the same deployment, within PENDING_FOR, with the nonce of its request.
-    // One link at a time; a link while signed in changes nothing, e.g. one tapped twice or given again
-    // by android (AN-2)
+    // A link while signed in changes nothing, e.g. one tapped twice or given again by android
     fun signInWithLink(token: String) =
         scope.launch {
             starting?.join()
@@ -451,7 +445,7 @@ abstract class SakModel<A : SakApi>(
         }
 
     // the session goes, the deployment stays; what the app still sends goes first, a failure of it
-    // does not keep the user signed in (AN-46)
+    // does not keep the user signed in
     fun signOut() =
         scope.launch {
             runCatchingNonCancel { signingOut() }
@@ -526,7 +520,7 @@ abstract class SakModel<A : SakApi>(
     // a request of the signed in user with the api of their session; nothing without one, e.g. signed
     // out meanwhile. A session that ended leads to the sign-in, another failure goes to failed with
     // its text, or the fallback when it has none; the answer of a session that is no longer the one
-    // stored changes nothing (AN-3). The answer, null when there is none
+    // stored changes nothing. The answer, null when there is none
     protected suspend fun <T> request(
         @StringRes fallback: Int,
         failed: (UiText) -> Unit,
@@ -554,7 +548,7 @@ abstract class SakModel<A : SakApi>(
 
     // the session ended: the sign-in says why; what the app reacts with after the screen changed goes
     // last, e.g. the stream of the old session, which may be the one that found the end. token is the
-    // one that was refused: a newer session stored meanwhile stays (AN-3); null ends any
+    // one that was refused: a newer session stored meanwhile stays; null ends any
     protected suspend fun sessionEnded(
         e: ApiException,
         token: String? = null,
@@ -588,7 +582,7 @@ abstract class SakModel<A : SakApi>(
         }
 
     // the session of a sign-in at url; a login link that was pending is used up. Nothing when the
-    // deployment changed meanwhile (AN-3)
+    // deployment changed meanwhile
     private suspend fun signedIn(
         url: String,
         token: String,
@@ -610,7 +604,7 @@ abstract class SakModel<A : SakApi>(
         startApp(store.load())
     }
 
-    // a failure of a hook or the store is not the end of what called it (AN-46)
+    // a failure of a hook or the store is not the end of what called it
     private suspend fun runCatchingNonCancel(block: suspend () -> Unit) {
         try {
             block()
@@ -631,7 +625,6 @@ abstract class SakModel<A : SakApi>(
             val name = runCatching { apiOf(url, stored.token).whoAmI().name }.getOrNull() ?: return@launch
             (state.value as? AppScreen)?.let { state.value = it.withUser(name) }
         }
-        // the app of the version of the deployment, when it is newer
         if (updates) scope.launch {
             val url = stored.apiUrl ?: return@launch
             val version = runCatching { newer(appVersion, apiOf(url, null).info().version) }.getOrNull() ?: return@launch

@@ -4,7 +4,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 
-// a library of android/ (core, testing): the sdks and java 17 of every module
+// the conventions of every library (core, testing)
 class SakAndroidLibraryPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.pluginManager.apply("com.android.library")
@@ -20,8 +20,7 @@ class SakAndroidLibraryPlugin : Plugin<Project> {
                 targetCompatibility = JavaVersion.VERSION_17
             }
         }
-        // android:test runs testGithubDebugUnitTest of every module; a library has no flavors, so its
-        // tests (e.g. SakModelTest, ListsModelTest) run under that name too
+        // android:test runs testGithubDebugUnitTest of every module; a library has no flavors
         target.tasks.register("testGithubDebugUnitTest") { dependsOn("testDebugUnitTest") }
     }
 }

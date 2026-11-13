@@ -1,5 +1,3 @@
-//! the tests of the command line
-
 use super::*;
 use crate::core::error::{
     EXIT_DOMAIN_TAKEN, EXIT_FAILED, EXIT_MIXED_DNS_MODES, EXIT_NOT_OWNED, EXIT_RECREATE_REFUSED,

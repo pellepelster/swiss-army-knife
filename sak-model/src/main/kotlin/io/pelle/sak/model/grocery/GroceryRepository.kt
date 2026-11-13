@@ -32,7 +32,6 @@ data class GroceryCategory(
     val position: Int,
 )
 
-// the name and the icon of a category
 data class GroceryCategoryValues(
     val name: String,
     // one emoji, null for none
@@ -87,9 +86,8 @@ data class GroceryItem(
     val checkedAt: Instant? = null,
 )
 
-// a name added to a list before, what the suggestions of the list are (GROCERY-11): the values of
-// the latest live item of the name, how many live items of the name the list has and when the
-// latest was added
+// a suggestion of a list (GROCERY-11), a name added before: the values of its latest live item, how
+// many live items of the name the list has and when the latest was added
 data class GrocerySuggestion(
     // the latest item of the name, what forgetting the suggestion names
     val id: Int,
@@ -112,11 +110,10 @@ data class GroceryItemValues(
     val categoryId: Int?,
 )
 
-// the database access of the grocery app: its lists, their categories, their items and the
-// suggestions made of them; only GroceryService (sak-backend) uses it. It reads the rows that are not deleted only, and
-// checks who sees and changes them in the sql of each method (MODEL-6): a user sees and changes
-// their own lists and the shared ones of the others, their names, icons, categories and items
-// (LIST-2); only the owner shares, unshares and deletes a list
+// the lists, categories, items and suggestions of the grocery app, for GroceryService only. Reads
+// live rows only and checks who sees and changes them in the sql of each method (MODEL-6): a user
+// changes their own lists and the shared ones of the others (LIST-2); only the owner shares,
+// unshares and deletes a list
 class GroceryRepository(
     private val database: SakDatabase,
     private val clock: Clock = Clock.systemUTC(),
@@ -314,9 +311,9 @@ class GroceryRepository(
                 .toItem()
         }
 
-    // the category of a live item, to buy or bought, on a list the user sees, one of its list or none; the next item
-    // of the name on the list takes it (GROCERY-13). Null when the user does not see the item or the
-    // category is none of the live ones of its list
+    // the category of a live item, to buy or bought, one of its list or none; the next item of the
+    // name on the list takes it (GROCERY-13). Null when the user does not see the item or the category
+    // is none of the live ones of its list
     fun setCategory(
         user: String,
         id: Int,
@@ -420,8 +417,8 @@ class GroceryRepository(
             GroceryCategoryChange.NameTaken
         }
 
-    // a category of a list the user sees; the items of the list lose it, the checked ones too, so
-    // its suggestions do (GROCERY-13). It stays as deleted. False when the user sees no such list or it has no such category
+    // the items of the list lose it, the checked ones too, so its suggestions do (GROCERY-13); it
+    // stays as deleted. False when the user sees no such list or it has no such category
     fun deleteCategory(
         user: String,
         listId: Int,
@@ -482,9 +479,9 @@ class GroceryRepository(
             )
         }
 
-    // the photo of a live item, to buy or bought, on a list the user sees, a file the user uploaded that is an image,
-    // or none; the next item of the name on the list takes it (GROCERY-12). Null when the user does not see the item or the file is no image of
-    // theirs; the file stays when the photo goes
+    // the photo of a live item, to buy or bought: an image the user uploaded, or none; the next item
+    // of the name on the list takes it (GROCERY-12). Null when the user does not see the item or the
+    // file is no image of theirs; the file stays when the photo goes
     fun setPhoto(
         user: String,
         id: Int,

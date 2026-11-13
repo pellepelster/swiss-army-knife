@@ -40,8 +40,7 @@ val INVALID_LABEL_NAME get() = Text(LabelsTexts.INVALID_NAME, "max" to LabelServ
 
 fun Label.response() = LabelResponse(id, name, createdAt.apiTime(), updatedAt?.apiTime())
 
-// the labels of the signed in user, which every application attaches to its entities, meant to
-// be mounted behind the authentication
+// the labels every app attaches to its entities, mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.labels(labelService: LabelService) {
     installApi()

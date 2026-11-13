@@ -63,10 +63,9 @@ fun Route.apiDoc() {
     get(SWAGGER_PATH) { call.respondRedirect("$SWAGGER_PATH/") }
 }
 
-// what jsonSchema of ktor writes wrong, corrected in the document (AN-53): a JsonPrimitive is any
-// primitive, not a string; the nullability of a property that refers to a schema is put on the
-// schema itself, which then counts as nullable wherever it is used. The default of a setting and
-// the requirement of a setting are the only ones the api has; a new one adds its line here
+// corrects what jsonSchema of ktor writes wrong: a JsonPrimitive is any primitive, not a string; the
+// nullability of a property that refers to a schema goes on the schema itself, so it is nullable
+// everywhere. Only the default and the requirement of a setting have these; a new one adds its line here
 internal fun corrected(document: JsonObject): JsonObject =
     document
         .patch("components", "schemas", "SettingResponse", "properties", "default") {
@@ -78,8 +77,7 @@ internal fun corrected(document: JsonObject): JsonObject =
             schema.forEach { (key, value) -> put(key, if (key == "type") JsonPrimitive("object") else value) }
         }
 
-// the object at the path replaced by what build makes of the one there; the document as it is
-// without the path
+// replaces the object at the path with what build makes of it; unchanged when the path is missing
 private fun JsonObject.patch(
     vararg path: String,
     build: JsonObjectBuilder.(JsonObject) -> Unit,

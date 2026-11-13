@@ -20,10 +20,8 @@ interface Media {
   readonly remove: string;
 }
 
-// one note as a post-it: the thumbnails of its photos and the waveforms of its recordings on top,
-// a photo leads to the whole photo, a recording plays in place, the robot on each writes it into
-// the text; the text is edited in place, labels are added below it. A photo is taken with the
-// camera of a phone or chosen from the files elsewhere, a recording with the microphone
+// one note as a post-it: its photos and recordings on top, the text edited in place, the labels
+// below it; a photo opens whole in a tab, a recording plays in place
 @Component({
   selector: 'app-note-card',
   imports: [AsyncPipe, LocalDateTimePipe, ThumbnailPipe, TranslatePipe],
@@ -223,7 +221,7 @@ export class NoteCard {
   private readonly i18n = inject(I18n);
 
   protected readonly colors = NOTE_COLORS;
-  // the names of the colors shown, the colors themselves are sent to the backend
+  // the names shown; the backend gets the color itself
   protected readonly colorNames: Record<(typeof NOTE_COLORS)[number], string> = {
     yellow: this.i18n.t('notes.colors.yellow'),
     pink: this.i18n.t('notes.colors.pink'),
@@ -272,13 +270,13 @@ export class NoteCard {
     inject(DestroyRef).onDestroy(() => this.stopAudio());
   }
 
-  // gone at once, the page offers to bring it back for a while
+  // the page offers an undo for a while
   protected remove(item: Media): void {
     if (item.kind === 'photo') this.store.removePhoto(this.note().id, item.id);
     else this.store.removeRecording(this.note().id, item.id);
   }
 
-  // plays the recording in the note, a second tap pauses it; it is fetched with the session first
+  // a second tap pauses it; it is fetched with the session first
   protected async play(id: number): Promise<void> {
     const playing = this.playing();
     this.stopAudio();
@@ -310,8 +308,7 @@ export class NoteCard {
     this.playing.set(null);
   }
 
-  // the whole photo in a tab of its own; the tab is opened right away, a browser blocks it once
-  // the photo has been fetched
+  // the tab opens before the fetch: after it, the browser blocks the popup
   protected async open(id: number): Promise<void> {
     const tab = window.open('', '_blank');
     try {

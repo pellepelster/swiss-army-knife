@@ -1,12 +1,10 @@
-//! an ssh session as root on the server of a deployment, run in the image of the tools like the
-//! provisioning, in one container of its own. The private client key is never written and is in no
-//! environment: the container runs an ssh-agent, and the key goes to it through the standard input
-//! of `ssh-add` (`exec`). The session is a second `exec` with the terminal of sakctl, which a
-//! standard input that carried the key could no longer be. The host key derived from the password
-//! is the only known host, so the server is verified, not trusted on first use. The container goes
-//! afterwards, also on a termination (`provision::stop_runs`) and when the `Sessions` it started
-//! in are stopped. A command can also run with a stream instead of the terminal
-//! (`run_streaming`), the way a backup leaves the server and a restore reaches it
+//! an ssh session as root on the server of a deployment, in a container of its own of the image of
+//! the tools. The private client key is never written and is in no environment: it goes to an
+//! ssh-agent in the container through the stdin of `ssh-add`; the session is a second `exec`, so it
+//! can have the terminal of sakctl. The host key derived from the password is the only known host,
+//! so the server is verified, not trusted on first use. The container goes afterwards, also on a
+//! termination (`provision::stop_runs`) and when its `Sessions` are stopped. `run_streaming` runs
+//! a command with a stream instead of the terminal (backup, restore)
 
 use crate::core::container;
 use crate::core::encoding::random_hex;
@@ -85,9 +83,8 @@ fn ssh_arguments(
         "StrictHostKeyChecking=yes".to_string(),
         "-o".to_string(),
         "ConnectTimeout=30".to_string(),
-        // a connection that drops (the network of the laptop, the server gone) ends ssh after
-        // a minute without an answer, instead of the hours of the keepalive of tcp; a backup or
-        // restore would wait that long otherwise
+        // a dropped connection ends ssh after a minute, not after the hours of the tcp keepalive
+        // (a backup or restore would wait that long)
         "-o".to_string(),
         format!("ServerAliveInterval={ALIVE_INTERVAL_SECONDS}"),
         "-o".to_string(),
@@ -298,8 +295,7 @@ impl Drop for SessionContainer {
 }
 
 /// the terminal sakctl runs in, also when its own input and output are pipes (a mise task, the dev
-/// runner of the window); none without one, e.g. in a script, and off unix, where the session takes the
-/// input of sakctl
+/// runner of the window); none in a script and off unix, where the session takes the input of sakctl
 fn controlling_terminal() -> Option<std::fs::File> {
     if cfg!(unix) {
         std::fs::OpenOptions::new()
@@ -350,12 +346,11 @@ pub enum Stream<'a> {
     In(&'a mut (dyn Read + Send)),
 }
 
-/// `command` on the server, without a terminal, its data through `stream`; each line it writes to
-/// its standard error goes to `on_line`, while it runs. ssh joins the words of `command` with
-/// spaces into one line for the shell of the server, so a word is never quoted: each must be a
-/// word the shell takes as it is (no space, no quote), or the whole command one line for the shell. The exit code of ssh. A stream that fails
-/// on the side of sakctl (a full disk, a backup that does not decrypt) is the error, whatever the
-/// command answered
+/// `command` on the server, without a terminal, its data through `stream`, each stderr line to
+/// `on_line`; answers the exit code of ssh. ssh joins the words of `command` with spaces into one
+/// shell line and quotes nothing: each word must need no quoting, or the whole command be one shell
+/// line. A stream that fails on the side of sakctl (a full disk, a backup that does not decrypt) is
+/// the error, whatever the command answered
 pub fn run_streaming(
     runtime: &str,
     target: &SshTarget,
@@ -522,8 +517,8 @@ pub(crate) mod tests {
     mod integration {
         use super::*;
 
-        /// with docker and the image of the tools: the agent of the container holds the client key,
-        /// no file has it, and the container is gone afterwards
+        /// the agent of the container holds the client key, no file has it, and the container is
+        /// gone afterwards
         #[test]
         fn the_agent_of_the_session_holds_the_key_and_the_container_goes() {
             let runtime = "docker";

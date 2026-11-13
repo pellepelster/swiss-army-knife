@@ -17,11 +17,11 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
 
 // the buckets in the binary storage, each below its path (by default buckets/<name>): an object is
-// the blob of its key below data/ of the bucket, with its metadata next to it
+// the blob of its key below data/ of the bucket, its metadata a sidecar (<key>.json) below meta/
 class BinaryStorageS3Backend(
     private val storage: BinaryStorage,
     private val resolver: S3BucketPathResolver = S3BucketPathResolver { bucket -> BlobPath(listOf(BUCKETS, bucket)) },
-    // the room a write may take (SEC-9), by default with the free bytes of the volume of the storage
+    // the room a write may take, by default from the free bytes of the volume of the storage
     private val guard: WriteGuard = WriteGuard({ usableBytes(storage) }),
 ) : S3StorageBackend {
     private val mapper: ObjectMapper = jacksonObjectMapper()
@@ -301,7 +301,7 @@ class BinaryStorageS3Backend(
     ): MetaFile? = storage.open(metaPath(bucketPath, key))?.use { mapper.readValue<MetaFile>(it) }
 
     // the objects of the bucket and their size, with the parts of the uploads not completed yet,
-    // which take their room too (SEC-9); staged writes are not in it
+    // which take their room too; staged writes are not in it
     fun usage(bucket: String): BlobUsage {
         val bucketPath = requireBucket(bucket)
         val objects = storage.usage(bucketPath.resolve(DATA))
@@ -315,7 +315,7 @@ class BinaryStorageS3Backend(
     }
 
     // removes the uploads of the bucket that were neither completed nor aborted and had no part or
-    // start since before (SEC-9); the number of uploads removed
+    // start since before, so they do not keep their room; the number of uploads removed
     fun removeStaleUploads(
         bucket: String,
         before: java.time.Instant,

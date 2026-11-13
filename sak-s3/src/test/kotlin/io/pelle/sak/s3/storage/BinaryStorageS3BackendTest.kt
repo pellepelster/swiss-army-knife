@@ -47,7 +47,7 @@ class BinaryStorageS3BackendTest {
 
         storage.usage("bucket1") shouldBe BlobUsage(2, 8)
 
-        // the parts take their room before the upload completes (SEC-9)
+        // the parts take their room before the upload completes
         val uploadId = storage.createMultipartUpload("bucket1", "d.txt", ObjectMetadata())
         storage.uploadPart("bucket1", "d.txt", uploadId, 1, "1234".byteInputStream())
         storage.usage("bucket1") shouldBe BlobUsage(2, 12)
@@ -57,7 +57,7 @@ class BinaryStorageS3BackendTest {
         storage.usage("bucket1") shouldBe BlobUsage(1, 3)
     }
 
-    // SEC-9: one key of a bucket can not fill the data volume
+    // one key of a bucket can not fill the data volume
     @Test
     fun `a write starts only above the free bytes kept and stops when they are reached while it streams`() {
         var free = 1000L
@@ -217,7 +217,7 @@ class BinaryStorageS3BackendTest {
         }
     }
 
-    // SR-8: a part of a key is the name of a file, the last one also of its sidecar (<name>.json)
+    // a part of a key is the name of a file, the last one also of its sidecar (<name>.json)
     @Test
     fun `a key with a part longer than a name of a file is too long`() {
         put("a".repeat(250))

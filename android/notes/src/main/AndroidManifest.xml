@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- the permissions and the receiver of the update come with core; the microphone records a note
-         (asked for when the user first records) -->
+    <!-- the other permissions come with core; asked for at the first recording -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- no backup: the session token is bound to a key of this phone's keystore -->
@@ -13,8 +12,8 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
-        <!-- singleTask: photos shared from another app go to the app that runs (onNewIntent), not to a
-             second activity in the task of the other app, whose model would save the same notes -->
+        <!-- singleTask: a share goes to the running activity (onNewIntent), not to a second one in the
+             task of the other app, whose model would save the same notes -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -24,15 +23,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- the login link the signin page of the web app hands on: an intent that names this
-                 package, io.pelle.sak.notes://signin?token=… -->
+            <!-- the login link of the signin page of the web app -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="io.pelle.sak.notes" android:host="signin" />
             </intent-filter>
-            <!-- the photos another app shares, one or several, with a text; they become a new note -->
+            <!-- photos shared by another app become a new note -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
@@ -40,7 +38,7 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
-        <!-- the file the camera writes the photo of a note into, shared only with the camera app -->
+        <!-- the file the camera app writes a photo into -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.photos"

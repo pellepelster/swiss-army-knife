@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- the flavor play of every app (sak.android.app, build-logic): google play updates the app and forbids
-     an app to install itself, so the permission and the receiver of the update of core are removed -->
+<!-- the flavor play: google play forbids an app to install itself, so the self update of core goes -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 

@@ -50,13 +50,9 @@ const PRIORITY_LABEL = {
   low: 'todo.priority.low',
 } as const satisfies Record<TodoPriority, TextKey>;
 
-// one todo list, opened from all lists (LIST-3): its tasks, open and done alike, by priority, the high
-// ones first (TODO-5), with the day it is to be done by, in the danger color once it passed
-// (TODO-4). A tap on a task marks it done, struck through, a tap on a done one opens it again; the
-// backend learns it at once (TODO-3). Purge in the toolbar takes the done tasks shown away at once, a
-// toast offers to undo it for UNDO_DELETE_MS (UX-4.2), then the backend deletes them, only them: a
-// task done meanwhile stays; when the page goes away or into the background meanwhile it is sent
-// with keepalive (TODO-6). A list that is gone leads to all lists
+// one todo list, opened from all lists (LIST-3): its tasks by priority (TODO-5), with their due
+// date (TODO-4); a tap marks a task done or open again (TODO-3); purge removes the done tasks after
+// an undo time (TODO-6, UX-4.2). A list that is gone leads to all lists
 @Component({
   selector: 'app-todo-page',
   imports: [ActionMenu, PageHeader, ListIcon, PriorityIcon, RouterLink, TranslatePipe, UndoToast],
@@ -118,9 +114,8 @@ const PRIORITY_LABEL = {
             [value]="itemTitle()"
             (input)="itemTitle.set(title.value)"
           />
-          <!-- the day it is to be done by, none for no day (TODO-4): only a calendar, which opens
-               the picker of the browser on the field next to it, the day chosen beside it; the
-               field itself stays hidden, so the row fits a phone -->
+          <!-- the due date (TODO-4): a calendar button opens the picker of the hidden field next
+               to it, so the row fits a phone -->
           <button
             type="button"
             class="btn btn-outline-secondary"
@@ -145,8 +140,7 @@ const PRIORITY_LABEL = {
             [value]="itemDue()"
             (input)="itemDue.set(due.value)"
           />
-          <!-- the priority of the next task, normal unless chosen (TODO-5): only a flag in the color
-               of the priority, as the arrows of the rows, its menu the three of them -->
+          <!-- the priority of the next task (TODO-5): a flag in the color of the priority -->
           <button
             type="button"
             class="btn btn-outline-secondary"
@@ -212,9 +206,8 @@ const PRIORITY_LABEL = {
       @if (items().length) {
         <ul class="list-group" [attr.aria-label]="'todo.list.tasks' | t">
           @for (item of items(); track item.id) {
-            <!-- a tap on the row, no checkbox, marks the task done, struck through, or open again
-                 (TODO-3); a toggle, pressed while done, its name says the title, the priority and
-                 the due date, the content is only what it looks like -->
+            <!-- the row is a toggle, no checkbox (TODO-3): pressed while done; its name says the
+                 title, the priority and the due date, its content is only visual -->
             <li
               class="list-group-item p-0 d-flex flex-wrap align-items-center"
               [attr.data-testid]="'item-' + item.id"
@@ -249,9 +242,8 @@ const PRIORITY_LABEL = {
                   >
                 }
               </button>
-              <!-- the menu of the row changes the priority, the current one checked (TODO-5), adds a
-                   due date to a task without one and takes it away again, each disabled when it does
-                   not apply (TODO-4, UX-8) -->
+              <!-- the priority (TODO-5) and the due date (TODO-4); an entry that does not apply is
+                   disabled (UX-8) -->
               <app-action-menu class="pe-1" [name]="item.title">
                 @for (each of priorities; track each) {
                   <button
@@ -375,11 +367,10 @@ export class TodoPage {
         marking.has(item.id) ? { ...item, doneAt: marking.get(item.id) ?? null } : item,
       );
   });
-  // whether there are done tasks to purge
   protected readonly hasDone = computed(() => this.items().some((item) => item.doneAt != null));
   protected readonly loaded = signal(false);
-  // where an error shows (UX-15): the lists or the tasks could not be loaded, at the top; adding a
-  // task under its field; what was done to a task in its row, at the top once the task is not shown
+  // where an error shows (UX-15): loading at the top, adding under the field, a change of a task
+  // in its row, or at the top once the task is not shown
   protected readonly listsError = this.open.error;
   protected readonly itemsError = signal<string | null>(null);
   protected readonly addError = signal<string | null>(null);
@@ -394,7 +385,6 @@ export class TodoPage {
   // yyyy-mm-dd as the date field gives it, empty for no day
   protected readonly itemDue = signal('');
   protected readonly itemPriority = signal<TodoPriority>('normal');
-  // the menu of the priority of the next task is open
   protected readonly choosingPriority = signal(false);
   // the name of the flag, the priority chosen
   protected readonly priorityText = computed(
@@ -493,9 +483,8 @@ export class TodoPage {
       });
   }
 
-  // the task done, struck through at once, or a done one open again; the backend learns it at once,
-  // a failure says why in its row (TODO-3). A tap while the request is on its way does nothing. The
-  // place of the task follows with the next load
+  // shows at once (TODO-3); a tap while the request is on its way does nothing. The place of the
+  // task follows with the next load
   protected done(item: TodoItem): void {
     if (this.marking().has(item.id)) return;
     const done = item.doneAt == null;
@@ -505,7 +494,6 @@ export class TodoPage {
     this.send(this.service.setDone(item.id, done), 'todo.list.not_done', item.id);
   }
 
-  // the priority of the task, from the menu of its row (TODO-5)
   protected changePriority(item: TodoItem, priority: TodoPriority): void {
     if (item.priority === priority) return;
     this.send(this.service.setPriority(item.id, priority), 'todo.list.priority_not_set', item.id);
@@ -547,13 +535,12 @@ export class TodoPage {
     );
   }
 
-  // the due date of the task goes, from the menu of its row (TODO-4)
   protected removeDueDate(item: TodoItem): void {
     this.send(this.service.setDueDate(item.id, null), 'todo.list.due_date_not_saved', item.id);
   }
 
-  // the done tasks shown go at once, after UNDO_DELETE_MS the backend deletes them, unless it is
-  // undone (TODO-6, UX-4.2); a task done meanwhile is not among them and stays
+  // hides the done tasks shown; the backend deletes only these after UNDO_DELETE_MS unless undone
+  // (TODO-6, UX-4.2), so a task done meanwhile stays
   protected purge(): void {
     const list = this.open.shownId();
     const ids = this.items()
@@ -590,8 +577,7 @@ export class TodoPage {
     });
   }
 
-  // the purged tasks stay hidden until the backend answered, then the tasks load again; when the
-  // page goes away it is sent with keepalive, a refused one says why and shows them again
+  // the purged tasks stay hidden until the backend answers, then the tasks load again
   private sendPurge(list: number, ids: readonly number[], leaving: boolean): void {
     const settled = (purged: boolean) => {
       if (this.destroyed) return;

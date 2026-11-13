@@ -1,4 +1,4 @@
-// the controller's database: the liquibase changelog in src/main/resources/db/changelog is the
+// the database of the backend: the liquibase changelog in src/main/resources/db/changelog is the
 // schema, jooq generates its classes from it without a database at build time
 plugins {
     id("sak.kotlin-conventions")

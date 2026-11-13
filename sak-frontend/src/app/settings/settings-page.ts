@@ -18,8 +18,8 @@ export class SettingScopes {
   readonly scopes = signal<SettingScope[] | null>(null);
 }
 
-// a tab for every scope of settings the backend describes, each a child route; without one in the
-// url the first is opened
+// a tab (child route) for every scope the backend describes; without one in the url the first
+// opens
 @Component({
   selector: 'app-settings-page',
   imports: [PageHeader, RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe],

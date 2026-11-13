@@ -7,7 +7,6 @@ import { HealthStatus } from '../api/models';
 // details are the parts it checked one by one, e.g. each domain
 export type { HealthDetail, HealthState, HealthStatus } from '../api/models';
 
-// the health checks of the backend
 @Injectable({ providedIn: 'root' })
 export class HealthService {
   private readonly http = inject(HttpClient);

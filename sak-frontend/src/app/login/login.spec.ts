@@ -76,8 +76,7 @@ describe('Login', () => {
     );
   });
 
-  // an admin of the configuration may have an address without a dot in its domain, as in the local
-  // environment; the backend sends the link to it
+  // an admin of the configuration may have a domain without a dot, as in the local environment
   it('requests a link for an address without a dot in its domain', async () => {
     const harness = await open('/login', 'multi');
 

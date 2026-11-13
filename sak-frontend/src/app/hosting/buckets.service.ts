@@ -5,20 +5,20 @@ import { Bucket, BucketSecret } from '../api/models';
 import { fetchAll, Page, PAGE_SIZE } from '../shared/api';
 import { apiHost } from '../shared/api-url';
 
-// without its keys, they are fetched on their own; the statistics miss objects, bytes and
-// computedAt while the bucket is still being counted or when it could not be counted
+// a Bucket has no keys (see BucketSecret); objects, bytes and computedAt are missing while it is
+// counted or when it could not be counted
 export type { Bucket, BucketSecret } from '../api/models';
 
-// the names the backend accepts, each is the label of the bucket's subdomain; it also rejects
-// the names of its own sites and the ones whose subdomain is served already
+// a name is the label of the bucket's subdomain; the backend also rejects the names of its own
+// sites and of subdomains served already
 export const BUCKET_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 
-// the domains the bucket is served at, its own ones first, redirects lead to the first one
+// its own domains first; redirects lead to the first one
 export function servedDomains(bucket: Bucket): string[] {
   return [...new Set([...bucket.domains, ...(bucket.subdomain ? [bucket.subdomain] : [])])];
 }
 
-// how long to wait before asking again while a bucket is still being counted
+// how often to ask again while a bucket is counted
 export const POLL_INTERVAL_MS = 3000;
 
 // the buckets of the backend's s3 api
@@ -26,14 +26,12 @@ export const POLL_INTERVAL_MS = 3000;
 export class BucketsService {
   private readonly http = inject(HttpClient);
 
-  // the page of the buckets starting at the offset
   page(offset: number): Observable<Page<Bucket>> {
     return this.http.get<Page<Bucket>>('/api/v1/static-hosting', {
       params: { offset, limit: PAGE_SIZE },
     });
   }
 
-  // all of them, to choose one
   buckets(): Observable<Bucket[]> {
     return fetchAll<Bucket>(this.http, '/api/v1/static-hosting');
   }
@@ -62,7 +60,7 @@ export class BucketsService {
     return this.http.get<BucketSecret>(`/api/v1/static-hosting/${encodeURIComponent(name)}/secret`);
   }
 
-  // a new key pair, the one before stops working at once (SEC-12)
+  // the key pair before stops working at once
   replaceSecret(name: string): Observable<BucketSecret> {
     return this.http.post<BucketSecret>(
       `/api/v1/static-hosting/${encodeURIComponent(name)}/secret`,
@@ -71,7 +69,7 @@ export class BucketsService {
   }
 }
 
-// the endpoint of the s3 api, api. next to the apps of the frontend
+// the s3 api is at api. next to the host of the frontend
 export function s3Endpoint(hostname: string = location.hostname): string {
   return `https://${apiHost(hostname)}`;
 }

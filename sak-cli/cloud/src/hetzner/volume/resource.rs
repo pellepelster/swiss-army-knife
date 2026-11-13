@@ -10,8 +10,8 @@ pub struct HetznerVolume {
     pub name: String,
     /// the labels that, with the name, identify it (`api::identity`); every lookup checks them
     pub identity: Labels,
-    /// the labels that tell about it and are never compared (`api::Labeled::info`), written with
-    /// the labels when it is created or changed for another reason
+    /// never compared (`api::Labeled::info`); written when the labels are written for another
+    /// reason
     pub info: Labels,
     pub location: Location,
     /// in GB, at least 10. A volume larger than this is up to date; a smaller volume needs a

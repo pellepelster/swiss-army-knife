@@ -7,9 +7,8 @@ import io.pelle.sak.core.session.Stored
 import kotlinx.coroutines.Dispatchers
 import org.robolectric.RuntimeEnvironment
 
-// the activity of an app on the jvm (robolectric), its view model and model as the app makes them,
-// against the fake backend and with the session stored in memory: set before the activity starts. The
-// answers come at once, on the thread that asks
+// sets the process up for an activity on robolectric before it starts: the fake backend, the session
+// in memory; the answers come at once, on the thread that asks
 fun FakeBackend.forActivities(stored: Stored) {
     forgetFileProviders()
     dispatcher = Dispatchers.Unconfined
@@ -18,8 +17,7 @@ fun FakeBackend.forActivities(stored: Stored) {
     SakProcess.sessionStore = { _, _ -> store }
 }
 
-// the phone turned, to landscape or back to portrait: android makes the activity anew, the view model
-// stays
+// android makes the activity anew, the view model stays
 fun ActivityScenario<*>.rotate(landscape: Boolean = true) {
     RuntimeEnvironment.setQualifiers(if (landscape) "+land" else "+port")
     recreate()

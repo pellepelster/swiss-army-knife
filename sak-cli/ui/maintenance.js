@@ -1,8 +1,5 @@
-// the maintenance of the server of a deployment, from the menu of its page: the status, the update,
-// the restart of the services or the reboot, as `sakctl maintenance` has them. The view shows each line of the server while it
-// runs, then the answer, warnings in their colour. There is no cancel, a command on the server is
-// not stopped halfway; each has its timeout in rust. Back, once it ended, opens the page of the
-// deployment again
+// the maintenance of the server of a deployment, as `sakctl maintenance` has it. There is no cancel:
+// a command on the server is not stopped halfway, each has its timeout in rust
 import { openedDeployment } from './password.js';
 import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './views.js';
 
@@ -12,7 +9,6 @@ const progress = document.getElementById('maintenance-progress');
 const answer = document.getElementById('maintenance-answer');
 const status = document.getElementById('maintenance-status');
 const backButton = document.getElementById('maintenance-back');
-// the deployment of the maintenance that runs or ran last
 let running = null;
 
 function line(value, warn = false) {
@@ -41,7 +37,7 @@ export async function showMaintenance(deployment, action) {
   setStatus(status, text(`ui.maintenance.running_${action}`));
   show('view-maintenance');
   const visit = currentVisit();
-  // the focus follows into the view, the entry of the menu that had it is hidden now
+  // the closed menu had the focus
   document.getElementById('maintenance-title').focus();
   const channel = new Channel();
   channel.onmessage = (message) => {

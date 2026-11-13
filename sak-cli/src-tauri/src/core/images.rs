@@ -1,12 +1,10 @@
 //! the images of SAK on ghcr.io and their cosign signatures: the tools and the canary sakctl runs,
-//! the backend and the ingress the server runs. Each is pulled by the digest of its tag, after the
-//! signature of that digest is verified: signed by the workflow of the repository at the tag of the
-//! release (`<version>`, `<version>-rc`) or at main (`latest`), with a certificate of sigstore for
-//! its id token (`mise run image:sign`). The signature is a bundle of sigstore next to the digest
-//! in the registry (cosign 3: an index tagged `sha256-<hex>`, ghcr.io has no referrers api), checked
-//! offline against the trusted root of sigstore built into sakctl, as the update (`update.rs`). A
-//! tag no workflow pushes, set by hand with SAK_DOCKER_IMAGE_TAG (e.g. images a developer pushed),
-//! has no signer: it is pulled by its tag, unchecked
+//! the backend and the ingress the server runs. Each is pulled by the digest of its tag after the
+//! signature of that digest is verified: signed keyless by the workflow at the tag of the release
+//! (`<version>`, `<version>-rc`) or at main (`latest`) (`mise run image:sign`). The sigstore bundle
+//! is next to the digest in the registry (cosign 3: an index tagged `sha256-<hex>`, ghcr.io has no
+//! referrers api), checked offline against the trusted root built into sakctl, as in `update.rs`.
+//! A tag no workflow pushes (set with SAK_DOCKER_IMAGE_TAG) has no signer: pulled by tag, unchecked
 
 use crate::core::config::with_causes;
 use reqwest::Client;
@@ -19,7 +17,6 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Duration;
 
-/// the registry and the owner of the images
 const REGISTRY: &str = "ghcr.io";
 const OWNER: &str = "pellepelster";
 
@@ -42,7 +39,7 @@ pub const CANARY: &str = "sak-cli-docker-canary";
 pub const BACKEND: &str = "sak-backend";
 pub const INGRESS: &str = "sak-ingress";
 
-/// `ghcr.io/pellepelster/<name>:<tag>`, the image by its tag
+/// `ghcr.io/pellepelster/<name>:<tag>`
 pub fn tagged(name: &str, tag: &str) -> String {
     format!("{REGISTRY}/{OWNER}/{name}:{tag}")
 }
@@ -61,9 +58,9 @@ fn signer(tag: &str) -> Option<String> {
         .then(|| format!("{SIGNER_WORKFLOW}@refs/tags/v{version}"))
 }
 
-/// the image `name` of the tag of sakctl (`core::image_tag`) as it is pulled and run: by the
-/// digest of its tag after its signature is verified, `ghcr.io/pellepelster/<name>@sha256:…`; by
-/// its tag for a tag without a signer. Once per image and run of sakctl
+/// the image `name` of the tag of sakctl (`core::image_tag`) as it is pulled and run:
+/// `ghcr.io/pellepelster/<name>@sha256:…` after its signature is verified, by tag for a tag without
+/// a signer. Verified once per image and run of sakctl
 pub fn reference(name: &str) -> Result<String, String> {
     static VERIFIED: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
     let tag = crate::core::image_tag();

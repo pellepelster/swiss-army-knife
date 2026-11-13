@@ -10,8 +10,7 @@ const val DEFAULT_LIMIT = 50
 
 const val MAX_LIMIT = 100
 
-// a page of a list: its items and how many items the whole list has; what a service answers for
-// a page, a route turns it into the response of the page asked for
+// a page of a list and the total of the whole list, as a service answers it
 data class Page<T>(
     val items: List<T>,
     val total: Long,
@@ -28,7 +27,6 @@ data class PageRequest(
     val offset: Long = 0,
     val limit: Int = DEFAULT_LIMIT,
 ) {
-    // the response of the page asked for
     fun <T> of(page: Page<T>) = PageResponse(page.items, PaginationResponse(offset, limit, page.total))
 
     // the page asked for of a list that is there as a whole
@@ -36,8 +34,7 @@ data class PageRequest(
         Page(all.asSequence().drop(offset.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()).take(limit).toList(), all.size.toLong())
 }
 
-// the page asked for, or null after answering a bad request when offset or limit are no valid
-// numbers
+// the page asked for, or null after answering 400 for an invalid offset or limit
 suspend fun ApplicationCall.pageRequest(): PageRequest? {
     val offset = request.queryParameters["offset"]
     val limit = request.queryParameters["limit"]

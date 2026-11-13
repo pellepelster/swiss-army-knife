@@ -1,9 +1,6 @@
-// the plan of a deployment and its run, an apply or a destroy, both with the same resource rows.
-// The plan of a create or a destroy has cancel, force deploy (always: the playbook runs again)
-// and deploy changes (only when a resource is not up to date); a deploy is planned and started on
-// the page of its deployment (deployment.js), with the same rows. The run shows each resource and each task of the playbook
-// as rust works on it; done only when every resource was done, cancel stops the run and leads to
-// the list of the deployments
+// the plan of a create or of a new config, and the run of an apply or a destroy, with the same
+// resource rows. A destroy runs without this plan, a check of deployment.js is its own plan. Done
+// only when every resource was done; cancel stops the run
 import { openDeployment } from './password.js';
 import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './views.js';
 
@@ -17,25 +14,22 @@ const runList = document.getElementById('run-resources');
 const runStatus = document.getElementById('run-status');
 const doneButton = document.getElementById('run-done');
 
-// the led of the theme for the diff status of a resource
 const LEDS = { up_to_date: 'ok', missing: 'info', parent_missing: 'info', has_changes: 'warn', duplicate: 'danger' };
 
-// the plan shown, what it is of (the deployment as rust takes it) and where its cancel leads
 let shownPlan = null;
 let planned = null;
 let cancelPlan = null;
-// the run: its deployment, its rows by their resource, where done leads
+// rows by their resource
 let running = null;
 const rows = new Map();
 
-// the text of `key` for the intent: `<key>` for a create, `<key>_deploy` or `<key>_destroy` else
+// `<key>` for a create, `<key>_<intent>` else
 function intentText(key, intent) {
   return text(intent === 'create' ? key : `${key}_${intent}`);
 }
 
 
-// a resource of the plan: its kind, name and resource status, then what the plan does to it.
-// Rust decides the action and the working text (`common.working.<working>`) that the row shows when the
+// rust decides the action and the working text (`common.working.<working>`) the row shows when the
 // run starts
 export function row({ kind, name: resourceName, resourceStatus, action, working, status: state, changes }) {
   const item = document.createElement('li');
@@ -67,7 +61,7 @@ export function row({ kind, name: resourceName, resourceStatus, action, working,
   return item;
 }
 
-// the plan of `deployment` (what rust takes, with its intent); `onCancel` opens what was before
+// `onCancel` opens what was before
 export function showPlan(plan, deployment, onCancel) {
   shownPlan = plan;
   planned = deployment;
@@ -75,17 +69,15 @@ export function showPlan(plan, deployment, onCancel) {
   document.getElementById('plan-name').textContent = plan.name;
   document.getElementById('plan-intro').textContent = intentText('common.plan.intro', deployment.intent);
   planList.replaceChildren(...plan.resources.map(row));
-  // a new deployment ends with the label it started with (UX-2.2)
+  // a create ends with the label it started with (UX-2.2)
   deployButton.textContent = text(deployment.intent === 'create' ? 'ui.deployments.create' : 'ui.plan.deploy_changes');
-  // deploy changes only when there is something to change; the button stays, disabled
   deployButton.disabled = plan.resources.every((resource) => resource.resourceStatus === 'up_to_date');
   setStatus(planStatus, '');
   show('view-plan');
 }
 
-// an event of the run on the row of its resource: busy with its working text while rust works on
-// it, ok when done, neutral when destroyed. The start of the provisioning and the wait for the
-// deployment show in the status line, the tasks of the playbook on the row of the provisioning
+// the start of the provisioning and the wait for the deployment show in the status line, the tasks of
+// the playbook on the row of the provisioning
 function onEvent(message) {
   if (message.event === 'provisioning') {
     setStatus(runStatus, message.message);
@@ -97,14 +89,14 @@ function onEvent(message) {
   }
   const led = item.querySelector('.resource-state');
   const detail = item.querySelector('.resource-detail');
-  // the state of the run from now on, no more the one of the plan: its colour follows it
+  // from now on the state of the run, no more the one of the plan
   item.dataset.status = { started: 'working', taskStarted: 'working', provisionFailed: 'failed' }[message.event] ?? 'done';
   switch (message.event) {
     case 'started':
       led.dataset.sakState = 'busy';
       detail.textContent = text(`common.working.${item.dataset.working}`);
       break;
-    // rust names the text of what was done, the command line shows the same
+    // the same text as the command line
     case 'applied':
       led.dataset.sakState = 'ok';
       detail.textContent = text(message.text);
@@ -126,8 +118,7 @@ function onEvent(message) {
   }
 }
 
-// runs `deployment` with the rows of `plan`; `afterDone` is what done opens. `start` starts the
-// apply in rust with the channel of its events: the deployment as it is, or the checked one
+// `afterDone` is what done opens; `start` starts the apply in rust with the channel of its events
 async function run(plan, deployment, afterDone, start = (channel) => invoke('apply_deployment', { deployment, onEvent: channel })) {
   running = { deployment, afterDone };
   const { intent } = deployment;
@@ -169,7 +160,6 @@ async function run(plan, deployment, afterDone, start = (channel) => invoke('app
   }
 }
 
-// an apply of the plan shown, forced or not
 function apply(force) {
   const deployment = { ...planned, force };
   run(shownPlan, deployment, () => showApplied(deployment));
@@ -179,14 +169,12 @@ deployButton.addEventListener('click', () => apply(false));
 forceButton.addEventListener('click', () => apply(true));
 document.getElementById('plan-cancel').addEventListener('click', () => cancelPlan?.());
 
-// the deploy of the check of a deployment's page (rust keeps what it checked, `plan.check` names
-// it), forced or not; done opens the page of the deployment again
+// rust keeps what it checked, `plan.check` names it
 export function runChecked(plan, name, password, force) {
   const deployment = { name, password, intent: 'deploy', deleteData: false };
   run(plan, deployment, () => showApplied(deployment), (channel) => invoke('apply_checked', { deploy: { check: plan.check, force }, onEvent: channel }));
 }
 
-// a destroy with the plan the form made: its rows, then the run; done opens the list
 export async function runDestroy(plan, deployment) {
   await run(plan, deployment, showList);
 }
@@ -195,8 +183,7 @@ async function showList() {
   await navigate('deployments');
 }
 
-// the page of the deployment just applied, as the list finds it now; the list when it is not
-// there
+// the list when the deployment is not in it
 async function showApplied(deployment) {
   try {
     const deployments = await invoke('list_deployments');

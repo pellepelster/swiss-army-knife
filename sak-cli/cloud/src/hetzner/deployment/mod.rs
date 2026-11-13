@@ -1,5 +1,5 @@
-//! the sak deployments of a cloud project: all resources with the name label, grouped by its
-//! value, and the state of each deployment compared with its declared resource group.
+//! the sak deployments of a cloud project: the resources with the name label, grouped by its
+//! value.
 //!
 //! `discover` finds the deployments, `spec` declares the resources of one, `state` compares
 //! them, `domain` holds the root domains and the dns mode, `settings` the user mode and the acme
@@ -32,8 +32,7 @@ pub use state::{DeploymentState, DeploymentStatus, ResourceKind, ResourceState, 
 use crate::api::{Error, Result};
 use crate::hetzner::api::HetznerApi;
 
-/// sets each label `key` of the server `id` to its `value`, or removes it when the value is
-/// `None`, in one request; the other labels of the server stay
+/// sets each label to its value, or removes it for `None`, in one request; the other labels stay
 pub async fn set_server_labels(
     api: &HetznerApi,
     id: u64,

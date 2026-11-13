@@ -14,11 +14,9 @@ import io.pelle.sak.config.DnsMode
 
 private const val INFO_TAG = "info"
 
-// the info of a deployment, without a session: which deployment answers at a domain, e.g. after
-// its dns records were set up; it tells the name, the dns mode, the user mode and the version of sak
-// and nothing else.
-// The user mode follows from the mail server: with one the users sign in by e-mail (multi), without
-// one only the admin signs in (single)
+// without a session: tells which deployment answers at a domain, e.g. after its dns records were
+// set up, and nothing more. The user mode follows from the mail server: with one the users sign in
+// by e-mail (multi), without one only the admin signs in (single)
 @OptIn(ExperimentalKtorApi::class)
 fun Route.info(
     name: String,

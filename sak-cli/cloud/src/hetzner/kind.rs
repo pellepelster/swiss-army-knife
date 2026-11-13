@@ -1,6 +1,6 @@
-//! the one provisioner of the kinds that are found by their name and have no dependencies: a
-//! kind tells how to fetch, compare, create, update and delete its resource, the impls here do
-//! the rest for every kind. The server and the dns record have provisioners of their own
+//! the one provisioner of the kinds found by their name and without dependencies: a kind tells
+//! how to fetch, compare, create, update and delete its resource, the impls here do the rest. The
+//! server and the dns record have provisioners of their own
 
 use crate::api::identity;
 use crate::api::{
@@ -11,9 +11,9 @@ use crate::hetzner::hetzner_label_diff;
 use crate::hetzner::lookup::{NamedLookup, NamedRuntime};
 use async_trait::async_trait;
 
-/// a kind of hetzner resource, implemented by its provisioner. The provisioner of the kind is
-/// the blanket impl of `Provisioner`: it finds the resource and checks its identity, reports
-/// it missing or duplicate, adds the label diff, and finds it again after an apply
+/// implemented by the provisioner of the kind; the blanket impl of `Provisioner` finds the resource
+/// and checks its identity, reports it missing or duplicate, adds the label diff, and finds it
+/// again after an apply
 #[async_trait]
 pub trait HetznerKind: Send + Sync + 'static {
     type Resource: Resource<Runtime = Self::Runtime, Lookup = NamedLookup<Self::Runtime>> + Labeled;
@@ -26,7 +26,7 @@ pub trait HetznerKind: Send + Sync + 'static {
     fn compare(&self, resource: &Self::Resource, runtime: &Self::Runtime) -> Result<Vec<DiffItem>>;
 
     /// for a missing resource: the message that names another resource the create would collide
-    /// with. None by default
+    /// with
     async fn duplicate_of(&self, _resource: &Self::Resource) -> Result<Option<String>> {
         Ok(None)
     }
@@ -40,8 +40,7 @@ pub trait HetznerKind: Send + Sync + 'static {
         Ok(())
     }
 
-    /// whether the name and the labels need writing: the labels differ, the info labels
-    /// included. A kind may add what it writes with them
+    /// the info labels included; a kind may add what it writes with them
     fn labels_differ(&self, resource: &Self::Resource, runtime: &Self::Runtime) -> bool {
         resource.labels() != runtime.labels()
     }

@@ -79,8 +79,7 @@ fun Application.module() {
     monitor.subscribe(ApplicationStopping) { reconciler.stop() }
 }
 
-// every service of the backend, made once by sak(); the routes of the apps use them, the caddy
-// reconciler hears of the changes of the buckets and the redirects
+// every service of the backend, made once by sak()
 class SakServices(
     val settings: SettingService,
     // every scope of settings the settings api serves
@@ -185,9 +184,8 @@ fun Application.sak(config: SakConfig): SakServices {
     return services
 }
 
-// the multipart uploads of the buckets that were neither completed nor aborted and had no part for
-// STALE_UPLOAD_AGE go, at the start and every STALE_UPLOAD_CHECK (SEC-9): one key of a bucket can
-// not fill the data volume with parts it never completes
+// removes the multipart uploads with no part for STALE_UPLOAD_AGE, at the start and every
+// STALE_UPLOAD_CHECK, so a bucket key can not fill the data volume with parts it never completes
 private fun Application.removeStaleUploads(
     storage: BinaryStorageS3Backend,
     buckets: S3BucketService,

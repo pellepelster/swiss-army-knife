@@ -16,8 +16,8 @@ import { BucketStore } from './bucket-store';
 
 type Failure = 'unknown' | 'forbidden' | 'unavailable';
 
-// the logs tab of a bucket: the requests to all the domains it is served at, which are one site
-// named like the bucket; their totals and chart over a range
+// the logs tab of a bucket: the requests to all its domains, one site named like the bucket,
+// as totals and a chart over a range
 @Component({
   selector: 'app-bucket-logs',
   imports: [TimeSeriesChart, TranslatePipe],
@@ -146,8 +146,7 @@ export class BucketLogs {
       onCleanup(() => subscription.unsubscribe());
     });
 
-    // reloads whenever the range changes, a late answer for a previous range never replaces the
-    // current one
+    // a late answer for a range before never replaces the current one
     effect((onCleanup) => {
       const name = this.store.name();
       const range = this.selectedRange();
@@ -165,7 +164,7 @@ export class BucketLogs {
   }
 }
 
-// the label of a status class, the status class itself for one without a label
+// the status class itself when it has no label
 function statusClassLabel(i18n: I18n, statusClass: string): string {
   const key = STATUS_CLASS_LABELS[statusClass as StatusClassKey];
   return key ? i18n.t(key) : statusClass;

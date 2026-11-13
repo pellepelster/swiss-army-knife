@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- nothing of an app goes along: not to the cloud backup and not to a new phone (android 12 and
-     later; allowBackup="false" of the apps covers the older ones). The session, the deployment and the
-     e-mail address stay on this phone (AN-14) -->
+<!-- nothing of an app goes to the cloud backup or a new phone (android 12 and later; allowBackup="false"
+     of the apps covers the older ones): the session, the deployment and the e-mail address stay here -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="root" />

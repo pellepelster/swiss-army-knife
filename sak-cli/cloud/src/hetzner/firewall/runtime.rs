@@ -7,9 +7,8 @@ pub struct HetznerFirewallRuntime {
     pub id: u64,
     pub name: String,
     pub rules: Vec<FirewallRule>,
-    /// the label selectors of the firewall, each in the spelling of `selector`; compared as they
-    /// are, so a selector sak-cloud does not know (`!=`, `in (…)`, a bare key) is one more
-    /// selector, no error
+    /// each in the spelling of `selector`, compared as they are: a selector sak-cloud does not know
+    /// (`!=`, `in (…)`, a bare key) is one more selector, no error
     pub selectors: BTreeSet<String>,
     /// what the firewall is applied to, as the api reports it, also single servers
     pub applied_to: Vec<FirewallResource>,
@@ -36,9 +35,8 @@ impl HetznerFirewallRuntime {
     }
 }
 
-/// a label selector in one spelling, to compare it: its terms trimmed and sorted, `key==value`
-/// as `key=value`; the commas of `in (…)` and `notin (…)` stay in their term, any other term
-/// stays as it is
+/// a label selector in one spelling, to compare it: its terms trimmed and sorted, `key==value` as
+/// `key=value`; the commas of `in (…)` and `notin (…)` stay in their term
 pub(crate) fn selector(text: &str) -> String {
     let mut terms: Vec<String> = Vec::new();
     let (mut depth, mut start) = (0usize, 0);

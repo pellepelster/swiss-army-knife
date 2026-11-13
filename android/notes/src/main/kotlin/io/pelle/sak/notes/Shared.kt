@@ -14,9 +14,8 @@ data class Shared<T>(
     val text: String,
 )
 
-// the photos of a share, SEND with one (EXTRA_STREAM), SEND_MULTIPLE with several, and its text
-// (EXTRA_TEXT); null for any other intent and for one without a photo. Only images: the intent filters
-// of the manifest take image/* only, an intent that names this activity may still carry another type
+// the photos and the text of a SEND or SEND_MULTIPLE; null for another intent or one without a photo.
+// The type is checked again: an intent that names this activity skips the filters of the manifest
 fun <T> shared(
     action: String?,
     type: String?,
@@ -30,8 +29,7 @@ fun <T> shared(
     return Shared(photos, text?.toString().orEmpty())
 }
 
-// a photo the camera took, the user chose or another app shared, scaled by PhotoScaling of core; null
-// when it can not be read
+// the photo scaled by PhotoScaling; null when it can not be read
 suspend fun scaledPhoto(
     context: Context,
     uri: Uri,

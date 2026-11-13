@@ -33,7 +33,7 @@ import java.time.Instant
 // the colors of a note, the first is the one of a new note
 val NOTE_COLORS: List<NoteResponse.Color> = NoteResponse.Color.entries
 
-// the limits of a note, the backend takes no more (NoteService, LabelService of sak-backend, AN-24)
+// the limits of the backend (NoteService, LabelService of sak-backend)
 const val MAX_LABELS = 10
 const val MAX_LABEL_LENGTH = 64
 const val MAX_TEXT_LENGTH = 10_000
@@ -43,17 +43,16 @@ const val MAX_RECORDINGS = 20
 // how long typing pauses before the text is saved, as the web app
 const val SAVE_TEXT_AFTER_MS = 600L
 
-// how long a photo or a recording taken off a note can come back (UX-4.2); the backend learns of it after
+// how long a removed photo or recording can come back (UX-4.2); the backend learns of it after
 const val UNDO_REMOVE_MS = 2_000L
 
-// the notes load again when the app comes to the front only when the last load is older (AN-51)
+// the app coming to the front loads the notes again only when the last load is older
 const val RELOAD_AFTER_MS = 30_000L
 
-// the bytes of the photos and recordings fetched that are kept, the ones used last (AN-21)
+// the bytes of the fetched files kept, the ones used last
 private const val MAX_FILE_BYTES = 32L * 1024 * 1024
 
-// the text of a new note another app shared: without the blanks around it, at most MAX_TEXT_LENGTH
-// characters, a character of two halves (an emoji) not cut in the middle
+// trimmed, at most MAX_TEXT_LENGTH characters, a surrogate pair (an emoji) not cut in the middle
 fun sharedText(text: String): String {
     val trimmed = text.trim()
     if (trimmed.length <= MAX_TEXT_LENGTH) return trimmed
@@ -61,20 +60,17 @@ fun sharedText(text: String): String {
     return trimmed.substring(0, end).trimEnd()
 }
 
-// labels are compared without case and surrounding blanks, `Work ` and `work` are one label; the
-// backend stores them the same way
+// `Work ` and `work` are one label, as the backend stores them
 fun normalizeLabel(label: String): String = label.trim().replace(Regex("\\s+"), " ").lowercase()
 
-// records the microphone as a wav (16 kHz mono 16 bit, what the backend takes and the AI reads) until
-// stop() or its longest recording; null when it was stopped before it recorded. Throws when the
-// microphone can not be used
+// records a wav (16 kHz mono 16 bit, what the backend takes and the AI reads) until stop() or
+// MAX_RECORDING_SECONDS; null when stopped before it recorded. Throws when the microphone can not be used
 interface Recorder {
     suspend fun record(): ByteArray?
 
     fun stop()
 }
 
-// what is being recorded for: a new note or a note
 sealed interface RecordingFor {
     data object New : RecordingFor
 
@@ -83,9 +79,8 @@ sealed interface RecordingFor {
     ) : RecordingFor
 }
 
-// a photo or a recording taken off a note, which undo puts back at its place until the time is up
-// (UX-4.2); number is its place counted from 1, as the screen names it; serial starts the bar of the
-// time left anew for every one
+// a removed photo or recording, which undo puts back at its place until the time is up (UX-4.2);
+// number is its place counted from 1, as the screen names it; serial restarts the bar of the time left
 data class Removal(
     val noteId: Int,
     val number: Int,
@@ -94,9 +89,7 @@ data class Removal(
     val serial: Int = 0,
 )
 
-// the notes of the signed in user once signed in: the wall of their notes, newest first, of the label
-// what a load answers: the notes of the filter, the labels to suggest, the labels the notes have (null
-// when they could not be read) and whether the AI is offered
+// what a load answers; used is null when it could not be read
 private data class Loaded(
     val notes: List<NoteResponse>,
     val shared: List<String>,
@@ -104,42 +97,41 @@ private data class Loaded(
     val ai: Boolean,
 )
 
-// filtered by or all (NOTES-1: the lists are not shown, the app opens on the notes, LIST-3)
+// the wall of the notes, newest first, of the label filtered by or all (NOTES-1: the app opens on the
+// notes, not on the lists, LIST-3)
 data class NotesScreen(
     override val user: String,
     override val update: AppUpdate? = null,
     override val updateNotice: UiText? = null,
     val notes: List<NoteResponse> = emptyList(),
-    // the labels to choose from when one is added to a note: the ones of all apps and of the notes, sorted
+    // the labels to suggest: of all apps and of the notes, sorted
     val labels: List<String> = emptyList(),
-    // the labels a note has, sorted: the ones the wall filters by (GET /notes/labels)
+    // the labels the notes have, sorted: the wall filters by them
     val used: List<String> = emptyList(),
-    // the label the wall shows the notes of, null for all
+    // null for all
     val filter: String? = null,
-    // how many notes there are, of the last load of all; the count of All while a label is filtered
+    // of the last load of all, the count of All while a label is filtered
     val allCount: Int? = null,
     val loading: Boolean = true,
     val error: UiText? = null,
-    // what the user is told that is no error, e.g. that a recording stopped at its longest
+    // no error, e.g. that a recording stopped at its longest
     val notice: UiText? = null,
-    // whether the notes offer the AI (GET /notes/settings), off until the backend says otherwise
+    // off until the backend says otherwise
     val ai: Boolean = false,
-    // the note open in its own screen, to write and change it
+    // the note open in its own screen
     val open: Int? = null,
     // the note whose delete asks first (UX-4.1)
     val deleting: Int? = null,
-    // the notes being deleted, a second delete waits for nothing
+    // the notes being deleted; a second delete does nothing
     val deletingNow: Set<Int> = emptySet(),
     val recording: RecordingFor? = null,
-    // when the recording started, what its time is counted from, also after a rotation
+    // what the time of the recording is counted from, also after a rotation
     val recordingSince: Instant? = null,
-    // a new note being created, e.g. from a photo
     val creating: Boolean = false,
-    // the notes a photo or a recording is being stored for
+    // the notes a photo or a recording is uploaded for
     val uploading: Set<Int> = emptySet(),
-    // the photos and recordings whose text is being discovered
+    // the files whose text is being discovered
     val discovering: Set<Int> = emptySet(),
-    // the photo or recording just taken off, which undo puts back
     val removal: Removal? = null,
 ) : AppScreen {
     override fun withUser(user: String) = copy(user = user)
@@ -151,18 +143,14 @@ data class NotesScreen(
 
     fun note(id: Int?) = notes.firstOrNull { it.id == id }
 
-    // the chips of the filter: the labels a note has, and the one filtered by while it is on, also when no
-    // note has it any more, so it can be turned off
+    // also the label filtered by when no note has it any more, so it can be turned off
     val chips: List<String> get() = (used + listOfNotNull(filter)).distinct().sorted()
 }
 
-// the logic of the notes app, without android: the notes are kept by the backend, a change shows at
-// once and is saved in the background, the text once typing pauses; one save of a note at a time, a
-// change while it runs sends the note once more after its answer (AN-4). A load keeps what changed here
-// since it started (AN-5). Photos are scaled down and recordings made by the ui and the recorder,
-// uploaded to the file storage and attached. The AI discovers the text of a photo or a recording only
-// when an admin turned it on (the privacy rule: its consent names OpenRouter); the backend refuses it
-// otherwise
+// the logic of the notes app, without android. A change shows at once and is saved in the background,
+// the text once typing pauses; one save of a note at a time, a change while it runs sends the note once
+// more after its answer. A load keeps what changed here since it started. The AI discovers text only
+// when an admin turned it on (its consent names OpenRouter); the backend refuses it otherwise
 class NotesModel(
     store: SessionStore,
     apiOf: (url: String, token: String?) -> NotesApi,
@@ -173,22 +161,21 @@ class NotesModel(
     updater: Updater? = Updater { error("no updater") },
     private val recorder: Recorder = NO_RECORDER,
 ) : SakModel<NotesApi>(store, apiOf, scope, allowUrl, clock, appVersion, updater) {
-    // the text typed and not saved yet, by note: its save after the pause
+    // the save after the pause of the typed text, by note
     private val pendingText = mutableMapOf<Int, Job>()
 
-    // the changes made here, by note: the answer of a save of an older one does not take the place of
-    // a newer one
+    // the changes made here, by note: the answer to an older save does not replace a newer change
     private val versions = mutableMapOf<Int, Int>()
 
-    // the notes as the backend answered them last, what a change it refused goes back to (AN-24)
+    // the notes as the backend answered them last, what a refused change goes back to
     private val stored = mutableMapOf<Int, NoteResponse>()
 
-    // the save running of each note, and the notes changed while it runs (AN-4)
+    // the running save of each note, and the notes changed while it runs
     private val saving = mutableMapOf<Int, Job>()
     private val dirty = mutableSetOf<Int>()
 
-    // the notes changed, created or saving since the load running started: they stay as they are here
-    // (AN-5); the notes deleted here, which no load brings back
+    // the notes changed, created or saving since the running load started stay as they are here; the
+    // notes deleted here no load brings back
     private val changedWhileLoading = mutableSetOf<Int>()
     private val deleted = mutableSetOf<Int>()
 
@@ -196,18 +183,17 @@ class NotesModel(
     private var loadedAt: Instant? = null
 
     // the photos handed over before the notes were there, e.g. after android ended the app behind the
-    // camera (AN-27), or shared while a note was being created
+    // camera, or shared while a note was being created
     private val waitingPhotos = mutableListOf<Waiting>()
 
-    // the time of the undo of a removal
+    // the timer of the undo of a removal
     private var removing: Job? = null
     private var serial = 0
 
-    // how long a removal can be undone: UNDO_REMOVE_MS, longer when the accessibility settings of the
-    // phone ask for more time for a control (AN-34), set by the ui
+    // set by the ui: longer when the accessibility settings of the phone ask for more time
     var undoMs = UNDO_REMOVE_MS
 
-    // the photos and recordings fetched, by their file and whether it is the thumbnail
+    // by file and whether it is the thumbnail
     private val files = FileCache(MAX_FILE_BYTES)
 
     override fun showApp(stored: Stored) {
@@ -237,13 +223,13 @@ class NotesModel(
         deleted.clear()
         changedWhileLoading.clear()
         loadedAt = null
-        // the photos of the session that went are not attached; read, so the ui deletes the file of the camera
+        // not attached; read, so the ui deletes the file of the camera
         waitingPhotos.toList().forEach { waiting -> waiting.reads.forEach(::discard) }
         waitingPhotos.clear()
     }
 
-    // the notes of the filter, every page, the labels and whether the AI is offered; the notes changed
-    // here since the load started stay as they are here (AN-5)
+    // every page of the filter, the labels and whether the AI is offered; the notes changed here since
+    // the load started stay as they are here
     fun load() {
         notes { it.copy(loading = true, error = null) }
         loading?.cancel()
@@ -293,16 +279,15 @@ class NotesModel(
             }
     }
 
-    // the app came to the front again: the notes may have changed elsewhere (no stream of changes), loaded
-    // again when the last load is older than RELOAD_AFTER_MS
+    // the notes may have changed elsewhere (no stream of changes)
     fun resume() {
         if (notesScreen() == null) return
         val last = loadedAt
         if (last == null || Duration.between(last, clock.instant()).toMillis() >= RELOAD_AFTER_MS) load()
     }
 
-    // the app goes to the background: a recording stops (Android records only silence for an app in the
-    // background, AN-22), what is typed or taken off is saved now, also when the app closes (AN-29)
+    // the app goes to the background: a recording stops (Android records only silence in the
+    // background), what is typed or removed is saved now, also when the app closes
     fun pause() {
         recorder.stop()
         launchLasting {
@@ -313,7 +298,7 @@ class NotesModel(
 
     fun refresh() = load()
 
-    // the wall shows the notes of the label, or all with null
+    // null for all
     fun filter(label: String?) {
         val screen = notesScreen() ?: return
         if (screen.filter == label) return
@@ -325,24 +310,21 @@ class NotesModel(
 
     fun dismissNotice() = notes { it.copy(notice = null) }
 
-    // a note in its own screen, or back to the wall, its text saved first
+    // a note in its own screen, or null for the wall; the note left is saved
     fun open(id: Int?) {
         val previous = notesScreen()?.open
         notes { it.copy(open = id, error = null) }
         if (previous != null && previous != id) launchLasting { flush(previous) }
     }
 
-    // a new empty note, labelled with the label the wall shows, open to be written
+    // labelled with the label filtered by
     fun create() = create(photos = emptyList(), recordings = emptyList())
 
-    // a new note with the photo of the camera or the picker
     fun createWithPhoto(read: suspend () -> ByteArray?) = createWithPhotos(listOf(read))
 
-    // a new note with the photos and the text, e.g. shared by another app; each read is a photo, scaled
-    // down already, null when it could not be read, and is called once. The first MAX_PHOTOS are
-    // attached (AN-24), the text is cut at MAX_TEXT_LENGTH, the app says so. Before the notes are there or
-    // while a note is being created they wait (AN-27); without a session they go, the sign-in or the
-    // deployment says so
+    // each read is a scaled photo, null when it could not be read, and is called once. The first
+    // MAX_PHOTOS are attached, the text is cut at MAX_TEXT_LENGTH, the app says so. Before the notes are
+    // there or while a note is being created they wait; without a session they go, the sign-in says so
     fun createWithPhotos(
         reads: List<suspend () -> ByteArray?>,
         text: String = "",
@@ -351,8 +333,7 @@ class NotesModel(
         val wall = notesScreen()
         if (wall == null) {
             if (state.value == Screen.Starting) {
-                // the session is not known yet, e.g. the app started for the share: they wait, and go once
-                // there is none
+                // the session is not known yet, e.g. the app started for the share
                 waitingPhotos += Waiting(null, reads, text)
                 scope.launch {
                     screen.first { it != Screen.Starting }
@@ -379,7 +360,7 @@ class NotesModel(
         scope.launch {
             val files = mutableListOf<Int>()
             for (read in reads.take(MAX_PHOTOS)) {
-                // a session that ended during the uploads leads to the sign-in, the photos left go
+                // the session ended during the uploads: the photos left go
                 if (notesScreen() == null) {
                     discard(read)
                     continue
@@ -396,7 +377,7 @@ class NotesModel(
         }
     }
 
-    // the text, at most MAX_TEXT_LENGTH characters (AN-24), saved once typing pauses
+    // cut at MAX_TEXT_LENGTH, saved once typing pauses
     fun setText(
         id: Int,
         text: String,
@@ -419,8 +400,8 @@ class NotesModel(
         if (change(id) { if (it.color == color) it else it.copy(color = color) }) save(id)
     }
 
-    // a blank label, one the note has already or one more than MAX_LABELS changes nothing; a label longer
-    // than MAX_LABEL_LENGTH is refused with its reason (AN-24)
+    // a blank label, one the note has or one over MAX_LABELS changes nothing; one longer than
+    // MAX_LABEL_LENGTH is refused with an error
     fun addLabel(
         id: Int,
         label: String,
@@ -436,8 +417,7 @@ class NotesModel(
                 if (note.labels.any { it.name == name } || note.labels.size >= MAX_LABELS) {
                     note
                 } else {
-                    // a stand-in until the save answers the note with the label as it is stored; the
-                    // backend stores the time
+                    // a stand-in until the save answers the label as it is stored
                     note.copy(labels = (note.labels + LabelResponse(id = 0, name = name, createdAt = "")).sortedBy { it.name })
                 }
             }
@@ -454,9 +434,8 @@ class NotesModel(
         if (change(id) { note -> if (note.labels.none { it.name == label }) note else note.copy(labels = note.labels.filter { it.name != label }) }) save(id)
     }
 
-    // the photo is attached once it is stored; read is the photo, scaled down already, null when it
-    // could not be read. Before the notes are there, the photo waits for them (AN-27); a note with
-    // MAX_PHOTOS takes no more (AN-24); read is always called once
+    // attached once uploaded; read is the scaled photo, null when it could not be read, always called
+    // once. Before the notes are there the photo waits; a note with MAX_PHOTOS takes no more
     fun addPhoto(
         id: Int,
         read: suspend () -> ByteArray?,
@@ -486,8 +465,7 @@ class NotesModel(
         }
     }
 
-    // the photo goes from the note at once, undo puts it back until UNDO_REMOVE_MS; the file stays in
-    // the storage, other notes may show it too (NOTES-2)
+    // undo puts it back until undoMs; the file stays in the storage, other notes may show it too (NOTES-2)
     fun removePhoto(
         id: Int,
         fileId: Int,
@@ -512,8 +490,7 @@ class NotesModel(
         removed(Removal(id, index + 1, recording = recording))
     }
 
-    // the photo or recording taken off last back at its place; nothing is sent, the backend did not
-    // learn of it
+    // nothing is sent, the backend did not learn of the removal
     fun undoRemoval() {
         val removal = notesScreen()?.removal ?: return
         removing?.cancel()
@@ -528,14 +505,14 @@ class NotesModel(
                 else -> note
             }
         }
-        // a save of another change sent it without; the note as it is here goes again
+        // a save of another change sent the note without it; send it again
         if (removal.noteId in dirty || saving[removal.noteId]?.isActive == true || stored[removal.noteId] != notesScreen()?.note(removal.noteId)) {
             save(removal.noteId)
         }
     }
 
-    // starts recording for a note or a new note, a second call stops it; the recording is stored and
-    // attached, a new note is made with it. A note with MAX_RECORDINGS takes no more (AN-24)
+    // a second call stops it; the recording is uploaded and attached, for New to a new note. A note
+    // with MAX_RECORDINGS takes no more
     fun record(target: RecordingFor) {
         val screen = notesScreen() ?: return
         if (screen.recording != null) {
@@ -547,7 +524,7 @@ class NotesModel(
             return
         }
         notes { it.copy(recording = target, recordingSince = clock.instant(), error = null, notice = null) }
-        // also when the app closes during the upload of the recording (AN-29)
+        // also when the app closes during the upload
         launchLasting {
             val wav =
                 try {
@@ -560,7 +537,6 @@ class NotesModel(
                 } finally {
                     notes { it.copy(recording = null, recordingSince = null) }
                 }
-            // stopped before it recorded, there is nothing to keep
             if (wav == null) return@launchLasting
             if (wav.size >= WAV_HEADER + RECORDING_RATE * 2 * MAX_RECORDING_SECONDS) {
                 notes { it.copy(notice = uiText(R.string.notes_recording_longest, MAX_RECORDING_SECONDS / 60)) }
@@ -598,13 +574,11 @@ class NotesModel(
 
     fun stopRecording() = recorder.stop()
 
-    // the app may not use the microphone, the user did not allow it
     fun microphoneDenied() = notes { it.copy(error = uiText(R.string.notes_error_microphone_denied)) }
 
     fun photoNotRead() = notes { it.copy(error = uiText(R.string.notes_error_photo_not_read)) }
 
-    // the text the AI discovers in a photo or a recording of the note is added to its text (NOTES-5);
-    // only with the AI turned on, as the web app
+    // the discovered text is added to the text of the note (NOTES-5); only with the AI turned on
     fun discover(
         id: Int,
         fileId: Int,
@@ -632,8 +606,7 @@ class NotesModel(
 
     fun dismissDelete() = notes { it.copy(deleting = null) }
 
-    // the note goes for good, its files stay in the storage (NOTES-2); back to the wall. A second delete
-    // while it runs does nothing
+    // its files stay in the storage (NOTES-2); back to the wall. A second delete while it runs does nothing
     fun delete(id: Int) {
         val screen = notesScreen() ?: return
         if (id in screen.deletingNow) return
@@ -662,8 +635,7 @@ class NotesModel(
         }
     }
 
-    // the content of a photo or a recording of the user, or its thumbnail, fetched once; null when it
-    // can not be loaded, which the screen says only for one asked for in full
+    // cached; null when it can not be loaded, an error only for a file asked for in full
     suspend fun file(
         id: Int,
         thumbnail: Boolean,
@@ -678,7 +650,7 @@ class NotesModel(
 
     fun recordingNotPlayed() = notes { it.copy(error = uiText(R.string.notes_error_recording_not_played)) }
 
-    // whether the AI is offered: off when the backend can not say
+    // off when the backend can not say
     private suspend fun aiOf(api: NotesApi): Boolean =
         try {
             api.discoverAvailable()
@@ -688,7 +660,6 @@ class NotesModel(
             false
         }
 
-    // the note made now with the photos and recordings, open to be written
     private fun create(
         photos: List<Int>,
         recordings: List<Int>,
@@ -710,7 +681,7 @@ class NotesModel(
             }
         if (note != null) {
             stored[note.id] = note
-            // a load running does not have it yet (AN-5)
+            // a running load does not have it yet
             changedWhileLoading += note.id
             if (note.labels.isNotEmpty()) reloadUsed()
         }
@@ -730,11 +701,10 @@ class NotesModel(
         attachWaitingPhotos()
     }
 
-    // the photos that waited for the notes, attached or made into notes now
     private fun attachWaitingPhotos() {
         val screen = notesScreen() ?: return
         if (screen.loading || waitingPhotos.isEmpty()) return
-        // the new notes one after the other: the first now, the others once it is created
+        // new notes one after the other: the first now, the others once it is created
         val next = waitingPhotos.indexOfFirst { it.note == null }
         val ready = waitingPhotos.filter { it.note != null } + listOfNotNull(waitingPhotos.getOrNull(next))
         waitingPhotos.removeAll(ready)
@@ -743,8 +713,7 @@ class NotesModel(
         }
     }
 
-    // the new notes that waited for a session there is none of: they go, the sign-in or the deployment
-    // says so
+    // the new notes that waited for a session there is none of
     private fun dropWaitingNotes() {
         val dropped = waitingPhotos.filter { it.note == null }
         if (dropped.isEmpty()) return
@@ -753,7 +722,6 @@ class NotesModel(
         signedOut()
     }
 
-    // photos were shared without a session
     private fun signedOut() {
         val error = uiText(R.string.notes_shared_signed_out)
         when (val screen = state.value) {
@@ -768,7 +736,7 @@ class NotesModel(
         scope.launch { runCatching { read() } }
     }
 
-    // the photo stored in the file storage, null when it could not be read or stored
+    // null when it could not be read or uploaded
     private suspend fun uploadPhoto(read: suspend () -> ByteArray?): FileResponse? {
         val jpeg = read()
         if (jpeg == null) {
@@ -778,7 +746,7 @@ class NotesModel(
         return request(R.string.notes_errors_photo_not_stored, ::failed) { it.upload(jpeg, ContentType.Image.JPEG, R.string.notes_errors_photo_not_stored) }
     }
 
-    // the removal shown with its undo; the backend learns of it once the time is up
+    // the backend learns of the removal once the time is up
     private fun removed(removal: Removal) {
         notes { it.copy(removal = removal.copy(serial = ++serial)) }
         removing =
@@ -788,7 +756,6 @@ class NotesModel(
             }
     }
 
-    // the removal shown goes to the backend now
     private fun commitRemoval() {
         val removal = notesScreen()?.removal ?: return
         removing?.cancel()
@@ -797,7 +764,7 @@ class NotesModel(
         save(removal.noteId)
     }
 
-    // the text typed is saved now, of the note or of all; returns once it is saved
+    // the typed text of the note or of all saved now; returns once it is saved
     private suspend fun flush(id: Int? = null) {
         val ids = if (id == null) pendingText.keys.toList() else listOfNotNull(id.takeIf { it in pendingText })
         ids
@@ -807,9 +774,8 @@ class NotesModel(
             }.joinAll()
     }
 
-    // the note as it is here goes to the backend, one save of a note at a time: a save asked for while
-    // one runs marks the note, which goes once more after the answer (AN-4). The save is done also when
-    // the app closes (AN-29); its job ends once the note is sent
+    // one save of a note at a time: a save asked for while one runs marks the note, which goes once more
+    // after the answer. Done also when the app closes; the job ends once the note is sent
     private fun save(id: Int): Job {
         saving[id]?.let { running ->
             if (running.isActive) {
@@ -831,9 +797,8 @@ class NotesModel(
         return job
     }
 
-    // the note sent once; its answer takes its place unless it changed here meanwhile. A change the
-    // backend refuses (400, e.g. over a limit) goes back to the note as it was stored (AN-24); false
-    // when it was not saved
+    // the answer replaces the note unless it changed here meanwhile. A refused change (400 or 422, e.g.
+    // over a limit) goes back to the stored note; false when not saved
     private suspend fun send(id: Int): Boolean {
         val note = notesScreen()?.note(id) ?: return false
         if (id in deleted) return false
@@ -858,8 +823,7 @@ class NotesModel(
         return true
     }
 
-    // the labels the notes have, again after a note changed: a label goes once its last note lost it; on
-    // a failure the ones before stay, the wall still works
+    // after a change: a label goes once its last note lost it; on a failure the ones before stay
     private fun reloadUsed() {
         scope.launch {
             val used = request(R.string.notes_errors_not_loaded, {}) { api -> api.usedLabels().map { it.name } } ?: return@launch
@@ -867,7 +831,6 @@ class NotesModel(
         }
     }
 
-    // the note back as the backend stored it last, the change it refused undone; the error says why
     private fun rollBack(id: Int) {
         val server = stored[id] ?: return
         pendingText.remove(id)?.cancel()
@@ -875,8 +838,7 @@ class NotesModel(
         notes { screen -> screen.copy(notes = screen.notes.map { if (it.id == id) server else it }) }
     }
 
-    // the note changed here at once, the error of an action before goes; false when it is not here or did
-    // not change
+    // clears the error; false when the note is not here or did not change
     private fun change(
         id: Int,
         change: (NoteResponse) -> NoteResponse,
@@ -902,7 +864,7 @@ class NotesModel(
     companion object {
         val WAV = ContentType("audio", "wav")
 
-        // the recorder of a model that does not record, e.g. in a test that does not need one
+        // for a test that does not record
         private val NO_RECORDER =
             object : Recorder {
                 override suspend fun record(): ByteArray? = error("no recorder")
@@ -912,18 +874,17 @@ class NotesModel(
     }
 }
 
-// what the backend takes of a note
-// photos handed over before they could be attached: the note they are for (null for a new note), how
-// to read them and the text of a new note
+// photos handed over before they could be attached; note is null for a new note
 private class Waiting(
     val note: Int?,
     val reads: List<suspend () -> ByteArray?>,
     val text: String = "",
 )
 
+// what the backend takes of a note
 private fun NoteResponse.request() = NoteRequest(text, color.value, labels.map { it.name }, photos.map { it.id }, recordings.map { it.id })
 
-// the files fetched, the ones used last, at most maxBytes of them; one larger than that is kept alone
+// least recently used, at most maxBytes; a larger file is kept alone
 private class FileCache(
     private val maxBytes: Long,
 ) {

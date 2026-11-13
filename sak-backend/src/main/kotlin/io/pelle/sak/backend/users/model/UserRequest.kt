@@ -2,7 +2,6 @@ package io.pelle.sak.backend.users.model
 
 import kotlinx.serialization.Serializable
 
-// a user to add
 @Serializable
 data class UserRequest(
     val email: String,

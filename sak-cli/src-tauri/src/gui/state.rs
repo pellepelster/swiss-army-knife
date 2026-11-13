@@ -58,10 +58,9 @@ impl RunningWork {
     }
 }
 
-/// the deploy the last check of the page of a deployment planned, as `apply_checked` applies it.
-/// Each check has its number; only the newest one is kept, and a deploy names the check it applies.
-/// So a check that ends after a newer one (of another deployment, after the user went back and
-/// opened it) is never what a deploy applies
+/// the deploy the last check of the page of a deployment planned, for `apply_checked`. Only the
+/// newest check is kept and a deploy names its check, so a check that ends after a newer one (e.g.
+/// of another deployment the user opened since) is never applied
 #[derive(Default)]
 pub struct CheckedDeployment(Mutex<Checks>);
 

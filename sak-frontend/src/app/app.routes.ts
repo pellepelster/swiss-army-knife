@@ -12,8 +12,8 @@ import { usersRoute } from './users/users.routes';
 
 // every app needs a session, without one the login is shown and leads back afterwards; an app
 // names its favicon in its data, the others show the swiss army knife (FaviconService). Only the
-// home, the login and the sign-in are loaded at the start, every other page comes with its first
-// visit (TD-5)
+// home, the login and the sign-in are loaded at the start, every other page on its first visit, so
+// the start bundle stays small
 export const routes: Routes = [
   { path: '', component: Home, canActivate: [authGuard], title: pageTitle('home.title') },
   {

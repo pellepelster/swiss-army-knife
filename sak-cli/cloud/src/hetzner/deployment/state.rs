@@ -57,12 +57,11 @@ impl ResourceKind {
 pub struct ResourceState {
     pub kind: ResourceKind,
     pub name: String,
-    /// none when the deployment could not be compared (`DeploymentStatus::Unknown`): the
-    /// resource was found, nothing more is known
+    /// none when the deployment could not be compared (`DeploymentStatus::Unknown`)
     pub status: Option<DiffStatus>,
     /// the changes, as log texts of the diff
     pub changes: Vec<String>,
-    /// a short summary, e.g. the address of a server or the fingerprint of a key (`detail`)
+    /// e.g. the address of a server or the fingerprint of a key (`detail`)
     pub detail: Option<String>,
 }
 
@@ -75,8 +74,7 @@ pub enum DeploymentStatus {
     Incomplete,
     /// a resource differs from its declaration
     Changed,
-    /// the deployment could not be compared with its declaration, `DeploymentState::error` says
-    /// why
+    /// the deployment could not be compared, `DeploymentState::error` says why
     Unknown,
 }
 
@@ -87,20 +85,17 @@ pub struct DeploymentState {
     pub status: DeploymentStatus,
     /// the location of the server, else of a volume or a primary ip; none without them
     pub location: Option<Location>,
-    /// the dns mode on its resources; none without it
+    /// the dns mode its dns records tell; none without records
     pub dns_mode: Option<DnsMode>,
     pub resources: Vec<ResourceState>,
-    /// why the deployment could not be compared, with `DeploymentStatus::Unknown`
+    /// with `DeploymentStatus::Unknown`
     pub error: Option<String>,
 }
 
-/// the diff of a deployment: every resource that a deploy declares (ssh key, data volume,
-/// primary ips, firewall, server and dns records), declared from the labels and settings of the
-/// deployment (`ObservedSpec`) and diffed as a plan does. What a deploy would
-/// create is missing; what it would change shows its changes. A deployment that cannot be
-/// compared (resources in two locations, a resource of its name that belongs to someone else, a
-/// failed request) is `Unknown` with the error and the resources found; it never fails a list of
-/// deployments
+/// every resource a deploy declares, declared from what the resources tell (`ObservedSpec`) and
+/// diffed as a plan does. A deployment that cannot be compared (resources in two locations, a
+/// resource of its name that belongs to someone else, a failed request) is `Unknown` with the
+/// error and the resources found; it never fails a list of deployments
 pub async fn state(
     provider: &HetznerProviderRuntime,
     deployment: &DiscoveredDeployment,
@@ -137,7 +132,6 @@ pub async fn state(
     }
 }
 
-/// every resource a deploy declares, with its diff
 async fn compare(
     provider: &HetznerProviderRuntime,
     deployment: &DiscoveredDeployment,
@@ -167,8 +161,7 @@ async fn compare(
         .collect())
 }
 
-/// the resources a deployment has a second of, as duplicates: a deploy uses the first, the user
-/// removes the others
+/// a deploy uses the first resource of a kind, the user removes the others
 fn left_out(deployment: &DiscoveredDeployment) -> Vec<ResourceState> {
     deployment
         .left_out
@@ -186,7 +179,7 @@ fn left_out(deployment: &DiscoveredDeployment) -> Vec<ResourceState> {
         .collect()
 }
 
-/// the resources of a deployment as they were found, not compared
+/// the resources as found, without a diff
 fn found(deployment: &DiscoveredDeployment) -> Vec<ResourceState> {
     let mut found: Vec<(ResourceKind, &str)> = Vec::new();
     found.extend(
@@ -251,9 +244,8 @@ fn deployment_state(
     }
 }
 
-/// a short summary of a resource: the fingerprint of the key, the size of the volume, the
-/// address of a primary ip, the number of firewall rules, the type, location and address of the
-/// server
+/// the fingerprint of the key, the size of the volume, the address of a primary ip, the number of
+/// firewall rules, the type, location and address of the server
 fn detail(deployment: &DiscoveredDeployment, kind: ResourceKind, name: &str) -> Option<String> {
     match kind {
         ResourceKind::SshKey => deployment

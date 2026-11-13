@@ -5,7 +5,7 @@ import { apiErrorMessage } from '../shared/api';
 import { Subscription, timer } from 'rxjs';
 import { Bucket, BucketSecret, BucketsService, POLL_INTERVAL_MS } from './buckets.service';
 
-// the bucket of a bucket's page, shared by the page and its tabs; provided by the page
+// the bucket of a bucket's page and its tabs; provided by the page
 @Injectable()
 export class BucketStore {
   private readonly destroyRef = inject(DestroyRef);
@@ -16,7 +16,7 @@ export class BucketStore {
   readonly bucket = signal<Bucket | null>(null);
   readonly error = signal<string | null>(null);
 
-  // the key pair of the bucket once it is fetched, shared by the tabs showing it
+  // fetched once for all the tabs
   readonly secret = signal<BucketSecret | null>(null);
   readonly retrievingSecret = signal(false);
   readonly secretError = signal<string | null>(null);
@@ -28,7 +28,6 @@ export class BucketStore {
     this.destroyRef.onDestroy(() => this.loading.unsubscribe());
   }
 
-  // the key pair is fetched once for all the tabs
   retrieveSecret(): void {
     if (this.secret() || this.retrievingSecret()) return;
     const name = this.name();
@@ -38,7 +37,7 @@ export class BucketStore {
       .secret(name)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        // the key pair of a bucket the page has left is not shown for the next
+        // not shown for the next bucket once the page left this one
         next: (secret) => {
           if (name !== this.name()) return;
           this.retrievingSecret.set(false);
@@ -54,7 +53,7 @@ export class BucketStore {
       });
   }
 
-  // a new key pair, shown at once; the one before stops working (SEC-12). True once it is replaced
+  // the new key pair shows at once, the one before stops working
   readonly replacingSecret = signal(false);
   readonly secretReplaced = signal(false);
 
@@ -84,8 +83,7 @@ export class BucketStore {
       });
   }
 
-  // asks again after a while as long as the bucket is still being counted; the load of the
-  // bucket before ends, what was shown of another bucket goes
+  // polls while the bucket is counted; ends the load before and clears another bucket
   load(name: string): void {
     if (name !== this.name()) {
       this.bucket.set(null);

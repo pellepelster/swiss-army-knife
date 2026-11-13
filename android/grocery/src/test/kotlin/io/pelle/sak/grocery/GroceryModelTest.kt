@@ -184,7 +184,7 @@ class GroceryModelTest {
 
             model.requestLink(" pelle@pelle.io ")
             advanceUntilIdle()
-            // with a nonce of this request, kept for the exchange (AN-8)
+            // with a nonce of this request, kept for the exchange
             val pending = store.load().pending!!
             assertTrue(
                 backend.requests.contains(

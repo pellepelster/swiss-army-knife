@@ -21,8 +21,7 @@ data class SettingRow(
     val owner: String,
 )
 
-// the database access of the settings, only SettingService (sak-backend) uses it; it reads the
-// settings that are not deleted only
+// the settings, for SettingService only; reads live settings only
 class SettingRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers

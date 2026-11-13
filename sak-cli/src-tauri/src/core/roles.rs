@@ -1,10 +1,9 @@
 //! the markers of the roles on the server: ansible has no plan, so the server tells what was
-//! applied last. Each run writes one marker for each role it applied (the role `role_markers`,
-//! the last of the playbook), its fingerprint: the content of the role and what the run hands it.
-//! The playbook removes the markers before the roles run, so a run that failed leaves none. A
-//! plan reads the markers through ssh and compares them with the fingerprints of this sakctl: a
-//! role whose files changed or that gets other values runs again, a role that stays as it was does
-//! not. Each server applies the roles of one deployment, so the markers need no scope
+//! applied last. The last role of the playbook (`role_markers`) writes one marker for each role,
+//! its fingerprint over the content of the role and what the run hands it. The playbook removes
+//! the markers before the roles run, so a failed run leaves none. A plan compares them with the
+//! fingerprints of this sakctl: only a role whose files or values changed runs again. A server
+//! applies the roles of one deployment only, so the markers need no scope
 
 use crate::core::provision::ProvisionRun;
 use sak_cloud::api::{DiffItem, DiffStatus};

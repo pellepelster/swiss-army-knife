@@ -32,9 +32,8 @@ import io.pelle.sak.core.lists.ListsApi
 import io.pelle.sak.grocery.R
 import kotlinx.coroutines.flow.Flow
 
-// the grocery api of one deployment on top of what every app calls (SakApi): the lists, their items,
-// categories and photos and the stream of their changes. Its login links are handed on to this app
-// (grocery-android)
+// the grocery api of one deployment on top of SakApi: the lists, their items, categories and photos
+// and the stream of their changes
 class GroceryApi(
     client: HttpClient,
     url: String,
@@ -45,7 +44,6 @@ class GroceryApi(
     // in the order the backend gives them: by name
     override suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", R.string.grocery_lists_not_loaded)
 
-    // the new list of the signed in user
     override suspend fun createList(
         name: String,
         shared: Boolean,
@@ -58,7 +56,6 @@ class GroceryApi(
                 setBody(GroceryListRequest(name, shared, icon))
             }.answer(R.string.grocery_error_list_not_created)
 
-    // the settings of a list of the user's own
     override suspend fun updateList(
         id: Int,
         name: String,
@@ -78,15 +75,14 @@ class GroceryApi(
             .delete("$url/grocery/lists/$id") { session() }.answer<Unit>(R.string.grocery_form_not_deleted)
     }
 
-    // the items to buy of the list, with checked also the bought ones after them in each category (GROCERY-14)
+    // the items to buy; with checked also the bought ones after them in each category (GROCERY-14)
     suspend fun items(
         listId: Int,
         checked: Boolean = false,
     ): List<GroceryItemResponse> =
         all("$url/grocery/lists/$listId/items" + if (checked) "?checked=true" else "", R.string.grocery_list_items_not_loaded)
 
-    // the new item, on the list it names (GROCERY-2), with the quantity and the category of a
-    // suggestion chosen; without a category it takes the one of the latest item of its name
+    // GROCERY-2; without a category it takes the one of the latest item of its name
     suspend fun addItem(
         listId: Int,
         name: String,
@@ -102,7 +98,7 @@ class GroceryApi(
             }.answer(R.string.grocery_list_not_added)
 
     // the names of the list that contain the text, the ones added most and last first, the ones to buy
-    // left out (GROCERY-11); the first page of SUGGESTIONS, the ones added most and last
+    // left out (GROCERY-11); at most SUGGESTIONS
     suspend fun suggestions(
         listId: Int,
         text: String,
@@ -117,7 +113,7 @@ class GroceryApi(
             .items
 
     // the item is bought: the backend keeps it as the history of the list, the suggestions come from
-    // it (GROCERY-3); POST answers 204, no body
+    // it (GROCERY-3)
     suspend fun checkItem(id: Int) {
         client
             .post("$url/grocery/items/$id/check") {
@@ -125,8 +121,7 @@ class GroceryApi(
             }.answer<Unit>(R.string.grocery_list_not_checked)
     }
 
-    // the values of an item, to buy or bought, e.g. its name with a spelling error fixed or its
-    // quantity (GROCERY-15); failure is the text when the backend sends none
+    // an item to buy or bought (GROCERY-14, GROCERY-15); failure is the text when the backend sends none
     suspend fun updateItem(
         id: Int,
         request: GroceryItemRequest,
@@ -139,7 +134,7 @@ class GroceryApi(
                 setBody(request)
             }.answer(failure)
 
-    // the item goes for good, it is no history and no suggestion (DELETE answers 204, no body)
+    // the item goes for good, it is no history and no suggestion
     suspend fun deleteItem(id: Int) {
         client
             .delete("$url/grocery/items/$id") {
@@ -147,7 +142,7 @@ class GroceryApi(
             }.answer<Unit>(R.string.grocery_item_not_deleted)
     }
 
-    // a photo into the file storage, a jpeg scaled down already; the id of its file
+    // a jpeg scaled down already; answers the id of its file
     suspend fun uploadPhoto(jpeg: ByteArray): Int =
         client
             .post("$url/files") {
@@ -158,8 +153,8 @@ class GroceryApi(
             }.answer<FileResponse>(R.string.grocery_photo_not_attached)
             .id
 
-    // a photo of a recipe or a shopping list into the file storage, a jpeg scaled down already, to
-    // discover its items in (GROCERY-16); the id of its file
+    // a photo to discover the items in (GROCERY-16), a jpeg scaled down already; answers the id of its
+    // file
     suspend fun uploadDiscoverPhoto(jpeg: ByteArray): Int =
         client
             .post("$url/files") {
@@ -170,9 +165,7 @@ class GroceryApi(
             }.answer<FileResponse>(R.string.grocery_discover_not_read)
             .id
 
-    // the items the AI discovers in a photo of the file storage, with their quantity (GROCERY-16);
-    // nothing is added to a list. The backend reads it only with the AI features of the grocery lists
-    // turned on
+    // the items the AI discovers in an uploaded photo (GROCERY-16); nothing is added to a list
     suspend fun discoverItems(fileId: Int): List<GroceryDiscoveredItem> =
         client
             .post("$url/grocery/discover/$fileId") {
@@ -181,9 +174,8 @@ class GroceryApi(
             }.answer<GroceryDiscoveredResponse>(R.string.grocery_discover_not_read)
             .items
 
-    // whether the AI discovers the items of a photo: the AI features of the grocery lists are turned on
-    // and a provider is set up; every signed in user may ask (GET /grocery/settings), the backend
-    // still refuses a discover while they are off
+    // the AI features of the grocery lists are on and a provider is set up; every signed in user may
+    // ask, the backend still refuses a discover while they are off
     suspend fun discoverAvailable(): Boolean =
         client
             .get("$url/grocery/settings") { session() }
@@ -205,8 +197,7 @@ class GroceryApi(
     suspend fun removePhoto(id: Int): GroceryItemResponse =
         client.delete("$url/grocery/items/$id/photo") { session() }.answer(R.string.grocery_photo_not_removed)
 
-    // the photo of an item, scaled to the smallest size of at least size pixels, the photo itself
-    // without a size
+    // scaled to the smallest size of at least size pixels, the photo itself without a size
     suspend fun photo(
         id: Int,
         fileId: Int,
@@ -226,7 +217,7 @@ class GroceryApi(
     suspend fun categories(listId: Int): List<GroceryCategoryResponse> =
         all("$url/grocery/lists/$listId/categories", R.string.grocery_error_categories_not_loaded)
 
-    // the last category of a list of the user's own
+    // added as the last category of the list
     suspend fun createCategory(
         listId: Int,
         name: String,
@@ -261,7 +252,7 @@ class GroceryApi(
             .delete("$url/grocery/lists/$listId/categories/$id") { session() }.answer<Unit>(R.string.grocery_category_not_deleted)
     }
 
-    // the ids of all categories of the list, each once, in their new order; the categories in it
+    // the ids of all categories of the list, each once, in their new order; answers the categories in it
     suspend fun orderCategories(
         listId: Int,
         ids: List<Int>,
@@ -274,7 +265,7 @@ class GroceryApi(
             }.answer<PageResponse<GroceryCategoryResponse>>(R.string.grocery_category_not_saved)
             .items
 
-    // the category of an item, one of its list or none; the next item of its name on the list gets it too
+    // one of its list or none; the next item of its name on the list gets it too
     suspend fun setCategory(
         id: Int,
         categoryId: Int?,

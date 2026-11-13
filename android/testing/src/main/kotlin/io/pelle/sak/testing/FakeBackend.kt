@@ -21,20 +21,17 @@ const val URL = "https://api.example.org/v1"
 class FakeBackend {
     val requests = mutableListOf<String>()
 
-    // "GET /grocery/lists" to the status and the body; the SAK address of every test names the api
-    // at URL (SERVER-6), whatever host it has
+    // "GET /grocery/lists" to the status and the body; every SAK address discovers the api at URL
+    // (SERVER-6), whatever its host
     val answers = mutableMapOf<String, Pair<HttpStatusCode, String>>("GET /.well-known/sak.json" to (HttpStatusCode.OK to """{"api":"$URL"}"""))
 
-    // the answers to a request with its query, which come before the ones of answers, e.g. the pages
-    // of a list: "GET /grocery/lists?offset=100&limit=100"
+    // answers by key with query, before answers, e.g. "GET /grocery/lists?offset=100&limit=100"
     val answersByQuery = mutableMapOf<String, Pair<HttpStatusCode, String>>()
 
-    // the content type of the answers by key, application/json when there is none, e.g. a body of an
-    // error that is no json
+    // the content type by key, application/json when there is none
     val contentTypes = mutableMapOf<String, String>()
 
-    // the requests by key whose connection fails, e.g. "POST /auth/login/connect": the deployment can
-    // not be reached
+    // the keys whose connection fails (IOException), e.g. "POST /auth/login/connect"
     val unreachable = mutableSetOf<String>()
 
     // the session token of the requests, by path
@@ -49,7 +46,7 @@ class FakeBackend {
     // the dispatcher of the test, so advanceUntilIdle waits for the answers too
     var dispatcher: CoroutineDispatcher? = null
 
-    // the engine of the client, also of the activity of an app (Activities.kt)
+    // also the engine of the activities (Activities.kt)
     val engine by lazy {
         MockEngine(
             MockEngineConfig().apply {
@@ -72,7 +69,6 @@ class FakeBackend {
             answer(status, body, contentTypes[key] ?: "application/json")
         }
 
-    // the client the api of an app takes, e.g. GroceryApi(backend.client, url, token, languages)
     val client: HttpClient by lazy { sakClient(engine) }
 
     private fun body(request: HttpRequestData) = String((request.body as OutgoingContent.ByteArrayContent).bytes())
