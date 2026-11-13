@@ -80,30 +80,3 @@ Fix: sign with an annotation of the name (`cosign sign -a image=<name>`) and che
 
 `latest-rc`, a commit or any other tag has no signer, so sakctl pulls it by its tag (`SAKCTL-12`). Meant for the
 images a developer pushes; whoever can set the variable on the machine could also replace sakctl.
-
-### ~~`SC-9` Gradle has no verification of its dependencies~~
-
-**Fixed:** `gradle/verification-metadata.xml` (454 components) and `android/gradle/verification-metadata.xml` (730)
-have the sha256 of the file of every dependency and plugin of the two builds (not of the poms and module files, which
-Gradle reads in an order of its own); Gradle refuses a file with another checksum or without one. `mise run gradle:verification` writes them, resolving every configuration and building what
-the workflow builds; Renovate writes them with its updates, and where it can not, the build of its pull request fails
-(docs/development/DEPENDENCIES.md). Lockfiles are not needed besides: the versions are fixed in the build files and a
-checksum pins the file of each.
-
-Neither the backend nor the android apps have `gradle/verification-metadata.xml` or lockfiles. The versions are fixed
-in the build files and Maven Central does not change a published version, so this is about a compromised mirror, a
-plugin portal or a dependency whose own dependencies move. Rust (`Cargo.lock`) and npm (`package-lock.json`) are
-locked.
-
-Fix: `./gradlew --write-verification-metadata sha256` in both builds, and Renovate's lockfile maintenance for them.
-
-### ~~`SC-10` The tauri command line is installed without a lockfile~~
-
-**Fixed:** the tauri command line is a dependency of `sak-cli/package.json`, installed with `npm ci` by its
-`package-lock.json` (`mise run cli:install`, a dependency of `cli:run`, `cli:build` and `cli:build:<platform>`); every
-package of it, the one of each platform included, is pinned with its hash.
-
-mise installs `npm:@tauri-apps/cli` by its version (`mise.toml`), its dependencies as npm resolves them on that day,
-in the job that builds the binaries of sakctl, which become the signed zips.
-
-Fix: install it from a `sak-cli/package.json` (there is none today) with its lockfile (`npm ci`).

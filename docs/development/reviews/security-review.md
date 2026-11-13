@@ -19,12 +19,10 @@ machine of the admin or in one container of the server.
 Not in scope: what [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md) accepts, unless the code is weaker than it says, and
 the signing of the releases and the images, which is in [the review of the supply chain](supply-chain-review.md).
 
-How it was done: the code was read, route by route; nothing ran against a deployment. `SEC-1` and `SEC-2` were shown
-with small programs under the JVM options of the backend, not with the backend itself. Where a finding rests on an
-estimate or on what caddy, podman or victorialogs do, it says so.
+How it was done: the code was read, route by route; nothing ran against a deployment. Where a finding rests on an
+estimate or on what caddy, podman or victorialogs do, it says so. The fixed findings are in the history of git.
 
-Nothing found lets somebody without a session read data, get a session or get a role. The two findings to fix first
-both end the backend, which systemd then starts again.
+Nothing found lets somebody without a session read data, get a session or get a role.
 
 ## What is good
 
@@ -58,45 +56,6 @@ both end the backend, which systemd then starts again.
 - **The server.** sshd takes keys only; the containers run as uid 10000, read only, without capabilities; the
   backend, victorialogs and the admin api of caddy listen on loopback; the firewall of the cloud opens 22, 443 and
   icmp.
-
-## Must fix
-
-### ~~`SEC-1` A recording of 44 bytes ends the backend with every request for its thumbnail~~
-
-**Fixed:** a recording is stored only as mono or stereo pcm of 8 or 16 bit (`FileService.isRecording`), the waveform
-reads in blocks of at most 64 KiB, and a decoder that fails for any reason writes the marker.
-
-Any signed in user. `POST /api/v1/files` with a WAV header of 44 bytes (PCM, 16 bit, 32767 channels, no data) is
-stored: `FileService.check` looks at the length of a recording only, here 0 seconds. `GET /api/v1/files/{id}/thumbnail`
-then draws the waveform, and `peaks` sizes its block from the header:
-`ByteArray(frameSize * WAVEFORM_BLOCK_FRAMES)`, 65534 × 16384 bytes, 1 GB. The backend runs with `-Xmx192m` and
-`-XX:+ExitOnOutOfMemoryError`, so the process ends; systemd starts it after 5 seconds. `decodeThumbnail` catches
-`IOException` and `UnsupportedAudioFileException` only, so no `.no-thumbnail` marker is written and every further
-request ends the backend again, as does every view of a note with the recording. 2048 channels make a block of
-64 MB, a few of them at once do the same.
-
-Shown with a small program under the JVM options of the backend: `AudioSystem` takes the header (0 frames, a frame of
-65534 bytes) and the allocation ends the JVM.
-
-Fix: `check` takes only what the apps record (PCM of 8 or 16 bit, one or two channels, a rate in a sane range);
-`peaks` sizes its block in bytes, not in frames; `decodeThumbnail` writes the marker for every failure of a decoder.
-
-### ~~`SEC-2` Two password logins at the same moment can end the backend~~
-
-**Fixed:** `AdminPassword.check` checks one password at a time (a `Mutex`), the others wait; the limits still come
-first.
-
-Nobody has to be signed in. `POST /api/v1/auth/login/password` takes from its limits (10 an hour for each client, 60
-an hour for all) and then checks the password with `withContext(Dispatchers.Default) { password.matches(…) }`: an
-argon2id of 64 MiB, which BouncyCastle allocates on the heap. The limits count requests, not how many run at once;
-`Dispatchers.Default` has two threads on the two cores of the server. Two hashes are 128 MiB of a heap of 192 MB.
-
-Shown with a small program under the JVM options of the backend: two hashes at once pass with 40 MB of other live
-data and end the JVM with 60 MB; the memory review measured about 100 MB at the peak. Not shown with the backend
-itself. After the restart every `RateLimiter` is empty, so the 60 an hour do not bound it.
-
-Fix: one check at a time (a `Mutex` or `limitedParallelism(1)`), a request that finds one running answers 429; count
-the 64 MiB in the heap.
 
 ## Should fix
 
@@ -158,42 +117,6 @@ change of `SECURITY-3` and of ACCEPTED-RISKS (a rule changes only with the conse
    sets it for a user and for themselves. It is the first state of the sessions in the backend, so it is a decision
    of its own.
 
-### ~~`SEC-5` The limits of a client count one IPv6 address, and the limiter grows with every key~~
-
-**Fixed:** the limits count an IPv6 client by its network of /64 and an IPv4 client by its address (`clientNetwork`),
-so one host is one client again. A `RateLimiter` keeps at most 10,000 keys and refuses a new one beyond them, drops the
-old events of the key it is asked for and sweeps all keys at most once a minute. Still so: clients of 60 networks an
-hour use up the password logins of all, which ACCEPTED-RISKS does not name yet.
-
-`clientAddress()` is the whole address, and a host has a /64 of them. Three things follow:
-
-- 60 wrong password logins an hour, each from another address, use up `attemptsPerHour`; the limit of a client (10)
-  never holds. The admin of a single user instance, whose only login it is, gets 429 as long as one request a minute
-  comes. Sessions that exist keep working. ACCEPTED-RISKS has this for the login links only.
-- For the links ACCEPTED-RISKS says 12 client IPs can block the logins of an hour; it is one host.
-- `RateLimiter.tryAcquire` is synchronized, walks all keys with every call and keeps a key for an hour. The limit of
-  the client is taken first, also when the limit of all is used up, and `/auth/login/link` and `/auth/login/connect`
-  make a key for every valid body. Many addresses make many keys, on a heap of 192 MB, and every request waits for
-  the walk. The size was estimated, not measured.
-
-Fix: the key of a client is its network (/64, `maskedAddress` of `ApiSignature` has it); a largest number of keys;
-old entries removed for the key that is asked and by a sweep now and then, not with every call.
-
-### ~~`SEC-6` A login link asked for the web app signs an Android app in~~
-
-**Fixed:** `exchangeLoginToken` refuses a nonce for a token without one, so a link asked for the web app signs in no
-app that waits for its own; the nonce does not use the link up.
-
-A user of a multi user instance against another user. `exchangeLoginToken` compares the nonce only when the token
-has one (`expected != null && …`), and a link asked with `client=web` has none. The attacker asks a link for their
-own address, and gets the phone of the victim to open `io.pelle.sak.notes://signin?token=…` (a page, another app)
-while the app of the victim waits for a link of its own (15 minutes). The app sends its nonce, the backend ignores
-it, and the app is signed in as the attacker: what the victim writes goes to the account of the attacker.
-`LoginRequest.kt` says the nonce is there so that this can not be.
-
-Fix: `exchangeLoginToken` refuses a nonce for a token without one; better, the client is in the token and the
-exchange names its client. A test for it, `AuthRoutesTest` has only the wrong nonce.
-
 ### `SEC-7` A login link signs in whatever browser opens it, over a session that is there
 
 The same attacker. The web app sends no nonce with `requestLogin`, and `Signin.ngOnInit` exchanges the token of
@@ -228,22 +151,6 @@ Fix: refuse a write when the volume has less than a floor free, or a largest siz
 10000; uploads older than a day removed at the start and with the cleanup
 ([FDR-004](../fdr/FDR-004-maintenance-cleanup.md)); `uploads/` counted in the usage.
 
-### ~~`SEC-10` Many user agents on a site can end the backend when the admin opens its access logs~~
-
-**Fixed:** `VictoriaLogsClient` reads every answer through a largest size (4 MiB, a grid of a month of a busy site is a
-few hundred KB) and fails beyond it; a too large answer for the user agents leaves them out of the metrics with a
-warning, the rest shows. Errors quote at most 1,000 characters of an answer. Grouping the user agents in vector would
-keep the answer small as well, but its rules would then be in two places.
-
-Anybody who can send requests to a site of a bucket. `SiteMetricsService` asks
-`stats by (user_agent) count()` without a limit of the groups, `VictoriaLogsClient` reads the whole answer as a
-string and parses it to a tree. vector cuts a user agent at 512 characters, which bounds one, not how many. About
-100,000 different ones in the range the admin looks at are an answer of some 60 MB, held three times. Estimated, not
-measured; whether victorialogs limits the series itself was not checked.
-
-Fix: vector stores the group of the user agent, and the query groups by it; or a limit in the query; both clients
-read an answer through a largest size.
-
 ### `SEC-11` Secrets of an old setup are in the working copy
 
 Not a finding of the code: `terraform/modules/hcloud/backend/` is ignored by git and was never committed, but it
@@ -268,41 +175,6 @@ verifies, and an object of 0 bytes replaces the target with a 200. A copy of a k
 metadata) destroys it. No attack, a loss of data for a client that copies on the server.
 
 Fix: 501 `NotImplemented` when the header is there.
-
-### ~~`SEC-14` The containers share the network of the host~~
-
-**Fixed:** vector and victorialogs, the images of others, are on a podman network of their own (`sak-logs.network`):
-victorialogs is published on the loopback of the host only, for the backend and the backup, vector reaches it by its
-name. From that network neither reaches the admin api of caddy nor the backend; a rule on the forward hook of nftables
-keeps the metadata service from them, which the rule on the output hook does not see. caddy and the backend keep the
-network of the host. Checked with the quadlet generator of podman 5.4, not yet on a server.
-
-All four have `Network=host`. What listens on loopback has no login: the admin api of caddy (`localhost:2019`), the
-backend without caddy before it (8080), victorialogs (9428). Code that runs in one container, vector and
-victorialogs are images of others, can load a configuration of its own into caddy and so read the keys of the
-certificates and all traffic, the password of `SEC-3` included. What the admin api allows is from the documentation
-of caddy, not tried.
-
-Fix: the admin api on a unix socket in a directory only the ingress and the backend mount; or a network of their own
-for vector and victorialogs.
-
-### ~~`SEC-15` A restore trusts the archive as root~~
-
-**Fixed:** the data volume is mounted with `nosuid,nodev`. A restore extracts without the owners of the archive, takes
-only its known entries (`backup.json`, `backend`, `ingress`, `vector`, `victorialogs`), refuses any file that is no
-regular file, directory or link and a link that leads out (absolute or with `..`), gives all of it to the backend user
-without setuid, setgid or sticky bits, and checks the database as that user. Shown with crafted archives in a container;
-not yet with a restore on a server.
-
-`sak-backend restore` extracts as root with `--numeric-owner --same-permissions`, moves every entry of the top
-level to the data volume whatever its name, and opens the database of the backup as root for the integrity check
-(the backup uses `runuser -u sak`). A backup is encrypted to a public key, so it proves no sender; `check` in sakctl
-shows only that it decrypts. The volume is mounted without `nosuid,nodev`. Whoever was root when a backup was made
-puts setuid files and an sqlite file of their choice onto the server that is built from it. No way to root from
-there was found: tar refuses `..`, three of the four containers have `NoNewPrivileges`.
-
-Fix: `nosuid,nodev` for the volume; extract without owners, then `chown` to `sak` and no special bits; only the known
-entries of the top level; the integrity check as `sak`.
 
 ### `SEC-16` A deploy takes the root domain from the running server
 
@@ -331,19 +203,6 @@ their own answer comes, and under the error when it fails. Traced for the notes;
 
 Fix: load the page anew on a sign out (`location.assign('/login')`).
 
-### ~~`SEC-19` A user can test the names of the private lists of another~~
-
-**Fixed:** only the owner renames a list (`LIST-2`, decided with the user); another user who sees a shared list
-changes its icon and categories, a new name from them is a 403. The web app and the Android apps show the name of such
-a list disabled.
-
-A user who sees a shared list renames it (`LIST-2`). The names are unique among all lists of the owner, the private
-ones too, and the rename of another user answers 409 with a text of its own (`OwnerNameTaken`): a 409 says the owner
-has a list of that name.
-
-Fix: only the owner renames, or the names of the shared lists are unique apart from the private ones. Another text
-does not help, the 409 tells it.
-
 ### `SEC-20` What OpenRouter answers has no largest size
 
 No request sets `max_tokens`, the answer is read whole (`BodyHandlers.ofString()`), and `FileTextService` stores the
@@ -367,9 +226,9 @@ Fix: `maskedAddress(client)`; vector drops the query for the sites of the api an
 
 The used login tokens and connect tokens, the nonces of the signed requests and every limit are in memory. After a
 restart a used link or code works once more within its time, the page of a code can not say it was used (404), a
-relayed signed request can be sent a second time within its two minutes, and the limits start again. A deploy
-restarts the backend; so do `SEC-1` and `SEC-2`. The code says it for the links; ACCEPTED-RISKS says a code is good
-once.
+relayed signed request can be sent a second time within its two minutes, and the limits start again. A deploy restarts
+the backend; so does a crash, e.g. of an `OutOfMemoryError`. The code says it for the links; ACCEPTED-RISKS says a
+code is good once.
 
 Fix: the used ids in a small table with their end; or an entry in ACCEPTED-RISKS.
 
@@ -384,10 +243,6 @@ Fix: the used ids in a small table with their end; or an entry in ACCEPTED-RISKS
   a server that is taken over can send escape sequences. Fix: no control characters in a line.
 - `SEC-26` The host filters nothing that comes in: the table of nftables has the rule for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
-- ~~`SEC-27` The drop-in of sshd is `50-sak.conf`; sshd takes the first value it reads and `50-cloud-init.conf` sorts
-  before it. `00-sak.conf` would win over an image that allows passwords there.~~ **Fixed:** shown with sshd -T
-  (a `50-cloud-init.conf` with passwords won over `50-sak.conf`); the drop-in is `00-sak.conf`, and the playbook fails
-  when `sshd -T` says passwords or keyboard-interactive are allowed.
 - `SEC-28` The ingress has no `NoNewPrivileges`, for the capability of the caddy binary. An ambient capability
   given by podman could allow it; to try.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
