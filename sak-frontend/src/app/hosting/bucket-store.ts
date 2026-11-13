@@ -54,6 +54,36 @@ export class BucketStore {
       });
   }
 
+  // a new key pair, shown at once; the one before stops working (SEC-12). True once it is replaced
+  readonly replacingSecret = signal(false);
+  readonly secretReplaced = signal(false);
+
+  replaceSecret(): void {
+    if (this.replacingSecret()) return;
+    const name = this.name();
+    this.replacingSecret.set(true);
+    this.secretReplaced.set(false);
+    this.secretError.set(null);
+    this.service
+      .replaceSecret(name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (secret) => {
+          if (name !== this.name()) return;
+          this.replacingSecret.set(false);
+          this.secret.set(secret);
+          this.secretReplaced.set(true);
+        },
+        error: (error: unknown) => {
+          if (name !== this.name()) return;
+          this.replacingSecret.set(false);
+          this.secretError.set(
+            bucketErrorMessage(this.i18n, error, this.i18n.t('hosting.credentials.replace_failed')),
+          );
+        },
+      });
+  }
+
   // asks again after a while as long as the bucket is still being counted; the load of the
   // bucket before ends, what was shown of another bucket goes
   load(name: string): void {
@@ -63,6 +93,7 @@ export class BucketStore {
       this.secret.set(null);
       this.secretError.set(null);
       this.retrievingSecret.set(false);
+      this.secretReplaced.set(false);
     }
     this.name.set(name);
     this.loading.unsubscribe();

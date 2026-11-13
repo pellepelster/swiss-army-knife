@@ -153,6 +153,25 @@ class S3BucketRepository(
             false
         }
 
+    // a new key pair of a live bucket, the one before stops working (SEC-12); false when there is no
+    // such bucket or another bucket has the access key id
+    fun replaceKeyPair(
+        name: String,
+        accessKeyId: String,
+        secretAccessKey: String,
+    ): Boolean =
+        try {
+            database.dsl
+                .update(S3_BUCKETS)
+                .set(S3_BUCKETS.ACCESS_KEY_ID, accessKeyId)
+                .set(S3_BUCKETS.SECRET_ACCESS_KEY, secretAccessKey)
+                .set(S3_BUCKETS.UPDATED_AT, clock.instant())
+                .where(S3_BUCKETS.NAME.eq(name), S3_BUCKETS.DELETED_AT.isNull)
+                .execute() > 0
+        } catch (_: IntegrityConstraintViolationException) {
+            false
+        }
+
     // the bucket and its domains stay as deleted, its name stays taken; false when there was none
     fun delete(name: String): Boolean =
         database.dsl.transactionResult { configuration ->

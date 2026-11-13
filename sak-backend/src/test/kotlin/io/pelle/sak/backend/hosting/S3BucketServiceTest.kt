@@ -60,6 +60,23 @@ class S3BucketServiceTest {
         service.byName("unknown") shouldBe null
     }
 
+    // SEC-12: a leaked key pair ends without the bucket
+    @Test
+    fun `replaces the key pair of a bucket, the one before stops working`() {
+        val bucket = service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
+        val before = service.keyPair("pelle-io")!!
+
+        val (accessKeyId, secret) = service.replaceKeyPair("pelle-io")!!
+
+        accessKeyId shouldNotBe bucket.accessKeyId
+        secret.value shouldNotBe before.second.value
+        service.keyPair("pelle-io")!!.let { (id, value) -> (id to value.value) shouldBe (accessKeyId to secret.value) }
+        service.byAccessKeyId(bucket.accessKeyId) shouldBe null
+        service.secretAccessKey(bucket.accessKeyId) shouldBe null
+        service.secretAccessKey(accessKeyId)!!.value shouldBe secret.value
+        service.replaceKeyPair("unknown") shouldBe null
+    }
+
     @Test
     fun `rejects taken, invalid and reserved names`() {
         service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>()

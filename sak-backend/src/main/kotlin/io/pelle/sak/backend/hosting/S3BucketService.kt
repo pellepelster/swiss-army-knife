@@ -145,6 +145,20 @@ class S3BucketService(
         return CreateBucketResult.Created(bucket)
     }
 
+    // a new key pair for the bucket, the one before stops working at once: a leaked key pair ends
+    // without the bucket (SEC-12); null when there is no such bucket
+    fun replaceKeyPair(name: String): Pair<String, Secret>? {
+        if (repository.byName(name) == null) return null
+        // an access key id another bucket has (one in 2^100) is drawn again
+        repeat(3) {
+            val accessKeyId = key(ACCESS_KEY_ALPHABET, 20)
+            val secret = key(SECRET_ALPHABET, 40)
+            if (repository.replaceKeyPair(name, accessKeyId, secret)) return accessKeyId to Secret(secret)
+            if (repository.byName(name) == null) return null
+        }
+        error("no free access key id for the bucket $name")
+    }
+
     // serves the bucket at the domains instead of its current ones, the name stays
     fun updateDomains(
         name: String,

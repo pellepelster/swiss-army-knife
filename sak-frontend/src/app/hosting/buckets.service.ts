@@ -61,6 +61,14 @@ export class BucketsService {
   secret(name: string): Observable<BucketSecret> {
     return this.http.get<BucketSecret>(`/api/v1/static-hosting/${encodeURIComponent(name)}/secret`);
   }
+
+  // a new key pair, the one before stops working at once (SEC-12)
+  replaceSecret(name: string): Observable<BucketSecret> {
+    return this.http.post<BucketSecret>(
+      `/api/v1/static-hosting/${encodeURIComponent(name)}/secret`,
+      null,
+    );
+  }
 }
 
 // the endpoint of the s3 api, api. next to the apps of the frontend

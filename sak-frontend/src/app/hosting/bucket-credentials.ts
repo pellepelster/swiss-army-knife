@@ -1,4 +1,12 @@
-import { Component, inject, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  ElementRef,
+  Injector,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { TranslatePipe } from '../i18n/i18n';
 import { CopyButton } from '../shared/copy-button';
 import { BucketStore } from './bucket-store';
@@ -6,7 +14,8 @@ import { s3Endpoint } from './buckets.service';
 
 // the credentials tab of a bucket: the endpoint of the s3 api and the key pair that may access
 // this bucket only; the keys are fetched when the tab opens, the secret stays hidden until it
-// is shown or copied
+// is shown or copied. The key pair can be replaced, e.g. after it leaked (SEC-12): it asks in its
+// place first, Keep is the safe default (UX-4.1), as every client with the current one stops
 @Component({
   selector: 'app-bucket-credentials',
   imports: [CopyButton, TranslatePipe],
@@ -103,6 +112,52 @@ import { s3Endpoint } from './buckets.service';
           {{ 'hosting.copy_failed' | t }}
         </p>
       }
+      @if (store.secretReplaced()) {
+        <p class="alert alert-success mt-3 mb-0" role="status" data-testid="secret-replaced">
+          {{ 'hosting.credentials.replaced' | t }}
+        </p>
+      }
+      @if (store.secret()) {
+        <div class="d-flex flex-wrap align-items-center justify-content-end gap-2 mt-3">
+          @if (confirmingReplace()) {
+            <span class="small">{{
+              'hosting.credentials.replace_question' | t: { name: store.name() }
+            }}</span>
+            <div
+              class="btn-group"
+              role="group"
+              [attr.aria-label]="'hosting.credentials.replace' | t"
+            >
+              <button type="button" class="btn btn-danger" (click)="replace()">
+                {{ 'hosting.credentials.replace_confirm' | t }}
+              </button>
+              <button
+                #keep
+                type="button"
+                class="btn btn-outline-secondary"
+                (click)="confirmingReplace.set(false)"
+              >
+                {{ 'shared.keep' | t }}
+              </button>
+            </div>
+          } @else {
+            <button
+              type="button"
+              class="btn btn-outline-danger"
+              data-testid="replace-secret"
+              [disabled]="store.replacingSecret()"
+              (click)="ask()"
+            >
+              @if (store.replacingSecret()) {
+                <i class="fa-solid fa-spinner fa-spin me-1" aria-hidden="true"></i>
+              } @else {
+                <i class="fa-solid fa-rotate me-1" aria-hidden="true"></i>
+              }
+              {{ 'hosting.credentials.replace' | t }}
+            </button>
+          }
+        </div>
+      }
     </section>
   `,
 })
@@ -112,8 +167,24 @@ export class BucketCredentials {
   protected readonly endpoint = s3Endpoint();
   protected readonly shown = signal(false);
   protected readonly copyFailed = signal(false);
+  protected readonly confirmingReplace = signal(false);
+
+  private readonly injector = inject(Injector);
+  private readonly keep = viewChild<ElementRef<HTMLButtonElement>>('keep');
 
   constructor() {
     this.store.retrieveSecret();
+  }
+
+  // the question in place of the button, Keep has the focus
+  protected ask(): void {
+    this.confirmingReplace.set(true);
+    afterNextRender(() => this.keep()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  protected replace(): void {
+    this.confirmingReplace.set(false);
+    this.shown.set(false);
+    this.store.replaceSecret();
   }
 }

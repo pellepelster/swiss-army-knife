@@ -727,7 +727,42 @@ export interface paths {
       };
     };
     put?: never;
-    post?: never;
+    /**
+     * Replace the key pair of a bucket
+     * @description A new access key and secret; the ones before stop working at once, e.g. after they leaked.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The name of the bucket */
+          bucket: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The new access key and secret */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['BucketSecretResponse'];
+          };
+        };
+        /** @description Unknown bucket */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
     delete?: never;
     options?: never;
     head?: never;

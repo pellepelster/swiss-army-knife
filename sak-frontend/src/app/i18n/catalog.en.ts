@@ -378,6 +378,11 @@ export const TEXTS = {
       copy_secret_key: 'Copy secret key',
       keys: 'Keys',
       keys_failed: 'The key pair could not be fetched.',
+      replace: 'Replace key pair',
+      replace_question: 'Replace the key pair of %{name}? No client with the current one can upload anymore.',
+      replace_confirm: 'Replace',
+      replaced: 'The key pair is replaced, the one before no longer works. Enter the new one in your S3 clients.',
+      replace_failed: 'The key pair could not be replaced.',
     },
     publishing: {
       label: 'Publishing with Hugo',

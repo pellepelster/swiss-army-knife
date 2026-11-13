@@ -168,7 +168,10 @@ Fix: delete the directory; replace the keys if they are still good anywhere.
 
 ## Could fix
 
-### `SEC-12` The key pair of a bucket can not be replaced
+### ~~`SEC-12` The key pair of a bucket can not be replaced~~
+
+**Fixed:** `POST /api/v1/static-hosting/{bucket}/secret` writes a new access key id and secret, the ones before stop
+working at once; the credentials tab of a bucket replaces them after asking in place, Keep the safe default.
 
 There is no route that makes a new key pair; a leaked one ends only with the bucket, whose name stays taken
 (`MODEL-3`), after every redirect to it is changed. So a leaked key is likely left as it is.

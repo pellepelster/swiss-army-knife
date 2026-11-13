@@ -1704,6 +1704,15 @@ hosting:
       copy_secret_key: { en: "Copy secret key", de: "Geheimen Schlüssel kopieren" }
       keys: { en: "Keys", de: "Schlüssel" }
       keys_failed: { en: "The key pair could not be fetched.", de: "Das Schlüsselpaar konnte nicht abgerufen werden." }
+      replace: { en: "Replace key pair", de: "Schlüsselpaar ersetzen" }
+      replace_question:
+        en: "Replace the key pair of %{name}? No client with the current one can upload anymore."
+        de: "Das Schlüsselpaar von %{name} ersetzen? Kein Client mit dem aktuellen kann dann noch hochladen."
+      replace_confirm: { en: "Replace", de: "Ersetzen" }
+      replaced:
+        en: "The key pair is replaced, the one before no longer works. Enter the new one in your S3 clients."
+        de: "Das Schlüsselpaar ist ersetzt, das vorherige funktioniert nicht mehr. Trage das neue in deinen S3-Clients ein."
+      replace_failed: { en: "The key pair could not be replaced.", de: "Das Schlüsselpaar konnte nicht ersetzt werden." }
     publishing:
       label: { en: "Publishing with Hugo", de: "Veröffentlichen mit Hugo" }
       target_before:

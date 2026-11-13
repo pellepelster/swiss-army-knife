@@ -3,6 +3,7 @@ package io.pelle.sak.backend
 import io.pelle.sak.auth.ADMIN_USERNAME
 import io.pelle.sak.model.settings.SettingRepository
 import io.pelle.sak.model.SYSTEM_OWNER
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldBeIn
 import io.kotest.matchers.collections.shouldContain
 import io.pelle.sak.auth.Role
@@ -372,16 +373,33 @@ class SakAppsTest {
             list shouldNotContain secretAccessKey.take(5)
             bucket.body() shouldNotContain accessKeyId
             get(port, "/api/v1/static-hosting/unknown/secret", session).statusCode() shouldBe 404
+            // a new key pair replaces it (SEC-12), only for a session of an admin
+            post(port, "/api/v1/static-hosting/created/secret", "").statusCode() shouldBe 401
+            post(port, "/api/v1/static-hosting/unknown/secret", "", session).statusCode() shouldBe 404
+            val replaced = post(port, "/api/v1/static-hosting/created/secret", "", session)
+            replaced.statusCode() shouldBe 200
+            replaced.headers().firstValue("Cache-Control").get() shouldBe "no-store"
+            val newAccessKeyId = replaced.json().string("accessKeyId")
+            newAccessKeyId shouldNotBe accessKeyId
 
-            // the key pair works on the new bucket
-            S3Client
+            fun s3(
+                id: String,
+                secret: String,
+            ) = S3Client
                 .builder()
                 .endpointOverride(URI.create("http://localhost:$port/s3"))
                 .region(Region.US_EAST_1)
                 .forcePathStyle(true)
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKeyId, secretAccessKey)))
+                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(id, secret)))
                 .build()
+
+            // the new key pair works on the bucket, the one before not any more
+            s3(newAccessKeyId, replaced.json().string("secretAccessKey"))
                 .use { it.putObject({ request -> request.bucket("created").key("a.txt") }, RequestBody.fromString("12345")) }
+            shouldThrow<software.amazon.awssdk.services.s3.model.S3Exception> {
+                s3(accessKeyId, secretAccessKey)
+                    .use { it.putObject({ request -> request.bucket("created").key("b.txt") }, RequestBody.fromString("12345")) }
+            }.statusCode() shouldBe 403
         }
     }
 

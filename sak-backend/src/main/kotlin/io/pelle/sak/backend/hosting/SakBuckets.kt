@@ -243,6 +243,34 @@ fun Route.buckets(
             errors(HttpStatusCode.NotFound, "Unknown bucket")
         }
     }
+
+    post("/{bucket}/secret") {
+        val keyPair = withContext(Dispatchers.IO) { bucketService.replaceKeyPair(call.parameters["bucket"].orEmpty()) }
+        if (keyPair == null) {
+            call.respond(HttpStatusCode.NotFound)
+            return@post
+        }
+        call.response.header(HttpHeaders.CacheControl, "no-store")
+        call.respond(BucketSecretResponse(keyPair.first, keyPair.second.value))
+    }.describe {
+        tag(S3_TAG)
+        summary = "Replace the key pair of a bucket"
+        description = "A new access key and secret; the ones before stop working at once, e.g. after they leaked."
+        parameters {
+            path("bucket") {
+                description = "The name of the bucket"
+                required = true
+                schema = jsonSchema<String>()
+            }
+        }
+        responses {
+            HttpStatusCode.OK {
+                description = "The new access key and secret"
+                schema = jsonSchema<BucketSecretResponse>()
+            }
+            errors(HttpStatusCode.NotFound, "Unknown bucket")
+        }
+    }
 }
 
 private suspend fun BucketStatisticsCache.response(bucket: String): BucketStatisticsResponse =

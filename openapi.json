@@ -660,6 +660,54 @@
             }
         },
         "/api/v1/static-hosting/{bucket}/secret": {
+            "post": {
+                "tags": [
+                    "s3"
+                ],
+                "summary": "Replace the key pair of a bucket",
+                "description": "A new access key and secret; the ones before stop working at once, e.g. after they leaked.",
+                "parameters": [
+                    {
+                        "name": "bucket",
+                        "in": "path",
+                        "description": "The name of the bucket",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The new access key and secret",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BucketSecretResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown bucket",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
             "get": {
                 "tags": [
                     "s3"

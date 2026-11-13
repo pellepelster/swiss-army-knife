@@ -363,6 +363,32 @@ describe('Hosting', () => {
     expect(button('Copy secret key').querySelector('.fa-check')).toBeNull();
   });
 
+  // SEC-12: a leaked key pair ends without the bucket; it asks first, Keep is the safe default
+  it('replaces the key pair after asking, the new one shows and the old one is said to be gone', async () => {
+    await open('/static-hosting/site/credentials');
+    http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', []));
+    await harness.fixture.whenStable();
+    http.expectOne('/api/v1/static-hosting/site/secret').flush(SECRET);
+    await harness.fixture.whenStable();
+
+    button('Replace key pair').click();
+    await harness.fixture.whenStable();
+    expect(page().textContent).toContain('Replace the key pair of site?');
+    button('Keep').click();
+    await harness.fixture.whenStable();
+    http.expectNone({ method: 'POST', url: '/api/v1/static-hosting/site/secret' });
+
+    button('Replace key pair').click();
+    await harness.fixture.whenStable();
+    button('Replace').click();
+    const replaced = { accessKeyId: 'NEWKEYNEWKEYNEWKEY23', secretAccessKey: 'bmV3c2VjcmV0' };
+    http.expectOne({ method: 'POST', url: '/api/v1/static-hosting/site/secret' }).flush(replaced);
+    await harness.fixture.whenStable();
+
+    expect(text('access-key')).toBe(replaced.accessKeyId);
+    expect(text('secret-replaced')).toContain('the one before no longer works');
+  });
+
   it('edits the domains on its own page, the name stays, and goes back to the bucket', async () => {
     await open('/static-hosting/site/edit');
     http.expectOne('/api/v1/static-hosting/site').flush(bucket('site', ['example.org']));

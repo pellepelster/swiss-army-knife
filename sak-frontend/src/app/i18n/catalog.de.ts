@@ -376,6 +376,11 @@ export const TEXTS = {
       copy_secret_key: 'Geheimen Schlüssel kopieren',
       keys: 'Schlüssel',
       keys_failed: 'Das Schlüsselpaar konnte nicht abgerufen werden.',
+      replace: 'Schlüsselpaar ersetzen',
+      replace_question: 'Das Schlüsselpaar von %{name} ersetzen? Kein Client mit dem aktuellen kann dann noch hochladen.',
+      replace_confirm: 'Ersetzen',
+      replaced: 'Das Schlüsselpaar ist ersetzt, das vorherige funktioniert nicht mehr. Trage das neue in deinen S3-Clients ein.',
+      replace_failed: 'Das Schlüsselpaar konnte nicht ersetzt werden.',
     },
     publishing: {
       label: 'Veröffentlichen mit Hugo',
