@@ -269,7 +269,13 @@ metadata) destroys it. No attack, a loss of data for a client that copies on the
 
 Fix: 501 `NotImplemented` when the header is there.
 
-### `SEC-14` The containers share the network of the host
+### ~~`SEC-14` The containers share the network of the host~~
+
+**Fixed:** vector and victorialogs, the images of others, are on a podman network of their own (`sak-logs.network`):
+victorialogs is published on the loopback of the host only, for the backend and the backup, vector reaches it by its
+name. From that network neither reaches the admin api of caddy nor the backend; a rule on the forward hook of nftables
+keeps the metadata service from them, which the rule on the output hook does not see. caddy and the backend keep the
+network of the host. Checked with the quadlet generator of podman 5.4, not yet on a server.
 
 All four have `Network=host`. What listens on loopback has no login: the admin api of caddy (`localhost:2019`), the
 backend without caddy before it (8080), victorialogs (9428). Code that runs in one container, vector and

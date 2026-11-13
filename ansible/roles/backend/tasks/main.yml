@@ -199,6 +199,17 @@
     mode: "0600"
   notify: Restart sak-backend
 
+- name: Install the network of the logs
+  ansible.builtin.template:
+    src: sak-logs.network.j2
+    dest: /etc/containers/systemd/sak-logs.network
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Restart sak-victorialogs
+    - Restart sak-vector
+
 - name: Install the quadlets
   ansible.builtin.template:
     src: "{{ item }}.container.j2"

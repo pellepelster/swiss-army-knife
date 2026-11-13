@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# the network of vector and victorialogs, the two images of others (SEC-14): they do not share the
+# network of the host with caddy and the backend, so they reach neither the admin api of caddy nor
+# the backend on its loopback. victorialogs is published on the loopback of the host for the backend
+# and the backup, vector reaches it by its name
+[Network]
+NetworkName=sak-logs

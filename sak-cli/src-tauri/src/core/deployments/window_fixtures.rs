@@ -64,6 +64,7 @@ const TASKS: &[&str] = &[
     "Upload the vector configuration",
     "Write the backend configuration",
     "Upload the backend environment",
+    "Install the network of the logs",
     "Install the quadlets",
     "Start the containers",
     "Create the directory of the role markers",

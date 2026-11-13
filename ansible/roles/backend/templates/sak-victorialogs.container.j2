@@ -7,13 +7,15 @@ ContainerName=sak-victorialogs
 Image={{ backend_victorialogs_image }}
 Pull=missing
 # listens on localhost only, vector ships to it and the backend queries it there
-Network=host
+# its own network with vector, published on the loopback of the host only (SEC-14)
+Network=sak-logs.network
+PublishPort=127.0.0.1:9428:9428
 User={{ backend_uid }}
 Group={{ backend_gid }}
 Volume={{ backend_victorialogs_data_path }}:/victoria-logs-data
 # the snapshots of sak-backend backup need the key, so does every other partition endpoint
 Volume={{ backend_victorialogs_auth_key_file }}:/etc/victoria-logs/partition.key:ro
-Exec=-storageDataPath=/victoria-logs-data -httpListenAddr=127.0.0.1:9428 -retentionPeriod={{ backend_victorialogs_retention }} -retention.maxDiskSpaceUsageBytes={{ backend_victorialogs_max_disk_usage }} -partitionManageAuthKey=file:///etc/victoria-logs/partition.key -snapshotsMaxAge={{ backend_victorialogs_snapshots_max_age }}
+Exec=-storageDataPath=/victoria-logs-data -httpListenAddr=:9428 -retentionPeriod={{ backend_victorialogs_retention }} -retention.maxDiskSpaceUsageBytes={{ backend_victorialogs_max_disk_usage }} -partitionManageAuthKey=file:///etc/victoria-logs/partition.key -snapshotsMaxAge={{ backend_victorialogs_snapshots_max_age }}
 ReadOnly=true
 NoNewPrivileges=true
 DropCapability=all
