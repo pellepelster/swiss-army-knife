@@ -386,7 +386,32 @@ restore() {
   install -d -m 0700 -o root -g root "$staging"
 
   step "receiving and extracting the backup"
-  zstd -dc -q | tar --extract --file=- --numeric-owner --same-permissions -C "$staging"
+  # a backup is encrypted to a public key, it proves no sender (SEC-15): it is extracted without its
+  # owners, holds only its known entries, regular files, directories and links that stay in it, and
+  # all of it belongs to the backend user afterwards, without a setuid, setgid or sticky bit
+  zstd -dc -q | tar --extract --file=- --no-same-owner --same-permissions -C "$staging"
+  for entry in "$staging"/* "$staging"/.[!.]*; do
+    [ -e "$entry" ] || [ -L "$entry" ] || continue
+    case "$(basename "$entry")" in
+      backup.json | backend | ingress | vector | victorialogs) ;;
+      *)
+        step "the backup has an entry no backup has: $(basename "$entry")"
+        exit 1
+        ;;
+    esac
+  done
+  special=$(find "$staging" ! -type f ! -type d ! -type l -print -quit)
+  if [ -n "$special" ]; then
+    step "the backup has a file that is no regular file: ${special#"$staging"/}"
+    exit 1
+  fi
+  outside=$(find "$staging" -type l \( -lname '/*' -o -lname '*..*' \) -print -quit)
+  if [ -n "$outside" ]; then
+    step "the backup has a link that leads out of it: ${outside#"$staging"/}"
+    exit 1
+  fi
+  chown -R --no-dereference {{ backend_uid }}:{{ backend_gid }} "$staging"
+  chmod -R ug-s,-t "$staging"
 
   step "checking the backup"
   python3 - "$staging/backup.json" <<'EOF'
@@ -413,12 +438,13 @@ EOF
     step "the backup has no database"
     exit 1
   fi
-  integrity=$(sqlite3 "$staging/backend/data/sak.db" "PRAGMA integrity_check")
+  # as the backend user, never root, opens the database of the backup
+  integrity=$(runuser -u {{ backend_user }} -- sqlite3 "$staging/backend/data/sak.db" "PRAGMA integrity_check")
   if [ "$integrity" != "ok" ]; then
     step "the database of the backup is damaged: $integrity"
     exit 1
   fi
-  # the check ran as root, nothing of it may stay for the backend
+  # nothing of the check stays for the backend
   rm -f "$staging/backend/data/sak.db-wal" "$staging/backend/data/sak.db-shm"
 
   # backend/data, and each other directory of the archive (ingress, vector, victorialogs)

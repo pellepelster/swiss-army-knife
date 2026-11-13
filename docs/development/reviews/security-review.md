@@ -286,7 +286,13 @@ of caddy, not tried.
 Fix: the admin api on a unix socket in a directory only the ingress and the backend mount; or a network of their own
 for vector and victorialogs.
 
-### `SEC-15` A restore trusts the archive as root
+### ~~`SEC-15` A restore trusts the archive as root~~
+
+**Fixed:** the data volume is mounted with `nosuid,nodev`. A restore extracts without the owners of the archive, takes
+only its known entries (`backup.json`, `backend`, `ingress`, `vector`, `victorialogs`), refuses any file that is no
+regular file, directory or link and a link that leads out (absolute or with `..`), gives all of it to the backend user
+without setuid, setgid or sticky bits, and checks the database as that user. Shown with crafted archives in a container;
+not yet with a restore on a server.
 
 `sak-backend restore` extracts as root with `--numeric-owner --same-permissions`, moves every entry of the top
 level to the data volume whatever its name, and opens the database of the backup as root for the integrity check
