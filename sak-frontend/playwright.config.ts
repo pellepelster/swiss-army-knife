@@ -51,14 +51,14 @@ export default defineConfig({
       gracefulShutdown,
     },
     {
-      command: `docker run --rm --name sak-frontend-e2e-victorialogs -p 127.0.0.1:19428:9428 ${image('backend_victorialogs_image')} -httpListenAddr=:9428 -storageDataPath=/tmp/victoria-logs-data`,
+      command: `docker run --rm --name sak-frontend-e2e-victorialogs --hostname sak-victorialogs -p 127.0.0.1:19428:9428 ${image('backend_victorialogs_image')} -httpListenAddr=:9428 -storageDataPath=/tmp/victoria-logs-data`,
       url: `${VICTORIALOGS_URL}/health`,
       timeout: 120_000,
       reuseExistingServer: !process.env['CI'],
       gracefulShutdown,
     },
     {
-      // in the network of victorialogs, where it listens on 127.0.0.1:9428 like in production
+      // in the network of victorialogs, it reaches it by its host name, as vector.yaml does in production
       command:
         `docker run --rm --name sak-frontend-e2e-vector --network container:sak-frontend-e2e-victorialogs ` +
         `--volume ${ACCESS_LOG_DIR}:/var/log/caddy:ro --volume ${vectorConfig}:/etc/vector/vector.yaml:ro ` +

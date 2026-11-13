@@ -32,6 +32,9 @@ services:
     image: ${SAK_VECTOR_IMAGE}
     network_mode: host
     user: ${SAK_LOCAL_UID}:${SAK_LOCAL_GID}
+    # vector.yaml names victorialogs by its host name of production
+    extra_hosts:
+      - sak-victorialogs:127.0.0.1
     # the image has no shell for a health check, vector retries until victorialogs answers
     depends_on:
       - victorialogs
