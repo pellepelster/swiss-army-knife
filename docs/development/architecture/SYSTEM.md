@@ -143,53 +143,45 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 ## sakctl
 
-- `SAKCTL-1` **One core, two faces.** The core (the checks on start, the deployments and their plans, the
-  provisioning, the keys, the providers) knows neither the sakctl ui nor the sakctl cli; both are thin layers on it.
-- `SAKCTL-2` **Local state is encrypted.** All that sakctl keeps of a deployment on the user's machine is encrypted, so
-  only the password of the deployment reads it. It is below `~/.sak/<name>/`, only for the user: the settings of the
-  last create or deploy (`config.json`, encrypted with age to a key derived from the password) and the backups
-  (`backups/`, encrypted to the backup key, `SAKCTL-8`). The files of a run are no state: they go when the run ends.
-  Everything else sakctl needs is derived from the name and password of a deployment, or read back from the deployment:
-  a deploy takes its settings from the running deployment, else from `config.json`, else from the DNS records. Two
-  machines with the same password manage the same deployment.
-- `SAKCTL-3` **Derived keys.** The keys of a deployment are derived from its password (refer to
-  [Security](#security)).
-- `SAKCTL-4` **Plan, then apply.** `sak-cloud` declares the resources, diffs them against the provider and applies
-  them in the order of their dependencies. A plan stops before anything changes when a resource belongs to someone
-  else or would have to be replaced though it must stay. Only the server and its ssh key may be replaced.
-- `SAKCTL-5` **Provisioning** runs `ansible-playbook` in a container image of the tools against the server, with the
-  inventory, the keys, the known host key and `backend.env` (the hash of the admin password, the addresses, the mail
-  server) in a private directory for the run. It sets up the base system, the data volume and the backend, its
-  configuration and the containers next to it.
-- `SAKCTL-6` **The provisioning is a resource.** The roles of the playbook on the server are a resource of the plan
-  like the others: after the server and the data volume, with a diff and an apply. Ansible has no plan of its own, so
-  the server tells what was applied last: a run that succeeded leaves one marker for each role, the fingerprint of the
-  files of the role and of the values the run gave it. The plan reads the markers through ssh and runs the playbook
-  when the server changes, when there are no markers (never provisioned, or the last run failed: a run deletes them
-  first) or when a role has another fingerprint. A role that stays as it was runs again only with a forced deploy.
-- `SAKCTL-7` **Certificates.** Caddy gets the certificates of a deployment from its default acme issuers, or from the
-  staging ca of Let's Encrypt for a test deployment (a setting of the deployment like the others, whose roots sakctl
-  then trusts). The integration tests use the staging ca, so they never run into the limits of the production
-  one.
-- `SAKCTL-8` **Backups through ssh.** A backup is pulled through ssh into one file on the user's machine, compressed
-  and encrypted on the server, which has only the public half of the backup key; a restore sends it back decrypted
-  through ssh. The files of the backups are data of the user, not state of sakctl.
-- `SAKCTL-9` **One version.** sakctl, the image of its tools and the images of the server have the same version, the
-  version of the release. A server runs the images of the version of the sakctl that deployed it. For the tests,
-  another tag of the images can be set, the images of a release before it is released (`<version>-rc`).
-- `SAKCTL-10` **Updates on request.** sakctl compares its version with the newest release on GitHub and replaces
-  itself with it only when the user asks, in the sakctl cli or in the footer of the sakctl ui. It checks the download
-  against the checksum of the release and against its cosign signature by the release workflow at the tag of the
-  release before it replaces itself; offline, against the trusted root of sigstore built into sakctl.
-- `SAKCTL-11` **Done when it answers.** A create or deploy ends when the deployment answers at its public endpoint
-  (`api.<base domain>`, no login needed), through its ingress and with its certificate, the way its users reach it;
-  one that does not answer within some minutes fails, with the cause.
-- `SAKCTL-12` **Signed images.** The workflow signs every image it pushes with cosign, keyless, as the workflow at
-  its ref: a tag for `<version>` and `<version>-rc`, main for `latest`. sakctl verifies the signature of the digest
-  of each image before it runs it (the canary, the tools) or hands it to the server (the backend, the ingress, in
-  the inventory by its digest), offline against the trusted root of sigstore built into sakctl; an image without
-  the signature of its workflow is not pulled. A tag no workflow pushes, set with `SAK_DOCKER_IMAGE_TAG`, is pulled
-  unchecked. The images of others (victorialogs, vector) are pinned by their digests.
+- `SAKCTL-1` **One core, two faces.** The core (start checks, deployments and plans, provisioning, keys, providers)
+  knows neither the sakctl ui nor the sakctl cli. Both are thin layers on it.
+- `SAKCTL-2` **Local state is encrypted.** sakctl keeps only two things of a deployment in `~/.sak/<name>/`, readable by
+  the user only: the settings of the last create or deploy (`config.json`, encrypted with age to a key derived from
+  the password) and the backups (`backups/`, `SAKCTL-8`). The files of a run are deleted when the run ends. All else
+  is derived from the name and the password, or read from the deployment: a deploy takes its settings from the running
+  deployment, else from `config.json`, else from the DNS records. So two machines with the same password manage the
+  same deployment.
+- `SAKCTL-3` **Derived keys.** The keys of a deployment are derived from its password ([Security](#security)).
+- `SAKCTL-4` **Plan, then apply.** `sak-cloud` declares the resources, compares them with the provider and applies
+  them in the order of their dependencies. A plan stops before any change when a resource belongs to someone else or
+  must be replaced but must stay. Only the server and its ssh key may be replaced.
+- `SAKCTL-5` **Provisioning** runs `ansible-playbook` against the server in the tools image. The inventory, the keys,
+  the known host key and `backend.env` (admin password hash, addresses, mail server) are in a private directory of the
+  run. It sets up the base system, the data volume, the backend and the containers next to it.
+- `SAKCTL-6` **The provisioning is a resource.** The roles are a resource of the plan, after the server and the data
+  volume. Ansible has no plan, so the server keeps one marker for each role after a successful run: the fingerprint
+  of the files of the role and of its values. The plan reads the markers through ssh and runs the playbook when the
+  server changes, when markers are missing (a run deletes them first) or when a fingerprint differs. An unchanged
+  role runs again only with a forced deploy.
+- `SAKCTL-7` **Certificates.** Caddy gets the certificates from its default acme issuers. A test deployment uses the
+  staging ca of Let's Encrypt (a setting of the deployment; sakctl then trusts its roots), so the tests never reach
+  the limits of the production ca.
+- `SAKCTL-8` **Backups through ssh.** The server compresses a backup and encrypts it to the public half of the backup
+  key; sakctl pulls it through ssh into one file. A restore sends it back decrypted. Backups are user data, not
+  sakctl state.
+- `SAKCTL-9` **One version.** sakctl, its tools image and the server images share the version of the release. A
+  server runs the images of the sakctl that deployed it. Tests can set another tag, e.g. `<version>-rc`.
+- `SAKCTL-10` **Updates on request.** sakctl looks for a newer release on GitHub and replaces itself only when the user
+  asks (sakctl cli, or the footer of the sakctl ui). Before that, it checks the download against the checksum and the
+  cosign signature of the release workflow at the release tag, offline against the sigstore root built into sakctl.
+- `SAKCTL-11` **Done when it answers.** A create or deploy ends when `api.<base domain>` answers through the ingress
+  with its certificate, as users reach it. If it does not answer within some minutes, the run fails with the cause.
+- `SAKCTL-12` **Signed images.** The workflow signs each image it pushes with cosign, keyless, as the workflow at its
+  ref (a tag for `<version>` and `<version>-rc`, main for `latest`). sakctl verifies the signature of each image
+  digest offline, against the sigstore root built into sakctl, before it runs the image (canary, tools) or gives it
+  to the server by digest (backend, ingress). An image without the signature is not pulled. A tag set with
+  `SAK_DOCKER_IMAGE_TAG` that no workflow pushes is pulled unchecked. Third-party images (victorialogs, vector) are
+  pinned by digest.
 
 ## Cloud resources
 
