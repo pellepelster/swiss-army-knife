@@ -103,6 +103,20 @@ class S3WireTest {
         response.eTag() shouldBe "\"3eeebf6b04a9821afe3b68830b7038f9\""
     }
 
+    // SEC-13: a copy on the server is not supported, it never replaces the object with an empty one
+    @Test
+    fun `copyObject is not implemented and leaves the objects as they are`() {
+        client().putObject({ it.bucket("bucket1").key("a.txt") }, RequestBody.fromString("the content"))
+
+        shouldThrow<software.amazon.awssdk.services.s3.model.S3Exception> {
+            client().copyObject { it.sourceBucket("bucket1").sourceKey("a.txt").destinationBucket("bucket1").destinationKey("a.txt") }
+        }.let {
+            it.statusCode() shouldBe 501
+            it.awsErrorDetails().errorCode() shouldBe "NotImplemented"
+        }
+        String(client().getObject { it.bucket("bucket1").key("a.txt") }.readAllBytes()) shouldBe "the content"
+    }
+
     @Test
     fun `putObject on an already existing key overwrites the object`() {
         fun put(content: String) =

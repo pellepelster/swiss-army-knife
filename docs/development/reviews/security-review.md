@@ -178,7 +178,10 @@ There is no route that makes a new key pair; a leaked one ends only with the buc
 
 Fix: `POST /api/v1/static-hosting/{bucket}/secret` writes a new access key id and secret.
 
-### `SEC-13` A copy in the S3 api writes an empty object
+### ~~`SEC-13` A copy in the S3 api writes an empty object~~
+
+**Fixed:** a `PUT` with `x-amz-copy-source` (a copy of an object or of a part) answers 501 `NotImplemented`, the
+target stays as it is.
 
 `PUT /<bucket>/<key>` with `x-amz-copy-source` goes to `putObject`: the header is read nowhere, the empty body
 verifies, and an object of 0 bytes replaces the target with a 200. A copy of a key onto itself (a change of its
