@@ -239,13 +239,7 @@ Fix: `maskedAddress(client)`; vector drops the query for the sites of the api an
 
 ### `SEC-22` What is used once is forgotten with a restart
 
-The used login tokens and connect tokens, the nonces of the signed requests and every limit are in memory. After a
-restart a used link or code works once more within its time, the page of a code can not say it was used (404), a
-relayed signed request can be sent a second time within its two minutes, and the limits start again. A deploy restarts
-the backend; so does a crash, e.g. of an `OutOfMemoryError`. The code says it for the links; ACCEPTED-RISKS says a
-code is good once.
-
-Fix: the used ids in a small table with their end; or an entry in ACCEPTED-RISKS.
+Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/155).
 
 ### Small items
 
