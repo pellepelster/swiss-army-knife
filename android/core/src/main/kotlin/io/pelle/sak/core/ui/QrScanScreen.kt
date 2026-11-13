@@ -95,7 +95,7 @@ fun SakContent(
 }
 
 // the scan of the QR code of the web app that connects the app (SECURITY-3): the camera asked for
-// when the scan opens, not before (PRIVACY-7), its preview with the frame to aim at, the light and
+// when the scan opens, not before, its preview with the frame to aim at, the light and
 // back; refused, the scan says why and leads to the settings of the app or back to the sign-in without
 // a code. Signed in already, a dialog asks before the code replaces the session
 @Composable

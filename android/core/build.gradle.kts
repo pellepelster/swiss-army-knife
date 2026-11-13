@@ -28,7 +28,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     // the picker of the icon of a list (EmojiSheet)
     implementation(libs.emoji2.emojipicker)
-    // the scan of the QR code that connects the app: the camera, decoded on the phone (PRIVACY-7)
+    // the scan of the QR code that connects the app: the camera, decoded on the phone
     implementation(libs.camera.core)
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)

@@ -211,7 +211,7 @@ abstract class SakModel<A : SakApi>(
         return url
     }
 
-    // the scan of a QR code opens; the ui asks for the camera now, not before (PRIVACY-7)
+    // the scan of a QR code opens; the ui asks for the camera now, not before
     fun scanQr() {
         if (scanning.value == null) scanning.value = QrScan()
     }

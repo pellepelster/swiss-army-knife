@@ -3,7 +3,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- the scan of the QR code that connects the app, asked for only when the user scans (PRIVACY-7);
+    <!-- the scan of the QR code that connects the app, asked for only when the user scans;
          a phone without a camera signs in without it -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature

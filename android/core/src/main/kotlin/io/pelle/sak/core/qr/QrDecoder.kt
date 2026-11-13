@@ -8,7 +8,7 @@ import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.ReaderException
 import com.google.zxing.common.HybridBinarizer
 
-// finds a QR code in the brightness of a picture of the camera, on the phone (zxing, PRIVACY-7); also
+// finds a QR code in the brightness of a picture of the camera, on the phone (zxing); also
 // one light on dark, e.g. the web app in its dark mode. Not thread-safe: one for each analyzer
 class QrDecoder {
     private val reader =

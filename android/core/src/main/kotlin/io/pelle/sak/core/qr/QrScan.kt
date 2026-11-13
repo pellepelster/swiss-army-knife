@@ -9,7 +9,7 @@ data class QrScan(
     val busy: Boolean = false,
     // why the code scanned last did not sign in; the scan waits until the user scans again
     val error: UiText? = null,
-    // the camera was refused: the scan says so and leads to the settings of the app (PRIVACY-7)
+    // the camera was refused: the scan says so and leads to the settings of the app
     val denied: Boolean = false,
     // signed in already: asked before the code replaces the session
     val confirm: QrSwitch? = null,

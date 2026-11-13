@@ -460,7 +460,7 @@ android:
     en: "This SAK instance has a single user, it has no e-mail login."
     de: "Diese SAK-Instanz hat einen Benutzer, sie hat kein E-Mail-Login."
   sign_in_other_ways: { en: "Other ways to sign in", de: "Andere Arten der Anmeldung" }
-  # the QR code of the web app that connects an app (SECURITY-3), scanned with the camera (PRIVACY-7)
+  # the QR code of the web app that connects an app (SECURITY-3), scanned with the camera
   qr:
     scan: { en: "Scan QR code", de: "QR-Code scannen" }
     hint:

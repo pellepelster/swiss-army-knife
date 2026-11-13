@@ -234,12 +234,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   the images of the backend and the ingress on each deploy. The registry then sees the IP address of the user's
   machine and of the server, and which images they pull, nothing else. Communication with the registry is allowed; SAK
   cannot run without its images.
-- `PRIVACY-5` **Exemption: tests.** Tests may use third-party services made for tests (refer to [Tests](#tests)). They
-  send only synthetic test data; a deployment of a user never connects to them.
-- `PRIVACY-6` **User data stays.** User data leaves the backend only when the user asks for it (for example text
+- `PRIVACY-5` **User data stays.** User data leaves the backend only when the user asks for it (for example text
   discovery), and only to providers that do not collect it.
-- `PRIVACY-7` **The camera only when the user uses it.** An Android app asks for the camera only when the user scans a
-  QR code (`SECURITY-3`) or takes a photo. A QR code is decoded on the phone, its picture kept nowhere and sent nowhere.
 
 ## Security
 

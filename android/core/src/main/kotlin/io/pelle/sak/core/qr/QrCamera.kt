@@ -22,9 +22,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.concurrent.Executors
 
-// the camera of the scan: its preview, and the texts of the QR codes it sees, read on the phone
-// (PRIVACY-7). The app has the camera at the back (CameraXQrCamera), the tests a fake
-// (SakProcess.qrCamera)
+// the camera of the scan: its preview, and the texts of the QR codes it sees, read on the phone.
+// The app has the camera at the back (CameraXQrCamera), the tests a fake (SakProcess.qrCamera)
 interface QrCamera {
     // the preview, filling modifier; onCode gets the text of each picture that shows a QR code, on
     // the main thread; torch turns the light of the camera on
