@@ -369,7 +369,7 @@ ui:
     smtp_test_send: "Send"
     smtp_sending: "Sending the test e-mail…"
     smtp_hint: "The login links are sent with it. Without STARTTLS the connection is implicit TLS (usually port 465)."
-    user_mode: "Users"
+    user_mode: "User mode"
     user_mode_single: "Single user"
     user_mode_multi: "Multiple users"
     user_mode_hint_single: "One user, the admin, who signs in with the password of the SAK instance. No mail server needed."

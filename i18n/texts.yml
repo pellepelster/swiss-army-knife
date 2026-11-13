@@ -1255,7 +1255,7 @@ ctl:
       smtp_hint:
         en: "The login links are sent with it. Without STARTTLS the connection is implicit TLS (usually port 465)."
         de: "Damit werden die Login-Links verschickt. Ohne STARTTLS ist die Verbindung implizites TLS (meist Port 465)."
-      user_mode: { en: "Users", de: "Benutzer" }
+      user_mode: { en: "User mode", de: "Benutzermodus" }
       user_mode_single: { en: "Single user", de: "Ein Benutzer" }
       user_mode_multi: { en: "Multiple users", de: "Mehrere Benutzer" }
       user_mode_hint_single:

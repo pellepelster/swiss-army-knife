@@ -369,7 +369,7 @@ ui:
     smtp_test_send: "Senden"
     smtp_sending: "Sende die Test-E-Mail…"
     smtp_hint: "Damit werden die Login-Links verschickt. Ohne STARTTLS ist die Verbindung implizites TLS (meist Port 465)."
-    user_mode: "Benutzer"
+    user_mode: "Benutzermodus"
     user_mode_single: "Ein Benutzer"
     user_mode_multi: "Mehrere Benutzer"
     user_mode_hint_single: "Ein Benutzer, der Admin, der sich mit dem Passwort der SAK-Instanz anmeldet. Kein Mailserver nötig."
