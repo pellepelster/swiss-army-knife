@@ -4,26 +4,62 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 
-// allows at most maxEvents per key within a sliding window
+// allows at most maxEvents per key within a sliding window. It keeps at most maxKeys keys: a new key
+// beyond them is refused rather than kept, so many clients can not fill the heap (SEC-5). The events
+// of a key that passed the window go when the key is asked again, and with a sweep of all keys at most
+// once a minute, not with every call
 class RateLimiter(
     private val maxEvents: Int,
     private val window: Duration,
     private val clock: Clock = Clock.systemUTC(),
+    private val maxKeys: Int = DEFAULT_MAX_KEYS,
 ) {
+    // the times of the events of each key, the oldest first
     private val events = HashMap<String, ArrayDeque<Instant>>()
+    private var swept: Instant? = null
 
     @Synchronized
     fun tryAcquire(key: String): Boolean {
         val now = clock.instant()
         val since = now.minus(window)
-        events.values.forEach { timestamps -> timestamps.removeAll { !it.isAfter(since) } }
-        events.values.removeIf { it.isEmpty() }
-
-        val timestamps = events.getOrPut(key) { ArrayDeque() }
+        if (swept?.let { Duration.between(it, now) >= SWEEP_EVERY } != false) {
+            sweep(since)
+            swept = now
+        }
+        val timestamps =
+            events[key]?.also { dropBefore(it, since) }
+                ?: run {
+                    if (events.size >= maxKeys) sweep(since)
+                    if (events.size >= maxKeys) return false
+                    ArrayDeque<Instant>().also { events[key] = it }
+                }
         if (timestamps.size >= maxEvents) {
             return false
         }
         timestamps.addLast(now)
         return true
+    }
+
+    // the number of keys kept, for the tests
+    @Synchronized
+    internal fun keys(): Int = events.size
+
+    private fun sweep(since: Instant) {
+        events.values.forEach { dropBefore(it, since) }
+        events.values.removeIf { it.isEmpty() }
+    }
+
+    private fun dropBefore(
+        timestamps: ArrayDeque<Instant>,
+        since: Instant,
+    ) {
+        while (timestamps.firstOrNull()?.isAfter(since) == false) timestamps.removeFirst()
+    }
+
+    companion object {
+        // far more clients than a household has in an hour, a few MB at most
+        const val DEFAULT_MAX_KEYS = 10_000
+
+        private val SWEEP_EVERY: Duration = Duration.ofMinutes(1)
     }
 }

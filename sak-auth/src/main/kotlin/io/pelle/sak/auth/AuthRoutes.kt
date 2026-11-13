@@ -33,6 +33,8 @@ import jakarta.mail.internet.InternetAddress
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.time.Duration
 import java.time.Instant
 import io.pelle.sak.auth.model.ConnectExchangeRequest
@@ -145,7 +147,7 @@ fun Route.login(
             call.respondErrors(AuthTexts.INVALID_NONCE)
             return@post
         }
-        val client = call.clientAddress()
+        val client = call.clientNetwork()
         if (!loginsPerClient.tryAcquire(client)) {
             call.respond(HttpStatusCode.TooManyRequests)
             return@post
@@ -259,7 +261,7 @@ fun Route.passwordLogin(
 
         post {
             val request = call.receive<PasswordLoginRequest>()
-            if (!attemptsPerClient.tryAcquire(call.clientAddress()) || !attemptsPerHour.tryAcquire(ALL_CLIENTS)) {
+            if (!attemptsPerClient.tryAcquire(call.clientNetwork()) || !attemptsPerHour.tryAcquire(ALL_CLIENTS)) {
                 call.respond(HttpStatusCode.TooManyRequests)
                 return@post
             }
@@ -315,7 +317,7 @@ fun Route.connectExchange(
 
         post {
             val request = call.receive<ConnectExchangeRequest>()
-            if (!attemptsPerClient.tryAcquire(call.clientAddress())) {
+            if (!attemptsPerClient.tryAcquire(call.clientNetwork())) {
                 call.respond(HttpStatusCode.TooManyRequests)
                 return@post
             }
@@ -501,6 +503,24 @@ fun safeRedirect(redirect: String?): String {
 internal fun ApplicationCall.clientAddress(): String =
     request.headers[HttpHeaders.XForwardedFor]?.substringAfterLast(',')?.trim()?.takeIf { it.isNotEmpty() }
         ?: request.local.remoteAddress
+
+// the client as the limits count it (SEC-5): an IPv6 address by its network of /64, which one host
+// has whole, an IPv4 address by itself
+internal fun ApplicationCall.clientNetwork(): String = clientNetwork(clientAddress())
+
+internal fun clientNetwork(address: String): String {
+    // only a literal with a colon is parsed, which never asks the dns
+    if (':' !in address) return address
+    val bytes =
+        try {
+            InetAddress.getByName(address).address
+        } catch (_: UnknownHostException) {
+            return address
+        }
+    // an IPv4 address written as IPv6 (::ffff:192.0.2.1)
+    if (bytes.size == 4) return InetAddress.getByAddress(bytes).hostAddress
+    return bytes.copyOf(8).toList().chunked(2).joinToString(":") { (high, low) -> "%x".format(((high.toInt() and 0xFF) shl 8) or (low.toInt() and 0xFF)) } + "::/64"
+}
 
 // the texts of the sign-in (backend.auth in i18n/texts.yml)
 object AuthTexts : Catalog("auth") {

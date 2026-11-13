@@ -158,7 +158,12 @@ change of `SECURITY-3` and of ACCEPTED-RISKS (a rule changes only with the conse
    sets it for a user and for themselves. It is the first state of the sessions in the backend, so it is a decision
    of its own.
 
-### `SEC-5` The limits of a client count one IPv6 address, and the limiter grows with every key
+### ~~`SEC-5` The limits of a client count one IPv6 address, and the limiter grows with every key~~
+
+**Fixed:** the limits count an IPv6 client by its network of /64 and an IPv4 client by its address (`clientNetwork`),
+so one host is one client again. A `RateLimiter` keeps at most 10,000 keys and refuses a new one beyond them, drops the
+old events of the key it is asked for and sweeps all keys at most once a minute. Still so: clients of 60 networks an
+hour use up the password logins of all, which ACCEPTED-RISKS does not name yet.
 
 `clientAddress()` is the whole address, and a host has a /64 of them. Three things follow:
 
