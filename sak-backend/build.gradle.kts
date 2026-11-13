@@ -39,7 +39,8 @@ dependencies {
 
 application {
     mainClass = "io.pelle.sak.backend.SakBackendKt"
-    // measured under load (docs/development/reviews/memory-review.md, MR-4, MR-8, MR-10): about 100 MB of live
+    // measured under load on 2026-11-02 (the review of the memory, MR-4, MR-8, MR-10, in the history of git; its open
+    // findings are the issues #150 to #154): about 100 MB of live
     // heap at the peak, the serial gc fits one household and gives the heap back at a full gc; the client
     // compiler only, its code is half as large; an OutOfMemoryError ends the backend, systemd starts it again
     applicationDefaultJvmArgs =
