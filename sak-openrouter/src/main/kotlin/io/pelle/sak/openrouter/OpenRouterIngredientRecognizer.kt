@@ -152,9 +152,10 @@ Special cases:
 - Alternatives: take the first one ("40 g Butter oder 2 EL Olivenöl" → 40 g Butter; "Rinderbrühe,
   Hühnerbrühe oder Gemüsebrühe" → Rinderbrühe).
 - Several ingredients in one line become one entry each ("Salz und Pfeffer" → Salz, Pfeffer).
-- The same ingredient in several sections is listed once. Add up the quantities when the units are the
-  same; otherwise keep the entry with a quantity.
+- The same ingredient in several sections or lines: list it each time, with the quantity and the unit
+  written there. Do not add them up yourself.
 - Leave out tap water and ingredients only used for greasing or dusting ("etwas Butter für die Form").
+  Fat or oil to fry in is an ingredient ("Frittierfett", "Öl zum Braten").
 - Do not guess what you cannot read. Set a quantity you cannot read to null, and leave out an
   ingredient whose name you cannot read.
 

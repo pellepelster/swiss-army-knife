@@ -87,7 +87,7 @@ class GroceryDiscovery(
         // the answer of the model within the limits of an item: names and units cleaned and cut,
         // amounts rounded to 3 decimal places or dropped when out of range, a unit only with an
         // amount; no name or tap water is left out. An ingredient in several parts of a recipe (e.g.
-        // dough and filling) is merged into one, the model does not do that every time
+        // dough and filling) is merged into one here, the model lists each mention
         internal fun items(ingredients: List<Ingredient>): List<DiscoveredItem> =
             merged(
                 ingredients.mapNotNull { ingredient ->
