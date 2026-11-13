@@ -38,7 +38,7 @@ class BinaryStorageS3BackendTest {
     ) = storage.putObject("bucket1", key, content.byteInputStream(), metadata)
 
     @Test
-    fun `counts the objects of a bucket and their size, not the metadata or unfinished uploads`() {
+    fun `counts the objects of a bucket and their size with the parts of unfinished uploads, not the metadata`() {
         storage.usage("bucket1") shouldBe BlobUsage(0, 0)
 
         put("a.txt", "12345")
@@ -47,8 +47,70 @@ class BinaryStorageS3BackendTest {
 
         storage.usage("bucket1") shouldBe BlobUsage(2, 8)
 
+        // the parts take their room before the upload completes (SEC-9)
+        val uploadId = storage.createMultipartUpload("bucket1", "d.txt", ObjectMetadata())
+        storage.uploadPart("bucket1", "d.txt", uploadId, 1, "1234".byteInputStream())
+        storage.usage("bucket1") shouldBe BlobUsage(2, 12)
+        storage.abortMultipartUpload("bucket1", "d.txt", uploadId)
+
         storage.deleteObject("bucket1", "a.txt")
         storage.usage("bucket1") shouldBe BlobUsage(1, 3)
+    }
+
+    // SEC-9: one key of a bucket can not fill the data volume
+    @Test
+    fun `a write starts only above the free bytes kept and stops when they are reached while it streams`() {
+        var free = 1000L
+        val guarded =
+            BinaryStorageS3Backend(
+                FilesystemBinaryStorage(tempDir),
+                rootResolver(),
+                WriteGuard({ free }, minFreeBytes = 500, maxBytes = 100, checkEvery = 10),
+            )
+
+        guarded.putObject("bucket1", "ok.txt", "x".repeat(50).byteInputStream(), ObjectMetadata())
+        free = 400
+        shouldThrow<InsufficientStorageException> { guarded.putObject("bucket1", "no.txt", "x".byteInputStream(), ObjectMetadata()) }
+        shouldThrow<InsufficientStorageException> { guarded.createMultipartUpload("bucket1", "no.bin", ObjectMetadata()) }
+
+        // free at the start, not after the first 10 bytes: the write stops, nothing of it stays
+        var reads = 0
+        free = 1000
+        val shrinking =
+            object : java.io.InputStream() {
+                override fun read(): Int {
+                    if (++reads == 15) free = 400
+                    return if (reads <= 60) 'x'.code else -1
+                }
+            }
+        shouldThrow<InsufficientStorageException> { guarded.putObject("bucket1", "half.txt", shrinking, ObjectMetadata()) }
+        guarded.headObject("bucket1", "half.txt").shouldBeNull()
+
+        // larger than an object may be
+        free = 1000
+        shouldThrow<EntityTooLargeException> { guarded.putObject("bucket1", "big.txt", "x".repeat(101).byteInputStream(), ObjectMetadata()) }
+        guarded.headObject("bucket1", "big.txt").shouldBeNull()
+        guarded.headObject("bucket1", "ok.txt").shouldNotBeNull()
+    }
+
+    @Test
+    fun `a part number is from 1 to 10000`() {
+        val uploadId = storage.createMultipartUpload("bucket1", "big.bin", ObjectMetadata())
+        storage.uploadPart("bucket1", "big.bin", uploadId, 10_000, "x".byteInputStream())
+        shouldThrow<InvalidPartException> { storage.uploadPart("bucket1", "big.bin", uploadId, 10_001, "x".byteInputStream()) }
+        shouldThrow<InvalidPartException> { storage.uploadPart("bucket1", "big.bin", uploadId, 0, "x".byteInputStream()) }
+    }
+
+    @Test
+    fun `an upload without a part or start since before goes, a newer one stays`() {
+        val old = storage.createMultipartUpload("bucket1", "old.bin", ObjectMetadata())
+        storage.uploadPart("bucket1", "old.bin", old, 1, "x".byteInputStream())
+        val cutoff = java.time.Instant.now().plusSeconds(1)
+
+        storage.removeStaleUploads("bucket1", cutoff.minusSeconds(3600)) shouldBe 0
+        storage.removeStaleUploads("bucket1", cutoff) shouldBe 1
+        shouldThrow<NoSuchUploadException> { storage.uploadPart("bucket1", "old.bin", old, 2, "x".byteInputStream()) }
+        storage.removeStaleUploads("bucket1", cutoff) shouldBe 0
     }
 
     @Test

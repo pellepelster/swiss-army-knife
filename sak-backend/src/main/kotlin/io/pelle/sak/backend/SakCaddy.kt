@@ -7,7 +7,9 @@ import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.ingress.caddyConfig
 import io.pelle.sak.ingress.model.CaddyConfig
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
+import io.pelle.sak.s3.storage.WriteGuard
 import io.pelle.sak.storage.FilesystemBinaryStorage
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -16,7 +18,14 @@ import java.util.concurrent.TimeUnit
 const val S3_PATH_PREFIX = "/s3"
 
 // the buckets on the binary storage of s3DataDir; where a bucket is on disk only sak-s3 knows
-fun bucketStorage(config: SakConfig) = BinaryStorageS3Backend(FilesystemBinaryStorage(config.s3DataDir))
+fun bucketStorage(config: SakConfig): BinaryStorageS3Backend {
+    val storage = FilesystemBinaryStorage(config.s3DataDir)
+    return BinaryStorageS3Backend(storage, guard = WriteGuard({ Files.getFileStore(config.s3DataDir).usableSpace }, config.s3MinFreeBytes))
+}
+
+// what caddy lets through to the s3 api at most: the largest object or part of S3, with room for the
+// signatures of an aws-chunked body (SEC-9)
+const val S3_MAX_BODY_SIZE = WriteGuard.MAX_OBJECT_BYTES + 64L * 1024 * 1024
 
 // the domains the controller serves itself, no bucket is served at them and none is redirected
 fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)
@@ -96,6 +105,7 @@ fun caddyConfig(
                 host(config.apiHost)
                 logField(SITE_LOG_FIELD, API_SITE)
                 responseHeader("Strict-Transport-Security", "max-age=31536000")
+                maxRequestBodySize(S3_MAX_BODY_SIZE)
                 rewrite("$S3_PATH_PREFIX{http.request.uri}")
                 reverseProxy("localhost:$port")
                 terminal()

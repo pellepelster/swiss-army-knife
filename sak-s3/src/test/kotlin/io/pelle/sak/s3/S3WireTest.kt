@@ -59,7 +59,7 @@ class S3WireTest {
             routing {
                 route("/s3") {
                     s3(
-                        BinaryStorageS3Backend(FilesystemBinaryStorage(rootDir)) { bucket -> BlobPath(listOf(bucket)) },
+                        BinaryStorageS3Backend(FilesystemBinaryStorage(rootDir), { bucket -> BlobPath(listOf(bucket)) }),
                         accessCallback,
                     )
                 }

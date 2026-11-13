@@ -33,6 +33,10 @@ data class SakConfig(
     val rootDomain: String,
     @SerialName("caddy_admin_url")
     val caddyAdminUrl: String = DEFAULT_CADDY_ADMIN_URL,
+    // the bytes the s3 api keeps free on the data volume: a write to a bucket starts only above it
+    // and stops when it falls below (SEC-9)
+    @SerialName("s3_min_free_bytes")
+    val s3MinFreeBytes: Long = DEFAULT_S3_MIN_FREE_BYTES,
     // sak-frontend and its e-mail login are only served when configured
     val auth: AuthConfig? = null,
     val logs: LogsConfig = LogsConfig(),
@@ -61,7 +65,7 @@ data class SakConfig(
 
     // the secret keys never show, e.g. in a log line
     override fun toString() =
-        "SakConfig(name=$name, dnsMode=$dnsMode, dataDir=$dataDir, rootDomain=$rootDomain, caddyAdminUrl=$caddyAdminUrl, auth=$auth, logs=$logs, " +
+        "SakConfig(name=$name, dnsMode=$dnsMode, dataDir=$dataDir, rootDomain=$rootDomain, caddyAdminUrl=$caddyAdminUrl, s3MinFreeBytes=$s3MinFreeBytes, auth=$auth, logs=$logs, " +
             "openrouter=$openrouter, addresses=$addresses, dns=$dns)"
 
     val s3DataDir: Path get() = dataDir.resolve("s3")
@@ -204,6 +208,9 @@ data class SakConfig(
         private val SAK_NAME = Regex("[a-z0-9]([a-z0-9-]{0,${MAX_NAME_LENGTH - 2}}[a-z0-9])?")
 
         const val DEFAULT_CADDY_ADMIN_URL = "http://localhost:2019"
+
+        // room for the database, the certificates of caddy and the logs to go on
+        const val DEFAULT_S3_MIN_FREE_BYTES = 2L * 1024 * 1024 * 1024
 
         const val DEFAULT_VICTORIALOGS_URL = "http://127.0.0.1:9428"
 

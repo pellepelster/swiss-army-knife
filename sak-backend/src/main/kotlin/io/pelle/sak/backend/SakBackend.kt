@@ -39,6 +39,12 @@ import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import java.nio.file.Files
 import kotlin.system.exitProcess
 import io.pelle.sak.api.installUnexpectedErrors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -137,6 +143,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })
+    removeStaleUploads(storage, bucketService, statistics)
 
     routing {
         route(S3_PATH_PREFIX) {
@@ -177,3 +184,32 @@ fun Application.sak(config: SakConfig): SakServices {
 
     return services
 }
+
+// the multipart uploads of the buckets that were neither completed nor aborted and had no part for
+// STALE_UPLOAD_AGE go, at the start and every STALE_UPLOAD_CHECK (SEC-9): one key of a bucket can
+// not fill the data volume with parts it never completes
+private fun Application.removeStaleUploads(
+    storage: BinaryStorageS3Backend,
+    buckets: S3BucketService,
+    statistics: BucketStatisticsCache,
+) = launch(Dispatchers.IO) {
+    while (isActive) {
+        try {
+            val before = Instant.now().minus(STALE_UPLOAD_AGE)
+            buckets.all().forEach { bucket ->
+                val removed = storage.removeStaleUploads(bucket.name, before)
+                if (removed > 0) {
+                    logger.info { "removed $removed unfinished uploads of the bucket ${bucket.name}" }
+                    statistics.invalidate(bucket.name)
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn(e) { "could not remove the unfinished uploads of the buckets" }
+        }
+        delay(STALE_UPLOAD_CHECK.toMillis())
+    }
+}
+
+private val STALE_UPLOAD_AGE: Duration = Duration.ofDays(1)
+
+private val STALE_UPLOAD_CHECK: Duration = Duration.ofHours(1)

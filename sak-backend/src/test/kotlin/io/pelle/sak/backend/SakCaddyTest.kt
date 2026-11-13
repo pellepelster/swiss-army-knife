@@ -64,6 +64,7 @@ class SakCaddyTest {
                               "handler": "headers",
                               "response": { "set": { "Strict-Transport-Security": ["max-age=31536000"] }, "deferred": true }
                             },
+                            { "handler": "request_body", "max_size": 5435817984 },
                             { "handler": "rewrite", "uri": "/s3{http.request.uri}" },
                             { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
                           ],

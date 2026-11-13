@@ -72,6 +72,16 @@ class InvalidPartException(
     message: String,
 ) : RuntimeException(message)
 
+// the volume of the buckets has no room for the write (SEC-9)
+class InsufficientStorageException(
+    minFreeBytes: Long,
+) : RuntimeException("the storage keeps $minFreeBytes bytes free, it has no room for the write")
+
+// an object or a part larger than S3 takes (SEC-9)
+class EntityTooLargeException(
+    maxBytes: Long,
+) : RuntimeException("an object or a part has at most $maxBytes bytes")
+
 interface S3StorageBackend {
     fun putObject(
         bucket: String,

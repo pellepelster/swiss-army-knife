@@ -68,7 +68,8 @@ const val API_VERSION = "/v1"
 const val API_MAX_BODY_SIZE = 16L * 1024
 
 // what caddy lets through to sak-frontend at most, a file of the file storage with room to
-// spare; uploads to buckets go to the s3 api at api.<base_domain>, without a limit
+// spare; uploads to buckets go to the s3 api at api.<base_domain>, with a limit of their own
+// (S3_MAX_BODY_SIZE)
 const val APPS_MAX_BODY_SIZE = FileService.DEFAULT_MAX_SIZE + 1024L * 1024
 
 // how long a browser keeps the answer to a preflight request

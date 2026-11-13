@@ -34,6 +34,8 @@ import io.pelle.sak.s3.auth.SigV4Verifier
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.InvalidKeyException
 import io.pelle.sak.s3.storage.KeyTooLongException
+import io.pelle.sak.s3.storage.EntityTooLargeException
+import io.pelle.sak.s3.storage.InsufficientStorageException
 import io.pelle.sak.s3.storage.InvalidPartException
 import io.pelle.sak.s3.storage.KeyConflictException
 import io.pelle.sak.s3.storage.NoSuchBucketException
@@ -130,6 +132,10 @@ private class S3Api(
             error(call, 400, "InvalidRequest", e.message ?: "key conflict")
         } catch (e: InvalidPartException) {
             error(call, 400, "InvalidPart", e.message ?: "invalid part")
+        } catch (e: EntityTooLargeException) {
+            error(call, 400, "EntityTooLarge", e.message ?: "entity too large")
+        } catch (e: InsufficientStorageException) {
+            error(call, 507, "InsufficientStorage", e.message ?: "insufficient storage")
         } catch (e: Exception) {
             logger.error(e) { "S3 request failed: ${call.request.httpMethod.value} ${call.request.uri}" }
             error(call, 500, "InternalError", "internal error")

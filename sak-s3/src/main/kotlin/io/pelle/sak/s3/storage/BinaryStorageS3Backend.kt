@@ -21,6 +21,8 @@ import tools.jackson.module.kotlin.readValue
 class BinaryStorageS3Backend(
     private val storage: BinaryStorage,
     private val resolver: S3BucketPathResolver = S3BucketPathResolver { bucket -> BlobPath(listOf(BUCKETS, bucket)) },
+    // the room a write may take (SEC-9), by default with the free bytes of the volume of the storage
+    private val guard: WriteGuard = WriteGuard({ usableBytes(storage) }),
 ) : S3StorageBackend {
     private val mapper: ObjectMapper = jacksonObjectMapper()
 
@@ -44,11 +46,12 @@ class BinaryStorageS3Backend(
         metadata: ObjectMetadata,
     ): PutResult {
         val bucketPath = requireBucket(bucket)
+        guard.requireRoom()
         val digest = MessageDigest.getInstance("MD5")
 
         val etag =
             conflictsAsKeyConflict(key) {
-                storage.write(dataPath(bucketPath, key), DigestInputStream(content, digest))
+                storage.write(dataPath(bucketPath, key), DigestInputStream(guard.guarded(content), digest))
                 digest.digest().toHex()
             }
 
@@ -176,6 +179,7 @@ class BinaryStorageS3Backend(
     ): String {
         val bucketPath = requireBucket(bucket)
         requireValidKey(key)
+        guard.requireRoom()
 
         val uploadId = UUID.randomUUID().toString()
         val meta =
@@ -196,10 +200,11 @@ class BinaryStorageS3Backend(
     ): String {
         val bucketPath = requireBucket(bucket)
         val uploadPath = requireUpload(bucketPath, key, uploadId).path
-        if (partNumber < 1) throw InvalidPartException("part number must be >= 1")
+        if (partNumber !in 1..MAX_PART_NUMBER) throw InvalidPartException("a part number is from 1 to $MAX_PART_NUMBER")
+        guard.requireRoom()
 
         val digest = MessageDigest.getInstance("MD5")
-        storage.write(uploadPath.resolve(partFileName(partNumber)), DigestInputStream(content, digest))
+        storage.write(uploadPath.resolve(partFileName(partNumber)), DigestInputStream(guard.guarded(content), digest))
         val etag = digest.digest().toHex()
         storage.write(uploadPath.resolve("${partFileName(partNumber)}.md5"), etag.toByteArray().inputStream())
         return etag
@@ -247,8 +252,10 @@ class BinaryStorageS3Backend(
 
         val etag = "${partDigest.digest().toHex()}-${parts.size}"
 
+        // the object is written before its parts go, it takes their room once more
+        guard.requireRoom()
         conflictsAsKeyConflict(key) {
-            SequenceInputStream(partStreams).use { storage.write(dataPath(bucketPath, key), it) }
+            SequenceInputStream(partStreams).use { storage.write(dataPath(bucketPath, key), guard.guarded(it, WriteGuard.MAX_MULTIPART_OBJECT_BYTES)) }
             writeMeta(bucketPath, key, uploadMeta.meta.copy(etag = etag))
         }
         storage.deleteTree(uploadPath)
@@ -293,9 +300,35 @@ class BinaryStorageS3Backend(
         key: String,
     ): MetaFile? = storage.open(metaPath(bucketPath, key))?.use { mapper.readValue<MetaFile>(it) }
 
-    // the objects of the bucket and their size; staged writes and multipart parts are not in
-    // its data yet
-    fun usage(bucket: String): BlobUsage = storage.usage(objectsPath(bucket))
+    // the objects of the bucket and their size, with the parts of the uploads not completed yet,
+    // which take their room too (SEC-9); staged writes are not in it
+    fun usage(bucket: String): BlobUsage {
+        val bucketPath = requireBucket(bucket)
+        val objects = storage.usage(bucketPath.resolve(DATA))
+        // the parts, not the metadata and the md5 of each
+        val parts =
+            storage
+                .list(bucketPath.resolve(UPLOADS))
+                .filter { it.segments.last().startsWith(PART_PREFIX) && !it.segments.last().endsWith(".md5") }
+                .sumOf { it.size }
+        return BlobUsage(objects.blobs, objects.bytes + parts)
+    }
+
+    // removes the uploads of the bucket that were neither completed nor aborted and had no part or
+    // start since before (SEC-9); the number of uploads removed
+    fun removeStaleUploads(
+        bucket: String,
+        before: java.time.Instant,
+    ): Int {
+        val uploads = requireBucket(bucket).resolve(UPLOADS)
+        return storage
+            .list(uploads)
+            .groupBy { it.segments.first() }
+            .filterValues { files -> files.maxOf { it.lastModified }.isBefore(before) }
+            .keys
+            .onEach { uploadId -> storage.deleteTree(uploads.resolve(uploadId)) }
+            .size
+    }
 
     // the directory on disk the objects of the bucket are in, each at its key, for a reader that
     // serves them from there (caddy, the exception of MODEL-7)
@@ -368,7 +401,7 @@ class BinaryStorageS3Backend(
         return segments
     }
 
-    private fun partFileName(partNumber: Int) = "part-%05d".format(partNumber)
+    private fun partFileName(partNumber: Int) = "$PART_PREFIX%05d".format(partNumber)
 
     private fun ByteArray.toHex() = joinToString("") { "%02x".format(it) }
 
@@ -381,6 +414,11 @@ class BinaryStorageS3Backend(
         private const val BUCKETS = "buckets"
         private const val META = "meta"
         private const val UPLOADS = "uploads"
+
+        private const val PART_PREFIX = "part-"
+
+        // the largest number of a part, as S3 has it
+        const val MAX_PART_NUMBER = 10_000
         private const val UPLOAD_META = "meta.json"
 
         // the sidecar of an object, its name with this
@@ -400,4 +438,12 @@ class BinaryStorageS3Backend(
                 null
             }
     }
+}
+
+// the bytes free on the volume the storage is on, from its root or the nearest directory above it
+// that is there
+private fun usableBytes(storage: BinaryStorage): Long {
+    var dir: java.nio.file.Path? = storage.directory(BlobPath(emptyList()))
+    while (dir != null && !java.nio.file.Files.exists(dir)) dir = dir.parent
+    return dir?.let { java.nio.file.Files.getFileStore(it).usableSpace } ?: Long.MAX_VALUE
 }

@@ -139,7 +139,14 @@ with a code of their own.
 Fix: always name the host and ask before the exchange; when a deployment is stored and the code names another, the
 dialog that is there for a session.
 
-### `SEC-9` One key of a bucket can fill the data volume
+### ~~`SEC-9` One key of a bucket can fill the data volume~~
+
+**Fixed:** a write to a bucket (a put, the start of an upload, a part, a completion) starts only while the data volume
+has more than `s3_min_free_bytes` free (2 GiB) and stops when it falls below while the body streams (`WriteGuard`,
+checked every 64 MiB), with 507 `InsufficientStorage`; an object of one request and a part have at most 5 GiB
+(`EntityTooLarge`), caddy lets at most that through to the s3 api; part numbers are from 1 to 10,000; the uploads with
+no part or start for a day go at the start of the backend and every hour; the usage of a bucket counts the parts of
+its unfinished uploads. A largest size for each bucket is not there: one bucket can still crowd out the others.
 
 HOSTING-7 says a leaked key pair gives away one site. It can stop the deployment: the route of the S3 api in caddy
 has no largest body (the comment in `SakApps.kt` says so), `putObject` and `uploadPart` write what comes, a part
