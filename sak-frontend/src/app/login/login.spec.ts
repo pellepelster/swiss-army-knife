@@ -76,6 +76,17 @@ describe('Login', () => {
     );
   });
 
+  // an admin of the configuration may have an address without a dot in its domain, as in the local
+  // environment; the backend sends the link to it
+  it('requests a link for an address without a dot in its domain', async () => {
+    const harness = await open('/login', 'multi');
+
+    await fill(harness, '#email', 'admin@localhost');
+    const request = http.expectOne('/api/v1/auth/login/link');
+    expect(request.request.body.email).toBe('admin@localhost');
+    request.flush(null, { status: 202, statusText: 'Accepted' });
+  });
+
   it('reports too many attempts', async () => {
     const harness = await open('/login', 'multi');
 

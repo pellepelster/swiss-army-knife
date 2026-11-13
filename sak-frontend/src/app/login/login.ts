@@ -5,7 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { appPath } from '../apps';
 import { AuthService, UserMode } from '../auth/auth.service';
 import { TranslatePipe } from '../i18n/i18n';
-import { validEmail } from '../shared/email';
+import { validLoginEmail } from '../shared/email';
 
 type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | 'failed';
 
@@ -123,7 +123,7 @@ export class Login {
   private readonly redirect = this.params.get('redirect') ?? appPath(this.params.get('app'));
 
   protected readonly email = signal('');
-  protected readonly emailValid = computed(() => validEmail(this.email()));
+  protected readonly emailValid = computed(() => validLoginEmail(this.email()));
 
   protected readonly password = signal('');
 
