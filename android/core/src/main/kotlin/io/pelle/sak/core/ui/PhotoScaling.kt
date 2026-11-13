@@ -35,7 +35,7 @@ object PhotoScaling {
         uri: Uri,
     ): ByteArray {
         val resolver = context.contentResolver
-        // the stream opened anew for each read
+        // the stream opened again for each read
         fun <T> read(block: (java.io.InputStream) -> T): T =
             (resolver.openInputStream(uri) ?: throw IOException("$uri can not be opened")).use(block)
 

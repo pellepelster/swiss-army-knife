@@ -103,7 +103,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 ## sakctl
 
 - `CTL-1` **A plan that destroys asks first.** Create, deploy and destroy show the plan; when it destroys a resource or
-  creates one anew, sakctl asks for a confirmation before it applies: the sakctl ui in a dialog, the sakctl cli by
+  replaces one, sakctl asks for a confirmation before it applies: the sakctl ui in a dialog, the sakctl cli by
   having the name of the deployment typed. `--yes` skips it in the sakctl cli; without a terminal and without `--yes`
   the command stops with a usage error and changes nothing.
 - `CTL-2` **No surprise by default.** A deploy keeps the settings of the deployment (e.g. DNS mode, root domain) unless
@@ -114,10 +114,10 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 ## sakctl ui
 
 - `UI-8` **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed,
-  created anew or deleted. The plan of a deploy is the check on the page of the deployment. Only the apply changes
+  replaced or deleted. The plan of a deploy is the check on the page of the deployment. Only the apply changes
   something, and it shows each resource as it goes, with the output of the provisioning below.
-- `UI-9` **A deploy keeps what holds data.** A deploy may create the server anew. The data volume and the addresses
-  always stay; a change that would need them created anew stops the plan before anything changes. A deploy happens where
+- `UI-9` **A deploy keeps what holds data.** A deploy may replace the server. The data volume and the addresses
+  always stay; a change that would need them replaced stops the plan before anything changes. A deploy happens where
   the deployment is, never at a default location.
 - `UI-10` **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user
   ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.

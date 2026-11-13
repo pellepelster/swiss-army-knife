@@ -147,7 +147,7 @@ impl Working {
     }
 }
 
-/// a resource created anew reads as created
+/// a resource replaced reads as created
 pub(super) fn applied_key(applied: Applied) -> &'static str {
     match applied {
         Applied::Created | Applied::Recreated => "common.done.created",

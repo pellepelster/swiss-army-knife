@@ -419,7 +419,7 @@ export class TodoPage {
   }
   protected readonly priorities: readonly TodoPriority[] = ['high', 'normal', 'low'];
   protected readonly priorityLabel = PRIORITY_LABEL;
-  // what a due date is compared with, anew with every load and when the page shows again, so a
+  // what a due date is compared with, again with every load and when the page shows again, so a
   // task becomes overdue after midnight
   protected readonly today = signal(today());
   protected readonly adding = signal(false);
@@ -433,7 +433,7 @@ export class TodoPage {
   private loadingItems?: Subscription;
 
   constructor() {
-    // the tasks of the list shown, anew when another one is chosen, not when the lists load again;
+    // the tasks of the list shown, again when another one is chosen, not when the lists load again;
     // what was done on the list before goes to the backend
     effect(() => {
       this.open.shownId();

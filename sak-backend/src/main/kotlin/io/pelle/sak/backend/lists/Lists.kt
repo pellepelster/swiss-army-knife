@@ -115,7 +115,7 @@ suspend fun ApplicationCall.respondList(
 
 // the ids of the lists of an app as they change (LIST-4); the backend is one process, so every
 // listening client hears of each change here. A slow listener misses the oldest ids, never the
-// newest: a client loads its list anew on any change
+// newest: a client loads its list again on any change
 class ListChanges {
     // a change and whether every user hears of it, also one who does not see the list any more
     private data class Change(
@@ -125,7 +125,7 @@ class ListChanges {
 
     private val changed = MutableSharedFlow<Change>(extraBufferCapacity = CHANGES_BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    // toAll when the owner unshared it: the users who saw it load their lists anew, without it
+    // toAll when the owner unshared it: the users who saw it load their lists again, without it
     fun changed(
         listId: Int,
         toAll: Boolean = false,

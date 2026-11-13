@@ -44,7 +44,7 @@ sealed interface GroceryDiscoverResult {
 }
 
 // discovers the items to buy in a photo, of a recipe or a shopping list (GROCERY-16). Nothing is
-// added: the user confirms the items first. A photo is read anew every time, nothing is kept
+// added: the user confirms the items first. A photo is read again every time, nothing is kept
 class GroceryDiscovery(
     private val files: FileService,
     // asked for each photo, null while no api key is set (OpenRouterManager)

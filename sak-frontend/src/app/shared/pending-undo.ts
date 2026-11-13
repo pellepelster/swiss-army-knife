@@ -28,7 +28,7 @@ export class PendingUndo<T> {
   // null when nothing can be undone
   readonly current = signal<T | null>(null);
   // current as a list for `@for (each of undoable(); track each)`: the toast and its time bar
-  // start anew for the next change
+  // start over for the next change
   readonly undoable = computed(() => {
     const current = this.current();
     return current === null ? [] : [current];

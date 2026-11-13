@@ -173,7 +173,7 @@ export class NotesPage {
   protected readonly addingPhoto = signal(false);
 
   // what was removed last as long as it can be brought back; a list, so the bar showing the time
-  // left starts anew for the next removal
+  // left starts over for the next removal
   protected readonly removed = computed(() => {
     const removal = this.store.removed();
     return removal ? [removal] : [];

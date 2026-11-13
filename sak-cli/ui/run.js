@@ -122,9 +122,7 @@ function onEvent(message) {
 async function run(plan, deployment, afterDone, start = (channel) => invoke('apply_deployment', { deployment, onEvent: channel })) {
   running = { deployment, afterDone };
   const { intent } = deployment;
-  document.getElementById('run-title').textContent = text(`ui.plan.title_${intent}`);
-  document.getElementById('run-intro').textContent = intentText('common.plan.intro', intent);
-  document.getElementById('run-name').textContent = plan.name;
+  document.getElementById('run-title').textContent = text(`ui.plan.title_${intent}`, { name: plan.name });
   rows.clear();
   runList.replaceChildren(
     ...plan.resources.map((resource) => {

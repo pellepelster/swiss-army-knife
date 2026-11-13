@@ -1020,7 +1020,7 @@ fn a_resource_of_someone_else_ends_with_its_own_exit_code() {
     assert!(
         refused
             .message
-            .starts_with("volume 'web-data' would have to be created anew")
+            .starts_with("volume 'web-data' would have to be replaced")
     );
     // any other failure of the provider is a plain failure
     let other = cloud_failure(
@@ -1214,7 +1214,7 @@ async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
         events: None,
     };
 
-    // a deploy must not create the volume anew: refused
+    // a deploy must not replace the volume: refused
     let deploy = deploy.registry(roles).unwrap();
     assert!(deploy.diff_all().await.is_err());
     // a destroy creates nothing: its plan goes through, the volume still shows

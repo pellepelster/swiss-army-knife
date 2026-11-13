@@ -30,7 +30,7 @@ export interface PagedListOptions<T> {
 }
 
 // a list shown a page at a time, the page kept in the address (WEB-1): it loads the page of the
-// offset, anew when the offset changes; a page that is gone, e.g. after its last item was deleted,
+// offset, again when the offset changes; a page that is gone, e.g. after its last item was deleted,
 // leads to the last page with items. Called in the injection context of the list's component
 export function pagedList<T>(options: PagedListOptions<T>) {
   const destroyRef = inject(DestroyRef);

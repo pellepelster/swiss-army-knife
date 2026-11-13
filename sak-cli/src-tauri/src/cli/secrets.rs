@@ -105,7 +105,7 @@ pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), 
     )
 }
 
-/// a plan of `name` that destroys or creates resources anew, confirmed
+/// a plan of `name` that deletes or replaces resources, confirmed
 pub(super) fn confirm_plan(name: &str) -> Result<(), SakctlError> {
     confirm(
         name,

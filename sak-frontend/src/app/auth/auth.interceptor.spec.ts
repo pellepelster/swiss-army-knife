@@ -9,7 +9,7 @@ import { AuthService, LEAVE_PAGE } from './auth.service';
 describe('authInterceptor', () => {
   let http: HttpTestingController;
   let client: HttpClient;
-  // the pages a rejected session loads anew
+  // the pages a rejected session loads again
   let leftTo: string[];
 
   beforeEach(() => {

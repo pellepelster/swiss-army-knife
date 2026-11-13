@@ -294,7 +294,7 @@ export class NoteCard {
       this.audio = audio;
       await audio.play();
     } catch {
-      // the browser did not play it: the url is revoked, the next tap starts anew
+      // the browser did not play it: the url is revoked, the next tap starts over
       if (this.playing() === id) this.stopAudio();
     }
   }

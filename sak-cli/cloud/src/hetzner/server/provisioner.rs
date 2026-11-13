@@ -57,7 +57,7 @@ impl HetznerServerProvisioner {
         identity::check_lookup(found, lookup)
     }
 
-    /// a server Hetzner is deleting counts as gone: a plan creates it anew, a destroy has nothing
+    /// a server Hetzner is deleting counts as gone: a plan creates it again, a destroy has nothing
     /// left to do
     async fn find(&self, lookup: &HetznerServerLookup) -> Result<Option<HetznerServerRuntime>> {
         Ok(self

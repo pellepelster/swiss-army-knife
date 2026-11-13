@@ -68,7 +68,7 @@ class BackupTest {
         deployment.sakctl.run("restore", deployment.name, backup.path, "--yes") shouldBe 0
         step("checking that the note of the backup is back and the later one is gone", deployment)
 
-        // the restore started the backend anew: a new sign in
+        // the restore started the backend again: a new sign in
         environment.context(deployment).use { context ->
             val page = context.newPage()
             deployment.signIn(page)

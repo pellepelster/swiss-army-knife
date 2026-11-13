@@ -645,7 +645,7 @@ class GroceryModel(
 
     // the photo of an item (GROCERY-12): uploaded, then attached. read makes the scaled jpeg, null
     // when it can not be read. It waits for the lists: the camera may come back to an app android
-    // ended meanwhile, which starts anew; when it starts with the sign-in (the session ended), the
+    // ended meanwhile, which starts over; when it starts with the sign-in (the session ended), the
     // photo is dropped, not kept for a later user, and discard deletes what the camera wrote
     fun attachPhoto(
         itemId: Int,

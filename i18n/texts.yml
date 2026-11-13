@@ -485,9 +485,9 @@ android:
       en: "You are signed in to %{from}. The QR code signs you in to %{to} instead."
       de: "Du bist bei %{from} angemeldet. Der QR-Code meldet dich stattdessen bei %{to} an."
     switch: { en: "Switch", de: "Wechseln" }
-    again_title: { en: "Sign in anew?", de: "Neu anmelden?" }
+    again_title: { en: "Sign in again?", de: "Neu anmelden?" }
     again_text:
-      en: "You are signed in to %{address} as %{user}. The QR code signs you in anew, as the user who shows it."
+      en: "You are signed in to %{address} as %{user}. The QR code signs you in again, as the user who shows it."
       de: "Du bist bei %{address} als %{user} angemeldet. Der QR-Code meldet dich neu an, als der Benutzer, der ihn zeigt."
     stay: { en: "Stay signed in", de: "Angemeldet bleiben" }
   # the lists of the list-based apps (grocery, todo): the home, the settings of a list (apps/INDEX.md)
@@ -709,8 +709,8 @@ ctl:
         en: "The SAK instances at %{provider} could not be listed: %{error}"
         de: "Die SAK-Instanzen bei %{provider} konnten nicht aufgelistet werden: %{error}"
       recreate_refused:
-        en: "%{error}. SAK never creates the data volume or the primary IPs of a SAK instance anew; nothing was changed."
-        de: "%{error}. SAK erstellt das Datenvolume und die Primary IPs einer SAK-Instanz nie neu; nichts wurde verändert."
+        en: "%{error}. SAK never replaces the data volume or the primary IPs of a SAK instance. Nothing was changed."
+        de: "%{error}. SAK ersetzt das Datenvolume und die Primary IPs einer SAK-Instanz nie. Nichts wurde verändert."
       mixed_locations:
         en: "The resources of the SAK instance %{name} are in different locations: %{resources}. SAK does not guess where to deploy."
         de: "Die Ressourcen der SAK-Instanz %{name} sind an verschiedenen Standorten: %{resources}. SAK rät nicht, wohin es ausrollt."
@@ -1076,10 +1076,10 @@ ctl:
       de: "Die SAK-Instanz %{name} ist aus %{path} wiederhergestellt."
     not_confirmed: { en: "Not confirmed, nothing was changed.", de: "Nicht bestätigt, nichts wurde geändert." }
     plan_confirm:
-      en: "The plan destroys or creates anew what is marked WARN above. Type the name of %{name} to continue: "
+      en: "The plan deletes or replaces what is marked WARN above. Type the name of %{name} to continue: "
       de: "Der Plan löscht oder legt neu an, was oben mit WARN markiert ist. Gib den Namen von %{name} ein, um fortzufahren: "
     plan_no_terminal:
-      en: "No terminal to confirm a plan that destroys or creates anew: give --yes to apply it to %{name}."
+      en: "No terminal to confirm a plan that deletes or replaces resources: give --yes to apply it to %{name}."
       de: "Kein Terminal, um einen Plan zu bestätigen, der löscht oder neu anlegt: gib --yes an, um ihn auf %{name} anzuwenden."
     restore_confirm:
       en: "The data of %{name} is replaced with the backup %{path}. Type the name to continue: "
@@ -1314,12 +1314,12 @@ ctl:
       title: { en: "Plan", de: "Plan" }
       deploy_changes: { en: "Deploy changes", de: "Änderungen ausrollen" }
       force_deploy: { en: "Force deploy", de: "Erzwungen ausrollen" }
-      title_create: { en: "Creating", de: "Wird erstellt" }
-      title_deploy: { en: "Redeploying", de: "Wird neu ausgerollt" }
-      title_destroy: { en: "Destroying", de: "Wird gelöscht" }
+      title_create: { en: "Creating %{name}", de: "%{name} wird erstellt" }
+      title_deploy: { en: "Redeploying %{name}", de: "%{name} wird neu ausgerollt" }
+      title_destroy: { en: "Destroying %{name}", de: "%{name} wird gelöscht" }
       deploying:
-        en: "Deploying, a server that must change is created anew, its data volume and addresses stay…"
-        de: "Rolle aus, ein Server, der sich ändern muss, wird neu erstellt, sein Datenvolume und seine Adressen bleiben…"
+        en: "Deploying… A server that must change is replaced. The data volume and the IP addresses stay."
+        de: "Rolle aus… Ein Server, der sich ändern muss, wird ersetzt. Das Datenvolume und die IP-Adressen bleiben."
       destroy: { en: "Destroy", de: "Zerstören" }
       destroying:
         en: "Destroying the SAK instance, its data volume stays…"

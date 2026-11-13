@@ -122,7 +122,7 @@ class FilesystemBinaryStorageTest {
     }
 
     @Test
-    fun `the content of a blob is opened anew for every read, never one that replaced it`() {
+    fun `the content of a blob is opened again for every read, never one that replaced it`() {
         write("abc", "a")
         val content = storage.content(path("a"))!!
 

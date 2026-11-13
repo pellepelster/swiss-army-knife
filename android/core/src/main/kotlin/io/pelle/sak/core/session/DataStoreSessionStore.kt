@@ -105,7 +105,7 @@ class DataStoreSessionStore(
 }
 
 // aes-gcm with a key of the android keystore; a value is its iv and the cipher text, base64. A key
-// that can no longer be used (some phones lose it with an update of android) is made anew; what it
+// that can no longer be used (some phones lose it with an update of android) is recreated; what it
 // encrypted before is then unreadable and taken as none
 private class KeystoreCipher(
     private val alias: String,

@@ -126,7 +126,7 @@ on_server "[ ! -e /work/systemctl.log ]" || fail "the deployment was stopped for
 echo "changes after the backup, then the restore"
 on_server "runuser -u sak -- sqlite3 -cmd '.timeout 10000' $data/backend/data/sak.db 'INSERT INTO notes VALUES (\"after\")'
 rm $data/backend/data/files/1.jpg && echo photo-two > $data/backend/data/files/2.jpg
-echo provisioned-anew > $data/backend/config.yaml"
+echo provisioned-again > $data/backend/config.yaml"
 docker stop "$name-logs" >/dev/null
 on_server "age -d -i /work/backup.key /work/backup.age | sak-backend restore 2> /work/restore.log" || {
   on_server "cat /work/restore.log" >&2
@@ -138,7 +138,7 @@ echo "the data is that of the backup, the files of the provisioning are those of
 [ "$(on_server "sqlite3 $data/backend/data/sak.db 'SELECT text FROM notes ORDER BY rowid' | paste -sd,")" = "first,second" ] \
   || fail "the rows of the database"
 on_server "[ \"\$(cat $data/backend/data/files/1.jpg)\" = photo-one ] && [ ! -e $data/backend/data/files/2.jpg ]" || fail "the files"
-on_server "[ \"\$(cat $data/backend/config.yaml)\" = provisioned-anew ]" || fail "the configuration of the provisioning"
+on_server "[ \"\$(cat $data/backend/config.yaml)\" = provisioned-again ]" || fail "the configuration of the provisioning"
 on_server "[ \"\$(stat -c %u:%g $data/backend/data/sak.db $data/ingress/cert.pem | sort -u)\" = 10000:10000 ]" || fail "the owner"
 on_server "[ ! -e $data/backend/data/sak.db-shm ] && [ ! -e /work/storage/data/.replaced-alpha ] && [ ! -e /work/storage/data/.restore-alpha ]" \
   || fail "what the restore left"

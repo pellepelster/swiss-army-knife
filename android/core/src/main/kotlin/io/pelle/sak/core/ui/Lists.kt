@@ -150,7 +150,7 @@ fun UndoTime(
     }
 }
 
-// what was done last and its undo, while the bar of the time left shrinks, anew for every undo; a
+// what was done last and its undo, while the bar of the time left shrinks, restarted for every undo; a
 // screen reader says it once it shows (UX-4.2). millis is the time of the model (UndoTime)
 @Composable
 fun UndoBar(

@@ -18,7 +18,7 @@ const STATES: Record<HealthState, { label: TextKey; badge: string; icon: string 
 };
 
 // the status of every health check of the backend and of the parts each checked, e.g. every
-// domain; checked anew when the page opens and on demand
+// domain; checked again when the page opens and on demand
 @Component({
   selector: 'app-health-page',
   imports: [PageHeader, NgTemplateOutlet, TranslatePipe],

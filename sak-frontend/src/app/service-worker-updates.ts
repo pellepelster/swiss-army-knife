@@ -5,7 +5,7 @@ import { NavigationStart, Router } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 import { filter } from 'rxjs';
 
-// loads the page anew, the app as the service worker serves it now
+// loads the page again, the app as the service worker serves it now
 export interface PageLoader {
   reload(): void;
   load(url: string): void;

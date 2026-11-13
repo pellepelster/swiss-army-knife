@@ -61,7 +61,7 @@ pub async fn install_update() -> Result<UpdateResponse, String> {
     })
 }
 
-/// starts sakctl anew, the binary it was started from, which an install replaced. Refused while a
+/// starts sakctl again, the binary it was started from, which an install replaced. Refused while a
 /// deployment is changed, a restart would stop it halfway; a provisioning left is stopped first
 #[tauri::command]
 pub fn restart(app: AppHandle, running: State<'_, RunningWork>) -> Result<(), String> {

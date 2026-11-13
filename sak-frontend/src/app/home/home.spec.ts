@@ -11,7 +11,7 @@ import { LEAVE_PAGE, SESSION_STORAGE_KEY } from '../auth/auth.service';
 const signIn = () => signedIn('pelle@pelle.io');
 
 describe('Home', () => {
-  // the pages a sign-out loads anew
+  // the pages a sign-out loads again
   let leftTo: string[];
 
   beforeEach(() => {

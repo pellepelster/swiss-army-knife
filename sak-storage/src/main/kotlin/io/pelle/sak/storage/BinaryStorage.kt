@@ -70,7 +70,7 @@ class BlobChangedException(
     actual: Long,
 ) : IOException("'$path' changed: $actual bytes instead of $expected")
 
-// a blob to read: its size, and its content, opened anew for every read
+// a blob to read: its size, and its content, opened again for every read
 class BlobContent(
     val size: Long,
     private val opener: () -> InputStream,

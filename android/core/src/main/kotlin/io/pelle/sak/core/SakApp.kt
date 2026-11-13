@@ -84,7 +84,7 @@ abstract class SakViewModel<M : SakModel<*>>(
 // after a rotation, and not when android starts the activity again from the recent apps with the intent
 // it had (FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY). The confirmation of an update the installer asked for
 // while the app was not seen shows when it is seen again. foreground() and background() do not run on
-// a rotation or another change of the configuration: the activity is made anew, the model stays
+// a rotation or another change of the configuration: the activity is recreated, the model stays
 abstract class SakActivity : ComponentActivity() {
     // the scheme of the login link, the package of the release, e.g. io.pelle.sak.grocery; the debug
     // build has a package of its own (.debug) and the same scheme

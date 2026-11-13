@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     print!("{}", diff::log_text(&diffs));
 
     if arguments.iter().any(|argument| argument == "--apply") {
-        // --recreate lets the server be created anew, nothing else ever is
+        // --recreate lets the server be replaced, nothing else ever is
         if arguments.iter().any(|argument| argument == "--recreate") {
             registry = registry.recreatable(server_ref);
         }

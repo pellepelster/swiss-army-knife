@@ -365,7 +365,7 @@ describe('NotesStore', () => {
     expect(store.error()).toBe('The note could not be deleted.');
   });
 
-  // the notes loaded anew, the note 1 with the photos
+  // the notes loaded again, the note 1 with the photos
   const withPhotos = (...photos: number[]) => {
     store.load();
     http

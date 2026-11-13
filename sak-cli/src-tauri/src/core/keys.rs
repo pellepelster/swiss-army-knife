@@ -27,7 +27,7 @@ const MASTER_PARAMS: (u32, u32, u32) = (256 * 1024, 3, 1);
 /// because the backend computes it on a small server for every password login
 const ADMIN_PASSWORD_PARAMS: (u32, u32, u32) = (64 * 1024, 3, 1);
 
-/// what the salts and purposes start with; a new version gives every value anew
+/// what the salts and purposes start with; a new version changes every value
 const VERSION: &str = "sak.pelle.io/v2";
 
 fn argon2((memory, passes, lanes): (u32, u32, u32)) -> Result<Argon2<'static>, String> {

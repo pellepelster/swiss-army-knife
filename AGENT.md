@@ -157,7 +157,7 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 - Whatever creates resources sets the name label and the password hash label on creation, and declares them as the
   identity (`with_identity`, checked by `api::identity`); a resource of SAK without them is a defect.
 - A registry that may destroy declares its owner labels (`Registry::owned_by`), and only the resources that may be
-  created anew are `Registry::recreatable`.
+  replaced are `Registry::recreatable`.
 - The password hash is `keys::password_hash` in `sak-cli` (30 bytes of the master key as hex); the firewall selects its
   servers by the name label alone.
 

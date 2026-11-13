@@ -297,7 +297,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `an item typed at the top goes to the list shown, the field is empty again and the items are loaded anew`() =
+    fun `an item typed at the top goes to the list shown, the field is empty again and the items are loaded again`() =
         runTest {
             backend.answers["POST /grocery/items"] = HttpStatusCode.Created to item(20, 2, "Cake", null)
             val model = signedIn(openList = 2)

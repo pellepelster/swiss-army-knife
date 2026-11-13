@@ -80,7 +80,7 @@ openApiGenerate {
     cleanupOutput.set(true)
 }
 
-// the spec is a path to the plugin; its content is the input, so a new openapi.json generates anew
+// the spec is a path to the plugin; its content is the input, so a new openapi.json generates the models again
 val generate =
     tasks.named("openApiGenerate") {
         inputs.file(spec).withPathSensitivity(PathSensitivity.RELATIVE)

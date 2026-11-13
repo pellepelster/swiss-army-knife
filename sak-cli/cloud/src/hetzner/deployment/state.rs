@@ -507,7 +507,7 @@ mod tests {
     async fn a_key_that_was_renamed_is_a_duplicate_that_names_it_and_its_server_misses_it() {
         let (_server, api) = mock_api_all(&[
             ("servers", vec![server(1, "sak-alpha", named("alpha"))]),
-            // renamed in the console: a deploy would create the key anew, Hetzner refuses it
+            // renamed in the console: a deploy would replace the key, Hetzner refuses it
             ("ssh_keys", vec![key(7, "sak-alpha-old", named("alpha"))]),
             ("firewalls", vec![firewall(5, "sak-alpha", named("alpha"))]),
             (

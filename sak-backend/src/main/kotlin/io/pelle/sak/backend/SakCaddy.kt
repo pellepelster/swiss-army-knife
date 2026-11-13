@@ -145,7 +145,7 @@ fun caddyConfig(
         }
     }
 
-// pushes the configuration to caddy periodically and when asked to, built anew every time
+// pushes the configuration to caddy periodically and when asked to, built again every time
 class CaddyReconciler(
     private val caddyManager: CaddyManager,
     private val config: () -> CaddyConfig,

@@ -244,7 +244,7 @@ pub(super) fn variable(name: &str) -> Option<String> {
 pub(super) const MIN_PASSWORD_CHARS: usize = 16;
 
 /// what a plan or an apply is for: `Create` a new deployment, `Deploy` an existing one to what it
-/// declares (its server created anew when necessary)
+/// declares (its server replaced when necessary)
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Intent {

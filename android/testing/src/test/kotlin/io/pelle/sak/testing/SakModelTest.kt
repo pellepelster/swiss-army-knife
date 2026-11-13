@@ -432,7 +432,7 @@ class SakModelTest {
         }
 
     @Test
-    fun `signed in to the same deployment, a code asks whether to sign in anew, a refused code keeps the session`() =
+    fun `signed in to the same deployment, a code asks whether to sign in again, a refused code keeps the session`() =
         runTest {
             backend.answers["POST /auth/login/connect"] = HttpStatusCode.Unauthorized to ""
             val store = signedIn()

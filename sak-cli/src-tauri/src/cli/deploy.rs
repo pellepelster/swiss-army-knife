@@ -71,7 +71,7 @@ pub(super) async fn list(
 }
 
 /// a create, deploy or destroy: plans, prints the plan and applies it, as the plan page of the
-/// window does; a plan that destroys or creates anew asks first, unless --yes. Prints each
+/// window does; a plan that deletes or replaces resources asks first, unless --yes. Prints each
 /// resource when it is done; the output of ansible only with --show-log
 pub(super) async fn plan_and_apply(
     manager: &DeploymentManager,

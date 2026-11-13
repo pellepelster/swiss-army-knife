@@ -41,7 +41,7 @@ class OpenRouterManager(
         val ingredients: IngredientRecognizer,
     )
 
-    // made anew when the api key changes
+    // recreated when the api key changes
     @Volatile
     private var clients: Clients? = null
 

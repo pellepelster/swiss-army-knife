@@ -19,7 +19,7 @@ pub const EXIT_MIXED_DNS_MODES: i32 = 4;
 /// a resource with a name the deployment declares exists and belongs to someone else (it does
 /// not have the name label or the password hash of the deployment); nothing of it was changed
 pub const EXIT_NOT_OWNED: i32 = 5;
-/// a resource that must stay (the data volume, a primary ip) would have to be created anew and
+/// a resource that must stay (the data volume, a primary ip) would have to be replaced and
 /// lose what it holds; nothing was changed
 pub const EXIT_RECREATE_REFUSED: i32 = 6;
 /// `sakctl update --check`: a newer release of sakctl exists

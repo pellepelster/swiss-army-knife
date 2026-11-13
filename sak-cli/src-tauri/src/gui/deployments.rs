@@ -190,7 +190,7 @@ pub async fn check_deployment(
 
 /// the location of a deployment that has no located resource left (no server, volume or
 /// address): SAK_LOCATION, else nbg1, as on the command line. It counts only for what a deploy
-/// creates anew
+/// creates or replaces
 fn default_location() -> sak_cloud::hetzner::api::Location {
     std::env::var(crate::core::deployments::LOCATION_VARIABLE)
         .ok()

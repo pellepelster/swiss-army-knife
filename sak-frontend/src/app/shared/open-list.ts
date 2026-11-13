@@ -26,7 +26,7 @@ export class OpenList<L extends SharedList> {
   // the list shown, null until the lists are loaded
   readonly shown: Signal<L | null>;
   // the id of the list shown: unlike shown, the same while the lists load again, so what follows
-  // the list itself (its items, what can be undone on it) starts anew only for another list
+  // the list itself (its items, what can be undone on it) starts over only for another list
   readonly shownId: Signal<number | null>;
 
   constructor(

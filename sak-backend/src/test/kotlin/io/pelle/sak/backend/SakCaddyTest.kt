@@ -225,7 +225,7 @@ class SakCaddyTest {
     }
 
     @Test
-    fun `reconcile pushes the apps built anew to the caddy admin api and keeps going when caddy is unreachable`() {
+    fun `reconcile pushes the apps built again to the caddy admin api and keeps going when caddy is unreachable`() {
         val requests = mutableListOf<Pair<String, String>>()
         val bodies = mutableListOf<String>()
         val admin = HttpServer.create(InetSocketAddress(0), 0)

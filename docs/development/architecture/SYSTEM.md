@@ -156,7 +156,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   [Security](#security)).
 - `SAKCTL-4` **Plan, then apply.** `sak-cloud` declares the resources, diffs them against the provider and applies
   them in the order of their dependencies. A plan stops before anything changes when a resource belongs to someone
-  else or would have to be created anew though it must stay. Only the server and its ssh key may be created anew.
+  else or would have to be replaced though it must stay. Only the server and its ssh key may be replaced.
 - `SAKCTL-5` **Provisioning** runs `ansible-playbook` in a container image of the tools against the server, with the
   inventory, the keys, the known host key and `backend.env` (the hash of the admin password, the addresses, the mail
   server) in a private directory for the run. It sets up the base system, the data volume and the backend, its
@@ -210,7 +210,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version). A label that
   sakctl did not declare is a change (`CLOUD-9`).
 - `CLOUD-7` **Own prefix.** The labels SAK declares are under `sak.pelle.io/`.
-- `CLOUD-8` **What stays.** A deploy never creates the data volume or the primary IPs anew, and a destroy keeps the
+- `CLOUD-8` **What stays.** A deploy never replaces the data volume or the primary IPs, and a destroy keeps the
   data volume unless the user asks to delete it.
 - `CLOUD-9` **SAK owns all labels.** sakctl owns every label of a resource of a deployment, not only the ones under its
   prefix. The plan reports a label it did not declare as a change, and the next deploy removes it, because the

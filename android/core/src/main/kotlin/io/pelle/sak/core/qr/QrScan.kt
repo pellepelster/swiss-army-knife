@@ -15,7 +15,7 @@ data class QrScan(
     val confirm: QrSwitch? = null,
 )
 
-// the session of from replaced by one of to, the SAK addresses; the same deployment signs in anew,
+// the session of from replaced by one of to, the SAK addresses; the same deployment signs in again,
 // as the user who shows the code
 data class QrSwitch(
     val from: String,

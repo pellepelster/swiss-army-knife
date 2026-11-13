@@ -40,7 +40,7 @@ const val NEW_NOTE = "Pick up the parcel at the post office"
 const val PHOTO_NOTE = "The view from the hill last night"
 const val RECORDING_NOTE = "Voice memo: what to say in the talk on Monday"
 
-// the todo lists the todo app shows, by name and icon; the run deletes them and creates them anew. The
+// the todo lists the todo app shows, by name and icon; the run deletes them and creates them again. The
 // tasks of the first: title, priority, the day it is due counted from today (null for none) and
 // whether it is done
 val TODO_LISTS = listOf("Weekend" to "🏡", "Work" to "💼")
@@ -135,7 +135,7 @@ class LocalData(
         }
     }
 
-    // the todo lists of TODO_LISTS anew, those of a run before go
+    // the todo lists of TODO_LISTS again, those of a run before go
     fun seedTodo() {
         val names = TODO_LISTS.map { it.first }.toSet()
         json(api.get("/api/v1/todo/lists?limit=100"))

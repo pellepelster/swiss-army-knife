@@ -17,7 +17,7 @@ fun FakeBackend.forActivities(stored: Stored) {
     SakProcess.sessionStore = { _, _ -> store }
 }
 
-// android makes the activity anew, the view model stays
+// android recreates the activity, the view model stays
 fun ActivityScenario<*>.rotate(landscape: Boolean = true) {
     RuntimeEnvironment.setQualifiers(if (landscape) "+land" else "+port")
     recreate()

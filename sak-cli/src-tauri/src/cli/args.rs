@@ -12,7 +12,7 @@ pub(super) const EXIT_CODES: &str = "Exit codes:
      domain has one SAK instance in domain mode or only SAK instances in subdomain mode.
   5  A resource of a name the SAK instance uses belongs to someone else: it lacks the label
      sak.pelle.io/name or the password hash of the SAK instance. Nothing of it was changed.
-  6  The data volume or a primary IP would have to be created anew, which would delete its
+  6  The data volume or a primary IP would have to be replaced, which would delete its
      data or address. Nothing was changed.
   7  update --check: a newer release of sakctl exists.
 ssh ends with the exit code of the command on the server; when sakctl or ssh itself fails, 255.";
@@ -68,7 +68,7 @@ pub enum ProjectCommand {
     },
     /// Update a SAK instance and provision its server again
     ///
-    /// Creates the server anew only when it must. The data volume and the addresses stay.
+    /// Replaces the server only when it must. The data volume and the addresses stay.
     #[command(after_help = EXIT_CODES)]
     Deploy {
         #[command(flatten)]
@@ -440,7 +440,7 @@ pub struct DeploymentArgs {
     /// Show the output of ansible while it provisions the server
     #[arg(long)]
     pub(super) show_log: bool,
-    /// Apply a plan that destroys or creates resources anew without asking, e.g. in a script
+    /// Apply a plan that deletes or replaces resources without asking, e.g. in a script
     #[arg(long)]
     pub(super) yes: bool,
 }

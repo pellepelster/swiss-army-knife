@@ -755,7 +755,7 @@ export class GroceryPage {
         next: (settings) => this.discoverItems.set(settings.discoverItems === true),
         error: () => this.discoverItems.set(false),
       });
-    // anew when another list is chosen, not when the lists load again; what was done on the list
+    // again when another list is chosen, not when the lists load again; what was done on the list
     // before goes to the backend
     effect(() => {
       const id = this.open.shownId();

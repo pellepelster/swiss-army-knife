@@ -26,7 +26,7 @@ pub enum Error {
     /// the `changes` need a destroy and a new create of the resource, but it is not
     /// recreatable, e.g. because it holds data or an address; nothing was changed
     #[error(
-        "{resource} would have to be created anew ({changes}), which would remove it with what it holds"
+        "{resource} would have to be replaced ({changes}), which would remove it with what it holds"
     )]
     RecreateRefused { resource: String, changes: String },
 

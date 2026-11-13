@@ -216,7 +216,7 @@ the pages and the thumbnails of the user before go with the old one.
 blob urls of the thumbnails) and are not emptied: the next user of the tab sees the notes of the one before until
 their own answer comes, and under the error when it fails. Traced for the notes; the other stores are built alike.
 
-Fix: load the page anew on a sign out (`location.assign('/login')`).
+Fix: load the page again on a sign out (`location.assign('/login')`).
 
 ### `SEC-20` What OpenRouter answers has no largest size
 
