@@ -1,6 +1,6 @@
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { APPS } from '../apps';
 import { AuthService, UserMode, WhoAmI } from '../auth/auth.service';
 import { TextKey, TranslatePipe } from '../i18n/i18n';
@@ -175,7 +175,6 @@ export class Home {
   private readonly destroyRef = inject(DestroyRef);
   protected readonly auth = inject(AuthService);
   protected readonly installer = inject(InstallService);
-  private readonly router = inject(Router);
 
   protected readonly apps = APPS;
   protected readonly maintenance = MAINTENANCE;
@@ -205,7 +204,6 @@ export class Home {
   }
 
   protected signOut(): void {
-    this.auth.logout();
-    void this.router.navigate(['/login']);
+    this.auth.signOut();
   }
 }

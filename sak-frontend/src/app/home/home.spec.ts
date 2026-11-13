@@ -6,15 +6,20 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { signedIn } from '../testing/page';
 import { routes } from '../app.routes';
 import { authInterceptor } from '../auth/auth.interceptor';
-import { SESSION_STORAGE_KEY } from '../auth/auth.service';
+import { LEAVE_PAGE, SESSION_STORAGE_KEY } from '../auth/auth.service';
 
 const signIn = () => signedIn('pelle@pelle.io');
 
 describe('Home', () => {
+  // the pages a sign-out loads anew
+  let leftTo: string[];
+
   beforeEach(() => {
     localStorage.clear();
+    leftTo = [];
     TestBed.configureTestingModule({
       providers: [
+        { provide: LEAVE_PAGE, useValue: (url: string) => leftTo.push(url) },
         provideRouter(routes),
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
@@ -89,7 +94,8 @@ describe('Home', () => {
     expect(page.querySelector('[data-testid=username]')?.textContent).toBe('admin');
   });
 
-  it('signs out', async () => {
+  // SEC-18: as a new page, nothing of the user before stays in the tab
+  it('signs out and opens the login as a new page', async () => {
     signIn();
     const harness = await RouterTestingHarness.create('/');
     [...harness.routeNativeElement!.querySelectorAll('button')]
@@ -97,7 +103,7 @@ describe('Home', () => {
       .click();
     await harness.fixture.whenStable();
 
-    expect(TestBed.inject(Router).url).toBe('/login');
+    expect(leftTo).toEqual(['/login']);
     expect(localStorage.getItem(SESSION_STORAGE_KEY)).toBeNull();
   });
 

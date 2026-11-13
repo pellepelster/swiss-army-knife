@@ -1,5 +1,6 @@
 import { HttpClient, HttpResponse } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Injectable, InjectionToken, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
 import {
@@ -25,6 +26,15 @@ interface Session {
 export type { DeploymentInfo, UserMode, WhoAmI } from '../api/models';
 
 export const SESSION_STORAGE_KEY = 'sak.session';
+
+// loads the url as a new page: what the app kept of the user before (the stores of the pages, the
+// thumbnails) goes with the old one, nothing of it shows to the next user of the tab (SEC-18)
+export const LEAVE_PAGE = new InjectionToken<(url: string) => void>('LEAVE_PAGE', {
+  factory: () => {
+    const document = inject(DOCUMENT);
+    return (url: string) => document.location.assign(url);
+  },
+});
 
 // the api answers the login below this without a session, every other /api/v1 request needs one
 export const PUBLIC_API_PREFIX = '/api/v1/auth/login/';
@@ -54,6 +64,7 @@ export function safeRedirect(redirect: string | null | undefined): string {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly leavePage = inject(LEAVE_PAGE);
 
   private readonly session = signal<Session | null>(loadSession());
 
@@ -140,12 +151,19 @@ export class AuthService {
     this.store(null);
   }
 
-  // the backend rejected the session (401): it ends and the login leads back to the page; a page
-  // asks for several things at once, only the first rejection leads to the login
+  // the session ends and the login opens as a new page (SEC-18)
+  signOut(): void {
+    this.logout();
+    this.leavePage('/login');
+  }
+
+  // the backend rejected the session (401): it ends and the login leads back to the page, opened as
+  // a new page (SEC-18); a page asks for several things at once, only the first rejection leads to
+  // the login
   sessionRejected(): void {
     if (!this.token()) return;
     this.logout();
-    void this.router.navigate(['/login'], { queryParams: { redirect: this.router.url } });
+    this.leavePage(`/login?redirect=${encodeURIComponent(this.router.url)}`);
   }
 
   private store(session: Session | null): void {

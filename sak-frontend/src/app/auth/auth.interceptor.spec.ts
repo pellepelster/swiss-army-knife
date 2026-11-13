@@ -1,19 +1,23 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { signedIn } from '../testing/page';
 import { authInterceptor } from './auth.interceptor';
-import { AuthService } from './auth.service';
+import { AuthService, LEAVE_PAGE } from './auth.service';
 
 describe('authInterceptor', () => {
   let http: HttpTestingController;
   let client: HttpClient;
+  // the pages a rejected session loads anew
+  let leftTo: string[];
 
   beforeEach(() => {
     signedIn();
+    leftTo = [];
     TestBed.configureTestingModule({
       providers: [
+        { provide: LEAVE_PAGE, useValue: (url: string) => leftTo.push(url) },
         provideRouter([]),
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
@@ -48,26 +52,23 @@ describe('authInterceptor', () => {
     }
   });
 
-  it('ends the session and leads to the login when the api rejects the token', () => {
-    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-
+  // SEC-18: as a new page, nothing of the user before stays in the tab
+  it('ends the session and opens the login as a new page when the api rejects the token', () => {
     client.get('/api/v1/auth/who-am-i').subscribe({ error: () => undefined });
     http
       .expectOne('/api/v1/auth/who-am-i')
       .flush(null, { status: 401, statusText: 'Unauthorized' });
 
     expect(TestBed.inject(AuthService).isLoggedIn()).toBe(false);
-    expect(navigate).toHaveBeenCalledWith(['/login'], { queryParams: { redirect: '/' } });
+    expect(leftTo).toEqual(['/login?redirect=%2F']);
   });
 
   it('leads to the login once when several requests are rejected', () => {
-    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-
     client.get('/api/v1/notes').subscribe({ error: () => undefined });
     client.get('/api/v1/labels').subscribe({ error: () => undefined });
     http.expectOne('/api/v1/notes').flush(null, { status: 401, statusText: 'Unauthorized' });
     http.expectOne('/api/v1/labels').flush(null, { status: 401, statusText: 'Unauthorized' });
 
-    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(leftTo).toHaveLength(1);
   });
 });

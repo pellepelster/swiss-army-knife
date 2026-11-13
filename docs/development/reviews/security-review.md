@@ -208,7 +208,10 @@ of the environment. The same things limit it: the policy of the web view, values
 
 Fix: answer `passwordSet` only, the password stays in `LoadedSettings`; or the entry says it.
 
-### `SEC-18` Signing out of the web app keeps the data of the user in the page
+### ~~`SEC-18` Signing out of the web app keeps the data of the user in the page~~
+
+**Fixed:** a sign-out and a session the backend rejects load the login as a new page (`LEAVE_PAGE`), so the stores of
+the pages and the thumbnails of the user before go with the old one.
 
 `signOut` and `sessionRejected` navigate to `/login` without a reload. The stores are of the root (`NotesStore`, the
 blob urls of the thumbnails) and are not emptied: the next user of the tab sees the notes of the one before until
