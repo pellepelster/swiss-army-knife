@@ -279,13 +279,10 @@ Each test is of one kind, by what it needs to run:
 - `TEST-2` **Integration tests** need resources of the machine that runs them: Docker, a browser, a specific program
   such as `ssh-keygen`. A missing resource fails the test, unless the resource is optional.
 - `TEST-3` **End to end tests** need resources outside of the machine: cloud servers, a cloud project, its API. They
-  can take long and cost money.
-- `TEST-4` **Exemption: the container registry.** An integration test may pull images from the GitHub container
-  registry (ghcr.io), for example the images of SAK and of the tools it runs. Communication with the registry is
-  allowed and does not make it an end to end test.
-- `TEST-5` **Third-party services for tests.** A test may use a third-party service made for tests, for example a mail
+  can take long and cost money. Images pulled from the GitHub container registry (ghcr.io), e.g. those of SAK and its
+  tools, do not count: an integration test may pull them.
+- `TEST-4` **Third-party services for tests.** A test may use a third-party service made for tests, for example a mail
   sandbox that receives the login links and lets the test read them through its API. It sends only test data:
   synthetic names and addresses, never data of a user.
-
-- `TEST-6` **One task for each kind.** Each part (backend, frontend, cli) has one task for each kind it has. The build
+- `TEST-5` **One task for each kind.** Each part (backend, frontend, cli) has one task for each kind it has. The build
   pipeline runs the unit tests and reports their results; nothing is built into an image before they pass.
