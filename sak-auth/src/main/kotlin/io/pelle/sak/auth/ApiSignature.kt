@@ -1,5 +1,6 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.api.logClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.openapi.HttpSecurityScheme
@@ -150,7 +151,7 @@ private class ApiSignatureProvider(
             context.principal(name, SessionPrincipal(API_IDENTITY, null, setOf(Role.ADMIN), owner = owner))
         } else {
             // the client masked, never the header
-            logger.info { "refused a signed request to ${call.request.local.method.value} ${call.request.local.uri.substringBefore('?')} from ${maskedAddress(call.clientAddress())}: $refusal" }
+            logger.info { "refused a signed request to ${call.request.local.method.value} ${call.request.local.uri.substringBefore('?')} from ${logClient(call.clientAddress())}: $refusal" }
             context.error(API_SIGNATURE_AUTH, AuthenticationFailedCause.InvalidCredentials)
         }
     }
@@ -159,14 +160,6 @@ private class ApiSignatureProvider(
 private fun ApplicationCall.hasBody() =
     (request.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0) > 0 || request.headers[HttpHeaders.TransferEncoding] != null
 
-// an address as the logs keep it: the network of an ipv4 address (/24), the first three groups of
-// an ipv6 address (/48)
-internal fun maskedAddress(address: String): String =
-    if (':' in address) {
-        address.split(':').take(3).joinToString(":") + "::"
-    } else {
-        address.split('.').take(3).joinToString(".") + ".0"
-    }
 
 // a signed request of sakctl is an admin that never expires, acting as owner (the admin of the
 // password login); without a public key every signed request is refused

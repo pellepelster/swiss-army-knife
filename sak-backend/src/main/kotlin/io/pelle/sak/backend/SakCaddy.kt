@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.api.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.ingress.CaddyException
@@ -168,7 +169,7 @@ class CaddyReconciler(
             }
             configured = true
         } catch (e: CaddyException) {
-            logger.warn(e) { "caddy at '${caddyManager.adminUrl}' rejected the configuration" }
+            logger.warn(logCause(e)) { "caddy at '${caddyManager.adminUrl}' rejected the configuration" }
             configured = false
         } catch (e: Exception) {
             val message = { "caddy at '${caddyManager.adminUrl}' is not reachable (${e.message}), retrying periodically" }

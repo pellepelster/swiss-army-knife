@@ -100,7 +100,7 @@ class TokenService(
                 logger.warn { "rejected a login token: it is not signed with the current signing key" }
                 return null
             } catch (e: JWTVerificationException) {
-                logger.warn { "rejected a login token: ${e.message}" }
+                logger.warn { "rejected a login token: ${e.javaClass.simpleName}" }
                 return null
             }
         val id = jwt.id ?: return null

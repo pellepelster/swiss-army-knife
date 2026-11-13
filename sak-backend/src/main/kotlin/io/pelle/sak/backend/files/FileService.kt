@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.api.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
@@ -158,7 +159,7 @@ class FileService(
         } catch (e: RuntimeException) {
             // a decoder that fails on what the header promised: no thumbnail, the marker keeps it
             // from being decoded with every request
-            logger.warn(e) { "no thumbnail of a file of the type $contentType, it can not be decoded" }
+            logger.warn(logCause(e)) { "no thumbnail of a file of the type $contentType, it can not be decoded" }
             null
         }
 

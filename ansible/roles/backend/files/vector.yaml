@@ -30,7 +30,8 @@ transforms:
       # metrics computed from them arbitrarily large
       user_agent = truncate(to_string(headers."user-agent"[0]) ?? "", 512)
       if user_agent != "" { .user_agent = user_agent }
-      .request.uri = truncate(to_string(.request.uri) ?? "", 2048)
+      # without its query, also when the log comes from a caddy that kept it
+      .request.uri = truncate(to_string(split(to_string(.request.uri) ?? "", "?", limit: 2)[0]), 2048)
       del(.request.headers)
       del(.resp_headers)
       # every caddy route appends its site, the stream the entry belongs to

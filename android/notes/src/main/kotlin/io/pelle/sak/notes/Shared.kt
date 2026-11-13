@@ -38,7 +38,7 @@ suspend fun scaledPhoto(
         try {
             PhotoScaling.jpeg(context, uri)
         } catch (e: Exception) {
-            Log.w("sak-notes", "the photo $uri could not be read", e)
+            Log.w("sak-notes", "a shared photo could not be read", e)
             null
         }
     }

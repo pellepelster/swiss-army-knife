@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.api.logText
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.Text
 import io.pelle.sak.api.apiTime
@@ -110,7 +111,8 @@ fun Route.files(
             DiscoverTextResult.Limited ->
                 call.respondErrors(FilesTexts.TOO_MANY_DISCOVERIES, status = HttpStatusCode.TooManyRequests)
             is DiscoverTextResult.Failed -> {
-                logger.warn(result.cause) { "could not discover the text in file $id" }
+                // not the causes: a json error names what the model answered, the text of the user
+                logger.warn { "could not discover the text in file $id: ${logText(result.cause.message ?: result.cause.javaClass.name)}" }
                 call.respondErrors(FilesTexts.DISCOVERY_FAILED, status = HttpStatusCode.BadGateway)
             }
         }

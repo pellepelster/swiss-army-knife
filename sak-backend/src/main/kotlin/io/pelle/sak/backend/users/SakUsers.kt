@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.users
 
+import io.pelle.sak.api.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
@@ -104,7 +105,7 @@ fun Route.users(
             logger.info { "sent the links of the android apps to ${logAddress(email)}" }
             call.respond(HttpStatusCode.NoContent)
         } catch (e: Exception) {
-            logger.warn(e) { "could not send the links of the android apps to ${logAddress(email)}" }
+            logger.warn(logCause(e)) { "could not send the links of the android apps to ${logAddress(email)}" }
             call.respondErrors(UsersTexts.APP_LINK_NOT_SENT, status = HttpStatusCode.BadGateway)
         }
     }.describe {

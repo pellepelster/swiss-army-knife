@@ -51,6 +51,20 @@ tests:
               assert_eq!(length!(.user_agent), 512)
               assert_eq!(length!(.request.uri), 2048)
 
+  - name: the query of the uri is dropped
+    inputs:
+      - insert_at: caddy_access_parsed
+        type: log
+        log_fields:
+          message: '{"ts":1793000000,"request":{"method":"GET","host":"api.pelle.io","uri":"/api/v1/grocery/suggestions?text=milk&token=secret"},"site":"api","status":200}'
+    outputs:
+      - extract_from: caddy_access_parsed
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.request.uri, "/api/v1/grocery/suggestions")
+              assert_eq!(.message, "GET api.pelle.io /api/v1/grocery/suggestions 200")
+
   - name: lines that are no json are dropped
     inputs:
       - insert_at: caddy_access_parsed

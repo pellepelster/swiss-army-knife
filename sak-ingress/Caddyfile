@@ -18,18 +18,14 @@
 			fields {
 				request>remote_ip ip_mask 24 64
 				request>client_ip ip_mask 24 64
-				request>uri query {
-					delete X-Amz-Signature
-					delete X-Amz-Credential
-					delete X-Amz-Security-Token
-					delete token
-				}
+				request>uri regexp "\?.*$" ""
+				request>headers>Referer delete
 			}
 		}
 		exclude http.log.access
 	}
-	# client addresses are masked to their network, presigned url credentials and the
-	# login tokens of the apps' signin links never reach the log
+	# client addresses are masked to their network; no query and no referer reach the log, they
+	# can hold what a user typed, a login token or the credentials of a presigned url
 	log access {
 		output file /data/log/access.log {
 			roll_size 100MiB
@@ -40,12 +36,8 @@
 			fields {
 				request>remote_ip ip_mask 24 64
 				request>client_ip ip_mask 24 64
-				request>uri query {
-					delete X-Amz-Signature
-					delete X-Amz-Credential
-					delete X-Amz-Security-Token
-					delete token
-				}
+				request>uri regexp "\?.*$" ""
+				request>headers>Referer delete
 			}
 		}
 		include http.log.access

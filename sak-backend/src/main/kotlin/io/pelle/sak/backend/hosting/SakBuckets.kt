@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.api.logCause
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.Text
 import io.pelle.sak.auth.owner
@@ -278,7 +279,7 @@ private suspend fun BucketStatisticsCache.response(bucket: String): BucketStatis
             ?.let { BucketStatisticsResponse(computing = false, objects = it.objects, bytes = it.bytes, computedAt = it.computedAt.apiTime()) }
             ?: BucketStatisticsResponse(computing = true)
     } catch (e: Exception) {
-        logger.warn(e) { "could not count the objects of bucket '$bucket'" }
+        logger.warn(logCause(e)) { "could not count the objects of bucket '$bucket'" }
         BucketStatisticsResponse(computing = false, failed = true)
     }
 

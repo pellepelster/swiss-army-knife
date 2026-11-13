@@ -1,5 +1,6 @@
 package io.pelle.sak.dns
 
+import io.pelle.sak.api.logCause
 import io.pelle.sak.dns.model.DnsAnswer
 import io.pelle.sak.dns.model.DnsState
 import io.pelle.sak.dns.model.DomainDnsResult
@@ -32,7 +33,7 @@ open class DomainsHealth(
         try {
             checked(domains())
         } catch (e: Exception) {
-            logger.warn(e) { "the domains of the $what could not be checked" }
+            logger.warn(logCause(e)) { "the domains of the $what could not be checked" }
             status(HealthState.UNKNOWN, Text(DnsTexts.NOT_CHECKED, "what" to what))
         }
 

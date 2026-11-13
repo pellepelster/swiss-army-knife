@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.api.logCause
 import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.backend.hosting.HostingHealth
@@ -177,7 +178,7 @@ fun Application.sak(config: SakConfig): SakServices {
         try {
             apps(config, it, services)
         } catch (e: Exception) {
-            logger.error(e) { "the apps could not be set up, they are not served" }
+            logger.error(logCause(e)) { "the apps could not be set up, they are not served" }
         }
     }
 
@@ -202,7 +203,7 @@ private fun Application.removeStaleUploads(
                 }
             }
         } catch (e: Exception) {
-            logger.warn(e) { "could not remove the unfinished uploads of the buckets" }
+            logger.warn(logCause(e)) { "could not remove the unfinished uploads of the buckets" }
         }
         delay(STALE_UPLOAD_CHECK.toMillis())
     }

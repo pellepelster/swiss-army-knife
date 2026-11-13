@@ -1,5 +1,7 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.api.logCause
+import io.pelle.sak.api.logClient
 import io.pelle.sak.api.respondStatusError
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
@@ -171,7 +173,7 @@ fun Route.login(
                 )
                 logger.info { "sent login link to ${logAddress(email)}" }
             } catch (e: Exception) {
-                logger.warn(e) { "could not send login link to ${logAddress(email)}" }
+                logger.warn(logCause(e)) { "could not send login link to ${logAddress(email)}" }
             }
         }
 
@@ -453,7 +455,7 @@ private fun mayHaveLink(
     linksPerHour: RateLimiter,
 ): Boolean {
     if (!loginsPerAddress.tryAcquire("$email $client")) {
-        logger.info { "not sending another login link to ${logAddress(email)} for $client this hour" }
+        logger.info { "not sending another login link to ${logAddress(email)} for ${logClient(client)} this hour" }
         return false
     }
     if (!linksPerHour.tryAcquire("")) {

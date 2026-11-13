@@ -227,7 +227,7 @@ answer of another shape (`jsonObject`, `jsonPrimitive` throw).
 
 Fix: `max_tokens`, a largest length of the stored text, the answer read through a largest size.
 
-### `SEC-21` The logs have more than they should
+### ~~`SEC-21` The logs have more than they should~~
 
 - `allowLoginLink` logs the whole address of the client next to the hash of the user ("not sending another login
   link to … for …"); everywhere else it is masked (`maskedAddress`, `ip_mask 24 64` in the Caddyfile).
@@ -236,6 +236,12 @@ Fix: `max_tokens`, a largest length of the stored text, the answer read through 
   search of the admin. No route serves the logs of the api, they are on the server only.
 
 Fix: `maskedAddress(client)`; vector drops the query for the sites of the api and the web app.
+
+**Fixed:** every log line of the backend names a client by its network (`logClient`, /24 and /64 like caddy) and a
+user by `logAddress`; a logged exception goes through `logCause`, which hashes the e-mail addresses and masks the ipv4
+addresses of its messages and those of its causes. The failures of OpenRouter log no cause (a json error names what
+the model answered), the S3 api and the error handler log the path without the query. Caddy writes no query and no
+referer into its logs, for every site, and vector drops a query that is still there.
 
 ### `SEC-22` What is used once is forgotten with a restart
 

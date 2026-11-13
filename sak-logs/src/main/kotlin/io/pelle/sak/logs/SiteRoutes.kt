@@ -1,5 +1,6 @@
 package io.pelle.sak.logs
 
+import io.pelle.sak.api.logCause
 import io.pelle.sak.api.language
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
@@ -85,7 +86,7 @@ fun Route.accessLogs(
         try {
             call.respond(withContext(Dispatchers.IO) { metrics.metrics(site, range) }.response())
         } catch (e: VictoriaLogsException) {
-            logger.warn(e) { "could not query the metrics of site '${site.id}'" }
+            logger.warn(logCause(e)) { "could not query the metrics of site '${site.id}'" }
             call.respond(HttpStatusCode.ServiceUnavailable)
         }
     }.describe {
@@ -132,7 +133,7 @@ fun Route.accessLogs(
                 },
             )
         } catch (e: VictoriaLogsException) {
-            logger.warn(e) { "could not search the logs" }
+            logger.warn(logCause(e)) { "could not search the logs" }
             call.respond(HttpStatusCode.ServiceUnavailable)
         }
     }.describe {

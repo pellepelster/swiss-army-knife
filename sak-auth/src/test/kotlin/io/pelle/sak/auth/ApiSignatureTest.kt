@@ -64,12 +64,6 @@ class ApiSignatureTest {
         }
     }
 
-    @Test
-    fun `logs a client by its network only`() {
-        maskedAddress("203.0.113.7") shouldBe "203.0.113.0"
-        maskedAddress("2001:db8:1:2:3:4:5:6") shouldBe "2001:db8:1::"
-    }
-
     companion object {
         // the vectors of sakctl: API_PUBLIC_KEY_VECTOR in sak-cli/src-tauri/src/core/keys.rs and
         // SIGNATURE_VECTOR in sak-cli/src-tauri/src/core/config.rs, the key of `alpha` with

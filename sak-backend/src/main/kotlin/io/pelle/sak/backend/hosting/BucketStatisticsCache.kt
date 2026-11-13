@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.api.logCause
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Ticker
@@ -54,7 +55,7 @@ class BucketStatisticsCache(
     fun warm(buckets: Collection<String>) {
         buckets.forEach { bucket ->
             cache.get(bucket).exceptionally { e ->
-                logger.warn(e) { "could not count the objects of bucket '$bucket'" }
+                logger.warn(logCause(e)) { "could not count the objects of bucket '$bucket'" }
                 null
             }
         }

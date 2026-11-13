@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.api.logText
 import io.pelle.sak.api.language
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
@@ -158,7 +159,8 @@ fun Route.grocery(
             GroceryDiscoverResult.Disabled -> call.respondErrors(FilesTexts.AI_OFF, status = HttpStatusCode.Conflict)
             GroceryDiscoverResult.Limited -> call.respondErrors(GroceryTexts.TOO_MANY_DISCOVERIES, status = HttpStatusCode.TooManyRequests)
             is GroceryDiscoverResult.Failed -> {
-                logger.warn(result.cause) { "could not discover the items in file $id" }
+                // not the causes: a json error names what the model answered, the items of the user
+                logger.warn { "could not discover the items in file $id: ${logText(result.cause.message ?: result.cause.javaClass.name)}" }
                 call.respondErrors(GroceryTexts.DISCOVERY_FAILED, status = HttpStatusCode.BadGateway)
             }
         }

@@ -119,7 +119,7 @@ fun Application.installUnexpectedErrors() {
                 cause is PayloadTooLargeException ->
                     call.respondText(errorBody(call, ApiTexts.TOO_LARGE_REQUEST), ContentType.Application.Json, HttpStatusCode.PayloadTooLarge)
                 else -> {
-                    call.application.log.error("${call.request.httpMethod.value} ${call.request.uri} failed", cause)
+                    call.application.log.error("${call.request.httpMethod.value} ${call.request.path()} failed", logCause(cause))
                     call.respondText(errorBody(call, ApiTexts.UNEXPECTED_ERROR), ContentType.Application.Json, HttpStatusCode.InternalServerError)
                 }
             }

@@ -141,7 +141,7 @@ private class S3Api(
         } catch (e: InsufficientStorageException) {
             error(call, 507, "InsufficientStorage", e.message ?: "insufficient storage")
         } catch (e: Exception) {
-            logger.error(e) { "S3 request failed: ${call.request.httpMethod.value} ${call.request.uri}" }
+            logger.error(e) { "S3 request failed: ${call.request.httpMethod.value} ${call.request.path()}" }
             error(call, 500, "InternalError", "internal error")
         }
     }
@@ -195,7 +195,7 @@ private class S3Api(
         code: String,
         message: String,
     ) {
-        logger.warn { "${call.request.httpMethod.value} ${call.request.uri} failed: $status $code ($message)" }
+        logger.warn { "${call.request.httpMethod.value} ${call.request.path()} failed: $status $code ($message)" }
         call.respondText(S3ErrorXml.body(code, message, call.request.path()), ContentType.Application.Xml, HttpStatusCode.fromValue(status))
     }
 
