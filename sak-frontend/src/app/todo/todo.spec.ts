@@ -115,6 +115,8 @@ describe('Todo', () => {
 
     await type('item-title', 'Paint the fence');
     await type('item-due', '2099-12-24');
+    // only a calendar, the day chosen beside it
+    expect(page().querySelector('[data-testid=item-due-button]')!.textContent).toContain('24');
     button('Add task').click();
     const request = http.expectOne({ method: 'POST', url: '/api/v1/todo/items' });
     expect(request.request.body).toEqual({
@@ -131,10 +133,16 @@ describe('Todo', () => {
 
     // a priority chosen goes with the task, the next one is normal again (TODO-5)
     await type('item-title', 'Whenever');
-    const priority = page().querySelector<HTMLSelectElement>('#item-priority')!;
-    priority.value = 'high';
-    priority.dispatchEvent(new Event('change'));
+    // only a flag, its menu the priorities
+    page().querySelector<HTMLButtonElement>('[data-testid=item-priority]')!.click();
     await harness.fixture.whenStable();
+    page().querySelector<HTMLButtonElement>('[data-testid=item-priority-high]')!.click();
+    await harness.fixture.whenStable();
+    expect(
+      page()
+        .querySelector('[data-testid=item-priority] .fa-flag')!
+        .classList.contains('text-danger'),
+    ).toBe(true);
     button('Add task').click();
     const second = http.expectOne({ method: 'POST', url: '/api/v1/todo/items' });
     expect(second.request.body).toEqual({
@@ -145,7 +153,9 @@ describe('Todo', () => {
     });
     second.flush(task(12, 'Whenever', null, 'high'));
     await flushItems(1, [task(10, 'Fix the door')]);
-    expect(page().querySelector<HTMLSelectElement>('#item-priority')!.value).toBe('normal');
+    expect(page().querySelector('[data-testid=item-priority]')!.getAttribute('title')).toBe(
+      'Priority: Normal priority',
+    );
   });
 
   it('marks a high priority with an arrow up, a low one with an arrow down, a normal one not (TODO-5)', async () => {

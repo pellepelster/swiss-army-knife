@@ -59,7 +59,12 @@ const PRIORITY_LABEL = {
 @Component({
   selector: 'app-todo-page',
   imports: [ActionMenu, PageHeader, ListIcon, RouterLink, TranslatePipe, UndoToast],
-  host: { class: 'd-block container pb-5' },
+  host: {
+    class: 'd-block container pb-5',
+    // the menu of the priority of the next task closes on a click elsewhere and on Escape
+    '(document:click)': 'choosingPriority.set(false)',
+    '(document:keydown.escape)': 'choosingPriority.set(false)',
+  },
   template: `
     <header appPageHeader back="/todo" [backLabel]="'todo.all_lists' | t">
       @if (shown(); as list) {
@@ -112,32 +117,76 @@ const PRIORITY_LABEL = {
             [value]="itemTitle()"
             (input)="itemTitle.set(title.value)"
           />
-          <!-- the day it is to be done by, none for no day (TODO-4) -->
+          <!-- the day it is to be done by, none for no day (TODO-4): only a calendar, which opens
+               the picker of the browser on the field next to it, the day chosen beside it; the
+               field itself stays hidden, so the row fits a phone -->
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-testid="item-due-button"
+            [class.text-nowrap]="!!itemDue()"
+            [attr.aria-label]="dueLabel()"
+            [title]="dueLabel()"
+            (click)="openDuePicker(due)"
+          >
+            <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+            @if (itemDue(); as day) {
+              <span class="ms-1 small">{{ shortDayText(day) }}</span>
+            }
+          </button>
           <input
             #due
             id="item-due"
             type="date"
-            class="form-control flex-grow-0 w-auto"
+            class="visually-hidden"
+            tabindex="-1"
             [attr.aria-label]="'todo.list.due_date' | t"
-            [title]="'todo.list.due_date' | t"
             [value]="itemDue()"
             (input)="itemDue.set(due.value)"
           />
-          <!-- the priority of the next task, normal unless chosen (TODO-5) -->
-          <select
-            #priority
-            id="item-priority"
-            class="form-select flex-grow-0 w-auto"
+          <!-- the priority of the next task, normal unless chosen (TODO-5): only a flag in the color
+               of the priority, as the arrows of the rows, its menu the three of them -->
+          <button
+            type="button"
+            class="btn btn-outline-secondary"
+            data-testid="item-priority"
+            aria-haspopup="menu"
+            [attr.aria-expanded]="choosingPriority()"
+            [attr.aria-label]="priorityText()"
+            [title]="priorityText()"
+            (click)="$event.stopPropagation(); choosingPriority.set(!choosingPriority())"
+          >
+            <i
+              class="fa-solid fa-flag"
+              [class.text-danger]="itemPriority() === 'high'"
+              [class.text-body-secondary]="itemPriority() === 'low'"
+              aria-hidden="true"
+            ></i>
+          </button>
+          <div
+            class="dropdown-menu end-0 top-100 mt-1"
+            [class.show]="choosingPriority()"
+            role="menu"
             [attr.aria-label]="'todo.priority.label' | t"
-            [title]="'todo.priority.label' | t"
-            (change)="itemPriority.set($any(priority.value))"
           >
             @for (each of priorities; track each) {
-              <option [value]="each" [selected]="each === itemPriority()">
-                {{ priorityLabel[each] | t }}
-              </option>
+              <button
+                type="button"
+                class="dropdown-item"
+                role="menuitemradio"
+                [attr.aria-checked]="itemPriority() === each"
+                [attr.data-testid]="'item-priority-' + each"
+                (click)="itemPriority.set(each); choosingPriority.set(false)"
+              >
+                <i
+                  class="fa-solid fa-fw me-2"
+                  [class.fa-check]="itemPriority() === each"
+                  aria-hidden="true"
+                ></i
+                >{{ priorityLabel[each] | t }}
+              </button>
             }
-          </select>
+          </div>
           <!-- only the icon of what it adds, its label and tooltip say what it does (UX-2) -->
           <button
             class="btn btn-primary"
@@ -351,6 +400,39 @@ export class TodoPage {
   // yyyy-mm-dd as the date field gives it, empty for no day
   protected readonly itemDue = signal('');
   protected readonly itemPriority = signal<TodoPriority>('normal');
+  // the menu of the priority of the next task is open
+  protected readonly choosingPriority = signal(false);
+  // the name of the flag, the priority chosen
+  protected readonly priorityText = computed(
+    () =>
+      `${this.i18n.t('todo.priority.label')}: ${this.i18n.t(PRIORITY_LABEL[this.itemPriority()])}`,
+  );
+  // the name of the calendar, with the day chosen
+  protected readonly dueLabel = computed(() => {
+    const day = this.itemDue();
+    return day
+      ? `${this.i18n.t('todo.list.due_date')}: ${dayText(day)}`
+      : this.i18n.t('todo.list.due_date');
+  });
+
+  // the picker of the browser on the hidden field; a browser without one gets the field focused
+  protected openDuePicker(field: HTMLInputElement): void {
+    try {
+      field.showPicker();
+    } catch {
+      field.focus();
+      field.click();
+    }
+  }
+
+  // a day as short as it is clear, e.g. Dec 24, for the calendar of the next task
+  protected shortDayText(day: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${day}T00:00:00Z`));
+  }
   protected readonly priorities: readonly TodoPriority[] = ['high', 'normal', 'low'];
   protected readonly priorityLabel = PRIORITY_LABEL;
   // what a due date is compared with, anew with every load and when the page shows again, so a
