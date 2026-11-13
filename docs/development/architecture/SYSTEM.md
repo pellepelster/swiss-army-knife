@@ -226,15 +226,12 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - `PRIVACY-2` **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated,
   and the user agrees before each transfer and knows where the data goes. No default activates such a connection. How
   the apps activate a connection is in [the architecture of the apps](apps/INDEX.md#privacy-in-the-apps).
-- `PRIVACY-3` **Updates on request only.** sakctl asks GitHub for the newest release only when the user asks for an
-  update, and names GitHub before it connects. GitHub then sees the IP address of the user. sakctl never asks on its
-  own.
-- `PRIVACY-4` **Exemption: the container registry.** sakctl and the server pull the images of SAK from the GitHub
+- `PRIVACY-3` **Exemption: the container registry.** sakctl and the server pull the images of SAK from the GitHub
   container registry (ghcr.io) without asking: sakctl the image of its tools and the canary on each start, the server
   the images of the backend and the ingress on each deploy. The registry then sees the IP address of the user's
   machine and of the server, and which images they pull, nothing else. Communication with the registry is allowed; SAK
   cannot run without its images.
-- `PRIVACY-5` **User data stays.** User data leaves the backend only when the user asks for it (for example text
+- `PRIVACY-4` **User data stays.** User data leaves the backend only when the user asks for it (for example text
   discovery), and only to providers that do not collect it.
 
 ## Security
