@@ -2,7 +2,7 @@
 // the list sees only the labels, the page of a deployment checks it with its password
 import { showCreate } from './create.js';
 import { closeDeployment, showPassword } from './password.js';
-import { register, setFailure, setStatus, show, text } from './views.js';
+import { navigate, register, setFailure, setStatus, show, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 

@@ -28,7 +28,8 @@ tasks.test {
             rootDir.resolve("android/apps.txt").readLines().map { it.substringBefore('#').trim() }.filter { it.isNotEmpty() }
     inputs.files(
         rootDir.resolve("sak-api/src/main/resources/i18n"),
-        rootDir.resolve("sak-frontend/src/app/i18n/catalog.ts"),
+        rootDir.resolve("sak-frontend/src/app/i18n/catalog.en.ts"),
+        rootDir.resolve("sak-frontend/src/app/i18n/catalog.de.ts"),
         rootDir.resolve("sak-cli/src-tauri/locales"),
     )
     androidModules.forEach { module ->
