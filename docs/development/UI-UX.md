@@ -44,9 +44,12 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   (next, create, save) is disabled; typing in the field again clears the error until the field is left again. The
   same check runs once more when the action is taken, and in the sakctl cli, where an invalid value ends the
   command with an error.
-- `UX-7` **The sign-in follows the user mode.** In the multi user mode, the sign-in shows the login by e-mail; a link
-  below it leads to the login with the password of the admin. In the single user mode, it shows only the login with
-  the password. The user mode comes from the deployment (`GET /api/v1/info`).
+- `UX-7` **The sign-in follows the user mode.** The user mode comes from the deployment (`GET /api/v1/info`).
+  - The web app: in the multi user mode, the login by e-mail, with a link below it to the login with the password of
+    the admin. In the single user mode, only the login with the password.
+  - The Android apps: three ways, the QR code (`SECURITY-3`), the password of the admin and a link by e-mail. In the
+    single user mode the link by e-mail is disabled, with the reason (`UX-8`). Each way opens its form; back leads to
+    the three ways again.
 - `UX-8` **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page or screen
   shows, stays in its place, disabled; the layout does not change under the user's hand.
 - `UX-9` **The steps of a wizard and the buttons of a form, bottom right.** The buttons that move through the steps of
