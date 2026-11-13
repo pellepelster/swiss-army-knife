@@ -849,7 +849,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `a check of an item bought or deleted meanwhile, e g by another device, is done without an error (GB-6)`() =
+    fun `a check of an item bought or deleted meanwhile, e g by another device, is done without an error`() =
         runTest {
             // no answer: 404, the item is no longer to buy
             val model = signedIn()
@@ -862,7 +862,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `a Delete in the undo window drops the check, a Rename in it puts the item back under its new name (GB-1)`() =
+    fun `a Delete in the undo window drops the check, a Rename in it puts the item back under its new name`() =
         runTest {
             backend.answers["DELETE /grocery/items/10"] = HttpStatusCode.NoContent to ""
             backend.answers["POST /grocery/items/11/check"] = HttpStatusCode.NoContent to ""
@@ -925,7 +925,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the dialogs of the menu of an item stay when its row goes, back closes them (GB-19)`() =
+    fun `the dialogs of the menu of an item stay when its row goes, back closes them`() =
         runTest {
             val model = signedIn()
             advanceUntilIdle()
@@ -1788,7 +1788,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `a change of a category queued when the settings close keeps what the category has, its icon too (AN-6)`() =
+    fun `a change of a category queued when the settings close keeps what the category has, its icon too`() =
         runTest {
             backend.answers["PUT /grocery/lists/1/categories/1"] = HttpStatusCode.OK to category(1, "Fruit", "🥦")
             backend.answers["PUT /grocery/lists/1/categories/order"] = HttpStatusCode.OK to page()
@@ -1820,7 +1820,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `two moves in a row each take the order of then, the second one the order the first one made (AN-7)`() =
+    fun `two moves in a row each take the order of then, the second one the order the first one made`() =
         runTest {
             backend.answers["GET /grocery/lists/1/categories"] =
                 HttpStatusCode.OK to page(category(1, "A", null), category(2, "B", null), category(3, "C", null), category(4, "D", null))
@@ -1844,7 +1844,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `a photo while another one is sent waits for it, none is dropped (AN-32)`() =
+    fun `a photo while another one is sent waits for it, none is dropped`() =
         runTest {
             backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/9","thumbnailUrl":"/api/v1/files/9/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
             backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", 1)
@@ -1861,7 +1861,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `a photo the camera took after the session ended is dropped, not kept for a later sign-in (AN-52)`() =
+    fun `a photo the camera took after the session ended is dropped, not kept for a later sign-in`() =
         runTest {
             backend.dispatcher = StandardTestDispatcher(testScheduler)
             val model = GroceryModel(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org")), backend::api, this, allowUrl = false)
@@ -1875,7 +1875,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the dialogs and the photo of a list that went go with it (AN-31)`() =
+    fun `the dialogs and the photo of a list that went go with it`() =
         runTest {
             val model = signedIn()
             advanceUntilIdle()
@@ -1896,7 +1896,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the settings load their categories again when the app comes back (AN-33)`() =
+    fun `the settings load their categories again when the app comes back`() =
         runTest {
             backend.answers["GET /grocery/changes"] = HttpStatusCode.OK to ": listening\n\n"
             val model = signedIn()
@@ -1967,7 +1967,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `a check that waits is sent when the app goes to the background (AN-29)`() =
+    fun `a check that waits is sent when the app goes to the background`() =
         runTest {
             backend.answers["POST /grocery/items/10/check"] = HttpStatusCode.NoContent to ""
             val model = signedIn()
@@ -1980,7 +1980,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the photos kept fetched have at most their bytes, the ones used last stay (AN-21)`() {
+    fun `the photos kept fetched have at most their bytes, the ones used last stay`() {
         val cache = PhotoCache(10)
         cache.put("a", ByteArray(4))
         cache.put("b", ByteArray(4))

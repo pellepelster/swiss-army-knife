@@ -417,7 +417,7 @@ class NotesModelTest {
     }
 
     @Test
-    fun `the saves of a note go one at a time, a change during a save sends the note once more after it (AN-4)`() =
+    fun `the saves of a note go one at a time, a change during a save sends the note once more after it`() =
         runTest {
             val (gated, model) = gated()
             model.start()
@@ -446,7 +446,7 @@ class NotesModelTest {
         }
 
     @Test
-    fun `a load keeps what changed while it ran, a note typed, created or deleted (AN-5)`() =
+    fun `a load keeps what changed while it ran, a note typed, created or deleted`() =
         runTest {
             val (gated, model) = gated()
             gated.answers["POST /notes"] = { HttpStatusCode.Created to note(9, "") }
@@ -475,7 +475,7 @@ class NotesModelTest {
         }
 
     @Test
-    fun `the limits of the backend hold in the app, a change it refuses goes back (AN-24)`() =
+    fun `the limits of the backend hold in the app, a change it refuses goes back`() =
         runTest {
             val full = (1..MAX_PHOTOS).toList()
             backend.answers["GET /notes"] = HttpStatusCode.OK to page(note(1, "Full", photos = full, recordings = (100 until 100 + MAX_RECORDINGS).toList()), note(2, "Short"))
@@ -582,7 +582,7 @@ class NotesModelTest {
         }
 
     @Test
-    fun `a photo handed over before the notes are there waits for them (AN-27)`() =
+    fun `a photo handed over before the notes are there waits for them`() =
         runTest {
             backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":40,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/40","thumbnailUrl":"/api/v1/files/40/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "pink", photos = listOf(40))
