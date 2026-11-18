@@ -1,12 +1,12 @@
 [versions]
-agp = "9.5.0"
+agp = "9.5.1"
 # the kotlin of the backend build (../gradle/libs.versions.toml)
 kotlin = "2.4.21"
 compose-bom = "2026.09.00"
 activity-compose = "1.13.0"
 lifecycle = "2.11.0"
 datastore = "1.3.0"
-ktor = "3.6.0"
+ktor = "3.6.1"
 kotlinx-serialization = "1.12.0"
 kotlinx-coroutines = "1.11.0"
 junit = "4.13.2"
@@ -17,9 +17,9 @@ camerax = "1.6.2"
 zxing = "3.5.4"
 # the screenshots of the apps (docs/screenshots/android-*.png), rendered on the jvm
 robolectric = "4.17"
-roborazzi = "1.77.0"
+roborazzi = "1.78.0"
 # the newest release that is two weeks old at least
-openapi-generator = "7.26.0"
+openapi-generator = "7.27.0"
 
 [libraries]
 # the android gradle plugin for the convention plugins (build-logic), compileOnly there
