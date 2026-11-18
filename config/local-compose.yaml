@@ -45,6 +45,6 @@ services:
     command: ["--config", "/etc/vector/vector.yaml"]
 
   mailpit:
-    image: axllent/mailpit:v1.32.0
+    image: axllent/mailpit:v1.33.1
     network_mode: host
     command: ["--listen", "127.0.0.1:8025", "--smtp", "127.0.0.1:1025"]
