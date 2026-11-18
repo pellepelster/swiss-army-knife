@@ -1916,7 +1916,7 @@ class GroceryModelTest {
         }
 
     @Test
-    fun `the list suggests names for what is typed, one chosen brings its quantity and category (GROCERY-11)`() =
+    fun `the list suggests names for what is typed, one chosen is added at once with its quantity and category (GROCERY-11)`() =
         runTest {
             backend.answers["GET /grocery/lists/1/suggestions"] =
                 HttpStatusCode.OK to page("""{"id":20,"name":"Milk","amount":1.5,"unit":"l","categoryId":2}""")
@@ -1934,31 +1934,26 @@ class GroceryModelTest {
             assertEquals(listOf("Milk"), model.lists().suggestions.map { it.name })
 
             model.chooseSuggestion(model.lists().suggestions.single())
-            assertEquals("Milk", model.lists().itemName)
             assertEquals(emptyList<Any>(), model.lists().suggestions)
-            model.addItem()
             advanceUntilIdle()
             assertTrue(backend.requests.contains("""POST /grocery/items {"listId":1,"name":"Milk","amount":1.5,"unit":"l","categoryId":2}"""))
-            assertNull(model.lists().chosen)
             assertEquals("", model.lists().itemName)
         }
 
     @Test
-    fun `a name changed after a suggestion was chosen goes without its quantity and category`() =
+    fun `a name typed goes without a quantity and category, also when it is the name of a suggestion`() =
         runTest {
             backend.answers["GET /grocery/lists/1/suggestions"] =
                 HttpStatusCode.OK to page("""{"id":20,"name":"Milk","amount":1.5,"unit":"l","categoryId":2}""")
-            backend.answers["POST /grocery/items"] = HttpStatusCode.Created to item(13, 1, "Milch", null)
+            backend.answers["POST /grocery/items"] = HttpStatusCode.Created to item(13, 1, "Milk", null)
             val model = signedIn()
             advanceUntilIdle()
             model.typed("mi")
             advanceUntilIdle()
-            model.chooseSuggestion(model.lists().suggestions.single())
-            model.typed("Milch")
-            assertNull(model.lists().chosen)
+            model.typed("Milk")
             model.addItem()
             advanceUntilIdle()
-            assertTrue(backend.requests.contains("""POST /grocery/items {"listId":1,"name":"Milch"}"""))
+            assertTrue(backend.requests.contains("""POST /grocery/items {"listId":1,"name":"Milk"}"""))
 
             val asked = backend.queries.count { it.contains("/suggestions") }
             model.typed("")

@@ -166,7 +166,7 @@ interface ItemGroup {
             autocomplete="off"
             maxlength="128"
             [value]="itemName()"
-            (input)="typed(name.value)"
+            (input)="typed(name.value, $event)"
           />
           <!-- only with the AI features turned on; its label names OpenRouter, where the photo
                goes (GROCERY-16, PRIVACY-2) -->
@@ -702,10 +702,6 @@ export class GroceryPage {
 
   protected readonly suggestions = signal<GrocerySuggestion[]>([]);
   protected readonly itemName = signal('');
-  // of the suggestion chosen, taken over without being shown
-  private readonly itemAmount = signal('');
-  private readonly itemUnit = signal('');
-  private readonly itemCategory = signal<number | null>(null);
   // the item whose category is being set
   protected readonly categoryBusy = signal<number | null>(null);
   protected readonly adding = signal(false);
@@ -770,19 +766,18 @@ export class GroceryPage {
     this.pending.commitWhenLeaving(this.destroyRef);
   }
 
-  // a suggestion chosen brings its quantity and category along, typing another name drops them
-  protected typed(name: string): void {
+  // a suggestion chosen from the list of the field (the browser replaces the text with it) is added
+  // at once, with its quantity and category
+  protected typed(name: string, event: Event): void {
     this.itemName.set(name);
-    const chosen = this.suggestions().find((each) => each.name === name);
+    const chosen =
+      event instanceof InputEvent && event.inputType === 'insertReplacementText'
+        ? this.suggestions().find((each) => each.name === name)
+        : undefined;
     if (chosen) {
-      this.itemAmount.set(chosen.amount == null ? '' : String(chosen.amount));
-      this.itemUnit.set(chosen.unit ?? '');
-      this.itemCategory.set(chosen.categoryId ?? null);
+      this.add(chosen);
       return;
     }
-    this.itemAmount.set('');
-    this.itemUnit.set('');
-    this.itemCategory.set(null);
     this.loadingSuggestions?.unsubscribe();
     const shown = this.shown();
     if (!shown) {
@@ -795,11 +790,11 @@ export class GroceryPage {
       .subscribe({ next: (suggestions) => this.suggestions.set(suggestions) });
   }
 
-  protected add(): void {
-    const name = this.itemName().trim();
-    if (!name) return;
-    const amount = this.itemAmount().trim() === '' ? null : Number(this.itemAmount());
-    const unit = this.itemUnit().trim() || null;
+  // the name typed, or a suggestion chosen with its quantity and category
+  protected add(chosen?: GrocerySuggestion): void {
+    const name = (chosen?.name ?? this.itemName()).trim();
+    if (!name || this.adding()) return;
+    this.loadingSuggestions?.unsubscribe();
     this.adding.set(true);
     this.addError.set(null);
     const list = this.shown();
@@ -807,18 +802,15 @@ export class GroceryPage {
     this.service
       .addItem(list.id, {
         name,
-        amount,
-        unit,
-        categoryId: this.itemCategory(),
+        amount: chosen?.amount ?? null,
+        unit: chosen?.unit ?? null,
+        categoryId: chosen?.categoryId ?? null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
           this.adding.set(false);
           this.itemName.set('');
-          this.itemAmount.set('');
-          this.itemUnit.set('');
-          this.itemCategory.set(null);
           this.suggestions.set([]);
           this.loadItems(this.shown());
         },

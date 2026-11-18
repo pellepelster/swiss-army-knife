@@ -21,7 +21,8 @@ example `500 g`), its category and its photo, or deletes it.
 
 ## A list learns
 
-What you bought before comes back as a suggestion while you type, with its quantity, category and photo. The eye in
+What you bought before comes back as a suggestion while you type, with its quantity, category and photo. Select a
+suggestion to add it to the list at once. The eye in
 the toolbar also shows the bought items, struck through, so you can see what you bought last.
 
 ## Categories

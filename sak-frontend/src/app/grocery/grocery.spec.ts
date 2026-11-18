@@ -967,7 +967,7 @@ describe('Grocery', () => {
     vi.useRealTimers();
   });
 
-  it('a suggestion chosen brings its quantity and category along', async () => {
+  it('a suggestion chosen is added at once, with its quantity and category', async () => {
     await load([defaultList], []);
     await type('item-name', 'mi');
     http
@@ -976,8 +976,14 @@ describe('Grocery', () => {
     await harness.fixture.whenStable();
     expect(page().querySelector('#grocery-suggestions option')?.getAttribute('value')).toBe('Milk');
 
+    // typed in full, it is not added yet
     await type('item-name', 'Milk');
-    button('Add item').click();
+    http.expectNone({ method: 'POST', url: '/api/v1/grocery/items' });
+    http.match((request) => request.url === '/api/v1/grocery/lists/1/suggestions');
+
+    input('item-name').dispatchEvent(
+      new InputEvent('input', { inputType: 'insertReplacementText' }),
+    );
     expect(http.expectOne({ method: 'POST', url: '/api/v1/grocery/items' }).request.body).toEqual({
       listId: 1,
       name: 'Milk',

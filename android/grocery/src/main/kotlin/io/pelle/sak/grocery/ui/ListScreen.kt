@@ -216,7 +216,7 @@ private fun CategoryChoice(
 }
 
 // no button: Enter adds the item and keeps the keyboard open for the next one (GROCERY-2); under it
-// the suggestions (GROCERY-11), a tap takes one with its quantity and category
+// the suggestions (GROCERY-11), a tap adds one with its quantity and category
 @Composable
 private fun NewItem(
     screen: ListsScreen,

@@ -724,7 +724,6 @@ class GroceryModel(
                 error = null,
                 itemName = "",
                 suggestions = emptyList(),
-                chosen = null,
                 showBought = false,
             )
         suggesting?.cancel()
@@ -751,10 +750,9 @@ class GroceryModel(
         load()
     }
 
-    // a suggestion chosen goes once the name changes; suggestions follow after a pause of typing
-    // (GROCERY-11)
+    // suggestions follow after a pause of typing (GROCERY-11)
     fun typed(name: String) {
-        lists { it.copy(itemName = name, chosen = it.chosen?.takeIf { chosen -> chosen.name == name }) }
+        lists { it.copy(itemName = name) }
         suggest(name)
     }
 
@@ -775,22 +773,18 @@ class GroceryModel(
             }
     }
 
-    // a suggestion chosen: its name goes into the field, its quantity and category come with the item
-    fun chooseSuggestion(suggestion: GrocerySuggestionResponse) {
-        suggesting?.cancel()
-        lists { it.copy(itemName = suggestion.name, chosen = suggestion, suggestions = emptyList()) }
-    }
+    // a suggestion chosen is added at once, with its quantity and category
+    fun chooseSuggestion(suggestion: GrocerySuggestionResponse) = addItem(suggestion)
 
-    // with the quantity and the category of the suggestion chosen; a failure keeps the name, to send
-    // it again
-    fun addItem() {
+    // the name typed, or a suggestion chosen with its quantity and category; a failure keeps the
+    // name in the field, to send it again
+    fun addItem(chosen: GrocerySuggestionResponse? = null) {
         val lists = state.value as? ListsScreen ?: return
-        val name = lists.itemName.trim()
+        val name = (chosen?.name ?: lists.itemName).trim()
         val list = lists.open
         if (name.isEmpty() || list == null || lists.adding) return
-        val chosen = lists.chosen?.takeIf { it.name.trim() == name }
         suggesting?.cancel()
-        state.value = lists.copy(adding = true, error = null, suggestions = emptyList())
+        state.value = lists.copy(itemName = chosen?.name ?: lists.itemName, adding = true, error = null, suggestions = emptyList())
         val since = shown
         scope.launch {
             request(R.string.grocery_list_not_added, { error -> if (since == shown) lists { it.copy(adding = false, error = error) } }) {
@@ -798,7 +792,7 @@ class GroceryModel(
             } ?: return@launch
             // another list shows meanwhile: its field stays as it is
             if (since != shown) return@launch
-            lists { it.copy(itemName = "", chosen = null, adding = false) }
+            lists { it.copy(itemName = "", adding = false) }
             load()
         }
     }

@@ -154,10 +154,8 @@ data class ListsScreen(
     val photoBusy: Int? = null,
     // the item whose photo shows in full, over the list
     val viewing: GroceryItemResponse? = null,
-    // what the list suggests for the name typed (GROCERY-11), and the one chosen, whose quantity and
-    // category the new item takes while its name stays
+    // what the list suggests for the name typed (GROCERY-11)
     val suggestions: List<GrocerySuggestionResponse> = emptyList(),
-    val chosen: GrocerySuggestionResponse? = null,
 ) : ListsAppScreen<GroceryListResponse, ListSettings> {
     override fun withUser(user: String) = copy(user = user)
 
