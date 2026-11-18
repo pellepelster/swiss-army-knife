@@ -7,7 +7,7 @@ node = "26.13.1"
 python = { version = "3.14.10", os = ["linux", "macos"] }
 # linux and macOS only; sakctl itself runs ansible in the tools image
 "pipx:ansible-core" = { version = "2.22.0", os = ["linux", "macos"] }
-pipx = { version = "1.18.7", os = ["linux", "macos"] }
+pipx = { version = "1.18.16", os = ["linux", "macos"] }
 # the icon font of sak-frontend cut to the icons it uses (frontend:icons), woff2 needs brotli
 "pipx:fonttools" = { version = "4.68.0", extras = "woff", os = ["linux", "macos"] }
 # sakctl (sak-cli): tauri 2, the rust core in src-tauri/, the web ui in ui/; the tauri command line is
@@ -15,11 +15,11 @@ pipx = { version = "1.18.7", os = ["linux", "macos"] }
 rust = "1.99.1"
 # the docs site (site/), go for the hugo modules
 "hugo-extended" = "0.169.0"
-go = "1.27.3"
+go = "1.27.4"
 # the rust tests
-"github:nextest-rs/nextest" = { version = "0.9.150", version_prefix = "cargo-nextest-" }
+"github:nextest-rs/nextest" = { version = "0.9.151", version_prefix = "cargo-nextest-" }
 # the next version for `release`, from the tags v<version>
-svu = "3.4.1"
+svu = "3.4.4"
 # the signatures of the zips of sakctl (cli:release), keyless with a certificate of the workflow
 cosign = "3.1.4"
 
