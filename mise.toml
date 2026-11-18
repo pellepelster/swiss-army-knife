@@ -2,7 +2,7 @@
 # the jdk of the gradle toolchain
 java = "temurin-25.0.5+8.0.LTS"
 # sak-frontend, called by the gradle build
-node = "22.23.4"
+node = "26.13.1"
 # the python of the pipx tools, ansible-core needs 3.13 or newer
 python = { version = "3.14.10", os = ["linux", "macos"] }
 # linux and macOS only; sakctl itself runs ansible in the tools image
