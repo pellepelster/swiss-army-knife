@@ -63,7 +63,7 @@ jobs:
           # node copies sak-theme for sakctl, nextest runs the tests
           - part: cli
             tools: rust node github:nextest-rs/nextest
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: matrix.part == 'cli'
@@ -124,7 +124,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # the backend's distribution comes from gradle, which builds the frontend with npm
@@ -167,7 +167,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
@@ -263,7 +263,7 @@ jobs:
   # apps of latest stay unsigned. The apks and their checksums are one artifact, the bundles and the
   # maps of r8 another
   sak-android-apps:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: ${{ github.ref_type == 'tag' && 'release' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -306,7 +306,7 @@ jobs:
   # checksums of the zips of sakctl (mise run docs:data)
   docs-build:
     needs: sakctl
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # go fetches the theme, a hugo module
@@ -337,7 +337,7 @@ jobs:
   release:
     if: github.ref_type == 'tag'
     needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, docs-build]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       packages: write
@@ -383,7 +383,7 @@ jobs:
   docs-publish:
     if: github.ref_type == 'tag'
     needs: [docs-build, release]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       pages: write
       id-token: write
