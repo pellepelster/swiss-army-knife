@@ -11,11 +11,11 @@
   "semanticCommits": "disabled",
   "platformAutomerge": false,
   "platformCommit": "enabled",
+  "dependencyDashboard": false,
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 6am on the first day of the month"]
   },
-  "dependencyDashboardFooter": "Not updated by Renovate, update these by hand (docs/development/DEPENDENCIES.md): the Android SDK in `mise.toml` (the command-line tools with their sha1, `ANDROID_BUILD_TOOLS`, the platform and the system image), the Hetzner server image `debian-13` in sak-cloud, the major version of Java (`mise.toml`, the Gradle toolchain, `openjdk*-jre` in `sak-backend/Dockerfile`).",
   "docker-compose": {
     "managerFilePatterns": ["/^config/local-compose\\.yaml$/"]
   },

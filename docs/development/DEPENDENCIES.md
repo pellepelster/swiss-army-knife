@@ -38,11 +38,11 @@ ARG ANSIBLE_VERSION=11.13.0
 ## When
 
 - Renovate opens pull requests on Monday before 06:00 (Europe/Berlin), at most 5 at the same time. The other daily
-  runs merge the green pull requests, rebase the pull requests and update the Dependency Dashboard.
+  runs merge the green pull requests and rebase the pull requests.
 - Renovate uses a release only when it is 7 days old. A release that is removed again in this time does not come in.
 - On the first day of each month Renovate updates the lock files (`Cargo.lock`, `package-lock.json`).
-- The Dependency Dashboard (an issue of the repository) shows all open, pending and manual updates. When you tick a
-  checkbox on it, the workflow runs at once.
+- Renovate does not use a Dependency Dashboard: it only opens pull requests. To run it at once, use
+  `mise run renovate:run`.
 
 ## Groups
 

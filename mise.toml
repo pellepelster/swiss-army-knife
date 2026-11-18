@@ -986,8 +986,8 @@ for (const problem of problems) console.log("warning: " + problem);
 '''
 
 # Renovate on github now: starts the workflow renovate (.github/workflows/renovate.yml), which runs
-# as the GitHub App of the repository and creates and updates the branches, the pull requests and
-# the Dependency Dashboard at once instead of on the schedules of renovate.json (the lock files
+# as the GitHub App of the repository and creates and updates the branches and the pull requests at
+# once instead of on the schedules of renovate.json (the lock files
 # too); it merges what may be merged when the workflow is green. RENOVATE_DRY_RUN=true shows what it
 # would do without a change
 [tasks."renovate:run"]
