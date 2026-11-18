@@ -196,6 +196,6 @@ class TestDeployments : ParameterResolver {
         extension.root
             .getStore(ExtensionContext.Namespace.create(TestDeployments::class.java))
             // in the store before anything is created, so the store closes it also after a failure
-            .getOrComputeIfAbsent(TestEnvironment::class.java.name, { TestEnvironment() }, TestEnvironment::class.java)
+            .computeIfAbsent(TestEnvironment::class.java.name, { TestEnvironment() }, TestEnvironment::class.java)
             .also { it.create() }
 }
