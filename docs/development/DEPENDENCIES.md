@@ -16,7 +16,7 @@ group of updates. The workflow tests each pull request as it tests every other p
 
 | File | Dependencies |
 |---|---|
-| `mise.toml` (`[tools]`) | The tools: java, node, rust, hugo, go, nextest, svu, ansible-core, fonttools, pipx. |
+| `mise.toml` (`[tools]`) | The tools: java, node, rust, hugo, go, nextest, svu, ansible-core, fonttools, pipx, python. |
 | `gradle/libs.versions.toml`, `android/gradle/libs.versions.toml` | The libraries and the plugins of the two Gradle builds. |
 | `gradle/wrapper/`, `android/gradle/wrapper/` | Gradle. |
 | `sak-frontend/package.json`, `sak-theme/package.json`, `sak-cli/package.json` | The npm packages and npm (`packageManager`); the one of sak-cli is the tauri cli. |
