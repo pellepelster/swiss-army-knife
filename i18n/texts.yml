@@ -2270,12 +2270,6 @@ sak_backup:
       shared_local:
         en: "A local folder can not be shared: its path is a folder of each computer."
         de: "Ein lokaler Ordner kann nicht geteilt werden: Sein Pfad ist ein Ordner jedes Computers."
-      upload: { en: "Upload limit", de: "Upload-Limit" }
-      download: { en: "Download limit", de: "Download-Limit" }
-      limit_hint: { en: "A rate like 20MiB/s, empty for none", de: "Eine Rate wie 20MiB/s, leer für keine" }
-      invalid_limit:
-        en: "A rate like 20MiB/s (KiB, MiB, GiB) is needed."
-        de: "Eine Rate wie 20MiB/s (KiB, MiB, GiB) ist nötig."
       save: { en: "Save", de: "Speichern" }
       cancel: { en: "Cancel", de: "Abbrechen" }
       saving: { en: "Saving…", de: "Speichere…" }

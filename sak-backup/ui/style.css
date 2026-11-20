@@ -88,29 +88,35 @@ body {
   font-size: var(--sak-text-h1);
 }
 
+/* the menu of the user, at the bottom of the navigation; it opens upwards */
 .user-menu {
   position: relative;
+  margin-top: auto;
+}
+
+.user-menu > .btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sak-space-2);
 }
 
 .user-menu .dropdown-menu {
+  left: 0;
   right: 0;
-  left: auto;
-  top: 100%;
+  bottom: 100%;
+  top: auto;
+  margin-bottom: var(--sak-space-1);
 }
 
 #user-name {
   display: inline-block;
-  max-width: 16rem;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: bottom;
   white-space: nowrap;
-}
-
-.page-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sak-space-3);
 }
 
 /* the repositories, one card each under the other (UX-11) */
@@ -192,15 +198,13 @@ body {
   padding: 0;
 }
 
-.repository-s3,
-.repository-limits {
+.repository-s3 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--sak-space-3);
 }
 
-.repository-s3 > :first-child,
-.repository-limits > .form-text {
+.repository-s3 > :first-child {
   grid-column: 1 / -1;
 }
 

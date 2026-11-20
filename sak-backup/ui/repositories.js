@@ -6,7 +6,6 @@ import { setFailure, setStatus, text } from './shared/views.js';
 const { invoke } = window.__TAURI__.core;
 
 const NAME = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
-const RATE = /^[1-9][0-9]{0,6}(KiB|MiB|GiB)\/s$/;
 // the variables and options the form has fields for; the others of a repository are kept as they are
 const FORM_ENV = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_DEFAULT_REGION'];
 
@@ -20,8 +19,6 @@ const fields = {
   accessKey: $('repository-access-key'),
   secretKey: $('repository-secret-key'),
   region: $('repository-region'),
-  upload: $('repository-upload'),
-  download: $('repository-download'),
   shared: $('repository-shared'),
 };
 const kinds = { s3: $('repository-kind-s3'), local: $('repository-kind-local') };
@@ -170,8 +167,6 @@ function showForm(repository) {
   fields.secretKey.value = '';
   fields.secretKey.placeholder = env.AWS_SECRET_ACCESS_KEY?.secret ? text('ui.repositories.secret_kept') : '';
   fields.region.value = env.AWS_DEFAULT_REGION?.value ?? '';
-  fields.upload.value = repository?.limits?.upload ?? '';
-  fields.download.value = repository?.limits?.download ?? '';
   fields.shared.checked = repository?.shared ?? false;
   for (const error of form.querySelectorAll('.field-error')) error.textContent = '';
   setStatus(formStatus, '');
@@ -219,15 +214,12 @@ function errorOf(field) {
       return /^s3:(https:\/\/)?[^/@\s]+\/[^\s?#]+/.test(value) && !value.startsWith('s3:http://')
         ? ''
         : text('ui.repositories.invalid_bucket');
-    case 'upload':
-    case 'download':
-      return value === '' || RATE.test(value) ? '' : text('ui.repositories.invalid_limit');
     default:
       return '';
   }
 }
 
-const CHECKED = ['name', 'url', 'upload', 'download'];
+const CHECKED = ['name', 'url'];
 
 // a field is checked when it is left (UX-6)
 function check(field) {
@@ -253,8 +245,8 @@ function update() {
   submit.disabled = invalid.size > 0 || (editing !== null && !editing.mine);
 }
 
-// what the api takes: the fields of the form, the other variables and options of the repository as
-// they are; a secret not typed again is kept
+// what the api takes: the fields of the form, the other variables, options and limits of the
+// repository as they are; a secret not typed again is kept
 function request() {
   const s3 = kind() === 's3';
   const before = editing?.env ?? {};
@@ -275,14 +267,14 @@ function request() {
       env[name] = entry.secret ? { kept: true } : { value: entry.value };
     }
   }
-  const limit = (field) => fields[field].value.trim() || null;
   return {
     name: fields.name.value.trim(),
     shared: fields.shared.checked,
     url: fields.url.value.trim(),
     env,
     options: s3 && editing?.url.startsWith('s3:') ? editing.options : {},
-    limits: { upload: limit('upload'), download: limit('download') },
+    // the form has no limits: a repository keeps the ones it has
+    limits: editing?.limits ?? { upload: null, download: null },
   };
 }
 

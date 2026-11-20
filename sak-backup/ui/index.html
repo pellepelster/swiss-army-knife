@@ -29,23 +29,22 @@
           <li class="nav-item"><button type="button" class="nav-link" data-page="repositories" data-text="ui.nav.repositories"></button></li>
           <li class="nav-item"><button type="button" class="nav-link" data-page="snapshots" data-text="ui.nav.snapshots"></button></li>
         </ul>
+        <!-- the menu of the user, at the bottom of the navigation -->
+        <div class="user-menu">
+          <button type="button" class="btn btn-outline-secondary" id="user-menu-toggle"
+                  aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu">
+            <span id="user-name"></span> <span aria-hidden="true">▴</span>
+          </button>
+          <ul class="dropdown-menu" id="user-menu" role="menu">
+            <li><button type="button" class="dropdown-item" role="menuitem" id="sign-out" data-text="ui.menu.sign_out"></button></li>
+          </ul>
+        </div>
       </nav>
       <main class="shell-main">
         <header class="page-header">
           <h1 id="page-title"></h1>
-          <div class="page-actions">
-            <!-- the actions of the page (UX-10), filled by the page -->
-            <div class="btn-group" role="group" id="page-toolbar"></div>
-            <div class="user-menu">
-              <button type="button" class="btn btn-outline-secondary" id="user-menu-toggle"
-                      aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu">
-                <span id="user-name"></span> <span aria-hidden="true">▾</span>
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end" id="user-menu" role="menu">
-                <li><button type="button" class="dropdown-item" role="menuitem" id="sign-out" data-text="ui.menu.sign_out"></button></li>
-              </ul>
-            </div>
-          </div>
+          <!-- the actions of the page (UX-10), filled by the page -->
+          <div class="btn-group" role="group" id="page-toolbar"></div>
         </header>
         <p class="hint" id="page-empty" data-text="ui.nav.empty"></p>
 
@@ -94,19 +93,6 @@
                 <input class="form-control" id="repository-region" type="text" spellcheck="false" autocapitalize="off" aria-describedby="repository-region-hint">
                 <div class="form-text" id="repository-region-hint" data-text="ui.repositories.region_hint"></div>
               </div>
-            </div>
-            <div class="repository-limits">
-              <div>
-                <label class="form-label" for="repository-upload" data-text="ui.repositories.upload"></label>
-                <input class="form-control" id="repository-upload" type="text" spellcheck="false" aria-describedby="repository-limit-hint repository-upload-error">
-                <div class="field-error" id="repository-upload-error"></div>
-              </div>
-              <div>
-                <label class="form-label" for="repository-download" data-text="ui.repositories.download"></label>
-                <input class="form-control" id="repository-download" type="text" spellcheck="false" aria-describedby="repository-limit-hint repository-download-error">
-                <div class="field-error" id="repository-download-error"></div>
-              </div>
-              <div class="form-text" id="repository-limit-hint" data-text="ui.repositories.limit_hint"></div>
             </div>
             <div>
               <div class="form-check">
