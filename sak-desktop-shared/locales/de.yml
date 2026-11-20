@@ -22,3 +22,6 @@ ui:
       timed_out: "Der Browser ist nicht rechtzeitig zurückgekommen. Melde dich erneut an."
       refused: "Die SAK-Instanz hat die Anmeldung abgelehnt. Melde dich erneut an."
       failed: "Die SAK-Instanz hat nicht wie erwartet geantwortet: %{error}"
+    restore:
+      expired: "Die Sitzung ist abgelaufen. Melde dich erneut an."
+      unreachable: "Die SAK-Instanz hat nicht geantwortet. Melde dich erneut an oder versuche es später."

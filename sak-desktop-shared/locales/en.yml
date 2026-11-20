@@ -22,3 +22,6 @@ ui:
       timed_out: "The browser did not come back in time. Sign in again."
       refused: "The SAK instance refused the sign-in. Sign in again."
       failed: "The SAK instance did not answer as expected: %{error}"
+    restore:
+      expired: "The session expired. Sign in again."
+      unreachable: "The SAK instance did not answer. Sign in again, or try later."

@@ -2221,3 +2221,10 @@ desktop_shared:
         failed:
           en: "The SAK instance did not answer as expected: %{error}"
           de: "Die SAK-Instanz hat nicht wie erwartet geantwortet: %{error}"
+      restore:
+        expired:
+          en: "The session expired. Sign in again."
+          de: "Die Sitzung ist abgelaufen. Melde dich erneut an."
+        unreachable:
+          en: "The SAK instance did not answer. Sign in again, or try later."
+          de: "Die SAK-Instanz hat nicht geantwortet. Melde dich erneut an oder versuche es später."

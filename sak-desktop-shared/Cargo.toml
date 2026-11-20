@@ -13,6 +13,8 @@ tauri-plugin-opener = "2.7.2"
 # the texts of locales/, generated from `desktop_shared` of i18n/texts.yml; the locale is the one the
 # app sets, rust_i18n has one for all crates
 rust-i18n = "4.2.4"
+# the session tokens in the keychain of the system (secrets.rs): Secret Service, Keychain, Credential Manager
+keyring = "4.2.0"
 reqwest = { version = "0.13.5", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

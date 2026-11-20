@@ -8,5 +8,6 @@ rust_i18n::i18n!("locales", fallback = "en");
 pub mod desktop;
 pub mod i18n;
 pub mod instances;
+pub mod secrets;
 pub mod session;
 pub mod window;

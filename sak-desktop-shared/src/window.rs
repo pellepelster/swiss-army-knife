@@ -1,24 +1,49 @@
 //! the sign-in in the window of a desktop app: the tauri commands behind `ui/login.js`. The app
-//! manages a `SessionManager` and an `InstanceStore` (`instance_store`) and lists the commands in
-//! its `generate_handler!`, e.g. `sak_desktop_shared::window::login`
+//! manages a `SessionManager` (`session_manager`) and an `InstanceStore` (`instance_store`) and
+//! lists the commands in its `generate_handler!`, e.g. `sak_desktop_shared::window::login`
 
 use crate::instances::{FILE_NAME, InstanceStore};
-use crate::session::{Address, LoginError, Pages, SessionManager, User};
+use crate::secrets::Keychain;
+use crate::session::{
+    Address, LOGIN_TIMEOUT, LoginError, Pages, RestoreError, SessionManager, User,
+};
 use rust_i18n::t;
+use std::sync::Arc;
 use tauri::{Manager, State};
 use tauri_plugin_opener::OpenerExt;
-
-/// who is signed in, none at the start and after the sign-out
-#[tauri::command]
-pub fn user(sessions: State<'_, SessionManager>) -> Option<User> {
-    sessions.user()
-}
 
 /// the instances of `instances.json` in the config directory of the app (its identifier)
 pub fn instance_store<R: tauri::Runtime>(app: &tauri::App<R>) -> tauri::Result<InstanceStore> {
     Ok(InstanceStore::new(
         app.path().app_config_dir()?.join(FILE_NAME),
     ))
+}
+
+/// the sessions of the app, kept in the keychain of the system under its identifier
+pub fn session_manager<R: tauri::Runtime>(app: &tauri::App<R>) -> SessionManager {
+    SessionManager::new(
+        Arc::new(Keychain::new(&app.config().identifier)),
+        LOGIN_TIMEOUT,
+    )
+}
+
+/// takes up the session of the instance used last, kept from the start before; none when there is
+/// none, the error is the text the sign-in shows
+#[tauri::command]
+pub async fn restore_session(
+    sessions: State<'_, SessionManager>,
+    instances: State<'_, InstanceStore>,
+) -> Result<Option<User>, String> {
+    if let Some(user) = sessions.user() {
+        return Ok(Some(user));
+    }
+    let Some(address) = instances.last() else {
+        return Ok(None);
+    };
+    sessions
+        .restore(address)
+        .await
+        .map_err(|error| restore_message(&error))
 }
 
 /// the addresses the app signed in at, the one used last first
@@ -47,8 +72,13 @@ pub async fn login(
         .await
         .map_err(|error| message(&error))?;
     // signed in all the same, the address is typed again next time
-    if let Err(error) = instances.remember(&address) {
-        eprintln!("the SAK address was not remembered: {error}");
+    match instances.remember(&address) {
+        Ok(dropped) => {
+            for address in dropped {
+                sessions.forget(&address).await;
+            }
+        }
+        Err(error) => eprintln!("the SAK address was not remembered: {error}"),
     }
     Ok(user)
 }
@@ -59,10 +89,11 @@ pub fn cancel_login(sessions: State<'_, SessionManager>) {
     sessions.cancel();
 }
 
-/// forgets the session
+/// forgets the session, in memory and in the keychain
 #[tauri::command]
-pub fn logout(sessions: State<'_, SessionManager>) {
-    sessions.logout();
+pub async fn logout(sessions: State<'_, SessionManager>) -> Result<(), String> {
+    sessions.logout().await;
+    Ok(())
 }
 
 /// what the browser shows when it comes back to the app named `app`
@@ -77,6 +108,11 @@ pub fn pages(app: &str) -> Pages {
             t!("ui.login.browser.cancelled", app = app).to_string(),
         ),
     }
+}
+
+/// the text of a session that was not taken up again
+pub fn restore_message(error: &RestoreError) -> String {
+    t!(format!("ui.login.restore.{}", error.kind())).to_string()
 }
 
 /// the text of a sign-in that failed
@@ -107,6 +143,15 @@ mod tests {
             if let Some(detail) = error.detail() {
                 assert!(message(&error).contains(detail), "{key}");
             }
+        }
+    }
+
+    #[test]
+    fn every_error_of_a_restore_has_a_text() {
+        let texts = crate::i18n::shared_texts();
+        for error in [RestoreError::Expired, RestoreError::Unreachable] {
+            let key = format!("ui.login.restore.{}", error.kind());
+            assert!(texts.contains_key(&key), "{key}");
         }
     }
 

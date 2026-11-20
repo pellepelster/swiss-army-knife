@@ -266,7 +266,9 @@ The backend serves apps to its users, for example static hosting and notes. How 
   port, a random state and the pkce challenge (S256) of a verifier it keeps. The page signs the user in, asks the user
   to confirm, gets a token bound to the challenge and sends the browser to `http://127.0.0.1:<port>/callback`, never to
   another host. The app checks the state and exchanges the token with the verifier: a token caught on the way is of
-  no use without it. The app keeps the session in memory only, a sign-out forgets it.
+  no use without it. The app keeps the session token in the keychain of the system (Secret Service, Keychain,
+  Credential Manager), one entry per SAK address, never in a file, and takes it up at its next start once the
+  instance accepts it; a sign-out deletes it. Without a keychain the session is in memory only.
 
 ## Tests
 

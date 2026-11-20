@@ -14,8 +14,13 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use url::{Host, Url};
 
+use crate::secrets::{NoSecrets, SecretStore};
+
 /// how long a sign-in waits for the browser: long enough for a login link by e-mail
 pub const LOGIN_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
+/// how long a request to the instance may take
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// how often the wait for the browser looks whether it was cancelled
 const POLL: Duration = Duration::from_millis(200);
@@ -143,6 +148,25 @@ impl LoginError {
     }
 }
 
+/// why a session kept in the keychain was not taken up again
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RestoreError {
+    /// the instance refused it: it expired, or the user may no longer sign in; it is forgotten
+    Expired,
+    /// the instance did not answer; the session stays for the next start
+    Unreachable,
+}
+
+impl RestoreError {
+    /// the name of the error, e.g. the last part of the key of its text
+    pub fn kind(&self) -> &'static str {
+        match self {
+            RestoreError::Expired => "expired",
+            RestoreError::Unreachable => "unreachable",
+        }
+    }
+}
+
 /// what the browser shows when it came back to the app, in the language of the app
 #[derive(Clone, Debug)]
 pub struct Pages {
@@ -162,28 +186,109 @@ struct Session {
 }
 
 /// the session of the desktop app at its SAK instance: the one place it is started, kept and
-/// forgotten
+/// forgotten. Its token is kept in `secrets` too, by the address of the instance, so a start of
+/// the app takes it up again (`restore`); a store that fails leaves it in memory only
 pub struct SessionManager {
     session: Mutex<Option<Session>>,
     /// the cancel flag of the sign-in that waits for the browser
     pending: Mutex<Option<Arc<AtomicBool>>>,
     timeout: Duration,
     client: reqwest::Client,
+    secrets: Arc<dyn SecretStore>,
 }
 
 impl Default for SessionManager {
     fn default() -> Self {
-        SessionManager::with_timeout(LOGIN_TIMEOUT)
+        SessionManager::new(Arc::new(NoSecrets), LOGIN_TIMEOUT)
     }
 }
 
 impl SessionManager {
-    pub fn with_timeout(timeout: Duration) -> Self {
+    pub fn new(secrets: Arc<dyn SecretStore>, timeout: Duration) -> Self {
         SessionManager {
             session: Mutex::new(None),
             pending: Mutex::new(None),
             timeout,
-            client: reqwest::Client::new(),
+            client: reqwest::Client::builder()
+                .timeout(REQUEST_TIMEOUT)
+                .build()
+                .expect("a client of reqwest"),
+            secrets,
+        }
+    }
+
+    pub fn with_timeout(timeout: Duration) -> Self {
+        SessionManager::new(Arc::new(NoSecrets), timeout)
+    }
+
+    /// takes up the session the keychain has of `address`, checked with the instance: none when
+    /// the keychain has none or fails
+    pub async fn restore(&self, address: Address) -> Result<Option<User>, RestoreError> {
+        let Some(token) = self
+            .secret(&address, |secrets, address| secrets.get(address))
+            .await
+            .flatten()
+        else {
+            return Ok(None);
+        };
+        let api = self
+            .api(&address)
+            .await
+            .map_err(|_| RestoreError::Unreachable)?;
+        let response = self
+            .client
+            .get(
+                api.join("auth/who-am-i")
+                    .map_err(|_| RestoreError::Unreachable)?,
+            )
+            .bearer_auth(&token)
+            .send()
+            .await
+            .map_err(|_| RestoreError::Unreachable)?;
+        if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+            self.forget(&address).await;
+            return Err(RestoreError::Expired);
+        }
+        let user = response
+            .error_for_status()
+            .map_err(|_| RestoreError::Unreachable)?
+            .json::<User>()
+            .await
+            .map_err(|_| RestoreError::Unreachable)?;
+        *self.session.lock().unwrap() = Some(Session {
+            address,
+            api,
+            token,
+            user: user.clone(),
+        });
+        Ok(Some(user))
+    }
+
+    /// removes the session the keychain has of `address`, e.g. of an instance no longer known
+    pub async fn forget(&self, address: &Address) {
+        self.secret(address, |secrets, address| secrets.delete(address))
+            .await;
+    }
+
+    /// runs `operation` on the keychain away from the async threads (it may wait for d-bus); a
+    /// failure is logged, never the token, and is none
+    async fn secret<T: Send + 'static>(
+        &self,
+        address: &Address,
+        operation: impl FnOnce(&dyn SecretStore, &Address) -> Result<T, String> + Send + 'static,
+    ) -> Option<T> {
+        let secrets = self.secrets.clone();
+        let address = address.clone();
+        let result = tokio::task::spawn_blocking(move || operation(secrets.as_ref(), &address))
+            .await
+            .map_err(|error| error.to_string())
+            .and_then(|result| result);
+        match result {
+            Ok(value) => Some(value),
+            Err(error) => {
+                eprintln!("the keychain failed, the session is kept in memory only: {error}");
+                None
+            }
         }
     }
 
@@ -239,6 +344,11 @@ impl SessionManager {
 
         let session_token = self.exchange(&api, &token, &verifier).await?;
         let user = self.who_am_i(&api, &session_token).await?;
+        let kept = session_token.clone();
+        self.secret(&address, move |secrets, address| {
+            secrets.set(address, &kept)
+        })
+        .await;
         *self.session.lock().unwrap() = Some(Session {
             address,
             api,
@@ -255,10 +365,13 @@ impl SessionManager {
         }
     }
 
-    /// forgets the session, and stops a sign-in that waits
-    pub fn logout(&self) {
+    /// forgets the session, in memory and in the keychain, and stops a sign-in that waits
+    pub async fn logout(&self) {
         self.cancel();
-        *self.session.lock().unwrap() = None;
+        let session = self.session.lock().unwrap().take();
+        if let Some(session) = session {
+            self.forget(&session.address).await;
+        }
     }
 
     /// who is signed in, none before a sign-in and after the sign-out
@@ -659,7 +772,7 @@ mod tests {
             format!("{}/api/v1/auth/who-am-i", server.uri())
         );
         assert_eq!(request.headers()["authorization"], "Bearer session-token");
-        manager.logout();
+        manager.logout().await;
         assert_eq!(manager.user(), None);
         assert!(
             manager
@@ -845,5 +958,117 @@ mod tests {
             callback(&tiny_http::Method::Post, "/callback?state=s&token=t", "s"),
             Callback::Other
         );
+    }
+
+    fn kept(secrets: &Arc<crate::secrets::Memory>, server: &MockServer) -> Option<String> {
+        secrets
+            .tokens
+            .lock()
+            .unwrap()
+            .get(address(server).as_str())
+            .cloned()
+    }
+
+    /// signs in at the instance with the browser of the tests
+    async fn sign_in(manager: &SessionManager, server: &MockServer) -> Result<User, LoginError> {
+        manager
+            .login(address(server), pages(), |url| {
+                let (port, state, _) = opened(url);
+                std::thread::spawn(move || {
+                    browse(&format!(
+                        "http://127.0.0.1:{port}/callback?state={state}&token=t"
+                    ))
+                });
+                Ok(())
+            })
+            .await
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_sign_in_is_kept_in_the_keychain_and_taken_up_by_the_next_start() {
+        let server = instance(session_token()).await;
+        let secrets = Arc::new(crate::secrets::Memory::default());
+        let first = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
+        sign_in(&first, &server).await.unwrap();
+        assert_eq!(kept(&secrets, &server).as_deref(), Some("session-token"));
+
+        // the next start of the app
+        let next = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
+        let user = next.restore(address(&server)).await.unwrap().unwrap();
+        assert_eq!(user.username, "anna@example.org");
+        assert_eq!(next.user(), Some(user));
+        assert!(
+            next.request(reqwest::Method::GET, "auth/who-am-i")
+                .is_some()
+        );
+
+        next.logout().await;
+        assert_eq!(kept(&secrets, &server), None);
+        let after = SessionManager::new(secrets, LOGIN_TIMEOUT);
+        assert_eq!(after.restore(address(&server)).await, Ok(None));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_session_the_instance_refuses_is_forgotten() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/.well-known/sak.json"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(
+                    serde_json::json!({ "api": format!("{}/api/v1", server.uri()) }),
+                ),
+            )
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/auth/who-am-i"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&server)
+            .await;
+        let secrets = Arc::new(crate::secrets::Memory::default());
+        secrets
+            .tokens
+            .lock()
+            .unwrap()
+            .insert(address(&server).as_str().to_string(), "old".to_string());
+        let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
+        assert_eq!(
+            manager.restore(address(&server)).await,
+            Err(RestoreError::Expired)
+        );
+        assert_eq!(kept(&secrets, &server), None);
+        assert_eq!(manager.user(), None);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_session_of_an_instance_that_does_not_answer_is_kept() {
+        let server = MockServer::start().await;
+        let secrets = Arc::new(crate::secrets::Memory::default());
+        secrets
+            .tokens
+            .lock()
+            .unwrap()
+            .insert(address(&server).as_str().to_string(), "kept".to_string());
+        let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
+        assert_eq!(
+            manager.restore(address(&server)).await,
+            Err(RestoreError::Unreachable)
+        );
+        assert_eq!(kept(&secrets, &server).as_deref(), Some("kept"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn without_a_keychain_the_session_is_in_memory_only() {
+        let server = instance(session_token()).await;
+        let secrets = Arc::new(crate::secrets::Memory {
+            failing: true,
+            ..Default::default()
+        });
+        let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
+        sign_in(&manager, &server).await.unwrap();
+        assert!(manager.user().is_some());
+        assert_eq!(manager.restore(address(&server)).await, Ok(None));
+        manager.logout().await;
+        assert_eq!(manager.user(), None);
     }
 }

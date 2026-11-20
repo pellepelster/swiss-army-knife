@@ -24,10 +24,11 @@ A desktop app, no app of the backend (refer to [the architecture of the apps](IN
 `sak-desktop-shared` is a crate that sak-backup and sakadm use:
 
 - `session`: the sign-in through the browser and the session (`SessionManager`), see below.
-- `window`: the tauri commands of the sign-in (`user`, `known_instances`, `login`, `cancel_login`, `logout`). An app
-  manages a `SessionManager` and an `InstanceStore` (`window::instance_store`) and lists them in its
-  `generate_handler!`.
+- `window`: the tauri commands of the sign-in (`restore_session`, `known_instances`, `login`, `cancel_login`,
+  `logout`). An app manages a `SessionManager` (`window::session_manager`) and an `InstanceStore`
+  (`window::instance_store`) and lists them in its `generate_handler!`.
 - `instances`: the SAK addresses the app signed in at (`InstanceStore`), see below.
+- `secrets`: the session tokens in the keychain of the system (`SecretStore`, `Keychain`), see below.
 - `i18n`: the language of the system, the texts of the window; its own texts are `desktop_shared` of texts.yml.
 - `desktop`: the desktop entry of linux.
 - `ui/`: `views.js` (the views and their texts), `login.js` and `login.css` (the view of the sign-in).
@@ -47,8 +48,21 @@ The flow is the one of a desktop app in `SECURITY-3`:
 4. The app exchanges the token with the verifier (`POST <api>/auth/login/connect`) and reads the user
    (`GET <api>/auth/who-am-i`).
 
-The session is in memory only. A sign-out forgets it, a restart of the app signs out. A sign-in waits 15 minutes for
-the browser, long enough for a login link by e-mail; Cancel stops it.
+A sign-in waits 15 minutes for the browser, long enough for a login link by e-mail; Cancel stops it.
+
+## Remembered sign-ins
+
+The session token goes into the keychain of the system after a sign-in: the Secret Service on linux, the Keychain on
+macOS, the Credential Manager on windows. The entry is the identifier of the app (`io.pelle.sak.backup`) with the SAK
+address as its user, one per instance; the token is never in a file (`SECURITY-3`).
+
+- At the start the app takes the token of the instance used last and asks `who-am-i` with it. When the instance
+  accepts it, the app opens signed in; when it refuses it (expired, or the user may no longer sign in) the token is
+  deleted and the sign-in says so; when the instance does not answer the token stays and the sign-in says so.
+- A sign-out deletes the token. An instance that drops out of `instances.json` loses its token too.
+- Without a keychain (no Secret Service running) nothing is kept: the session is in memory only, a line on the
+  standard error says why.
+- The keychain is reached away from the async threads of the app, as the Secret Service may wait for d-bus.
 
 ## Local file
 

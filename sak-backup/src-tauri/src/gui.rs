@@ -1,8 +1,7 @@
 //! the window: tauri with the pages of ui/ and their commands. The sign-in and the session are the
-//! ones of sak-desktop-shared, the session in memory only (SECURITY-3)
+//! ones of sak-desktop-shared, the session token in the keychain of the system (SECURITY-3)
 
 use rust_i18n::t;
-use sak_desktop_shared::session::SessionManager;
 use std::collections::HashMap;
 use tauri::Manager;
 
@@ -21,8 +20,8 @@ pub fn run() {
     #[cfg(target_os = "linux")]
     DESKTOP_ENTRY.install();
     tauri::Builder::default()
-        .manage(SessionManager::default())
         .setup(|app| {
+            app.manage(sak_desktop_shared::window::session_manager(app));
             app.manage(sak_desktop_shared::window::instance_store(app)?);
             Ok(())
         })
@@ -30,7 +29,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             locale,
             ui_texts,
-            sak_desktop_shared::window::user,
+            sak_desktop_shared::window::restore_session,
             sak_desktop_shared::window::known_instances,
             sak_desktop_shared::window::login,
             sak_desktop_shared::window::cancel_login,

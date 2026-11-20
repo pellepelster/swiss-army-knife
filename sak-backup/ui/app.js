@@ -1,13 +1,15 @@
-// the sign-in (shared/login.js), then the pages behind the navigation on the left and the menu of
+// the session kept from the start before or the sign-in (shared/login.js), then the pages behind the navigation on the left and the menu of
 // the user at the top right; rust keeps the session (sak-desktop-shared)
-import { displayName, showLogin, signedInUser, signOut } from './shared/login.js';
+import { displayName, showLogin, signOut, startSession } from './shared/login.js';
 import { loadTexts, show, text } from './shared/views.js';
 
 const menuToggle = document.getElementById('user-menu-toggle');
 const menu = document.getElementById('user-menu');
 
+const LOGIN = { title: 'ui.title', intro: 'ui.intro', onSignedIn: showShell };
+
 function login() {
-  showLogin({ title: 'ui.title', intro: 'ui.intro', onSignedIn: showShell });
+  showLogin(LOGIN);
 }
 
 function showShell(user) {
@@ -71,9 +73,4 @@ await loadTexts();
 for (const element of document.querySelectorAll('[data-text-label]')) {
   element.setAttribute('aria-label', text(element.dataset.textLabel));
 }
-const user = await signedInUser();
-if (user) {
-  showShell(user);
-} else {
-  login();
-}
+await startSession(LOGIN);

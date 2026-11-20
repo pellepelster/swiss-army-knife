@@ -73,23 +73,38 @@ function build() {
 }
 
 // shows the sign-in: `title` and `intro` are the keys of texts of the app, `onSignedIn` gets the
-// user (who-am-i) once the browser came back. The address is the one signed in at last
-export async function showLogin({ title, intro, onSignedIn }) {
+// user (who-am-i) once the browser came back. The address is the one signed in at last, `failure`
+// a text that says why the sign-in shows
+export async function showLogin({ title, intro, onSignedIn }, failure = '') {
   options = { onSignedIn };
   view ??= build();
   view.title.textContent = text(title);
   view.intro.textContent = text(intro);
   view.waiting(false);
-  setStatus(view.status, '');
+  if (failure) {
+    setFailure(view.status, failure);
+  } else {
+    setStatus(view.status, '');
+  }
   const [last] = await invoke('known_instances');
   if (last && !view.address.value) view.address.value = last;
   show('view-login');
   view.address.focus();
 }
 
-// who is signed in, null without a session
-export function signedInUser() {
-  return invoke('user');
+// the start of the app: the session of the instance used last when the keychain has one the
+// instance still takes, else the sign-in (`showLogin`), with the reason when there is one
+export async function startSession(login) {
+  try {
+    const user = await invoke('restore_session');
+    if (user) {
+      login.onSignedIn(user);
+      return;
+    }
+    await showLogin(login);
+  } catch (failure) {
+    await showLogin(login, String(failure));
+  }
 }
 
 // forgets the session

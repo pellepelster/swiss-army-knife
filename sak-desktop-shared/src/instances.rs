@@ -51,8 +51,15 @@ impl InstanceStore {
             .collect()
     }
 
-    /// puts the address first, once, and keeps at most MAX_INSTANCES
-    pub fn remember(&self, address: &Address) -> Result<(), String> {
+    /// the address used last, none before the first sign-in
+    pub fn last(&self) -> Option<Address> {
+        self.addresses()
+            .first()
+            .and_then(|address| Address::parse(address).ok())
+    }
+
+    /// puts the address first, once, and keeps at most MAX_INSTANCES; answers the ones it dropped
+    pub fn remember(&self, address: &Address) -> Result<Vec<Address>, String> {
         let _guard = self.lock.lock().unwrap();
         let mut instances = self.load();
         instances
@@ -64,8 +71,14 @@ impl InstanceStore {
                 address: address.as_str().to_string(),
             },
         );
-        instances.instances.truncate(MAX_INSTANCES);
-        self.write(&instances)
+        let dropped = instances
+            .instances
+            .split_off(instances.instances.len().min(MAX_INSTANCES))
+            .into_iter()
+            .filter_map(|instance| Address::parse(&instance.address).ok())
+            .collect();
+        self.write(&instances)?;
+        Ok(dropped)
     }
 
     fn load(&self) -> Instances {
@@ -145,6 +158,7 @@ mod tests {
     fn no_file_is_no_instance() {
         let (store, _) = store("none");
         assert!(store.addresses().is_empty());
+        assert_eq!(store.last(), None);
     }
 
     #[test]
@@ -159,6 +173,7 @@ mod tests {
             store.addresses(),
             ["https://alpha.example.org/", "https://beta.example.org/"]
         );
+        assert_eq!(store.last(), Some(address("alpha.example.org")));
         let json = std::fs::read_to_string(store.path.clone()).unwrap();
         assert!(json.contains("\"instances\""), "{json}");
         assert!(!directory.join("app").join("instances.json.tmp").exists());
@@ -168,10 +183,23 @@ mod tests {
     #[test]
     fn at_most_max_instances_are_kept() {
         let (store, directory) = store("max");
-        for at in 0..MAX_INSTANCES + 5 {
-            store
+        for at in 0..MAX_INSTANCES {
+            assert!(
+                store
+                    .remember(&address(&format!("i{at}.example.org")))
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+        for at in MAX_INSTANCES..MAX_INSTANCES + 5 {
+            // the one used longest ago goes
+            let dropped = store
                 .remember(&address(&format!("i{at}.example.org")))
                 .unwrap();
+            assert_eq!(
+                dropped,
+                [address(&format!("i{}.example.org", at - MAX_INSTANCES))]
+            );
         }
         let addresses = store.addresses();
         assert_eq!(addresses.len(), MAX_INSTANCES);
