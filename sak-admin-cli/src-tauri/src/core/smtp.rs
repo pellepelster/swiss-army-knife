@@ -41,7 +41,9 @@ pub async fn send_test(smtp: &Smtp, mail: &TestMail<'_>) -> Result<String, Strin
     let host = smtp.host.trim();
     let message = Message::builder()
         .from(from)
-        .to(to.parse().map_err(|_| t!("common.smtp.invalid_to", to = to).to_string())?)
+        .to(to
+            .parse()
+            .map_err(|_| t!("common.smtp.invalid_to", to = to).to_string())?)
         .subject(t!("common.smtp.test_subject", name = mail.name).to_string())
         .header(ContentType::TEXT_PLAIN)
         .body(t!("common.smtp.test_body", name = mail.name, host = host).to_string())
@@ -57,7 +59,10 @@ pub async fn send_test(smtp: &Smtp, mail: &TestMail<'_>) -> Result<String, Strin
         .tls(tls)
         .timeout(Some(TIMEOUT));
     if !smtp.username.is_empty() {
-        builder = builder.credentials(Credentials::new(smtp.username.clone(), smtp.password.clone()));
+        builder = builder.credentials(Credentials::new(
+            smtp.username.clone(),
+            smtp.password.clone(),
+        ));
     }
     let transport: AsyncSmtpTransport<Tokio1Executor> = builder.build();
     match transport.send(message).await {
@@ -151,7 +156,13 @@ mod tests {
 
     /// the text of `key` up to its error, which comes last
     fn prefix(key: &str) -> String {
-        t!(key, host = "127.0.0.1", error = "", seconds = TIMEOUT.as_secs()).to_string()
+        t!(
+            key,
+            host = "127.0.0.1",
+            error = "",
+            seconds = TIMEOUT.as_secs()
+        )
+        .to_string()
     }
 
     #[tokio::test]
@@ -170,14 +181,33 @@ mod tests {
             listener.local_addr().unwrap().port()
         };
         let error = send_test(&smtp(port, false), &MAIL).await.unwrap_err();
-        assert!(error.starts_with(&prefix("common.smtp.unreachable")), "{error}");
+        assert!(
+            error.starts_with(&prefix("common.smtp.unreachable")),
+            "{error}"
+        );
     }
 
     #[tokio::test]
     async fn the_recipient_and_the_root_domain_are_checked_before_the_mail_server_is_asked() {
-        let error = send_test(&smtp(1, true), &TestMail { to: "nobody", ..MAIL }).await.unwrap_err();
+        let error = send_test(
+            &smtp(1, true),
+            &TestMail {
+                to: "nobody",
+                ..MAIL
+            },
+        )
+        .await
+        .unwrap_err();
         assert_eq!(error, t!("common.smtp.invalid_to", to = "nobody"));
-        let error = send_test(&smtp(1, true), &TestMail { root_domain: "", ..MAIL }).await.unwrap_err();
+        let error = send_test(
+            &smtp(1, true),
+            &TestMail {
+                root_domain: "",
+                ..MAIL
+            },
+        )
+        .await
+        .unwrap_err();
         assert_eq!(error, t!("common.smtp.no_root_domain"));
     }
 

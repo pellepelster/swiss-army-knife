@@ -1,7 +1,7 @@
 // the maintenance of the server of a deployment, as `sakadm maintenance` has it. There is no cancel:
 // a command on the server is not stopped halfway, each has its timeout in rust
 import { openedDeployment } from './password.js';
-import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './views.js';
+import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 

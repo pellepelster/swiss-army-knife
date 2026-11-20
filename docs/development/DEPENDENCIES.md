@@ -20,7 +20,7 @@ group of updates. The workflow tests each pull request as it tests every other p
 | `gradle/libs.versions.toml`, `android/gradle/libs.versions.toml` | The libraries and the plugins of the two Gradle builds. |
 | `gradle/wrapper/`, `android/gradle/wrapper/` | Gradle. |
 | `sak-frontend/package.json`, `sak-theme/package.json`, `sak-admin-cli/package.json` | The npm packages and npm (`packageManager`); the one of sak-admin-cli is the tauri cli. |
-| `sak-admin-cli/src-tauri/Cargo.toml`, `sak-admin-cli/cloud/Cargo.toml` | The crates. |
+| `sak-admin-cli/src-tauri/Cargo.toml`, `sak-admin-cli/cloud/Cargo.toml`, `sak-desktop-shared/Cargo.toml`, `sak-backup/src-tauri/Cargo.toml` | The crates. sak-backup builds with the tauri cli of sak-admin-cli. |
 | `*/Dockerfile` | The base images. In `sak-admin-cli/Dockerfile` also the `ansible` package (the `# renovate:` comment). |
 | `ansible/roles/*/defaults/main.yml` | The images with a pinned tag and digest (`<name>_image: docker.io/<image>:<tag>@<digest>`). |
 | `ansible/requirements.yml` | The Ansible collections. |
@@ -67,7 +67,7 @@ Renovate merges a pull request when all checks of the workflow pass. This applie
 All other pull requests are manual: the images, the Gradle libraries, the npm dependencies, tauri, playwright,
 ansible, the `0.x` minor updates and all major updates. The workflow does not run the integration tests and the e2e
 tests. Before you merge one of these pull requests, run the tests that apply (`mise run backend:test:integration`,
-`mise run cli:test:integration`, `mise run cli:test:e2e`).
+`mise run admin-cli:test:integration`, `mise run admin-cli:test:e2e`).
 
 ## Checksums of the Gradle dependencies
 

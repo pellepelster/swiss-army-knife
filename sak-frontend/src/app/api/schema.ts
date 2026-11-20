@@ -222,7 +222,7 @@ export interface paths {
     put?: never;
     /**
      * Exchange the token of a QR code for a session token
-     * @description The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for 2 minutes and only once; the session token is valid for 30 days. Only a few attempts an hour are answered.
+     * @description The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for 2 minutes and only once; the session token is valid for 30 days. A token issued with a pkce challenge is exchanged only with its verifier (43 to 128 characters of A-Z, a-z, 0-9, '-', '.', '_', '~'), one without only without. Only a few attempts an hour are answered.
      */
     post: {
       parameters: {
@@ -246,7 +246,16 @@ export interface paths {
             'application/json': components['schemas']['ExchangeResponse'];
           };
         };
-        /** @description The token is invalid, expired or was already used, or the user may no longer sign in */
+        /** @description A malformed verifier */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The token is invalid, expired or was already used, the verifier does not match, or the user may no longer sign in */
         401: {
           headers: {
             [name: string]: unknown;
@@ -328,7 +337,7 @@ export interface paths {
     put?: never;
     /**
      * A QR code that connects an app
-     * @description The link the QR code shows: the SAK address with a token in its fragment, valid for 2 minutes and only once, that an app exchanges for a session of the signed in user (POST /api/v1/auth/login/connect). Whoever has the code signs in as the user until it expires. Only for a session, a few codes an hour.
+     * @description The link the QR code shows: the SAK address with a token in its fragment, valid for 2 minutes and only once, that an app exchanges for a session of the signed in user (POST /api/v1/auth/login/connect). Whoever has the code signs in as the user until it expires. With the pkce challenge (S256, 43 characters of base64url) of a desktop app the token is exchanged only with its verifier. Only for a session, a few codes an hour.
      */
     post: {
       parameters: {
@@ -337,7 +346,11 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: never;
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ConnectRequest'];
+        };
+      };
       responses: {
         /** @description The link of the QR code, its id and when it expires */
         200: {
@@ -346,6 +359,15 @@ export interface paths {
           };
           content: {
             'application/json': components['schemas']['ConnectResponse'];
+          };
+        };
+        /** @description A malformed challenge */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
         /** @description A signed request of sakadm, which has no session to connect */
@@ -4630,6 +4652,7 @@ export interface components {
     /** ConnectExchangeRequest */
     ConnectExchangeRequest: {
       token: string;
+      verifier?: string | null;
     };
     /** WhoAmIResponse */
     WhoAmIResponse: {
@@ -4637,6 +4660,10 @@ export interface components {
       name?: string | null;
       expiresAt?: string | null;
       roles: string[];
+    };
+    /** ConnectRequest */
+    ConnectRequest: {
+      challenge?: string | null;
     };
     /** ConnectResponse */
     ConnectResponse: {

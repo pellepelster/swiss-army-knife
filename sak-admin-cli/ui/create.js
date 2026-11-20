@@ -4,7 +4,7 @@
 // one with deployments in dns mode `subdomain` allows only that mode
 import { openedDeployment } from './password.js';
 import { runDestroy, showPlan } from './run.js';
-import { navigate, setFailure, setStatus, show, text } from './views.js';
+import { navigate, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
 

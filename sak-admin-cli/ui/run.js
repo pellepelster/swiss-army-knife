@@ -2,7 +2,7 @@
 // resource rows. A destroy runs without this plan, a check of deployment.js is its own plan. Done
 // only when every resource was done; cancel stops the run
 import { openDeployment } from './password.js';
-import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './views.js';
+import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 

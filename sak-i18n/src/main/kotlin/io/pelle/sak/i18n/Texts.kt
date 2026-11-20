@@ -13,8 +13,23 @@ val PLURAL_FORMS = setOf("zero", "one", "two", "few", "many", "other")
 // the platforms that read the texts of an app, each its own part of the section of the app
 val PLATFORMS = listOf("backend", "web", "android")
 
-// the parts of the section of sakadm: both, the command line, the window
+// the parts of the section of a program (sakadm, sak-backup): both, the command line, the window
 val ADMIN_CLI_PARTS = listOf("common", "cli", "ui")
+
+// a program of its own, a command line and a window on one core: its binary and the locales/ of its
+// tauri crate, where its texts are written
+data class Program(
+    val binary: String,
+    val dir: String,
+)
+
+// the programs by their sections, which have the parts of ADMIN_CLI_PARTS
+val PROGRAMS: Map<String, Program> =
+    linkedMapOf(
+        "admin_cli" to Program("sakadm", "sak-admin-cli/src-tauri/locales"),
+        "sak_backup" to Program("sak-backup", "sak-backup/src-tauri/locales"),
+        "desktop_shared" to Program("sak-desktop-shared", "sak-desktop-shared/locales"),
+    )
 
 private val PLACEHOLDER = Regex("""%\{([a-z_]+)}""")
 private val KEY = Regex("""[a-z][a-z0-9_]*""")
@@ -89,11 +104,12 @@ class Texts private constructor(
     // the texts of no app for all platforms and for one, e.g. common and web
     fun platform(name: String): Group = root.group(name) ?: Group.EMPTY
 
-    // the sections of the apps, e.g. notes, without sakadm
+    // the sections of the apps, e.g. notes, without the programs (sakadm, sak-backup)
     val apps: Map<String, Group>
-        get() = root.children.filterKeys { it !in TOP_LEVEL && it != "admin_cli" }.mapValues { it.value as Group }
+        get() = root.children.filterKeys { it !in TOP_LEVEL && it !in PROGRAMS }.mapValues { it.value as Group }
 
-    val adminCli: Group get() = root.group("admin_cli") ?: Group.EMPTY
+    // the section of a program of PROGRAMS
+    fun program(name: String): Group = root.group(name) ?: Group.EMPTY
 
     companion object {
         private val TOP_LEVEL = listOf("common") + PLATFORMS
@@ -126,7 +142,7 @@ class Texts private constructor(
                 val parts =
                     when (name) {
                         in TOP_LEVEL -> continue
-                        "admin_cli" -> ADMIN_CLI_PARTS
+                        in PROGRAMS -> ADMIN_CLI_PARTS
                         else -> listOf("common") + PLATFORMS
                     }
                 for ((part, node) in section.children) {

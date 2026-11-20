@@ -10,8 +10,9 @@ python = { version = "3.15.2", os = ["linux", "macos"] }
 pipx = { version = "1.18.16", os = ["linux", "macos"] }
 # the icon font of sak-frontend cut to the icons it uses (frontend:icons), woff2 needs brotli
 "pipx:fonttools" = { version = "4.68.0", extras = "woff", os = ["linux", "macos"] }
-# sakadm (sak-admin-cli): tauri 2, the rust core in src-tauri/, the web ui in ui/; the tauri command line is
-# an npm package of sak-admin-cli/package.json, installed by its lockfile (cli:install)
+# sakadm (sak-admin-cli) and sak-backup: tauri 2, the rust core in src-tauri/, the web ui in ui/; the tauri
+# command line of both is an npm package of sak-admin-cli/package.json, installed by its lockfile
+# (admin-cli:install)
 rust = "1.100.0"
 # the docs site (site/), go for the hugo modules
 "hugo-extended" = "0.169.0"
@@ -20,7 +21,7 @@ go = "1.27.4"
 "github:nextest-rs/nextest" = { version = "0.9.151", version_prefix = "cargo-nextest-" }
 # the next version for `release`, from the tags v<version>
 svu = "3.4.4"
-# the signatures of the zips of sakadm (cli:release), keyless with a certificate of the workflow
+# the signatures of the zips of sakadm (admin-cli:release), keyless with a certificate of the workflow
 cosign = "3.1.4"
 
 # the version of all artifacts: the tag v<version> in the workflow without the v, latest
@@ -148,53 +149,65 @@ depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmBuild"
 
-# into sak-admin-cli/ui/theme/ (not committed): tauri bundles only sak-admin-cli/ui/
-[tasks."cli:theme"]
-description = "Copy sak-theme into the sakadm ui"
+# into ui/theme/ and ui/shared/ of each desktop app (sakadm, sak-backup; not committed): tauri
+# bundles only the ui/ of its app. sak-theme and the shared views (sak-desktop-shared/ui/)
+[tasks."desktop:ui"]
+description = "Copy sak-theme and the shared ui into the ui of the desktop apps"
 depends = ["theme:install"]
-dir = "{{config_root}}/sak-admin-cli"
+dir = "{{config_root}}"
 # bash on windows too (git bash), where mise would run cmd
-shell = "bash -c"
+shell = "bash -e -c"
 run = """
-rm -rf ui/theme
-mkdir -p ui/theme
-cp ../sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css ui/theme/
-cp ../sak-theme/tokens.css ../sak-theme/bootstrap.css ../sak-theme/fonts.css ../sak-theme/components.css ui/theme/
-cp -r ../sak-theme/fonts ui/theme/fonts
-cp -r ../sak-theme/icons ui/theme/icons
-cp -r ../sak-theme/images/sakadm ui/theme/images
+for ui in sak-admin-cli/ui sak-backup/ui; do
+  rm -rf "$ui/theme" "$ui/shared"
+  mkdir -p "$ui/theme"
+  cp sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css "$ui/theme/"
+  cp sak-theme/tokens.css sak-theme/bootstrap.css sak-theme/fonts.css sak-theme/components.css "$ui/theme/"
+  cp -r sak-theme/fonts "$ui/theme/fonts"
+  cp -r sak-theme/icons "$ui/theme/icons"
+  cp -r sak-theme/images/sakadm "$ui/theme/images"
+  cp -r sak-desktop-shared/ui "$ui/shared"
+done
 """
 
 # the tauri command line of sak-admin-cli/package.json, exactly as its lockfile has it, with its
 # dependencies: its build makes the binaries of sakadm, which become the signed zips
-[tasks."cli:install"]
+[tasks."admin-cli:install"]
 description = "Install the tauri command line of sakadm"
 dir = "{{config_root}}/sak-admin-cli"
 run = "npm ci --no-audit --no-fund"
 
-# the ui without arguments, the command line with them: `mise run cli:run -- --help`. tauri dev
+# the ui without arguments, the command line with them: `mise run admin-cli:run -- --help`. tauri dev
 # hands what follows its second -- to the app. HCLOUD_TOKEN from pass unless set
-[tasks."cli:run"]
+[tasks."admin-cli:run"]
 description = "Run sakadm with reload"
-depends = ["cli:install", "cli:theme"]
+depends = ["admin-cli:install", "desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 run = '''sh -c 'if [ $# -eq 0 ]; then npx --no-install tauri dev; else npx --no-install tauri dev -- -- "$@"; fi' sakadm'''
 
+# sak-backup with reload, by the tauri command line of sakadm (admin-cli:install): both apps build
+# with the same tauri
+[tasks."backup:run"]
+description = "Run sak-backup with reload"
+depends = ["admin-cli:install", "desktop:ui"]
+dir = "{{config_root}}/sak-backup"
+run = "node ../sak-admin-cli/node_modules/@tauri-apps/cli/tauri.js dev"
+
 # the installers of this platform (deb, rpm, AppImage; dmg; msi, nsis) in
 # src-tauri/target/release/bundle/
-[tasks."cli:build"]
+[tasks."admin-cli:build"]
 description = "Build the sakadm installers"
-depends = ["cli:install", "cli:theme", "tools:image:build", "canary:image:build"]
+depends = ["admin-cli:install", "desktop:ui", "tools:image:build", "canary:image:build"]
 dir = "{{config_root}}/sak-admin-cli"
 run = "npx --no-install tauri build"
 
-# cli:build:<platform>, on that platform (workflow job sakadm): the binary zipped to
+# admin-cli:build:<platform>, on that platform (workflow job sakadm): the binary zipped to
 # sak-admin-cli/build/sak-admin-cli-<platform>-<architecture>-<VERSION>.zip and its <zip>.sha256; x86_64, a
 # universal binary for macOS
-[tasks."cli:build:linux"]
+[tasks."admin-cli:build:linux"]
 description = "Build sakadm for linux"
-depends = ["cli:install", "cli:theme"]
+depends = ["admin-cli:install", "desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli"
 run = """
 npx --no-install tauri build --no-bundle
@@ -204,9 +217,9 @@ zip -j "build/sak-admin-cli-linux-x86_64-${VERSION}.zip" src-tauri/target/releas
 (cd build && sha256sum "sak-admin-cli-linux-x86_64-${VERSION}.zip" > "sak-admin-cli-linux-x86_64-${VERSION}.zip.sha256")
 """
 
-[tasks."cli:build:macos"]
+[tasks."admin-cli:build:macos"]
 description = "Build sakadm for macOS"
-depends = ["cli:install", "cli:theme"]
+depends = ["admin-cli:install", "desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli"
 run = """
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
@@ -220,9 +233,9 @@ zip -j "build/sak-admin-cli-macos-universal-${VERSION}.zip" src-tauri/target/uni
 # git bash has no zip but 7-Zip; -e stops at a failed step like sh does elsewhere. Two programs in
 # the zip: sakadm.exe, the window without a console, and sakadm-cli.exe, the same built with the
 # feature console as a console program, whose commands print to the terminal
-[tasks."cli:build:windows"]
+[tasks."admin-cli:build:windows"]
 description = "Build sakadm for windows"
-depends = ["cli:install", "cli:theme"]
+depends = ["admin-cli:install", "desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli"
 shell = "bash -e -c"
 run = """
@@ -235,7 +248,7 @@ rm -f "build/sak-admin-cli-windows-x86_64-${VERSION}.zip"
 (cd build && sha256sum "sak-admin-cli-windows-x86_64-${VERSION}.zip" > "sak-admin-cli-windows-x86_64-${VERSION}.zip.sha256")
 """
 
-# the zips of cli:build:<platform> and their checksums as the github release v<VERSION>, where the
+# the zips of admin-cli:build:<platform> and their checksums as the github release v<VERSION>, where the
 # installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job release).
 # Each zip signed with cosign, keyless: a short-lived certificate of sigstore for the workflow run
 # of the tag (its id token, permission id-token: write), the signature and the certificate in
@@ -243,7 +256,7 @@ rm -f "build/sak-admin-cli-windows-x86_64-${VERSION}.zip"
 # against the trusted root of sigstore that sakadm embeds (sak-admin-cli/src-tauri/trusted_root.json, the
 # one sakadm update verifies with), so a root cosign knows but sakadm does not fails the release
 # here, not the users
-[tasks."cli:release"]
+[tasks."admin-cli:release"]
 description = "Publish the GitHub release of sakadm"
 dir = "{{config_root}}/sak-admin-cli"
 run = """
@@ -267,9 +280,9 @@ fi
 gh release upload "v${VERSION}" $files --clobber
 """
 
-# the command line without the ui: `mise run cli:sakadm -- --help`. HCLOUD_TOKEN from pass
+# the command line without the ui: `mise run admin-cli:sakadm -- --help`. HCLOUD_TOKEN from pass
 # unless set
-[tasks."cli:sakadm"]
+[tasks."admin-cli:sakadm"]
 description = "Run the sakadm command line"
 dir = "{{config_root}}/sak-admin-cli/src-tauri"
 # the terminal itself: password prompts and ssh need it
@@ -476,11 +489,11 @@ run = "npx ng serve"
 # the data the sakadm ui shows in its screenshots and video (src/core/deployments/window_fixtures.rs)
 [tasks."docs:window"]
 description = "Prepare the sakadm ui fixtures"
-depends = ["cli:theme"]
+depends = ["desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli/src-tauri"
 run = "cargo test window_fixtures -- --ignored"
 
-# the version and the checksums of the zips of cli:build:<platform> for the installation page,
+# the version and the checksums of the zips of admin-cli:build:<platform> for the installation page,
 # site/data/sakadm.yaml; a platform without a zip shows <sha256>
 [tasks."docs:data"]
 description = "Write the sakadm data of the docs"
@@ -614,15 +627,18 @@ depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmTest"
 
-# sakadm and sak-cloud (sak-admin-cli/cloud/), without sakadm's modules named integration
-[tasks."cli:test:unit"]
+# sakadm and sak-cloud (sak-admin-cli/cloud/), without sakadm's modules named integration, and the
+# other desktop crates, sak-desktop-shared and sak-backup
+[tasks."admin-cli:test:unit"]
 description = "Run the cli unit tests"
-depends = ["cli:theme"]
+depends = ["desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli"
 run = """
 set -e
 (cd src-tauri && cargo nextest run --no-fail-fast -E 'not test(/::integration::/)')
 (cd cloud && cargo nextest run --no-fail-fast -E 'kind(lib)')
+(cd ../sak-desktop-shared && cargo nextest run --no-fail-fast)
+(cd ../sak-backup/src-tauri && cargo nextest run --no-fail-fast)
 """
 
 # in docker: the vector configuration of the backend role, sak-backend as the role renders it
@@ -645,9 +661,9 @@ run = "./gradlew :sak-frontend:e2eTest"
 
 # sakadm's modules named integration: docker and podman (pulling the images from ghcr.io), ssh in the
 # tools image, ssh-keygen
-[tasks."cli:test:integration"]
+[tasks."admin-cli:test:integration"]
 description = "Run the cli integration tests"
-depends = ["cli:theme"]
+depends = ["desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli/src-tauri"
 run = "cargo nextest run --no-fail-fast -E 'test(/::integration::/)'"
 
@@ -661,9 +677,9 @@ run = "./gradlew :sak-e2e:e2eLocal"
 # against the api, then sak-e2e with two deployments of sakadm (sak-e2e/README.md). HCLOUD_TOKEN from
 # pass unless set; gradle reads the secrets of sak-e2e itself. The deployments run SAK_DOCKER_IMAGE_TAG,
 # <VERSION>-rc unless set, which outside of CI the task builds and pushes first
-[tasks."cli:test:e2e"]
+[tasks."admin-cli:test:e2e"]
 description = "Run the cli e2e tests in Hetzner Cloud"
-depends = ["cli:theme"]
+depends = ["desktop:ui"]
 dir = "{{config_root}}"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
 run = """
@@ -909,7 +925,7 @@ done
 '''
 
 # the apks of android:release:build and the bundles for google play of android:play:build with their
-# maps of r8 into the github release v<VERSION> of cli:release; files are replaced, a failed
+# maps of r8 into the github release v<VERSION> of admin-cli:release; files are replaced, a failed
 # release runs again
 [tasks."android:release"]
 description = "Add the release apks and bundles to the GitHub release"

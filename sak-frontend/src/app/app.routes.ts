@@ -71,6 +71,13 @@ export const routes: Routes = [
     canActivate: [authGuard],
     title: pageTitle('connect.title'),
   },
+  // a desktop app on this computer asks for a session (SECURITY-3)
+  {
+    path: 'connect-desktop',
+    loadComponent: () => import('./connect/connect-desktop-page').then((m) => m.ConnectDesktopPage),
+    canActivate: [authGuard],
+    title: pageTitle('connect_desktop.title'),
+  },
   { path: 'login', component: Login, title: pageTitle('login.sign_in') },
   { path: 'signin', component: Signin, title: pageTitle('signin.page_title') },
   { path: '**', redirectTo: '' },

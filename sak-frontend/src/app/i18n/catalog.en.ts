@@ -143,6 +143,15 @@ export const TEXTS = {
     too_many: 'Too many codes, please try again later.',
     failed: 'The code could not be created, please try again.',
   },
+  connect_desktop: {
+    title: 'Connect a desktop app',
+    question: 'A desktop app on this computer, e.g. SAK Backup, asks to sign in as you.',
+    warning: 'Connect it only if you just started the sign-in in the app yourself.',
+    connect: 'Connect',
+    cancel: 'Cancel',
+    connecting: 'Connecting…',
+    invalid: 'This link of a desktop app is not valid. Start the sign-in in the app again.',
+  },
   signin: {
     page_title: 'Signing in',
     grocery_title: 'Sign in to the grocery app',

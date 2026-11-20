@@ -23,7 +23,7 @@ pub const RECEIVER: &str = "github.com";
 /// a pre-release
 const API: &str = "https://api.github.com/repos/pellepelster/swiss-army-knife";
 
-/// who signs the zips of a release (`mise run cli:release`): the release workflow, with a
+/// who signs the zips of a release (`mise run admin-cli:release`): the release workflow, with a
 /// certificate of sigstore for its id token
 const SIGNER_WORKFLOW: &str =
     "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml";
@@ -68,8 +68,13 @@ pub enum Status {
     /// nothing was asked
     NoRelease,
     /// this version is the newest release, or newer
-    UpToDate { current: String },
-    Newer { current: String, newest: String },
+    UpToDate {
+        current: String,
+    },
+    Newer {
+        current: String,
+        newest: String,
+    },
 }
 
 pub fn is_release() -> bool {
@@ -734,7 +739,7 @@ mod tests {
         assert!(verify_signature(BLOB, BLOB_BUNDLE, "blob", &version).is_err());
     }
 
-    /// the release verifies what it signed with cosign against this file (`mise run cli:release`,
+    /// the release verifies what it signed with cosign against this file (`mise run admin-cli:release`,
     /// `image:sign`), so a root of sigstore that cosign knows and sakadm does not fails there
     #[test]
     fn the_trusted_root_of_the_repository_is_the_one_sakadm_embeds() {

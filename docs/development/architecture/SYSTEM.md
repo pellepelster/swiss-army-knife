@@ -261,7 +261,12 @@ The backend serves apps to its users, for example static hosting and notes. How 
   minutes, for a session of the same user with its own full time; the roles are the ones the user has at the exchange.
   Only the app scans it, in the app, never the browser. Whoever photographs the code signs in as the user until it is
   used or expired: it shows only while asked for, a few codes an hour, and the page tells when an app used it. A signed
-  request of sakadm shows no code.
+  request of sakadm shows no code. A desktop app (sak-backup) gets its connect token through the browser instead: it
+  listens on `127.0.0.1` on a random port for one request and opens `https://<sak address>/connect-desktop` with the
+  port, a random state and the pkce challenge (S256) of a verifier it keeps. The page signs the user in, asks the user
+  to confirm, gets a token bound to the challenge and sends the browser to `http://127.0.0.1:<port>/callback`, never to
+  another host. The app checks the state and exchanges the token with the verifier: a token caught on the way is of
+  no use without it. The app keeps the session in memory only, a sign-out forgets it.
 
 ## Tests
 

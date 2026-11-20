@@ -70,6 +70,24 @@ class GeneratorTest {
     }
 
     @Test
+    fun `sak-backup reads its own section, not the one of sakadm`() {
+        val files =
+            files(
+                """
+                admin_cli:
+                  ui: { quit: { en: "Quit", de: "Beenden" } }
+                sak_backup:
+                  ui: { login: { en: "Log in", de: "Anmelden" } }
+                """,
+            )
+        val backup = files.getValue("sak-backup/src-tauri/locales/de.yml")
+        backup shouldContain "# the texts of sak-backup in de"
+        backup shouldContain "ui:\n  login: \"Anmelden\"\n"
+        backup shouldNotContain "Beenden"
+        files.getValue("$ADMIN_CLI_DIR/de.yml") shouldNotContain "Anmelden"
+    }
+
+    @Test
     fun `android names a text by its path, numbers its placeholders and has plurals`() {
         val files =
             files(

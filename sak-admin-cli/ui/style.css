@@ -1,5 +1,5 @@
 /* the layout of the window; the look is bootstrap on the tokens of sak-theme (theme/, copied
-   by mise run cli:theme). Every color is a var(--sak-…), never a literal */
+   by mise run desktop:ui). Every color is a var(--sak-…), never a literal */
 
 html, body {
   height: 100%;

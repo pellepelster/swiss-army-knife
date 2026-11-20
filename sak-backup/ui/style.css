@@ -1,0 +1,108 @@
+/* the layout of the window; the look is bootstrap on the tokens of sak-theme (theme/, copied
+   by mise run desktop:ui). Every color is a var(--sak-…), never a literal */
+
+html, body {
+  height: 100%;
+}
+
+body {
+  /* an app, not a document: only what is typed in is meant to be selected */
+  user-select: none;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  background: var(--sak-bg);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.view {
+  flex: 1;
+  min-height: 0;
+}
+
+.hint {
+  color: var(--sak-muted);
+  margin: 0;
+}
+
+.status-failed {
+  color: var(--sak-danger-text);
+}
+
+/* signed in: the navigation on the left, the page on the right */
+.shell {
+  display: flex;
+}
+
+.shell-nav {
+  flex: none;
+  width: 14rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-4);
+  padding: var(--sak-space-4) var(--sak-space-3);
+  background: var(--sak-surface);
+  border-right: 1px solid var(--sak-line);
+}
+
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sak-space-2);
+  padding: 0 var(--sak-space-2);
+  font-weight: 600;
+}
+
+.app-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.shell-nav .nav-link {
+  width: 100%;
+  text-align: start;
+}
+
+.shell-main {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: var(--sak-space-4) var(--sak-space-5);
+}
+
+/* the title of the page, the menu of the user at the top right (UX-10) */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sak-space-3);
+  margin-bottom: var(--sak-space-4);
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: var(--sak-text-h1);
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-menu .dropdown-menu {
+  right: 0;
+  left: auto;
+  top: 100%;
+}
+
+#user-name {
+  display: inline-block;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  white-space: nowrap;
+}

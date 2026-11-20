@@ -12,7 +12,10 @@ pub(super) async fn mail_test(args: MailTestArgs) -> Result<i32, SakadmError> {
     let detected = match &args.name {
         Some(name) => {
             let password = password(args.password, Typed::Once, password_variable())?;
-            let token = hcloud_token(args.provider.hcloud_token, std::env::var("HCLOUD_TOKEN").ok())?;
+            let token = hcloud_token(
+                args.provider.hcloud_token,
+                std::env::var("HCLOUD_TOKEN").ok(),
+            )?;
             log(Level::Info, t!("cli.mail.reading", name = name));
             DeploymentManager
                 .detected(vec![(ProviderType::Hetzner, token.0)], name, &password.0)
@@ -26,11 +29,21 @@ pub(super) async fn mail_test(args: MailTestArgs) -> Result<i32, SakadmError> {
         .clone()
         .or(detected.root_domain.clone())
         .unwrap_or_default();
-    let name = args.name.clone().unwrap_or_else(|| match root_domain.as_str() {
-        "" => smtp.host.trim().to_string(),
-        domain => domain.to_string(),
-    });
-    log(Level::Info, t!("cli.mail.sending", to = args.to.trim(), from = smtp.sender(&root_domain)));
+    let name = args
+        .name
+        .clone()
+        .unwrap_or_else(|| match root_domain.as_str() {
+            "" => smtp.host.trim().to_string(),
+            domain => domain.to_string(),
+        });
+    log(
+        Level::Info,
+        t!(
+            "cli.mail.sending",
+            to = args.to.trim(),
+            from = smtp.sender(&root_domain)
+        ),
+    );
     let sent = send_test(
         &smtp,
         &TestMail {

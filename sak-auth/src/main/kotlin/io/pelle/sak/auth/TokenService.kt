@@ -11,6 +11,7 @@ import java.security.MessageDigest
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import io.pelle.sak.api.logAddress
@@ -132,10 +133,12 @@ class TokenService(
         return LoginClaims(email, jwt.getClaim(REDIRECT).asString() ?: "/")
     }
 
-    // good for one exchange within connectTokenTtl (SECURITY-3); keeps the login method of the session
+    // good for one exchange within connectTokenTtl (SECURITY-3); keeps the login method of the session.
+    // With a challenge (pkce S256, of a desktop app) it is exchanged only with its verifier
     fun issueConnectToken(
         email: String,
         withPassword: Boolean,
+        challenge: String? = null,
     ): ConnectToken {
         val id = UUID.randomUUID().toString()
         val expiresAt = clock.instant().plus(connectTokenTtl)
@@ -143,6 +146,7 @@ class TokenService(
             sign(email, CONNECT, connectTokenTtl)
                 .withJWTId(id)
                 .withClaim(LOGIN_METHOD, if (withPassword) PASSWORD else EMAIL)
+                .apply { challenge?.let { withClaim(CHALLENGE, it) } }
                 .sign(algorithm)
         val now = clock.instant()
         issuedConnectTokens.values.removeIf { it.second.isBefore(now) }
@@ -150,8 +154,13 @@ class TokenService(
         return ConnectToken(token, id, expiresAt)
     }
 
-    // null for an invalid, expired or already used connect token; why is logged, never the token
-    fun exchangeConnectToken(token: String): ConnectClaims? {
+    // null for an invalid, expired or already used connect token; why is logged, never the token. A
+    // token with a challenge only with its verifier, one without only without; a wrong verifier does
+    // not use the token up
+    fun exchangeConnectToken(
+        token: String,
+        verifier: String? = null,
+    ): ConnectClaims? {
         val jwt =
             try {
                 connectVerifier.verify(token)
@@ -162,6 +171,17 @@ class TokenService(
         val id = jwt.id ?: return null
         val email = jwt.subject ?: return null
         val expiresAt = jwt.expiresAtAsInstant ?: return null
+        val challenge = jwt.getClaim(CHALLENGE).asString()
+        val verifierMatches =
+            when {
+                challenge == null -> verifier == null
+                verifier == null -> false
+                else -> MessageDigest.isEqual(challenge.toByteArray(), pkceChallenge(verifier).toByteArray())
+            }
+        if (!verifierMatches) {
+            logger.info { "rejected a connect token: its verifier does not match" }
+            return null
+        }
         val now = clock.instant()
         usedLoginTokens.values.removeIf { it.isBefore(now) }
         if (usedLoginTokens.putIfAbsent(id, expiresAt) != null) {
@@ -231,6 +251,9 @@ class TokenService(
         private const val REDIRECT = "redirect"
         private const val NONCE = "nonce"
 
+        // the pkce challenge of a connect token for a desktop app
+        private const val CHALLENGE = "challenge"
+
         // the roles of a session token, unknown ones are ignored
         const val ROLES = "roles"
 
@@ -244,5 +267,9 @@ class TokenService(
         fun roles(claim: List<String>?) = claim.orEmpty().mapNotNull { Role.of(it) }.toSet()
     }
 }
+
+// pkce S256 (rfc 7636): the sha-256 of the verifier as base64url without padding
+internal fun pkceChallenge(verifier: String): String =
+    Base64.getUrlEncoder().withoutPadding().encodeToString(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray()))
 
 private fun sha256(text: String): String = MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }

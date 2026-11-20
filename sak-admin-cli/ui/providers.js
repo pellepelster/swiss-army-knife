@@ -1,6 +1,6 @@
 // the provider tokens. Rust validates a token before it adds it, and gives it back only masked
 import { showDeployments } from './deployments.js';
-import { register, setFailure, setStatus, show, text } from './views.js';
+import { register, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
 

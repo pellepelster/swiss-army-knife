@@ -1,0 +1,16 @@
+# the texts of sak-backup in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+common:
+cli:
+ui:
+  title: "SAK Backup"
+  intro: "Sign in at your SAK instance in the browser to manage its backups."
+  nav:
+    label: "Navigation"
+    backups: "Backups"
+    repositories: "Repositories"
+    snapshots: "Snapshots"
+    empty: "Nothing here yet."
+  menu:
+    label: "Menu of %{user}"
+    admin: "Admin"
+    sign_out: "Sign out"

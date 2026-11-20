@@ -8,6 +8,9 @@
 #   <app>.backend, .web, .android    texts of the app on one platform
 #   admin_cli.common, .cli, .ui      sakadm, a program of its own: both, the command line, the
 #                                    window; it reads all three, as common.*, cli.* and ui.*
+#   sak_backup.common, .cli, .ui     sak-backup, a program of its own like sakadm
+#   desktop_shared.common, .cli, .ui what the desktop programs share (sak-desktop-shared), e.g.
+#                                    the sign-in; each reads it next to its own section
 # A platform reads common and its own part merged, the platform drops out of the key: notes.backend
 # .too_many_photos is notes.too_many_photos in the backend, its error code. A key is in one part only.
 #
@@ -66,6 +69,9 @@ backend:
     invalid_nonce:
       en: "An app sends a nonce of 16 to 128 characters."
       de: "Eine App sendet eine Nonce mit 16 bis 128 Zeichen."
+    invalid_challenge:
+      en: "A desktop app sends a PKCE challenge or verifier as RFC 7636 defines it."
+      de: "Eine Desktop-App sendet eine PKCE-Challenge oder einen PKCE-Verifier, wie RFC 7636 sie festlegt."
     link_invalid:
       en: "The login link is not valid, or it was used or expired."
       de: "Der Login-Link ist nicht gültig, oder er wurde benutzt oder ist abgelaufen."
@@ -303,6 +309,20 @@ web:
     failed:
       en: "The code could not be created, please try again."
       de: "Der Code konnte nicht erstellt werden, bitte versuche es erneut."
+  connect_desktop:
+    title: { en: "Connect a desktop app", de: "Desktop-App verbinden" }
+    question:
+      en: "A desktop app on this computer, e.g. SAK Backup, asks to sign in as you."
+      de: "Eine Desktop-App auf diesem Computer, z. B. SAK Backup, möchte sich als du anmelden."
+    warning:
+      en: "Connect it only if you just started the sign-in in the app yourself."
+      de: "Verbinde sie nur, wenn du die Anmeldung gerade selbst in der App gestartet hast."
+    connect: { en: "Connect", de: "Verbinden" }
+    cancel: { en: "Cancel", de: "Abbrechen" }
+    connecting: { en: "Connecting…", de: "Verbinde…" }
+    invalid:
+      en: "This link of a desktop app is not valid. Start the sign-in in the app again."
+      de: "Dieser Link einer Desktop-App ist nicht gültig. Starte die Anmeldung in der App erneut."
   signin:
     page_title: { en: "Signing in", de: "Anmeldung läuft" }
     grocery_title: { en: "Sign in to the grocery app", de: "In der Einkaufslisten-App anmelden" }
@@ -2141,3 +2161,63 @@ todo:
     unknown_list:
       en: "There is no such list, or you can not see it."
       de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
+
+sak_backup:
+  ui:
+    title: "SAK Backup"
+    intro:
+      en: "Sign in at your SAK instance in the browser to manage its backups."
+      de: "Melde dich im Browser bei deiner SAK-Instanz an, um ihre Backups zu verwalten."
+    nav:
+      label: { en: "Navigation", de: "Navigation" }
+      backups: { en: "Backups", de: "Backups" }
+      repositories: { en: "Repositories", de: "Repositorys" }
+      snapshots: { en: "Snapshots", de: "Snapshots" }
+      empty: { en: "Nothing here yet.", de: "Hier gibt es noch nichts." }
+    menu:
+      label: { en: "Menu of %{user}", de: "Menü von %{user}" }
+      admin: { en: "Admin", de: "Admin" }
+      sign_out: { en: "Sign out", de: "Abmelden" }
+
+desktop_shared:
+  ui:
+    login:
+      address: { en: "SAK address", de: "SAK-Adresse" }
+      address_hint:
+        en: "The address of your SAK instance, e.g. sak.example.org"
+        de: "Die Adresse deiner SAK-Instanz, z. B. sak.example.org"
+      sign_in: { en: "Sign in", de: "Anmelden" }
+      waiting:
+        en: "Sign in in the browser and confirm the connection there."
+        de: "Melde dich im Browser an und bestätige dort die Verbindung."
+      cancel: { en: "Cancel", de: "Abbrechen" }
+      browser:
+        signed_in_title: { en: "Signed in", de: "Angemeldet" }
+        signed_in:
+          en: "%{app} is signed in. You can close this tab."
+          de: "%{app} ist angemeldet. Du kannst diesen Tab schließen."
+        cancelled_title: { en: "Sign-in cancelled", de: "Anmeldung abgebrochen" }
+        cancelled:
+          en: "%{app} is not signed in. You can close this tab."
+          de: "%{app} ist nicht angemeldet. Du kannst diesen Tab schließen."
+      error:
+        invalid_address:
+          en: "An address like sak.example.org is needed."
+          de: "Eine Adresse wie sak.example.org ist nötig."
+        no_instance:
+          en: "No SAK instance answers at this address."
+          de: "Unter dieser Adresse antwortet keine SAK-Instanz."
+        listener:
+          en: "The app can not wait for the browser: %{error}"
+          de: "Die App kann nicht auf den Browser warten: %{error}"
+        browser: { en: "The browser did not open: %{error}", de: "Der Browser wurde nicht geöffnet: %{error}" }
+        cancelled: { en: "The sign-in was cancelled.", de: "Die Anmeldung wurde abgebrochen." }
+        timed_out:
+          en: "The browser did not come back in time. Sign in again."
+          de: "Der Browser ist nicht rechtzeitig zurückgekommen. Melde dich erneut an."
+        refused:
+          en: "The SAK instance refused the sign-in. Sign in again."
+          de: "Die SAK-Instanz hat die Anmeldung abgelehnt. Melde dich erneut an."
+        failed:
+          en: "The SAK instance did not answer as expected: %{error}"
+          de: "Die SAK-Instanz hat nicht wie erwartet geantwortet: %{error}"

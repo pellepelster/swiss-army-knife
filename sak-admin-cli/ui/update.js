@@ -1,6 +1,6 @@
 // the footer of the window: the version of sakadm and one button for the steps of an update: check,
 // install, restart. Only a click asks the receiver, the line names it first
-import { setFailure, setStatus, text } from './views.js';
+import { setFailure, setStatus, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
 

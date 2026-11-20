@@ -43,7 +43,7 @@ Two deployments in the Hetzner Cloud project of `HCLOUD_TOKEN`, created with sak
 against them:
 
 ```sh
-mise run cli:test:e2e   # builds sakadm, then runs the tests
+mise run admin-cli:test:e2e   # builds sakadm, then runs the tests
 ```
 
 Before the tests, the task runs the tests of sak-cloud against the API of Hetzner, and, outside of CI, builds and

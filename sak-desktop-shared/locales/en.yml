@@ -1,0 +1,24 @@
+# the texts of sak-desktop-shared in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+common:
+cli:
+ui:
+  login:
+    address: "SAK address"
+    address_hint: "The address of your SAK instance, e.g. sak.example.org"
+    sign_in: "Sign in"
+    waiting: "Sign in in the browser and confirm the connection there."
+    cancel: "Cancel"
+    browser:
+      signed_in_title: "Signed in"
+      signed_in: "%{app} is signed in. You can close this tab."
+      cancelled_title: "Sign-in cancelled"
+      cancelled: "%{app} is not signed in. You can close this tab."
+    error:
+      invalid_address: "An address like sak.example.org is needed."
+      no_instance: "No SAK instance answers at this address."
+      listener: "The app can not wait for the browser: %{error}"
+      browser: "The browser did not open: %{error}"
+      cancelled: "The sign-in was cancelled."
+      timed_out: "The browser did not come back in time. Sign in again."
+      refused: "The SAK instance refused the sign-in. Sign in again."
+      failed: "The SAK instance did not answer as expected: %{error}"

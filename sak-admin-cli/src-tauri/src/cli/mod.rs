@@ -21,9 +21,9 @@ use crate::core::container::ContainerRuntime;
 use crate::core::deployments::{
     ADMIN_EMAIL_VARIABLE, AcmeCa, DEFAULT_SMTP_PORT, DEFAULT_SMTP_STARTTLS, DeploymentEvent,
     DeploymentManager, DeploymentRequest, Intent, LOCATION_VARIABLE, LOCATIONS, NAME_VARIABLE,
-    PASSWORD_VARIABLE, PlanAction, ResourceStatus, SMTP_HOST_VARIABLE, SMTP_PASSWORD_VARIABLE,
-    SMTP_PORT_VARIABLE, SMTP_FROM_VARIABLE, SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE, Smtp, TaskOutcome,
-    USER_MODE_VARIABLE, UserMode, Working, key, parse_flag,
+    PASSWORD_VARIABLE, PlanAction, ResourceStatus, SMTP_FROM_VARIABLE, SMTP_HOST_VARIABLE,
+    SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE,
+    Smtp, TaskOutcome, USER_MODE_VARIABLE, UserMode, Working, key, parse_flag,
 };
 use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, SakadmError};
 use crate::core::providers::ProviderType;

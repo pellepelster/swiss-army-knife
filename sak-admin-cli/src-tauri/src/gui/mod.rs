@@ -3,8 +3,6 @@
 
 pub mod checks;
 pub mod deployments;
-#[cfg(target_os = "linux")]
-mod desktop;
 pub mod i18n;
 pub mod maintenance;
 pub mod providers;
@@ -14,12 +12,22 @@ pub mod update;
 use crate::core::deployments::DeploymentManager;
 use crate::core::providers::ProviderTokens;
 
+/// the entry of sakadm in the desktop of linux
+#[cfg(target_os = "linux")]
+const DESKTOP_ENTRY: sak_desktop_shared::desktop::DesktopEntry =
+    sak_desktop_shared::desktop::DesktopEntry {
+        app_id: "sakadm",
+        name: "Swiss Army Knife",
+        comment: "Create, update and back up your Swiss Army Knife",
+        icon: include_bytes!("../../../../sak-theme/images/tauri/icon.png"),
+    };
+
 /// runs the window until it closes; then a provisioning that runs stops and its files go
 pub fn run() {
     crate::core::provision::stop_runs_on_signal();
     // the icon of the window in the taskbar and the dock
     #[cfg(target_os = "linux")]
-    desktop::install();
+    DESKTOP_ENTRY.install();
     tauri::Builder::default()
         .manage(crate::core::container::ContainerRuntime::default())
         .manage(ProviderTokens::default())

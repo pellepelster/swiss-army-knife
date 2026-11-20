@@ -448,7 +448,10 @@ fn the_settings_come_from_the_running_deployment_else_from_this_machine_else_fro
             .and_then(|smtp| smtp.password.as_deref()),
         Some("kept")
     );
-    assert_eq!(local.smtp.as_ref().map(|smtp| smtp.from.as_str()), Some("sak@example.org"));
+    assert_eq!(
+        local.smtp.as_ref().map(|smtp| smtp.from.as_str()),
+        Some("sak@example.org")
+    );
     assert_eq!(local.admin_email, None);
 
     // the records tell the root domain and the dns mode only
@@ -921,7 +924,10 @@ fn a_value_with_a_line_break_is_refused() {
 fn a_mail_server_needs_a_host_and_a_port() {
     assert!(check_smtp(&smtp("smtp.example.org", 587)).is_ok());
     // a sender address is one, or empty for noreply@<root domain>
-    let from = |from: &str| Smtp { from: from.to_string(), ..smtp("smtp.example.org", 587) };
+    let from = |from: &str| Smtp {
+        from: from.to_string(),
+        ..smtp("smtp.example.org", 587)
+    };
     assert!(check_smtp(&from("sak@example.org")).is_ok());
     assert!(check_smtp(&from("")).is_ok());
     assert_eq!(
@@ -990,7 +996,10 @@ fn the_page_gets_the_mail_server_of_the_environment() {
     .unwrap();
     assert_eq!((page.port, page.username.as_str()), (587, ""));
     assert_eq!(page.sender("example.org"), "noreply@example.org");
-    let given = Smtp { from: " sak@example.org ".to_string(), ..page };
+    let given = Smtp {
+        from: " sak@example.org ".to_string(),
+        ..page
+    };
     assert_eq!(given.sender("example.org"), "sak@example.org");
 }
 
@@ -1378,7 +1387,10 @@ fn the_settings_of_another_version_of_sakadm_are_read_as_far_as_they_go() {
     // as written, it reads back
     let same = read(written.clone());
     assert_eq!(same.user_mode, Some(UserMode::Multi));
-    assert_eq!(same.smtp.as_ref().map(|smtp| smtp.from.as_str()), Some("sak@example.org"));
+    assert_eq!(
+        same.smtp.as_ref().map(|smtp| smtp.from.as_str()),
+        Some("sak@example.org")
+    );
 
     // an older sakadm: no sender, no acme ca, no version
     let mut older = written.clone();
@@ -1387,7 +1399,13 @@ fn the_settings_of_another_version_of_sakadm_are_read_as_far_as_they_go() {
         older.as_object_mut().unwrap().remove(field);
     }
     let older = read(older);
-    assert_eq!(older.smtp.as_ref().map(|smtp| (smtp.host.as_str(), smtp.from.as_str())), Some(("smtp.example.org", "")));
+    assert_eq!(
+        older
+            .smtp
+            .as_ref()
+            .map(|smtp| (smtp.host.as_str(), smtp.from.as_str())),
+        Some(("smtp.example.org", ""))
+    );
     assert_eq!(older.acme_ca, None);
     assert_eq!(older.root_domain.as_deref(), Some("pelle.io"));
 
@@ -1408,9 +1426,15 @@ fn the_settings_of_another_version_of_sakadm_are_read_as_far_as_they_go() {
     damaged["smtp"] = serde_json::json!({ "port": "not a port" });
     let damaged = serde_json::from_value::<LocalSettings>(damaged).unwrap();
     assert!(damaged.smtp.is_none());
-    assert_eq!(damaged.deployed_at.as_deref(), Some("2026-11-01T12:00:00+00:00"));
+    assert_eq!(
+        damaged.deployed_at.as_deref(),
+        Some("2026-11-01T12:00:00+00:00")
+    );
 
     // even an empty object is settings, of nothing
     let empty = read(serde_json::json!({}));
-    assert_eq!((empty.root_domain, empty.user_mode, empty.smtp.is_none()), (None, None, true));
+    assert_eq!(
+        (empty.root_domain, empty.user_mode, empty.smtp.is_none()),
+        (None, None, true)
+    );
 }

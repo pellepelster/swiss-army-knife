@@ -78,7 +78,7 @@ fun Browser.window(
     scheme: ColorScheme = ColorScheme.LIGHT,
     options: Browser.NewContextOptions.() -> Unit = {},
 ): BrowserContext {
-    check(Files.isDirectory(UI.resolve("theme"))) { "$UI/theme is missing, run mise run cli:theme" }
+    check(Files.isDirectory(UI.resolve("theme"))) { "$UI/theme is missing, run mise run desktop:ui" }
     check(Files.exists(FIXTURES)) { "$FIXTURES is missing, run cargo test window_fixtures -- --ignored in sak-admin-cli/src-tauri" }
     val context =
         newContext(

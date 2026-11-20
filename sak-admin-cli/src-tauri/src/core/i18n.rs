@@ -52,23 +52,8 @@ pub fn init() {
     rust_i18n::set_locale(&select_locale(sys_locale::get_locale()));
 }
 
-// "de-DE" (macos, windows) or "de_DE.UTF-8" (linux) is "de", unless there are texts for the region
 fn select_locale(system: Option<String>) -> String {
-    let available = rust_i18n::available_locales!();
-    let Some(system) = system else {
-        return "en".to_string();
-    };
-    let system = system
-        .split('.')
-        .next()
-        .unwrap_or_default()
-        .replace('_', "-");
-    let language = system.split('-').next().unwrap_or_default();
-    [system.as_str(), language]
-        .into_iter()
-        .find(|candidate| available.iter().any(|locale| locale == candidate))
-        .unwrap_or("en")
-        .to_string()
+    sak_desktop_shared::i18n::select_locale(system, &rust_i18n::available_locales!())
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 // the password of a deployment before its page opens. Rust checks it against the resources of the
 // deployment a moment after the last key. The password stays with the opened deployment until the
 // list shows again. With SAK_PASSWORD set, rust checks it at once
-import { navigate, setFailure, setStatus, show, text } from './views.js';
+import { navigate, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
 

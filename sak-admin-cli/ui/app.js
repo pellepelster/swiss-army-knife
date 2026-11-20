@@ -5,7 +5,7 @@ import './deployment.js';
 import { showDeployments } from './deployments.js';
 import { showProviders } from './providers.js';
 import { showVersion } from './update.js';
-import { loadTexts } from './views.js';
+import { loadTexts } from './shared/views.js';
 
 await loadTexts();
 await showVersion();

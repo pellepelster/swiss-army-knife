@@ -1,0 +1,24 @@
+# the texts of sak-desktop-shared in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+common:
+cli:
+ui:
+  login:
+    address: "SAK-Adresse"
+    address_hint: "Die Adresse deiner SAK-Instanz, z. B. sak.example.org"
+    sign_in: "Anmelden"
+    waiting: "Melde dich im Browser an und bestätige dort die Verbindung."
+    cancel: "Abbrechen"
+    browser:
+      signed_in_title: "Angemeldet"
+      signed_in: "%{app} ist angemeldet. Du kannst diesen Tab schließen."
+      cancelled_title: "Anmeldung abgebrochen"
+      cancelled: "%{app} ist nicht angemeldet. Du kannst diesen Tab schließen."
+    error:
+      invalid_address: "Eine Adresse wie sak.example.org ist nötig."
+      no_instance: "Unter dieser Adresse antwortet keine SAK-Instanz."
+      listener: "Die App kann nicht auf den Browser warten: %{error}"
+      browser: "Der Browser wurde nicht geöffnet: %{error}"
+      cancelled: "Die Anmeldung wurde abgebrochen."
+      timed_out: "Der Browser ist nicht rechtzeitig zurückgekommen. Melde dich erneut an."
+      refused: "Die SAK-Instanz hat die Anmeldung abgelehnt. Melde dich erneut an."
+      failed: "Die SAK-Instanz hat nicht wie erwartet geantwortet: %{error}"

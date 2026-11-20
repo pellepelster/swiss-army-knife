@@ -115,7 +115,14 @@ async fn completed_config(
 ) -> Result<DeploymentRequest, SakadmError> {
     match deployment.intent {
         Intent::Deploy => {
-            let detected = settings_of(manager, tokens, loaded, &deployment.name, &deployment.password).await?;
+            let detected = settings_of(
+                manager,
+                tokens,
+                loaded,
+                &deployment.name,
+                &deployment.password,
+            )
+            .await?;
             completed_with(deployment, &detected, "")
         }
         _ => Ok(deployment),
@@ -179,7 +186,14 @@ pub async fn check_deployment(
     let location = location.unwrap_or_else(default_location);
     let detected = settings_of(&manager, tokens.tokens(), &loaded, &name, &password).await?;
     let (deployment, plan) = manager
-        .check(tokens.tokens(), &name, &password, location, &detected, &container)
+        .check(
+            tokens.tokens(),
+            &name,
+            &password,
+            location,
+            &detected,
+            &container,
+        )
         .await?;
     checked.done(number, deployment, plan.seen());
     Ok(CheckResponse {

@@ -40,6 +40,7 @@ import java.net.UnknownHostException
 import java.time.Duration
 import java.time.Instant
 import io.pelle.sak.auth.model.ConnectExchangeRequest
+import io.pelle.sak.auth.model.ConnectRequest
 import io.pelle.sak.auth.model.ConnectResponse
 import io.pelle.sak.auth.model.ConnectStatusResponse
 import io.pelle.sak.auth.model.ExchangeRequest
@@ -316,7 +317,11 @@ fun Route.connectExchange(
                 call.respond(HttpStatusCode.TooManyRequests)
                 return@post
             }
-            val claims = tokens.exchangeConnectToken(request.token)
+            if (request.verifier != null && !PKCE_VERIFIER.matches(request.verifier)) {
+                call.respondErrors(AuthTexts.INVALID_CHALLENGE)
+                return@post
+            }
+            val claims = tokens.exchangeConnectToken(request.token, request.verifier)
             val roles = claims?.let { rolesOf(it.email) }.orEmpty()
             if (claims == null || roles.isEmpty()) {
                 call.respondErrors(AuthTexts.CODE_INVALID, status = HttpStatusCode.Unauthorized)
@@ -333,7 +338,9 @@ fun Route.connectExchange(
             description =
                 "The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for " +
                 "${tokens.connectTokenTtl.toMinutes()} minutes and only once; the session token is valid for " +
-                "${tokens.sessionTokenTtl.toDays()} days. Only a few attempts an hour are answered."
+                "${tokens.sessionTokenTtl.toDays()} days. A token issued with a pkce challenge is exchanged only with its " +
+                "verifier (43 to 128 characters of A-Z, a-z, 0-9, '-', '.', '_', '~'), one without only without. " +
+                "Only a few attempts an hour are answered."
             requestBody {
                 required = true
                 schema = jsonSchema<ConnectExchangeRequest>()
@@ -343,14 +350,16 @@ fun Route.connectExchange(
                     description = "The session token"
                     schema = jsonSchema<ExchangeResponse>()
                 }
-                errors(HttpStatusCode.Unauthorized, "The token is invalid, expired or was already used, or the user may no longer sign in")
+                errors(HttpStatusCode.BadRequest, "A malformed verifier")
+                errors(HttpStatusCode.Unauthorized, "The token is invalid, expired or was already used, the verifier does not match, or the user may no longer sign in")
                 errors(HttpStatusCode.TooManyRequests, "Too many attempts from this client")
             }
         }
     }
 }
 
-// the QR code that connects an app as the signed in user (SECURITY-3), behind
+// the QR code that connects an app as the signed in user (SECURITY-3), or the token the web app hands
+// a desktop app on the loopback, bound to the pkce challenge of the app; behind
 // authenticate(SESSION_AUTH): the token is in the fragment, which a browser never sends; a signed
 // request of sakadm (no expiry) gets 403
 @OptIn(ExperimentalKtorApi::class)
@@ -363,6 +372,11 @@ fun Route.connect(
         installApi()
 
         post {
+            val request = call.receive<ConnectRequest>()
+            if (request.challenge != null && !PKCE_CHALLENGE.matches(request.challenge)) {
+                call.respondErrors(AuthTexts.INVALID_CHALLENGE)
+                return@post
+            }
             val principal = call.principal<SessionPrincipal>()!!
             if (principal.expiresAt == null) {
                 call.respond(HttpStatusCode.Forbidden)
@@ -372,7 +386,7 @@ fun Route.connect(
                 call.respond(HttpStatusCode.TooManyRequests)
                 return@post
             }
-            val connect = tokens.issueConnectToken(principal.email, principal.withPassword)
+            val connect = tokens.issueConnectToken(principal.email, principal.withPassword, request.challenge)
             call.response.header(HttpHeaders.CacheControl, "no-store")
             call.respond(ConnectResponse("${app.url.trimEnd('/')}/connect#token=${connect.token}", connect.id, connect.expiresAt.apiTime()))
         }.describe {
@@ -382,12 +396,18 @@ fun Route.connect(
                 "The link the QR code shows: the SAK address with a token in its fragment, valid for " +
                 "${tokens.connectTokenTtl.toMinutes()} minutes and only once, that an app exchanges for a session of the " +
                 "signed in user (POST /api/v1/auth/login/connect). Whoever has the code signs in as the user until it " +
-                "expires. Only for a session, a few codes an hour."
+                "expires. With the pkce challenge (S256, 43 characters of base64url) of a desktop app the token is " +
+                "exchanged only with its verifier. Only for a session, a few codes an hour."
+            requestBody {
+                required = true
+                schema = jsonSchema<ConnectRequest>()
+            }
             responses {
                 HttpStatusCode.OK {
                     description = "The link of the QR code, its id and when it expires"
                     schema = jsonSchema<ConnectResponse>()
                 }
+                errors(HttpStatusCode.BadRequest, "A malformed challenge")
                 errors(HttpStatusCode.Forbidden, "A signed request of sakadm, which has no session to connect")
                 errors(HttpStatusCode.TooManyRequests, "Too many codes of this user")
             }
@@ -418,6 +438,10 @@ fun Route.connect(
         }
     }
 }
+
+// pkce (rfc 7636): a S256 challenge is 32 bytes as base64url, a verifier 43 to 128 unreserved characters
+private val PKCE_CHALLENGE = Regex("[A-Za-z0-9_-]{43}")
+private val PKCE_VERIFIER = Regex("[A-Za-z0-9._~-]{43,128}")
 
 // the key of the limit of all clients together
 private const val ALL_CLIENTS = "*"
@@ -519,6 +543,7 @@ internal fun clientNetwork(address: String): String {
 object AuthTexts : Catalog("auth") {
     val INVALID_EMAIL = text("invalid_email")
     val INVALID_NONCE = text("invalid_nonce")
+    val INVALID_CHALLENGE = text("invalid_challenge")
     val LINK_INVALID = text("link_invalid")
     val CODE_INVALID = text("code_invalid")
     val WRONG_PASSWORD = text("wrong_password")

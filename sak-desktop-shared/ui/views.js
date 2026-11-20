@@ -1,4 +1,5 @@
-// the views of index.html and their texts; rust gives the texts in the language of the system
+// the views of index.html and their texts, shared by the desktop apps (copied into ui/shared/ of
+// each); rust gives the texts in the language of the system
 const { invoke } = window.__TAURI__.core;
 
 let texts = {};

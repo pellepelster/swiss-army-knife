@@ -220,7 +220,7 @@ mod tests {
         );
     }
 
-    /// the integration tests (`mise run cli:test:integration`): the real runtimes, docker
+    /// the integration tests (`mise run admin-cli:test:integration`): the real runtimes, docker
     /// required, podman skipped when it is not installed; they pull the canary and the image
     /// from ghcr.io
     mod integration {

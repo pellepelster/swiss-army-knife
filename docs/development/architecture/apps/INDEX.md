@@ -22,7 +22,8 @@ document in its own one.
 
 The login, the settings, the labels and the file storage are no apps; all apps share them (refer to
 [Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`FRONTEND-1`), whose rules are
-in [HEALTH.md](HEALTH.md).
+in [HEALTH.md](HEALTH.md). sak-backup is no app of the backend either: it is a desktop app, whose architecture is in
+[BACKUP.md](BACKUP.md).
 
 ## Shared parts
 

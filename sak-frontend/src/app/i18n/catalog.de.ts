@@ -141,6 +141,15 @@ export const TEXTS = {
     too_many: 'Zu viele Codes, bitte versuche es später erneut.',
     failed: 'Der Code konnte nicht erstellt werden, bitte versuche es erneut.',
   },
+  connect_desktop: {
+    title: 'Desktop-App verbinden',
+    question: 'Eine Desktop-App auf diesem Computer, z. B. SAK Backup, möchte sich als du anmelden.',
+    warning: 'Verbinde sie nur, wenn du die Anmeldung gerade selbst in der App gestartet hast.',
+    connect: 'Verbinden',
+    cancel: 'Abbrechen',
+    connecting: 'Verbinde…',
+    invalid: 'Dieser Link einer Desktop-App ist nicht gültig. Starte die Anmeldung in der App erneut.',
+  },
   signin: {
     page_title: 'Anmeldung läuft',
     grocery_title: 'In der Einkaufslisten-App anmelden',

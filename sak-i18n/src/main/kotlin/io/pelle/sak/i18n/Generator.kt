@@ -28,7 +28,7 @@ val ANDROID_APPS: Map<String, String> =
         .map { it.substringBefore('#').trim() }
         .filter { it.isNotEmpty() }
         .associateWith { "android/$it/src/main/res" }
-const val ADMIN_CLI_DIR = "sak-admin-cli/src-tauri/locales"
+val ADMIN_CLI_DIR = PROGRAMS.getValue("admin_cli").dir
 
 private const val GENERATED = "generated from $SOURCE by sak-i18n (mise run i18n:generate), do not edit"
 
@@ -69,18 +69,18 @@ class Generator(
         return res
     }
 
-    // the texts of sakadm, a program of its own: the three parts of admin_cli, each below its name, as the
-    // command line and the window are one program
-    fun adminCli(): Group = Group(ADMIN_CLI_PARTS.associateWith { part -> texts.adminCli.group(part) ?: Group.EMPTY })
+    // the texts of a program of its own (sakadm, sak-backup): the three parts of its section, each below its
+    // name, as the command line and the window are one program
+    fun program(name: String): Group = Group(ADMIN_CLI_PARTS.associateWith { part -> texts.program(name).group(part) ?: Group.EMPTY })
 
     fun files(): Map<String, String> {
         val backend = platform("backend")
         val web = platform("web")
         val android = android()
-        val adminCli = adminCli()
+        val programs = PROGRAMS.mapValues { (name, _) -> program(name) }
         noPlurals("backend", backend)
         noPlurals("web", web)
-        noPlurals("sakadm", adminCli)
+        for ((name, group) in programs) noPlurals(PROGRAMS.getValue(name).binary, group)
         for ((path, text) in backend.leaves()) {
             if (LANGUAGES.any { language -> text.all(language).any { '$' in it } }) {
                 problems += "$path has a \$, the backend reads it as a variable of the environment"
@@ -104,8 +104,11 @@ class Generator(
                 files["$res/values-$language/strings.xml"] = AndroidXml.write(group, language, problems)
             }
         }
-        for (language in LANGUAGES) {
-            files["$ADMIN_CLI_DIR/$language.yml"] = Yaml.write(adminCli, language, "# the texts of sakadm in $language, $GENERATED")
+        for ((name, group) in programs) {
+            val program = PROGRAMS.getValue(name)
+            for (language in LANGUAGES) {
+                files["${program.dir}/$language.yml"] = Yaml.write(group, language, "# the texts of ${program.binary} in $language, $GENERATED")
+            }
         }
         if (problems.isNotEmpty()) throw TextsException(problems.distinct())
         return files

@@ -11,7 +11,7 @@ weight: 6
 
 **Checked again:** 2026-11-12, every finding listed is still open; the fixed ones are in the history of git.
 
-Scope: the signing of the zips of sakadm and of the images with cosign (`mise run cli:release`, `image:sign`), their
+Scope: the signing of the zips of sakadm and of the images with cosign (`mise run admin-cli:release`, `image:sign`), their
 verification in sakadm (`sakadm update`, `core/images.rs`, `SAKADM-12` in [SYSTEM.md](../architecture/SYSTEM.md)), the
 workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the repository on GitHub. The question: what
 could make a signature of the workflow certify something that was not built from this repository.

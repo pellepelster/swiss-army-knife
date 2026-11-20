@@ -1,0 +1,29 @@
+[package]
+name = "sak-desktop-shared"
+version = "0.1.0"
+description = "What the desktop apps of SAK share: the sign-in through the browser, the texts, the desktop entry"
+edition = "2024"
+rust-version = "1.90"
+publish = false
+
+[dependencies]
+# the commands of the sign-in in the window (window.rs), with the browser it opens
+tauri = { version = "2.12.5", features = [] }
+tauri-plugin-opener = "2.7.2"
+# the texts of locales/, generated from `desktop_shared` of i18n/texts.yml; the locale is the one the
+# app sets, rust_i18n has one for all crates
+rust-i18n = "4.2.4"
+reqwest = { version = "0.13.5", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# the one request of the browser on the loopback that hands over the connect token
+tiny_http = "0.12.0"
+getrandom = "0.4.3"
+base64 = "0.23.1"
+sha2 = "0.11.0"
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+url = "2.5.8"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+wiremock = "0.6.5"

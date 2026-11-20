@@ -1,0 +1,38 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "SAK Backup",
+  "mainBinaryName": "sak-backup",
+  "version": "0.1.0",
+  "identifier": "io.pelle.sak.backup",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "SAK Backup",
+        "width": 960,
+        "height": 640,
+        "minWidth": 640,
+        "minHeight": 480,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../../sak-theme/images/tauri/icon.png",
+      "../../sak-theme/images/tauri/32x32.png",
+      "../../sak-theme/images/tauri/128x128.png",
+      "../../sak-theme/images/tauri/128x128@2x.png",
+      "../../sak-theme/images/tauri/icon.icns",
+      "../../sak-theme/images/tauri/icon.ico"
+    ]
+  }
+}

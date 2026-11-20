@@ -133,9 +133,12 @@ export class AuthService {
   }
 
   // a QR code that connects an app as the signed in user (SECURITY-3), with the response, whose
-  // Date header tells the time of the backend its expiry is in
-  connect(): Observable<HttpResponse<Connect>> {
-    return this.http.post<Connect>('/api/v1/auth/connect', null, { observe: 'response' });
+  // Date header tells the time of the backend its expiry is in; a desktop app binds the token to
+  // the pkce challenge of its verifier
+  connect(challenge?: string): Observable<HttpResponse<Connect>> {
+    return this.http.post<Connect>('/api/v1/auth/connect', challenge ? { challenge } : {}, {
+      observe: 'response',
+    });
   }
 
   // whether an app used the code; 404 once it expired

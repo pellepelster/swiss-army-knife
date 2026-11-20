@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SAK Backup</title>
+    <!-- the theme of ../../sak-theme and the shared views of ../../sak-desktop-shared/ui, copied to
+         theme/ and shared/ by mise run desktop:ui; style.css has the layout -->
+    <link rel="stylesheet" href="theme/bootstrap.min.css">
+    <link rel="stylesheet" href="theme/fonts.css">
+    <link rel="stylesheet" href="theme/tokens.css">
+    <link rel="stylesheet" href="theme/bootstrap.css">
+    <link rel="stylesheet" href="theme/components.css">
+    <link rel="stylesheet" href="shared/login.css">
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <!-- one view at a time (show() of shared/views.js), the sign-in is shared/login.js; data-text
+         is the key of a text of src-tauri/locales/ -->
+    <div class="view shell" id="view-shell" hidden>
+      <nav class="shell-nav" data-text-label="ui.nav.label">
+        <div class="shell-brand">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <span data-text="ui.title"></span>
+        </div>
+        <ul class="nav nav-pills flex-column" id="nav">
+          <li class="nav-item"><button type="button" class="nav-link" data-page="backups" data-text="ui.nav.backups"></button></li>
+          <li class="nav-item"><button type="button" class="nav-link" data-page="repositories" data-text="ui.nav.repositories"></button></li>
+          <li class="nav-item"><button type="button" class="nav-link" data-page="snapshots" data-text="ui.nav.snapshots"></button></li>
+        </ul>
+      </nav>
+      <main class="shell-main">
+        <header class="page-header">
+          <h1 id="page-title"></h1>
+          <div class="user-menu">
+            <button type="button" class="btn btn-outline-secondary" id="user-menu-toggle"
+                    aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu">
+              <span id="user-name"></span> <span aria-hidden="true">▾</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" id="user-menu" role="menu">
+              <li><button type="button" class="dropdown-item" role="menuitem" id="sign-out" data-text="ui.menu.sign_out"></button></li>
+            </ul>
+          </div>
+        </header>
+        <p class="hint" data-text="ui.nav.empty"></p>
+      </main>
+    </div>
+  </body>
+</html>

@@ -18,8 +18,8 @@ pub mod providers;
 pub mod provision;
 pub mod roles;
 pub mod runtime;
-pub mod smtp;
 pub mod sak_backend;
+pub mod smtp;
 pub mod ssh;
 pub mod update;
 

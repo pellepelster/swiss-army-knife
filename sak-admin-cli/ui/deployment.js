@@ -7,7 +7,7 @@ import { STATES, frontendLink, resource } from './deployments.js';
 import { showMaintenance } from './maintenance.js';
 import { openedDeployment } from './password.js';
 import { row, runChecked } from './run.js';
-import { currentVisit, isCurrent, navigate, register, setFailure, setStatus, show, text } from './views.js';
+import { currentVisit, isCurrent, navigate, register, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
 

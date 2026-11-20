@@ -12,14 +12,12 @@ pub fn locale() -> String {
 // line) in locales/, english for the ones missing in the language
 #[tauri::command]
 pub fn ui_texts() -> HashMap<String, String> {
-    crate::_rust_i18n_backend()
+    let keys = crate::_rust_i18n_backend()
         .messages_for_locale("en")
         .unwrap_or_default()
         .into_iter()
-        .filter(|(key, _)| key.starts_with("ui.") || key.starts_with("common."))
-        .map(|(key, _)| {
-            let text = rust_i18n::t!(key.as_ref()).to_string();
-            (key.to_string(), text)
-        })
-        .collect()
+        .map(|(key, _)| key.to_string());
+    sak_desktop_shared::i18n::window_texts(keys, &["ui.", "common."], |key| {
+        rust_i18n::t!(key).to_string()
+    })
 }

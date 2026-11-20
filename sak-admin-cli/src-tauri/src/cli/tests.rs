@@ -546,28 +546,81 @@ fn mail_test_changes_only_what_its_flags_name_of_the_mail_server_of_the_deployme
         from: "sak@example.org".to_string(),
     };
     // as the deployment has it
-    let smtp = mail_server(&mail_test_args(&["pelle-io", "--to", "me@example.org"]), Some(&deployment), "").unwrap();
+    let smtp = mail_server(
+        &mail_test_args(&["pelle-io", "--to", "me@example.org"]),
+        Some(&deployment),
+        "",
+    )
+    .unwrap();
     assert_eq!(
-        (smtp.host.as_str(), smtp.port, smtp.username.as_str(), smtp.password.as_str(), smtp.starttls, smtp.from.as_str()),
-        ("smtp.example.org", 465, "sak", "running", false, "sak@example.org")
+        (
+            smtp.host.as_str(),
+            smtp.port,
+            smtp.username.as_str(),
+            smtp.password.as_str(),
+            smtp.starttls,
+            smtp.from.as_str()
+        ),
+        (
+            "smtp.example.org",
+            465,
+            "sak",
+            "running",
+            false,
+            "sak@example.org"
+        )
     );
     // a flag changes what it names, a typed password wins
-    let args = mail_test_args(&["pelle-io", "--to", "me@example.org", "--smtp-from", "other@example.org", "--smtp-port", "587"]);
+    let args = mail_test_args(&[
+        "pelle-io",
+        "--to",
+        "me@example.org",
+        "--smtp-from",
+        "other@example.org",
+        "--smtp-port",
+        "587",
+    ]);
     let smtp = mail_server(&args, Some(&deployment), "typed").unwrap();
     assert_eq!(
-        (smtp.port, smtp.password.as_str(), smtp.from.as_str(), smtp.username.as_str()),
+        (
+            smtp.port,
+            smtp.password.as_str(),
+            smtp.from.as_str(),
+            smtp.username.as_str()
+        ),
         (587, "typed", "other@example.org", "sak")
     );
     // another host is another mail server: nothing of the deployment's
-    let args = mail_test_args(&["pelle-io", "--to", "me@example.org", "--smtp-host", "mail.example.net"]);
+    let args = mail_test_args(&[
+        "pelle-io",
+        "--to",
+        "me@example.org",
+        "--smtp-host",
+        "mail.example.net",
+    ]);
     let smtp = mail_server(&args, Some(&deployment), "").unwrap();
     assert_eq!(
-        (smtp.host.as_str(), smtp.port, smtp.username.as_str(), smtp.password.as_str(), smtp.starttls, smtp.from.as_str()),
+        (
+            smtp.host.as_str(),
+            smtp.port,
+            smtp.username.as_str(),
+            smtp.password.as_str(),
+            smtp.starttls,
+            smtp.from.as_str()
+        ),
         ("mail.example.net", 587, "", "", true, "")
     );
     // without a mail server, a usage error
-    let error = mail_server(&mail_test_args(&["--to", "me@example.org"]), None, "").err().unwrap();
+    let error = mail_server(&mail_test_args(&["--to", "me@example.org"]), None, "")
+        .err()
+        .unwrap();
     assert_eq!(error.exit_code, EXIT_USAGE);
-    let error = mail_server(&mail_test_args(&["single", "--to", "me@example.org"]), None, "").err().unwrap();
+    let error = mail_server(
+        &mail_test_args(&["single", "--to", "me@example.org"]),
+        None,
+        "",
+    )
+    .err()
+    .unwrap();
     assert!(error.message.contains("single"), "{}", error.message);
 }

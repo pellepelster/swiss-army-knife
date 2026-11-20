@@ -4805,6 +4805,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "sak-desktop-shared"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "getrandom 0.4.3",
+ "reqwest",
+ "rust-i18n",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tauri",
+ "tauri-plugin-opener",
+ "tiny_http",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "sakadm"
 version = "0.1.0"
 dependencies = [
@@ -4829,6 +4847,7 @@ dependencies = [
  "rpassword",
  "rust-i18n",
  "sak-cloud",
+ "sak-desktop-shared",
  "self-replace",
  "semver",
  "serde",

@@ -168,6 +168,8 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 - `admin_cli.cli` texts only the sakadm cli shows, `admin_cli.ui` texts only the sakadm ui shows, `admin_cli.common` texts both show
   (the messages of core, the resource kinds and statuses, the actions of a plan), read as `cli.*`, `ui.*` and
   `common.*`. A text moves to `admin_cli.common` once both use it. `sak-admin-cli/src-tauri/locales/` is generated from it.
+- `sak_backup` has the same parts for sak-backup (`sak-backup/src-tauri/locales/`). `desktop_shared` has the texts of
+  `sak-desktop-shared` (e.g. the sign-in), which each desktop app shows next to its own; a key is in one of them only.
 
 ## Privacy in the code
 

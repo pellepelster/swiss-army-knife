@@ -83,13 +83,22 @@ class ConnectTest {
         withPassword: Boolean = false,
     ) = tokens.issueSessionToken(email, rolesOf(email), withPassword).token
 
-    private suspend fun HttpClient.code(session: String) = post("/api/v1/auth/connect") { bearerAuth(session) }
+    private suspend fun HttpClient.code(
+        session: String,
+        body: String = "{}",
+    ) = post("/api/v1/auth/connect") {
+        bearerAuth(session)
+        contentType(ContentType.Application.Json)
+        setBody(body)
+    }
 
-    private suspend fun HttpClient.exchange(token: String) =
-        post("/api/v1/auth/login/connect") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"token":"$token"}""")
-        }
+    private suspend fun HttpClient.exchange(
+        token: String,
+        verifier: String? = null,
+    ) = post("/api/v1/auth/login/connect") {
+        contentType(ContentType.Application.Json)
+        setBody(if (verifier == null) """{"token":"$token"}""" else """{"token":"$token","verifier":"$verifier"}""")
+    }
 
     // the token of the link of the QR code, in its fragment
     private fun tokenOf(link: String) = link.substringAfter("#token=")
@@ -171,4 +180,40 @@ class ConnectTest {
             client.exchange("wrong").status shouldBe HttpStatusCode.Unauthorized
             client.exchange("wrong").status shouldBe HttpStatusCode.TooManyRequests
         }
+
+    @Test
+    fun `a token of a challenge signs a desktop app in only with its verifier, a wrong one does not use it up`(): Unit =
+        connectTest {
+            val verifier = "v".repeat(43)
+            val link = client.code(session(USER), """{"challenge":"${pkceChallenge(verifier)}"}""").bodyAsText().json().string("link")
+            val token = tokenOf(link)
+            client.exchange(token).status shouldBe HttpStatusCode.Unauthorized
+            client.exchange(token, "w".repeat(43)).status shouldBe HttpStatusCode.Unauthorized
+            client.exchange(token, verifier).bodyAsText().json().string("email") shouldBe USER
+            client.exchange(token, verifier).status shouldBe HttpStatusCode.Unauthorized
+        }
+
+    @Test
+    fun `a token without a challenge is refused with a verifier`(): Unit =
+        connectTest {
+            val link = client.code(session(USER)).bodyAsText().json().string("link")
+            client.exchange(tokenOf(link), "v".repeat(43)).status shouldBe HttpStatusCode.Unauthorized
+            client.exchange(tokenOf(link)).status shouldBe HttpStatusCode.OK
+        }
+
+    @Test
+    fun `a malformed challenge or verifier is a bad request`(): Unit =
+        connectTest {
+            client.code(session(USER), """{"challenge":"short"}""").status shouldBe HttpStatusCode.BadRequest
+            client.code(session(USER), """{"challenge":"${"a".repeat(42)}+"}""").status shouldBe HttpStatusCode.BadRequest
+            val link = client.code(session(USER)).bodyAsText().json().string("link")
+            client.exchange(tokenOf(link), "short").status shouldBe HttpStatusCode.BadRequest
+            // a malformed verifier does not use the token up
+            client.exchange(tokenOf(link)).status shouldBe HttpStatusCode.OK
+        }
+
+    @Test
+    fun `the challenge is the base64url sha-256 of the verifier without padding (S256 of rfc 7636)`() {
+        pkceChallenge("a".repeat(43)) shouldBe "ZtNPunH49FD35FWYhT5Tv8I7vRKQJ8uxMaL0_9eHjNA"
+    }
 }

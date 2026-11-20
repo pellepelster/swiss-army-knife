@@ -7,6 +7,12 @@ retention says. [`backup.example.yaml`](backup.example.yaml) is a complete examp
 It does not replace `sakadm backup` (`SAKADM-8`), the one file sakadm pulls through ssh. It adds backups the server
 makes on its own, to repositories the user chooses, without a machine of the user.
 
+## The window
+
+`sak-backup` is a window for now (`src-tauri/`, `ui/`). It signs in at a SAK instance through the browser
+and shows the backups, the repositories and the snapshots on the left; they are empty for now. `mise run backup:run`
+runs it. The architecture is in [apps/BACKUP.md](../docs/development/architecture/apps/BACKUP.md).
+
 ## The file
 
 `/etc/sak-backup/backup.yaml`, owned by root, `0600`. Two maps: the repositories and the backups. A backup names the
