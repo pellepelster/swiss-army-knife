@@ -33,7 +33,11 @@ pub fn run() {
             sak_desktop_shared::window::known_instances,
             sak_desktop_shared::window::login,
             sak_desktop_shared::window::cancel_login,
-            sak_desktop_shared::window::logout
+            sak_desktop_shared::window::logout,
+            crate::repositories::repositories,
+            crate::repositories::repository,
+            crate::repositories::create_repository,
+            crate::repositories::update_repository
         ])
         .run(tauri::generate_context!())
         .expect("the window of sak-backup");

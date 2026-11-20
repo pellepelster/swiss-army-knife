@@ -1,0 +1,134 @@
+# the repositories of restic (docs/development/architecture/apps/BACKUP.md), the same rules as in
+# 0001-initial.yaml: created_at, updated_at, deleted_at and owner on every table, no row is ever
+# deleted for real, the partial unique indexes in plain sql for sqlite only. No column holds the
+# password of a repository (BACKUP-4)
+databaseChangeLog:
+  - changeSet:
+      id: 0003-restic
+      author: sak
+      changes:
+        # a repository (BACKUP-1): its url is a local path or an s3 bucket (BACKUP-2), the limits in
+        # KiB/s as restic takes them, null for none; shared with all users (BACKUP-6)
+        - createTable:
+            tableName: restic_repositories
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: shared
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: url
+                  type: varchar(1024)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: limit_upload_kib
+                  type: int
+              - column:
+                  name: limit_download_kib
+                  type: int
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX restic_repositories_owner_name_key ON restic_repositories (owner, name) WHERE deleted_at IS NULL
+
+        # the environment of restic for a repository, in its order; a secret of the connection
+        # (BACKUP-5) is never answered with the repository
+        - sql:
+            dbms: sqlite
+            sql: |
+              CREATE TABLE restic_repository_env (
+                id INTEGER NOT NULL PRIMARY KEY,
+                repository_id INTEGER NOT NULL,
+                owner VARCHAR(254) NOT NULL,
+                name VARCHAR(64) NOT NULL,
+                content VARCHAR(1024) NOT NULL,
+                secret BOOLEAN NOT NULL,
+                position INTEGER NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT restic_repository_env_repository_id_fkey FOREIGN KEY (repository_id) REFERENCES restic_repositories (id)
+              )
+        - sql:
+            dbms: h2
+            sql: |
+              CREATE TABLE restic_repository_env (
+                id INTEGER NOT NULL PRIMARY KEY,
+                repository_id INTEGER NOT NULL,
+                owner VARCHAR(254) NOT NULL,
+                name VARCHAR(64) NOT NULL,
+                content VARCHAR(1024) NOT NULL,
+                secret BOOLEAN NOT NULL,
+                position INTEGER NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT restic_repository_env_repository_id_fkey FOREIGN KEY (repository_id) REFERENCES restic_repositories (id)
+              )
+
+        # the extended options of restic (-o name=value) for a repository, in their order
+        - sql:
+            dbms: sqlite
+            sql: |
+              CREATE TABLE restic_repository_options (
+                id INTEGER NOT NULL PRIMARY KEY,
+                repository_id INTEGER NOT NULL,
+                owner VARCHAR(254) NOT NULL,
+                name VARCHAR(64) NOT NULL,
+                content VARCHAR(1024) NOT NULL,
+                position INTEGER NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT restic_repository_options_repository_id_fkey FOREIGN KEY (repository_id) REFERENCES restic_repositories (id)
+              )
+        - sql:
+            dbms: h2
+            sql: |
+              CREATE TABLE restic_repository_options (
+                id INTEGER NOT NULL PRIMARY KEY,
+                repository_id INTEGER NOT NULL,
+                owner VARCHAR(254) NOT NULL,
+                name VARCHAR(64) NOT NULL,
+                content VARCHAR(1024) NOT NULL,
+                position INTEGER NOT NULL,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP,
+                deleted_at TIMESTAMP,
+                CONSTRAINT restic_repository_options_repository_id_fkey FOREIGN KEY (repository_id) REFERENCES restic_repositories (id)
+              )
+
+        - sql:
+            dbms: sqlite
+            sql: CREATE INDEX restic_repository_env_repository_id_idx ON restic_repository_env (repository_id) WHERE deleted_at IS NULL
+        - sql:
+            dbms: sqlite
+            sql: CREATE INDEX restic_repository_options_repository_id_idx ON restic_repository_options (repository_id) WHERE deleted_at IS NULL

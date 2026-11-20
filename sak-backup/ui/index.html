@@ -33,17 +33,100 @@
       <main class="shell-main">
         <header class="page-header">
           <h1 id="page-title"></h1>
-          <div class="user-menu">
-            <button type="button" class="btn btn-outline-secondary" id="user-menu-toggle"
-                    aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu">
-              <span id="user-name"></span> <span aria-hidden="true">▾</span>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end" id="user-menu" role="menu">
-              <li><button type="button" class="dropdown-item" role="menuitem" id="sign-out" data-text="ui.menu.sign_out"></button></li>
-            </ul>
+          <div class="page-actions">
+            <!-- the actions of the page (UX-10), filled by the page -->
+            <div class="btn-group" role="group" id="page-toolbar"></div>
+            <div class="user-menu">
+              <button type="button" class="btn btn-outline-secondary" id="user-menu-toggle"
+                      aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu">
+                <span id="user-name"></span> <span aria-hidden="true">▾</span>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end" id="user-menu" role="menu">
+                <li><button type="button" class="dropdown-item" role="menuitem" id="sign-out" data-text="ui.menu.sign_out"></button></li>
+              </ul>
+            </div>
           </div>
         </header>
-        <p class="hint" data-text="ui.nav.empty"></p>
+        <p class="hint" id="page-empty" data-text="ui.nav.empty"></p>
+
+        <!-- the repositories of restic: their list (UX-11) and the form of one -->
+        <section class="page" id="page-repositories" hidden>
+          <p class="hint" id="repositories-status" aria-live="polite"></p>
+          <ul class="repositories" id="repositories-list"></ul>
+        </section>
+
+        <section class="page" id="page-repository" hidden>
+          <form class="repository-form" id="repository-form" novalidate>
+            <div>
+              <label class="form-label" for="repository-name" data-text="ui.repositories.name"></label>
+              <input class="form-control" id="repository-name" type="text" spellcheck="false" autocapitalize="off" aria-describedby="repository-name-hint repository-name-error">
+              <div class="form-text" id="repository-name-hint" data-text="ui.repositories.name_hint"></div>
+              <div class="field-error" id="repository-name-error"></div>
+            </div>
+            <fieldset>
+              <legend class="form-label" data-text="ui.repositories.kind"></legend>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="repository-kind" id="repository-kind-s3" value="s3">
+                <label class="form-check-label" for="repository-kind-s3" data-text="ui.repositories.kind_s3"></label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="repository-kind" id="repository-kind-local" value="local">
+                <label class="form-check-label" for="repository-kind-local" data-text="ui.repositories.kind_local"></label>
+              </div>
+            </fieldset>
+            <div>
+              <label class="form-label" for="repository-url" id="repository-url-label"></label>
+              <input class="form-control sak-mono" id="repository-url" type="text" spellcheck="false" autocapitalize="off" aria-describedby="repository-url-hint repository-url-error">
+              <div class="form-text" id="repository-url-hint"></div>
+              <div class="field-error" id="repository-url-error"></div>
+            </div>
+            <div class="repository-s3" id="repository-s3">
+              <div>
+                <label class="form-label" for="repository-access-key" data-text="ui.repositories.access_key"></label>
+                <input class="form-control sak-mono" id="repository-access-key" type="text" spellcheck="false" autocapitalize="off" autocomplete="off">
+              </div>
+              <div>
+                <label class="form-label" for="repository-secret-key" data-text="ui.repositories.secret_key"></label>
+                <input class="form-control sak-mono" id="repository-secret-key" type="password" spellcheck="false" autocomplete="off">
+              </div>
+              <div>
+                <label class="form-label" for="repository-region" data-text="ui.repositories.region"></label>
+                <input class="form-control" id="repository-region" type="text" spellcheck="false" autocapitalize="off" aria-describedby="repository-region-hint">
+                <div class="form-text" id="repository-region-hint" data-text="ui.repositories.region_hint"></div>
+              </div>
+            </div>
+            <div class="repository-limits">
+              <div>
+                <label class="form-label" for="repository-upload" data-text="ui.repositories.upload"></label>
+                <input class="form-control" id="repository-upload" type="text" spellcheck="false" aria-describedby="repository-limit-hint repository-upload-error">
+                <div class="field-error" id="repository-upload-error"></div>
+              </div>
+              <div>
+                <label class="form-label" for="repository-download" data-text="ui.repositories.download"></label>
+                <input class="form-control" id="repository-download" type="text" spellcheck="false" aria-describedby="repository-limit-hint repository-download-error">
+                <div class="field-error" id="repository-download-error"></div>
+              </div>
+              <div class="form-text" id="repository-limit-hint" data-text="ui.repositories.limit_hint"></div>
+            </div>
+            <div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="repository-shared" aria-describedby="repository-shared-hint repository-shared-error">
+                <label class="form-check-label" for="repository-shared" data-text="ui.repositories.shared"></label>
+              </div>
+              <div class="form-text" id="repository-shared-hint"></div>
+              <div class="field-error" id="repository-shared-error"></div>
+            </div>
+            <!-- the error of the save, above its buttons (UX-15) -->
+            <p class="hint" id="repository-status" aria-live="polite"></p>
+            <!-- the buttons of the form, bottom right, the main one rightmost (UX-9) -->
+            <div class="form-buttons">
+              <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary" id="repository-cancel" data-text="ui.repositories.cancel"></button>
+                <button type="submit" class="btn btn-primary" id="repository-submit"></button>
+              </div>
+            </div>
+          </form>
+        </section>
       </main>
     </div>
   </body>

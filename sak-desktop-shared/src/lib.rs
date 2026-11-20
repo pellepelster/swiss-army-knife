@@ -5,6 +5,7 @@
 // the texts of locales/, generated from `desktop_shared` of i18n/texts.yml
 rust_i18n::i18n!("locales", fallback = "en");
 
+pub mod api;
 pub mod desktop;
 pub mod i18n;
 pub mod instances;

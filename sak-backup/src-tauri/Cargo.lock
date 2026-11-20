@@ -3793,9 +3793,11 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 name = "sak-backup"
 version = "0.1.0"
 dependencies = [
+ "reqwest",
  "rust-i18n",
  "sak-desktop-shared",
  "serde",
+ "serde_json",
  "sys-locale",
  "tauri",
  "tauri-build",

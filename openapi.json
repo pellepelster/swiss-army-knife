@@ -4440,6 +4440,323 @@
                 ]
             }
         },
+        "/api/v1/restic/repositories": {
+            "post": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "Create a repository of restic",
+                "description": "A local path or an s3 bucket, with the environment and the options restic needs to reach it; only the names of its kind are taken. There is no password: restic gets it on the computer that runs it.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResticRepositoryRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticRepositoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid value, or a malformed request, e.g. one with a password",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The user has a repository of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "The repositories of restic",
+                "description": "The repositories of the signed in user and the shared ones of the others, by name; never the values of their secrets.",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the repositories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ResticRepositoryResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/restic/repositories/{id}": {
+            "put": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "Change a repository of restic",
+                "description": "Replaces all values of a repository of the signed in user; a secret given as kept keeps its value. Only the owner changes a repository.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the repository",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResticRepositoryRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticRepositoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid value, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "A shared repository of another user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The user has another repository of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "A repository of restic",
+                "description": "A repository of the signed in user or a shared one of another user, without the values of its secrets.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the repository",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticRepositoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/restic/repositories/{id}/secrets": {
+            "get": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "The secrets of the connection of a repository",
+                "description": "The values of the secrets of the environment, for whoever sees the repository: the app that runs restic needs them to reach it (BACKUP-5, BACKUP-6).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the repository",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The secrets by name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticSecretsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
         "/api/v1/users": {
             "post": {
                 "tags": [
@@ -6642,6 +6959,186 @@
                 "properties": {
                     "done": {
                         "type": "boolean"
+                    }
+                }
+            },
+            "ResticEnvResponse": {
+                "type": "object",
+                "title": "ResticEnvResponse",
+                "required": [
+                    "secret"
+                ],
+                "properties": {
+                    "value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "secret": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "ResticLimitsResponse": {
+                "type": "object",
+                "title": "ResticLimitsResponse",
+                "properties": {
+                    "upload": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "download": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ResticRepositoryResponse": {
+                "type": "object",
+                "title": "ResticRepositoryResponse",
+                "required": [
+                    "id",
+                    "name",
+                    "shared",
+                    "mine",
+                    "url",
+                    "env",
+                    "options",
+                    "limits",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "mine": {
+                        "type": "boolean"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "env": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/ResticEnvResponse"
+                        }
+                    },
+                    "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "limits": {
+                        "$ref": "#/components/schemas/ResticLimitsResponse"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ResticEnvRequest": {
+                "type": "object",
+                "title": "ResticEnvRequest",
+                "properties": {
+                    "value": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "secret": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "kept": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "ResticLimitsRequest": {
+                "type": "object",
+                "title": "ResticLimitsRequest",
+                "properties": {
+                    "upload": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "download": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ResticRepositoryRequest": {
+                "type": "object",
+                "title": "ResticRepositoryRequest",
+                "required": [
+                    "name",
+                    "url"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "shared": {
+                        "type": "boolean"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "env": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/ResticEnvRequest"
+                        }
+                    },
+                    "options": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
+                    },
+                    "limits": {
+                        "$ref": "#/components/schemas/ResticLimitsRequest"
+                    }
+                }
+            },
+            "ResticSecretsResponse": {
+                "type": "object",
+                "title": "ResticSecretsResponse",
+                "required": [
+                    "env"
+                ],
+                "properties": {
+                    "env": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
                     }
                 }
             },

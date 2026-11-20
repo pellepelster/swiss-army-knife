@@ -1,14 +1,52 @@
 ---
 title: "Backup"
-description: "sak-backup, the desktop app for the backups of a SAK instance, and what it shares with sakadm."
+description: "The backups of the user with restic: the repositories of the instance and sak-backup, the desktop app that runs restic."
 weight: 50
 ---
 
 # Backup
 
-A desktop app, no app of the backend (refer to [the architecture of the apps](INDEX.md#the-apps)). Adds to
-[SYSTEM.md](../SYSTEM.md). The backups it is for are a proposal, in
-[sak-backup/README.md](https://github.com/pellepelster/swiss-army-knife/blob/main/sak-backup/README.md).
+Adds to [the architecture of the apps](INDEX.md) and [SYSTEM.md](../SYSTEM.md).
+
+## Purpose
+
+The backups of the user, made with restic on the computer of the user. The SAK instance keeps where the backups go,
+never the password of a backup.
+
+## Data
+
+- `BACKUP-1` **A repository** is where restic keeps backups: its name, its url, the environment and the options
+  restic needs to reach it, and its limits of upload and download. Its name is unique among the repositories of its
+  owner.
+- `BACKUP-2` **A repository is local or s3.** A local repository is an absolute path on the computer that runs
+  restic; an s3 repository is a bucket of an s3 service. The url holds no login; the login is in the environment.
+- `BACKUP-3` **Only what restic needs to reach the repository.** The environment and the options take only the names
+  of their kind of repository, and nothing that makes restic start a program. A repository of another user can not
+  run anything on the computer of the user.
+- `BACKUP-4` **The password of a backup is never stored.** Neither the instance nor its api takes the password
+  restic encrypts a repository with. The user gives it for each run, on the computer that runs restic.
+- `BACKUP-5` **The secrets of a connection** (e.g. the secret key of an s3 bucket) are stored, and the api answers
+  them only when asked for them alone, never in a list or in a repository.
+
+## Sharing
+
+- `BACKUP-6` **A shared repository** is seen by all users. Whoever sees it gets the secrets of its connection too,
+  so they can back up to it; sharing a repository shares its secrets. Only its owner shares it. A local repository
+  can not be shared: its path is a folder of each computer.
+
+## API
+
+List, create, change and read repositories, and read the secrets of the connection of one; for every signed in
+user. A user sees their own repositories and the shared ones of the others.
+
+## Settings
+
+None.
+
+## External systems
+
+The instance contacts none. The app on the computer of the user contacts the s3 service of an s3 repository, with
+the secrets of its connection: that service sees the IP address of the user and the encrypted backups.
 
 ## Parts
 
@@ -18,13 +56,14 @@ A desktop app, no app of the backend (refer to [the architecture of the apps](IN
 | The pages             | `sak-backup/ui`             | The navigation on the left, the menu of the user at the top right          |
 | sak-desktop-shared    | `sak-desktop-shared`        | What the desktop apps share (`DESK-1` in SYSTEM.md)                        |
 | The page of the login | `sak-frontend`, `connect/`  | `/connect-desktop`, where the user confirms the connection of the app      |
+| The repositories      | `io.pelle.sak.backend.restic`, `sak-model` (`restic/`) | The api of the repositories and their tables      |
 
 The sign-in is `DESKTOP-1` to `DESKTOP-3` in [UI-UX.md](../../UI-UX.md) and `SECURITY-3`.
 
 ## Privacy
 
-The app connects to the SAK instance of the user only, and opens the browser of the user. Nothing goes to a third
-party.
+The app connects to the SAK instance of the user and to the s3 services of the repositories of the user (refer to
+[External systems](#external-systems)), and opens the browser of the user.
 
 ## Run and test
 

@@ -8,6 +8,7 @@
 rust_i18n::i18n!("locales", fallback = "en");
 
 mod gui;
+mod repositories;
 
 fn main() {
     rust_i18n::set_locale(&sak_desktop_shared::i18n::select_locale(

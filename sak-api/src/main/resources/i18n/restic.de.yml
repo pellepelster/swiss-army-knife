@@ -1,0 +1,13 @@
+# the texts of the catalog restic in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+invalid_name: "Ein Name hat Kleinbuchstaben, Ziffern und -, höchstens 63, und beginnt und endet mit einem Buchstaben oder einer Ziffer."
+invalid_url: "Ein Repository ist ein absoluter Pfad wie /media/backup oder ein s3-Bucket wie s3:https://s3.example.org/bucket."
+login_in_url: "Die Adresse eines Repositorys enthält keine Anmeldung; gib sie in der Umgebung an."
+local_not_shared: "Ein lokales Repository kann nicht geteilt werden: Sein Pfad ist ein Ordner jedes Computers."
+unknown_env: "%{name} ist keine Variable der Umgebung dieser Art von Repository."
+invalid_env: "%{name} hat genau eins von: einem Wert, einem Geheimnis oder kept."
+nothing_kept: "%{name} hat noch kein Geheimnis, das behalten werden kann."
+unknown_option: "%{name} ist keine Option dieser Art von Repository."
+invalid_value: "Der Wert von %{name} ist nicht gültig."
+invalid_limit: "%{limit} ist keine Rate wie 20MiB/s (KiB, MiB, GiB), von höchstens 10GiB/s."
+repository_exists: "Du hast ein Repository dieses Namens."
+only_owner_changes: "Nur der Besitzer ändert ein Repository."

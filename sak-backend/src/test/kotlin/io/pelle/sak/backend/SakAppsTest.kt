@@ -654,6 +654,70 @@ class SakAppsTest {
     }
 
     @Test
+    fun `keeps repositories of restic, shared ones for every user, their secrets only on their own`() {
+        withServer { port ->
+            val admin = signIn(port)
+            val second = signIn(port, email = "second@example.org", mails = 2)
+            get(port, "/api/v1/restic/repositories").statusCode() shouldBe 401
+            get(port, "/api/v1/restic/repositories", admin).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
+            val body =
+                """{"name":"offsite","shared":true,"url":"s3:https://s3.example.org/backups",""" +
+                    """"env":{"AWS_ACCESS_KEY_ID":{"value":"AKIA1"},"AWS_SECRET_ACCESS_KEY":{"secret":"s3cr3t"}},""" +
+                    """"options":{"s3.storage-class":"STANDARD_IA"},"limits":{"upload":"20MiB/s"}}"""
+            val id =
+                post(port, "/api/v1/restic/repositories", body, admin).let {
+                    it.statusCode() shouldBe 201
+                    it.body() shouldNotContain "s3cr3t"
+                    it.json().let { repository ->
+                        repository.string("mine") shouldBe "true"
+                        repository.getValue("env").jsonObject.getValue("AWS_SECRET_ACCESS_KEY").jsonObject.string("secret") shouldBe "true"
+                        repository.getValue("limits").jsonObject.string("upload") shouldBe "20MiB/s"
+                    }
+                    it.json().string("id")
+                }
+            post(port, "/api/v1/restic/repositories", body, admin).statusCode() shouldBe 409
+            // there is no password to give (BACKUP-4)
+            post(port, "/api/v1/restic/repositories", """{"name":"pw","url":"/media/backup","password":"secret"}""", admin).statusCode() shouldBe 400
+            post(port, "/api/v1/restic/repositories", """{"name":"x","url":"sftp:host:/srv"}""", admin).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "restic.invalid_url"
+            }
+            val local = post(port, "/api/v1/restic/repositories", """{"name":"disk","url":"/media/backup"}""", admin).json().string("id")
+
+            // the other user sees the shared one, with its secrets, not the local one of the admin
+            get(port, "/api/v1/restic/repositories", second).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
+                listOf("offsite")
+            get(port, "/api/v1/restic/repositories", admin).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe
+                listOf("disk", "offsite")
+            get(port, "/api/v1/restic/repositories/$id", second).json().string("mine") shouldBe "false"
+            get(port, "/api/v1/restic/repositories/$local", second).statusCode() shouldBe 404
+            get(port, "/api/v1/restic/repositories/$local/secrets", second).statusCode() shouldBe 404
+            get(port, "/api/v1/restic/repositories/$id/secrets", second).let {
+                it.statusCode() shouldBe 200
+                it.headers().firstValue("Cache-Control").get() shouldBe "no-store"
+                it.json().getValue("env").jsonObject.string("AWS_SECRET_ACCESS_KEY") shouldBe "s3cr3t"
+            }
+            get(port, "/api/v1/restic/repositories", admin).body() shouldNotContain "s3cr3t"
+            get(port, "/api/v1/restic/repositories/$id", admin).body() shouldNotContain "s3cr3t"
+
+            // only the owner changes it; kept keeps a secret
+            val change =
+                """{"name":"offsite","shared":false,"url":"s3:https://s3.example.org/backups",""" +
+                    """"env":{"AWS_ACCESS_KEY_ID":{"value":"AKIA2"},"AWS_SECRET_ACCESS_KEY":{"kept":true}}}"""
+            put(port, "/api/v1/restic/repositories/$id", change, second).statusCode() shouldBe 403
+            put(port, "/api/v1/restic/repositories/$id", change, admin).let {
+                it.statusCode() shouldBe 200
+                it.json().string("shared") shouldBe "false"
+                it.json().containsKey("updatedAt") shouldBe true
+            }
+            get(port, "/api/v1/restic/repositories/$id/secrets", admin).json().getValue("env").jsonObject.string("AWS_SECRET_ACCESS_KEY") shouldBe
+                "s3cr3t"
+            // no longer shared
+            get(port, "/api/v1/restic/repositories/$id", second).statusCode() shouldBe 404
+        }
+    }
+
+    @Test
     fun `keeps todo lists and their tasks, a done one until the list is purged, changes stream as server-sent events`() {
         withServer { port ->
             val session = signIn(port)
@@ -1383,6 +1447,9 @@ class SakAppsTest {
                     "/api/v1/todo/items/{id}/due-date",
                     "/api/v1/todo/lists/{id}/purge",
                     "/api/v1/todo/changes",
+                    "/api/v1/restic/repositories",
+                    "/api/v1/restic/repositories/{id}",
+                    "/api/v1/restic/repositories/{id}/secrets",
                     "/api/v1/files",
                     "/api/v1/files/{id}",
                     "/api/v1/files/{id}/thumbnail",

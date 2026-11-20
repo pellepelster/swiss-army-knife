@@ -3893,6 +3893,275 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/restic/repositories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The repositories of restic
+     * @description The repositories of the signed in user and the shared ones of the others, by name; never the values of their secrets.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Where the page starts in the whole list, 0 by default */
+          offset?: number;
+          /** @description How many items the page has at most, 50 by default and 100 at most */
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description A page of the repositories */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: components['schemas']['ResticRepositoryResponse'][];
+              pagination: components['schemas']['PaginationResponse'];
+            };
+          };
+        };
+        /** @description An invalid page */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /**
+     * Create a repository of restic
+     * @description A local path or an s3 bucket, with the environment and the options restic needs to reach it; only the names of its kind are taken. There is no password: restic gets it on the computer that runs it.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ResticRepositoryRequest'];
+        };
+      };
+      responses: {
+        /** @description The new repository */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticRepositoryResponse'];
+          };
+        };
+        /** @description An invalid value, or a malformed request, e.g. one with a password */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user has a repository of the name */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/restic/repositories/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * A repository of restic
+     * @description A repository of the signed in user or a shared one of another user, without the values of its secrets.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the repository */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The repository */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticRepositoryResponse'];
+          };
+        };
+        /** @description The user sees no such repository */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    /**
+     * Change a repository of restic
+     * @description Replaces all values of a repository of the signed in user; a secret given as kept keeps its value. Only the owner changes a repository.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the repository */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ResticRepositoryRequest'];
+        };
+      };
+      responses: {
+        /** @description The changed repository */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticRepositoryResponse'];
+          };
+        };
+        /** @description An invalid value, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description A shared repository of another user */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such repository */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user has another repository of the name */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/restic/repositories/{id}/secrets': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The secrets of the connection of a repository
+     * @description The values of the secrets of the environment, for whoever sees the repository: the app that runs restic needs them to reach it (BACKUP-5, BACKUP-6).
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the repository */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The secrets by name */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticSecretsResponse'];
+          };
+        };
+        /** @description The user sees no such repository */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/users': {
     parameters: {
       query?: never;
@@ -4996,6 +5265,63 @@ export interface components {
     /** TodoDoneRequest */
     TodoDoneRequest: {
       done: boolean;
+    };
+    /** ResticEnvResponse */
+    ResticEnvResponse: {
+      value?: string | null;
+      secret: boolean;
+    };
+    /** ResticLimitsResponse */
+    ResticLimitsResponse: {
+      upload?: string | null;
+      download?: string | null;
+    };
+    /** ResticRepositoryResponse */
+    ResticRepositoryResponse: {
+      id: number;
+      name: string;
+      shared: boolean;
+      mine: boolean;
+      url: string;
+      env: {
+        [key: string]: components['schemas']['ResticEnvResponse'];
+      };
+      options: {
+        [key: string]: string;
+      };
+      limits: components['schemas']['ResticLimitsResponse'];
+      createdAt: string;
+      updatedAt?: string | null;
+    };
+    /** ResticEnvRequest */
+    ResticEnvRequest: {
+      value?: string | null;
+      secret?: string | null;
+      kept?: boolean;
+    };
+    /** ResticLimitsRequest */
+    ResticLimitsRequest: {
+      upload?: string | null;
+      download?: string | null;
+    };
+    /** ResticRepositoryRequest */
+    ResticRepositoryRequest: {
+      name: string;
+      shared?: boolean;
+      url: string;
+      env?: {
+        [key: string]: components['schemas']['ResticEnvRequest'];
+      };
+      options?: {
+        [key: string]: string;
+      };
+      limits?: components['schemas']['ResticLimitsRequest'];
+    };
+    /** ResticSecretsResponse */
+    ResticSecretsResponse: {
+      env: {
+        [key: string]: string;
+      };
     };
     /** UserResponse */
     UserResponse: {

@@ -39,7 +39,7 @@ impl Address {
     }
 
     /// `parse`, with http on the loopback (e.g. `localhost:4200` of local:run) only when `http`
-    fn parse_with(text: &str, http: bool) -> Result<Address, LoginError> {
+    pub(crate) fn parse_with(text: &str, http: bool) -> Result<Address, LoginError> {
         let text = text.trim();
         if text.is_empty() {
             return Err(LoginError::InvalidAddress);

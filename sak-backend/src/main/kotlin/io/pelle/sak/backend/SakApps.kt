@@ -51,6 +51,7 @@ import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
 import io.pelle.sak.backend.grocery.grocery
 import io.pelle.sak.backend.todo.todo
+import io.pelle.sak.backend.restic.restic
 import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.backend.settings.settings as settingsRoutes
 import io.pelle.sak.config.SakConfig
@@ -221,6 +222,10 @@ fun Application.apps(
                         route("/todo") {
                             requireRole(Role.ADMIN, Role.USER)
                             todo(todoService)
+                        }
+                        route("/restic") {
+                            requireRole(Role.ADMIN, Role.USER)
+                            restic(resticService)
                         }
                         route("/users") {
                             requireRole(Role.ADMIN)

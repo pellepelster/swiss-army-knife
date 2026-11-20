@@ -64,6 +64,39 @@ backend:
     unavailable:
       en: "This is not available right now, please try again later."
       de: "Das ist gerade nicht verfügbar, bitte versuche es später erneut."
+  restic:
+    invalid_name:
+      en: "A name has lower case letters, digits and -, at most 63, and starts and ends with a letter or a digit."
+      de: "Ein Name hat Kleinbuchstaben, Ziffern und -, höchstens 63, und beginnt und endet mit einem Buchstaben oder einer Ziffer."
+    invalid_url:
+      en: "A repository is an absolute path like /media/backup or an s3 bucket like s3:https://s3.example.org/bucket."
+      de: "Ein Repository ist ein absoluter Pfad wie /media/backup oder ein s3-Bucket wie s3:https://s3.example.org/bucket."
+    login_in_url:
+      en: "The address of a repository has no login; give it in the environment."
+      de: "Die Adresse eines Repositorys enthält keine Anmeldung; gib sie in der Umgebung an."
+    local_not_shared:
+      en: "A local repository can not be shared: its path is a folder of each computer."
+      de: "Ein lokales Repository kann nicht geteilt werden: Sein Pfad ist ein Ordner jedes Computers."
+    unknown_env:
+      en: "%{name} is no variable of the environment of this kind of repository."
+      de: "%{name} ist keine Variable der Umgebung dieser Art von Repository."
+    invalid_env:
+      en: "%{name} has exactly one of a value, a secret, or kept."
+      de: "%{name} hat genau eins von: einem Wert, einem Geheimnis oder kept."
+    nothing_kept:
+      en: "%{name} has no secret yet to keep."
+      de: "%{name} hat noch kein Geheimnis, das behalten werden kann."
+    unknown_option:
+      en: "%{name} is no option of this kind of repository."
+      de: "%{name} ist keine Option dieser Art von Repository."
+    invalid_value: { en: "The value of %{name} is not valid.", de: "Der Wert von %{name} ist nicht gültig." }
+    invalid_limit:
+      en: "%{limit} is no rate like 20MiB/s (KiB, MiB, GiB), of at most 10GiB/s."
+      de: "%{limit} ist keine Rate wie 20MiB/s (KiB, MiB, GiB), von höchstens 10GiB/s."
+    repository_exists: { en: "You have a repository of this name.", de: "Du hast ein Repository dieses Namens." }
+    only_owner_changes:
+      en: "Only the owner changes a repository."
+      de: "Nur der Besitzer ändert ein Repository."
   auth:
     invalid_email: { en: "No valid e-mail address.", de: "Keine gültige E-Mail-Adresse." }
     invalid_nonce:
@@ -2175,6 +2208,77 @@ sak_backup:
       repositories: { en: "Repositories", de: "Repositorys" }
       snapshots: { en: "Snapshots", de: "Snapshots" }
       empty: { en: "Nothing here yet.", de: "Hier gibt es noch nichts." }
+    repositories:
+      create: { en: "Create repository", de: "Repository erstellen" }
+      edit: { en: "Edit repository", de: "Repository bearbeiten" }
+      loading: { en: "Loading the repositories…", de: "Lade die Repositorys…" }
+      empty:
+        en: "No repositories yet. Create one to back up to it."
+        de: "Noch keine Repositorys. Erstelle eins, um dorthin zu sichern."
+      load_failed:
+        en: "The repositories could not be loaded: %{error}"
+        de: "Die Repositorys konnten nicht geladen werden: %{error}"
+      save_failed:
+        en: "The repository could not be saved: %{error}"
+        de: "Das Repository konnte nicht gespeichert werden: %{error}"
+      shared_badge: { en: "Shared", de: "Geteilt" }
+      others_badge: { en: "Of another user", de: "Von einem anderen Benutzer" }
+      actions: { en: "Actions of %{name}", de: "Aktionen für %{name}" }
+      open: { en: "Edit", de: "Bearbeiten" }
+      delete: { en: "Delete", de: "Löschen" }
+      delete_unavailable:
+        en: "Deleting a repository is not possible yet."
+        de: "Ein Repository kann noch nicht gelöscht werden."
+      only_owner:
+        en: "Only the owner changes a repository."
+        de: "Nur der Besitzer ändert ein Repository."
+      name: { en: "Name", de: "Name" }
+      name_hint:
+        en: "Lower case letters, digits and -, e.g. offsite"
+        de: "Kleinbuchstaben, Ziffern und -, z. B. offsite"
+      invalid_name:
+        en: "A name has lower case letters, digits and -, at most 63, and starts and ends with a letter or a digit."
+        de: "Ein Name hat Kleinbuchstaben, Ziffern und -, höchstens 63, und beginnt und endet mit einem Buchstaben oder einer Ziffer."
+      kind: { en: "Kind", de: "Art" }
+      kind_s3: { en: "S3 bucket", de: "S3-Bucket" }
+      kind_local: { en: "Local folder", de: "Lokaler Ordner" }
+      path: { en: "Path", de: "Pfad" }
+      path_hint:
+        en: "An absolute path on the computer that backs up, e.g. /media/backup/sak"
+        de: "Ein absoluter Pfad auf dem Computer, der sichert, z. B. /media/backup/sak"
+      invalid_path:
+        en: "A path starts with /, e.g. /media/backup/sak."
+        de: "Ein Pfad beginnt mit /, z. B. /media/backup/sak."
+      bucket: { en: "Address of the bucket", de: "Adresse des Buckets" }
+      bucket_hint:
+        en: "e.g. s3:https://s3.example.org/bucket, https only"
+        de: "z. B. s3:https://s3.example.org/bucket, nur https"
+      invalid_bucket:
+        en: "An address like s3:https://s3.example.org/bucket, without a login, is needed."
+        de: "Eine Adresse wie s3:https://s3.example.org/bucket, ohne Anmeldung, ist nötig."
+      access_key: { en: "Access key ID", de: "Access-Key-ID" }
+      secret_key: { en: "Secret access key", de: "Secret Access Key" }
+      secret_kept: { en: "Kept, type to replace it", de: "Behalten, tippe, um ihn zu ersetzen" }
+      region: { en: "Region", de: "Region" }
+      region_hint: { en: "e.g. eu-central-1, empty for the default", de: "z. B. eu-central-1, leer für den Standard" }
+      shared:
+        en: "Share with all users"
+        de: "Mit allen Benutzern teilen"
+      shared_hint:
+        en: "Every user of this SAK instance sees it and gets the secrets of its connection."
+        de: "Jeder Benutzer dieser SAK-Instanz sieht es und bekommt die Geheimnisse seiner Verbindung."
+      shared_local:
+        en: "A local folder can not be shared: its path is a folder of each computer."
+        de: "Ein lokaler Ordner kann nicht geteilt werden: Sein Pfad ist ein Ordner jedes Computers."
+      upload: { en: "Upload limit", de: "Upload-Limit" }
+      download: { en: "Download limit", de: "Download-Limit" }
+      limit_hint: { en: "A rate like 20MiB/s, empty for none", de: "Eine Rate wie 20MiB/s, leer für keine" }
+      invalid_limit:
+        en: "A rate like 20MiB/s (KiB, MiB, GiB) is needed."
+        de: "Eine Rate wie 20MiB/s (KiB, MiB, GiB) ist nötig."
+      save: { en: "Save", de: "Speichern" }
+      cancel: { en: "Cancel", de: "Abbrechen" }
+      saving: { en: "Saving…", de: "Speichere…" }
     menu:
       label: { en: "Menu of %{user}", de: "Menü von %{user}" }
       admin: { en: "Admin", de: "Admin" }
