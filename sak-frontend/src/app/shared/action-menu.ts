@@ -18,8 +18,9 @@ import { ConfirmDelete } from './confirm-delete';
 // content, e.g. `<a class="dropdown-item" role="menuitem">`. With `deletes`, its last entry deletes
 // what the row shows: it asks inline in place of the button, Keep is the safe default (UX-4.1,
 // WEB-3); a delete that does not apply stays disabled and says why (UX-8). The menu is fixed to the
-// window, so a card or a scrolling table does not cut it off; it closes on a click elsewhere,
-// Escape, a scroll
+// window, so a card or a scrolling table does not cut it off; it opens above the button where the
+// window has no room for it below, e.g. on the last rows of a long list; it closes on a click
+// elsewhere, Escape, a scroll
 @Component({
   selector: 'app-action-menu',
   imports: [ConfirmDelete, TranslatePipe],
@@ -108,7 +109,8 @@ export class ActionMenu {
 
   protected readonly open = signal(false);
   protected readonly confirming = signal(false);
-  // where the menu shows, under the button and aligned to its right end
+  // where the menu shows, under the button (above it where the window has no room below) and
+  // aligned to its right end
   protected readonly top = signal(0);
   protected readonly right = signal(0);
 
@@ -121,16 +123,29 @@ export class ActionMenu {
     this.top.set(rect.bottom);
     this.right.set(document.documentElement.clientWidth - rect.right);
     this.open.set(true);
-    // the first entry that applies, of any kind, e.g. the priorities of a task (menuitemradio)
     afterNextRender(
-      () =>
-        this.menu()
-          .nativeElement.querySelector<HTMLElement>(
+      () => {
+        const menu = this.menu().nativeElement;
+        // shown now, so it has its height: above the button where it does not fit below and
+        // there is more room above, else as far down as the window allows
+        const height = menu.offsetHeight;
+        const below = window.innerHeight - rect.bottom;
+        if (height > below) {
+          this.top.set(
+            rect.top > below
+              ? Math.max(0, rect.top - height)
+              : Math.max(0, window.innerHeight - height),
+          );
+        }
+        // the first entry that applies, of any kind, e.g. the priorities of a task (menuitemradio)
+        menu
+          .querySelector<HTMLElement>(
             ['menuitem', 'menuitemradio', 'menuitemcheckbox']
               .map((role) => `[role=${role}]:not(:disabled)`)
               .join(', '),
           )
-          ?.focus(),
+          ?.focus({ preventScroll: true });
+      },
       { injector: this.injector },
     );
   }
