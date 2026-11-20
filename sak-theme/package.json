@@ -5,6 +5,6 @@
   "private": true,
   "license": "UNLICENSED",
   "dependencies": {
-    "bootstrap": "5.3.8"
+    "bootstrap": "5.3.9"
   }
 }
