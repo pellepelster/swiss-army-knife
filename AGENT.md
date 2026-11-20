@@ -9,10 +9,16 @@ Read this file first. It contains rules for the complete repository.
 - Every document below `docs/` starts with front matter (`title`, `description`, `weight`, a short
   `linkTitle` where the title is long), so the site of the documentation (`site/`, `mise run docs:serve`) lists it.
   A link between documents that does not resolve fails `mise run docs:build`.
-- Never add an architecture rule (`docs/development/architecture/`) on your own. Ask the user first and add the rule
-  only after the user explicitly agrees. This applies also to a rule that a change, a review or a fix needs.
-- Never change [UI-UX.md](docs/development/UI-UX.md) on your own. Ask the user first and change it only after the
-  user explicitly agrees.
+- Never add, change, move or delete a rule on your own. A rule is each entry with an id (e.g. `SECURITY-3`,
+  `UX-7`, `DESKTOP-1`) in `docs/development/architecture/` and in [UI-UX.md](docs/development/UI-UX.md), and each
+  bullet of this file. This applies also to a rule that a change, a review or a fix makes necessary or incorrect.
+  Before each change:
+    1. Show the user the exact new text of the rule, and the old text when the rule changes.
+    2. Wait for the explicit agreement of the user to this text.
+    3. Write exactly the agreed text. A different word, an added sentence or a new id needs a new agreement.
+  An instruction to move or to shorten a rule is not an agreement to its new text: show the text first. The
+  agreement is for one change only. When code and a rule do not agree, stop and ask; do not change the rule to
+  agree with the code.
 - Write reviews (of code, the model, the architecture) to `docs/development/reviews/`, one file for each review. Each
   finding has an id that is unique among the reviews in the repository, the prefix of its review and a number. A fixed
   finding stays in its review, struck through (`~~…~~`), until every finding of the review is fixed; then the review is

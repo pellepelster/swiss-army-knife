@@ -19,21 +19,7 @@ A desktop app, no app of the backend (refer to [the architecture of the apps](IN
 | sak-desktop-shared    | `sak-desktop-shared`        | What the desktop apps share (`DESK-1` in SYSTEM.md)                        |
 | The page of the login | `sak-frontend`, `connect/`  | `/connect-desktop`, where the user confirms the connection of the app      |
 
-## Sign-in
-
-What the user sees is in [UI-UX.md](../../UI-UX.md): `DESKTOP-1` (a sign-in is remembered), `DESKTOP-2` (sign-in
-through the browser) and `DESKTOP-3` (the SAK addresses are remembered). The security of it is `SECURITY-3`. In the
-code:
-
-- The api of a SAK address is the one of its `/.well-known/sak.json` (`SERVER-6`). A release takes https only; a
-  debug build (`mise run backup:run`) takes http on the loopback too, e.g. `localhost:4200` of `local:run`.
-- The browser is started on a page of the app on the loopback, which leads it on to `/connect-desktop` of the
-  instance once; the url the browser is started with has no secret. The token comes back to the loopback, which leads the browser on to a page without the token in its url, and is
-  bound to the app by pkce. A sign-in waits 15 minutes for the browser.
-- The addresses are in `instances.json` in the config directory of the app (`{ "instances": [ { "address": … } ] }`,
-  at most 20, only for the user; refer to [ACCEPTED-RISKS.md](../../ACCEPTED-RISKS.md)).
-- The session token is in the keychain under the identifier of the app, with the SAK address as its user. The app
-  shows one instance, so a sign-in deletes the tokens of the other addresses.
+The sign-in is `DESKTOP-1` to `DESKTOP-3` in [UI-UX.md](../../UI-UX.md) and `SECURITY-3`.
 
 ## Privacy
 
