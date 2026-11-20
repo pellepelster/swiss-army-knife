@@ -24,6 +24,9 @@ struct Instances {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct Instance {
     address: String,
+    /// the api the address named at the sign-in: a kept session goes to this one only
+    #[serde(default)]
+    api: Option<String>,
 }
 
 /// the file of the known instances; one writer at a time
@@ -58,8 +61,19 @@ impl InstanceStore {
             .and_then(|address| Address::parse(address).ok())
     }
 
-    /// puts the address first, once, and keeps at most MAX_INSTANCES; answers the ones it dropped
-    pub fn remember(&self, address: &Address) -> Result<Vec<Address>, String> {
+    /// the api of the sign-in at the address, none for an address that is not known
+    pub fn api(&self, address: &Address) -> Option<String> {
+        let _guard = self.lock.lock().unwrap();
+        self.load()
+            .instances
+            .into_iter()
+            .find(|instance| instance.address == address.as_str())
+            .and_then(|instance| instance.api)
+    }
+
+    /// puts the address first, once, with the api of its sign-in, and keeps at most
+    /// MAX_INSTANCES; answers the ones it dropped
+    pub fn remember(&self, address: &Address, api: &str) -> Result<Vec<Address>, String> {
         let _guard = self.lock.lock().unwrap();
         let mut instances = self.load();
         instances
@@ -69,6 +83,7 @@ impl InstanceStore {
             0,
             Instance {
                 address: address.as_str().to_string(),
+                api: Some(api.to_string()),
             },
         );
         let dropped = instances
@@ -150,6 +165,8 @@ mod tests {
         )
     }
 
+    const API: &str = "https://api.example.org/v1/";
+
     fn address(text: &str) -> Address {
         Address::parse(text).unwrap()
     }
@@ -164,16 +181,21 @@ mod tests {
     #[test]
     fn the_address_used_last_comes_first_and_once() {
         let (store, directory) = store("order");
-        store.remember(&address("alpha.example.org")).unwrap();
-        store.remember(&address("beta.example.org")).unwrap();
+        store.remember(&address("alpha.example.org"), API).unwrap();
+        store.remember(&address("beta.example.org"), API).unwrap();
         store
-            .remember(&address("https://alpha.example.org/notes"))
+            .remember(&address("https://alpha.example.org/notes"), API)
             .unwrap();
         assert_eq!(
             store.addresses(),
             ["https://alpha.example.org/", "https://beta.example.org/"]
         );
         assert_eq!(store.last(), Some(address("alpha.example.org")));
+        assert_eq!(
+            store.api(&address("alpha.example.org")).as_deref(),
+            Some(API)
+        );
+        assert_eq!(store.api(&address("gamma.example.org")), None);
         let json = std::fs::read_to_string(store.path.clone()).unwrap();
         assert!(json.contains("\"instances\""), "{json}");
         assert!(!directory.join("app").join("instances.json.tmp").exists());
@@ -186,7 +208,7 @@ mod tests {
         for at in 0..MAX_INSTANCES {
             assert!(
                 store
-                    .remember(&address(&format!("i{at}.example.org")))
+                    .remember(&address(&format!("i{at}.example.org")), API)
                     .unwrap()
                     .is_empty()
             );
@@ -194,7 +216,7 @@ mod tests {
         for at in MAX_INSTANCES..MAX_INSTANCES + 5 {
             // the one used longest ago goes
             let dropped = store
-                .remember(&address(&format!("i{at}.example.org")))
+                .remember(&address(&format!("i{at}.example.org")), API)
                 .unwrap();
             assert_eq!(
                 dropped,
@@ -216,7 +238,7 @@ mod tests {
         std::fs::create_dir_all(store.path.parent().unwrap()).unwrap();
         std::fs::write(&store.path, "not json").unwrap();
         assert!(store.addresses().is_empty());
-        store.remember(&address("alpha.example.org")).unwrap();
+        store.remember(&address("alpha.example.org"), API).unwrap();
         assert_eq!(store.addresses(), ["https://alpha.example.org/"]);
         std::fs::remove_dir_all(directory).unwrap();
     }
@@ -239,7 +261,7 @@ mod tests {
     fn only_the_user_reads_the_file() {
         use std::os::unix::fs::PermissionsExt;
         let (store, directory) = store("private");
-        store.remember(&address("alpha.example.org")).unwrap();
+        store.remember(&address("alpha.example.org"), API).unwrap();
         let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
         assert_eq!(mode(&store.path), 0o600);
         assert_eq!(mode(store.path.parent().unwrap()), 0o700);

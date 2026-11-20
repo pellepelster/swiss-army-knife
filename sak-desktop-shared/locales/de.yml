@@ -29,3 +29,4 @@ ui:
     restore:
       expired: "Die Sitzung ist abgelaufen. Melde dich erneut an."
       unreachable: "Die SAK-Instanz hat nicht geantwortet. Melde dich erneut an oder versuche es später."
+      changed: "Die SAK-Adresse nennt eine andere API als bei deiner letzten Anmeldung. Melde dich erneut an."

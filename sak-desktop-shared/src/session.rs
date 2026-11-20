@@ -164,6 +164,8 @@ pub enum RestoreError {
     Expired,
     /// the instance did not answer; the session stays for the next start
     Unreachable,
+    /// the address names another api than at the sign-in; the session is not sent to it
+    Changed,
 }
 
 impl RestoreError {
@@ -172,6 +174,7 @@ impl RestoreError {
         match self {
             RestoreError::Expired => "expired",
             RestoreError::Unreachable => "unreachable",
+            RestoreError::Changed => "changed",
         }
     }
 }
@@ -222,6 +225,8 @@ impl SessionManager {
             timeout,
             client: reqwest::Client::builder()
                 .timeout(REQUEST_TIMEOUT)
+                // an answer that leads elsewhere is no answer: nothing of a sign-in follows it
+                .redirect(reqwest::redirect::Policy::none())
                 .build()
                 .expect("a client of reqwest"),
             secrets,
@@ -233,8 +238,16 @@ impl SessionManager {
     }
 
     /// takes up the session the keychain has of `address`, checked with the instance: none when
-    /// the keychain has none or fails
-    pub async fn restore(&self, address: Address) -> Result<Option<User>, RestoreError> {
+    /// the keychain has none or fails. `api` is the api of the sign-in (`session_api`): the token
+    /// goes to this api only, never to another one the address names since, and nowhere without it
+    pub async fn restore(
+        &self,
+        address: Address,
+        api: Option<String>,
+    ) -> Result<Option<User>, RestoreError> {
+        let Some(known) = api else {
+            return Ok(None);
+        };
         let Some(token) = self
             .secret(&address, |secrets, address| secrets.get(address))
             .await
@@ -246,6 +259,9 @@ impl SessionManager {
             .api(&address)
             .await
             .map_err(|_| RestoreError::Unreachable)?;
+        if api.as_str() != known {
+            return Err(RestoreError::Changed);
+        }
         let response = self
             .client
             .get(
@@ -402,6 +418,15 @@ impl SessionManager {
             .unwrap()
             .as_ref()
             .map(|session| session.user.clone())
+    }
+
+    /// the api of the session, as the address named it at the sign-in; `restore` takes it
+    pub fn session_api(&self) -> Option<String> {
+        self.session
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|session| session.api.to_string())
     }
 
     /// the address of the instance of the session
@@ -1167,6 +1192,11 @@ mod tests {
         );
     }
 
+    /// the api the instance of the tests names
+    fn api_of(server: &MockServer) -> Option<String> {
+        Some(format!("{}/api/v1/", server.uri()))
+    }
+
     fn kept(secrets: &Arc<crate::secrets::Memory>, server: &MockServer) -> Option<String> {
         secrets
             .tokens
@@ -1203,7 +1233,12 @@ mod tests {
 
         // the next start of the app
         let next = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
-        let user = next.restore(address(&server)).await.unwrap().unwrap();
+        assert_eq!(first.session_api(), api_of(&server));
+        let user = next
+            .restore(address(&server), first.session_api())
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(user.username, "anna@example.org");
         assert_eq!(next.user(), Some(user));
         assert!(
@@ -1214,7 +1249,10 @@ mod tests {
         next.logout().await;
         assert_eq!(kept(&secrets, &server), None);
         let after = SessionManager::new(secrets, LOGIN_TIMEOUT);
-        assert_eq!(after.restore(address(&server)).await, Ok(None));
+        assert_eq!(
+            after.restore(address(&server), api_of(&server)).await,
+            Ok(None)
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -1242,7 +1280,7 @@ mod tests {
             .insert(address(&server).as_str().to_string(), "old".to_string());
         let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
         assert_eq!(
-            manager.restore(address(&server)).await,
+            manager.restore(address(&server), api_of(&server)).await,
             Err(RestoreError::Expired)
         );
         assert_eq!(kept(&secrets, &server), None);
@@ -1260,7 +1298,7 @@ mod tests {
             .insert(address(&server).as_str().to_string(), "kept".to_string());
         let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
         assert_eq!(
-            manager.restore(address(&server)).await,
+            manager.restore(address(&server), api_of(&server)).await,
             Err(RestoreError::Unreachable)
         );
         assert_eq!(kept(&secrets, &server).as_deref(), Some("kept"));
@@ -1276,8 +1314,59 @@ mod tests {
         let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
         sign_in(&manager, &server).await.unwrap();
         assert!(manager.user().is_some());
-        assert_eq!(manager.restore(address(&server)).await, Ok(None));
+        assert_eq!(
+            manager.restore(address(&server), api_of(&server)).await,
+            Ok(None)
+        );
         manager.logout().await;
         assert_eq!(manager.user(), None);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_session_is_sent_only_to_the_api_of_its_sign_in() {
+        let server = instance(session_token()).await;
+        let secrets = Arc::new(crate::secrets::Memory::default());
+        secrets
+            .tokens
+            .lock()
+            .unwrap()
+            .insert(address(&server).as_str().to_string(), "kept".to_string());
+        let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
+        // the address names another api than at the sign-in
+        let other = Some("https://api.other.example/v1/".to_string());
+        assert_eq!(
+            manager.restore(address(&server), other).await,
+            Err(RestoreError::Changed)
+        );
+        // no api of a sign-in is known
+        assert_eq!(manager.restore(address(&server), None).await, Ok(None));
+        assert_eq!(kept(&secrets, &server).as_deref(), Some("kept"));
+        let asked = server.received_requests().await.unwrap();
+        assert!(
+            asked
+                .iter()
+                .all(|request| request.url.path() == "/.well-known/sak.json")
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_redirect_is_not_followed() {
+        let elsewhere = instance(session_token()).await;
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/.well-known/sak.json"))
+            .respond_with(ResponseTemplate::new(307).insert_header(
+                "Location",
+                format!("{}/.well-known/sak.json", elsewhere.uri()),
+            ))
+            .mount(&server)
+            .await;
+        let manager = SessionManager::default();
+        let opened = |_: &str, _: &str| -> Result<(), String> { panic!("the browser opened") };
+        assert_eq!(
+            manager.login(address(&server), pages(), opened).await,
+            Err(LoginError::NoInstance)
+        );
+        assert!(elsewhere.received_requests().await.unwrap().is_empty());
     }
 }

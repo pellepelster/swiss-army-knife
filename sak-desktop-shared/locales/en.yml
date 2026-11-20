@@ -29,3 +29,4 @@ ui:
     restore:
       expired: "The session expired. Sign in again."
       unreachable: "The SAK instance did not answer. Sign in again, or try later."
+      changed: "The SAK address names another API than at your last sign-in. Sign in again."

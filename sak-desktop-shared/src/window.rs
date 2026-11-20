@@ -41,8 +41,9 @@ pub async fn restore_session(
     let Some(address) = instances.last() else {
         return Ok(None);
     };
+    let api = instances.api(&address);
     sessions
-        .restore(address)
+        .restore(address, api)
         .await
         .map_err(|error| restore_message(&error))
 }
@@ -87,7 +88,7 @@ pub async fn login(
         }
     }
     // signed in all the same, the address is typed again next time
-    match instances.remember(&address) {
+    match instances.remember(&address, &sessions.session_api().unwrap_or_default()) {
         Ok(dropped) => {
             for address in dropped {
                 sessions.forget(&address).await;
@@ -169,7 +170,11 @@ mod tests {
     #[test]
     fn every_error_of_a_restore_has_a_text() {
         let texts = crate::i18n::shared_texts();
-        for error in [RestoreError::Expired, RestoreError::Unreachable] {
+        for error in [
+            RestoreError::Expired,
+            RestoreError::Unreachable,
+            RestoreError::Changed,
+        ] {
             let key = format!("ui.login.restore.{}", error.kind());
             assert!(texts.contains_key(&key), "{key}");
         }

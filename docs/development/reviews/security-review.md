@@ -28,7 +28,7 @@ Nothing found lets somebody without a session read data, get a session or get a 
 a pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in
 through the browser, `instances.json`, the keychain) and the window of sak-backup. The question for it: what can
 another program or another user of the machine do, a link somebody sends, or a host on the way. Its findings are
-`SEC-34`, `SEC-36` and `SEC-38`; the others it had are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
+`SEC-36` and `SEC-38`; the others it had are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
 person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
 
 ## What is good
@@ -155,20 +155,6 @@ Fix: always name the host and ask before the exchange; when a deployment is stor
 dialog that is there for a session.
 
 ## Could fix
-
-### `SEC-34` The app follows redirects, and the api of an instance is read again at every start
-
-- The client of `SessionManager` has the redirect policy of reqwest (10 hops). A `307` or `308` of the api sends the
-  body of the exchange, the connect token and the verifier, on to another host; a redirect of
-  `/.well-known/sak.json` is followed too. reqwest drops the `Authorization` header when the host changes, so the
-  session token itself does not travel.
-- `restore` reads the api from `.well-known/sak.json` of the SAK address each time and sends the kept token to the
-  host it names, any https host. Whoever can change that one static answer at the SAK address (the web app and the
-  api are two hosts, `SERVER-6`) gets the token of every desktop app at its next start, without a sign-in.
-
-Both need the server of the instance or its DNS, which is trusted with the data anyway; the tokens it gets this
-way are its own. Fix: `redirect::Policy::none()` for the client; `instances.json` keeps the api next to the address
-after a sign-in, and a start that finds another one shows the sign-in instead of sending the token.
 
 ### `SEC-16` A deploy takes the root domain from the running server
 
