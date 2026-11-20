@@ -24,8 +24,10 @@ A desktop app, no app of the backend (refer to [the architecture of the apps](IN
 `sak-desktop-shared` is a crate that sak-backup and sakadm use:
 
 - `session`: the sign-in through the browser and the session (`SessionManager`), see below.
-- `window`: the tauri commands of the sign-in (`user`, `login`, `cancel_login`, `logout`). An app manages a
-  `SessionManager` and lists them in its `generate_handler!`.
+- `window`: the tauri commands of the sign-in (`user`, `known_instances`, `login`, `cancel_login`, `logout`). An app
+  manages a `SessionManager` and an `InstanceStore` (`window::instance_store`) and lists them in its
+  `generate_handler!`.
+- `instances`: the SAK addresses the app signed in at (`InstanceStore`), see below.
 - `i18n`: the language of the system, the texts of the window; its own texts are `desktop_shared` of texts.yml.
 - `desktop`: the desktop entry of linux.
 - `ui/`: `views.js` (the views and their texts), `login.js` and `login.css` (the view of the sign-in).
@@ -47,6 +49,22 @@ The flow is the one of a desktop app in `SECURITY-3`:
 
 The session is in memory only. A sign-out forgets it, a restart of the app signs out. A sign-in waits 15 minutes for
 the browser, long enough for a login link by e-mail; Cancel stops it.
+
+## Local file
+
+The app remembers the SAK addresses it signed in at, in `instances.json` in its config directory (tauri's
+`app_config_dir`, after the identifier `io.pelle.sak.backup`; e.g. `~/.config/io.pelle.sak.backup/` on linux):
+
+```json
+{ "instances": [ { "address": "https://sak.example.org/" } ] }
+```
+
+- A list, so the app can know several instances later; the one used last is first, the first is the address the
+  sign-in shows. At most 20.
+- An address goes first after a sign-in that succeeded; a failed one changes nothing, a sign-out keeps it.
+- Addresses only, never a session. The file is plain, only for the user (`0600`, its directory `0700`; refer to
+  [ACCEPTED-RISKS.md](../../ACCEPTED-RISKS.md)). It is written to a new file that replaces it, so a crash leaves the
+  old one or the new one. A file that does not read is no instance, the next sign-in writes it anew.
 
 ## Privacy
 

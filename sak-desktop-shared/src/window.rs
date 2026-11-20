@@ -1,10 +1,11 @@
 //! the sign-in in the window of a desktop app: the tauri commands behind `ui/login.js`. The app
-//! manages a `SessionManager` and lists the commands in its `generate_handler!`, e.g.
-//! `sak_desktop_shared::window::login`
+//! manages a `SessionManager` and an `InstanceStore` (`instance_store`) and lists the commands in
+//! its `generate_handler!`, e.g. `sak_desktop_shared::window::login`
 
+use crate::instances::{FILE_NAME, InstanceStore};
 use crate::session::{Address, LoginError, Pages, SessionManager, User};
 use rust_i18n::t;
-use tauri::State;
+use tauri::{Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
 /// who is signed in, none at the start and after the sign-out
@@ -13,23 +14,43 @@ pub fn user(sessions: State<'_, SessionManager>) -> Option<User> {
     sessions.user()
 }
 
-/// signs in at the SAK address through the browser; the error is the text the page shows
+/// the instances of `instances.json` in the config directory of the app (its identifier)
+pub fn instance_store<R: tauri::Runtime>(app: &tauri::App<R>) -> tauri::Result<InstanceStore> {
+    Ok(InstanceStore::new(
+        app.path().app_config_dir()?.join(FILE_NAME),
+    ))
+}
+
+/// the addresses the app signed in at, the one used last first
+#[tauri::command]
+pub fn known_instances(instances: State<'_, InstanceStore>) -> Vec<String> {
+    instances.addresses()
+}
+
+/// signs in at the SAK address through the browser; the error is the text the page shows. The
+/// address is remembered once the sign-in succeeded
 #[tauri::command]
 pub async fn login(
     app: tauri::AppHandle,
     sessions: State<'_, SessionManager>,
+    instances: State<'_, InstanceStore>,
     address: String,
 ) -> Result<User, String> {
     let address = Address::parse(&address).map_err(|error| message(&error))?;
     let pages = pages(&app.package_info().name);
-    sessions
-        .login(address, pages, |url| {
+    let user = sessions
+        .login(address.clone(), pages, |url| {
             app.opener()
                 .open_url(url, None::<&str>)
                 .map_err(|error| error.to_string())
         })
         .await
-        .map_err(|error| message(&error))
+        .map_err(|error| message(&error))?;
+    // signed in all the same, the address is typed again next time
+    if let Err(error) = instances.remember(&address) {
+        eprintln!("the SAK address was not remembered: {error}");
+    }
+    Ok(user)
 }
 
 /// stops a sign-in that waits for the browser

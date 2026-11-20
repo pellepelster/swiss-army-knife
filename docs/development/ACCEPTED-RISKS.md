@@ -87,3 +87,8 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
 
 - **A photographed QR code signs in.** Whoever sees the code that connects an app signs in as its user (`SECURITY-3`).
   Accepted: it is valid for 2 minutes and once, shows only on request, and the page says when an app used it.
+
+- **The desktop apps keep the SAK addresses in a plain file.** sak-backup writes the addresses it signed in at to
+  `instances.json` in its config directory, not encrypted. Accepted: it holds addresses only, never a session or a
+  token, the file and its directory are for the user only (`0600`, `0700`), and an encryption would need a key in
+  the keychain of the system, which not every desktop has.

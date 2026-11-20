@@ -4,6 +4,7 @@
 use rust_i18n::t;
 use sak_desktop_shared::session::SessionManager;
 use std::collections::HashMap;
+use tauri::Manager;
 
 /// the entry of sak-backup in the desktop of linux
 #[cfg(target_os = "linux")]
@@ -21,11 +22,16 @@ pub fn run() {
     DESKTOP_ENTRY.install();
     tauri::Builder::default()
         .manage(SessionManager::default())
+        .setup(|app| {
+            app.manage(sak_desktop_shared::window::instance_store(app)?);
+            Ok(())
+        })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             locale,
             ui_texts,
             sak_desktop_shared::window::user,
+            sak_desktop_shared::window::known_instances,
             sak_desktop_shared::window::login,
             sak_desktop_shared::window::cancel_login,
             sak_desktop_shared::window::logout

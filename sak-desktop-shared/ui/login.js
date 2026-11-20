@@ -73,14 +73,16 @@ function build() {
 }
 
 // shows the sign-in: `title` and `intro` are the keys of texts of the app, `onSignedIn` gets the
-// user (who-am-i) once the browser came back
-export function showLogin({ title, intro, onSignedIn }) {
+// user (who-am-i) once the browser came back. The address is the one signed in at last
+export async function showLogin({ title, intro, onSignedIn }) {
   options = { onSignedIn };
   view ??= build();
   view.title.textContent = text(title);
   view.intro.textContent = text(intro);
   view.waiting(false);
   setStatus(view.status, '');
+  const [last] = await invoke('known_instances');
+  if (last && !view.address.value) view.address.value = last;
   show('view-login');
   view.address.focus();
 }
