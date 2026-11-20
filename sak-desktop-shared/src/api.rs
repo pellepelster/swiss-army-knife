@@ -34,7 +34,7 @@ struct ApiErrorResponse {
     errors: Vec<ApiErrorMessage>,
 }
 
-/// `method` of `path` below the api (e.g. `restic/repositories`) with `body`; an answer without a
+/// `method` of `path` below the api (e.g. `examples`) with `body`; an answer without a
 /// body is null
 pub async fn call(
     sessions: &SessionManager,
@@ -154,7 +154,7 @@ mod tests {
     async fn a_call_sends_the_session_and_the_language_and_answers_the_json() {
         let (sessions, server) = signed_in().await;
         Mock::given(method("POST"))
-            .and(path("/api/v1/restic/repositories"))
+            .and(path("/api/v1/examples"))
             .and(header("authorization", "Bearer token"))
             .respond_with(ResponseTemplate::new(201).set_body_json(serde_json::json!({ "id": 7 })))
             .mount(&server)
@@ -162,7 +162,7 @@ mod tests {
         let answer = call(
             &sessions,
             reqwest::Method::POST,
-            "restic/repositories",
+            "examples",
             Some(&serde_json::json!({ "name": "x" })),
         )
         .await;
@@ -179,16 +179,16 @@ mod tests {
     async fn a_refusal_has_the_errors_of_the_api() {
         let (sessions, server) = signed_in().await;
         Mock::given(method("POST"))
-            .and(path("/api/v1/restic/repositories"))
+            .and(path("/api/v1/examples"))
             .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
-                "errors": [{ "code": "restic.invalid_name", "message": "A name has…" }]
+                "errors": [{ "code": "examples.invalid_name", "message": "A name has…" }]
             })))
             .mount(&server)
             .await;
         let answer = call(
             &sessions,
             reqwest::Method::POST,
-            "restic/repositories",
+            "examples",
             Some(&Value::Null),
         )
         .await;
@@ -197,7 +197,7 @@ mod tests {
             Err(ApiError::Refused {
                 status: 400,
                 errors: vec![ApiErrorMessage {
-                    code: "restic.invalid_name".to_string(),
+                    code: "examples.invalid_name".to_string(),
                     message: "A name has…".to_string()
                 }]
             })
@@ -208,17 +208,17 @@ mod tests {
     async fn a_session_the_instance_no_longer_takes_signs_out() {
         let (sessions, server) = signed_in().await;
         Mock::given(method("GET"))
-            .and(path("/api/v1/restic/repositories"))
+            .and(path("/api/v1/examples"))
             .respond_with(ResponseTemplate::new(401))
             .mount(&server)
             .await;
         assert_eq!(
-            call(&sessions, reqwest::Method::GET, "restic/repositories", None).await,
+            call(&sessions, reqwest::Method::GET, "examples", None).await,
             Err(ApiError::SignedOut)
         );
         assert_eq!(sessions.user(), None);
         assert_eq!(
-            call(&sessions, reqwest::Method::GET, "restic/repositories", None).await,
+            call(&sessions, reqwest::Method::GET, "examples", None).await,
             Err(ApiError::SignedOut)
         );
     }
@@ -228,7 +228,7 @@ mod tests {
         let (sessions, server) = signed_in().await;
         for (offset, items) in [("0", vec![1, 2]), ("2", vec![3])] {
             Mock::given(method("GET"))
-                .and(path("/api/v1/restic/repositories"))
+                .and(path("/api/v1/examples"))
                 .and(query_param("offset", offset))
                 .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                     "items": items, "pagination": { "offset": 0, "limit": 100, "total": 3 }
@@ -236,7 +236,7 @@ mod tests {
                 .mount(&server)
                 .await;
         }
-        let items = all(&sessions, "restic/repositories").await.unwrap();
+        let items = all(&sessions, "examples").await.unwrap();
         assert_eq!(
             items,
             vec![

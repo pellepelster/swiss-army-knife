@@ -32,7 +32,6 @@ import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.notes.NoteService
 import io.pelle.sak.backend.grocery.GroceryService
 import io.pelle.sak.backend.todo.TodoService
-import io.pelle.sak.backend.restic.ResticRepositoryService
 import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.logs.AccessLogsManager
@@ -93,7 +92,6 @@ class SakServices(
     val noteService: NoteService,
     val groceryService: GroceryService,
     val todoService: TodoService,
-    val resticService: ResticRepositoryService,
     val fileService: FileService,
     val fileTextService: FileTextService,
     val groceryDiscovery: GroceryDiscovery,
@@ -142,7 +140,6 @@ fun Application.sak(config: SakConfig): SakServices {
     val noteService = NoteService(database, labelService, fileService)
     val groceryService = GroceryService(database)
     val todoService = TodoService(database)
-    val resticService = ResticRepositoryService(database)
     val accessCallback = BucketKeysAccessCallback(bucketService)
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })
@@ -166,7 +163,6 @@ fun Application.sak(config: SakConfig): SakServices {
             noteService,
             groceryService,
             todoService,
-            resticService,
             fileService,
             fileTextService,
             GroceryDiscovery(fileService, openRouter::ingredientRecognizer, grocerySettings::aiEnabled),

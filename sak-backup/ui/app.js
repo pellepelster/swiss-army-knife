@@ -2,7 +2,6 @@
 // the user at the top right; rust keeps the session (sak-desktop-shared)
 import { displayName, showLogin, signOut, startSession } from './shared/login.js';
 import { loadTexts, show, text } from './shared/views.js';
-import { initRepositories, showRepositories } from './repositories.js';
 
 const menuToggle = document.getElementById('user-menu-toggle');
 const menu = document.getElementById('user-menu');
@@ -22,45 +21,16 @@ function showShell(user) {
   show('view-shell');
 }
 
-// what a page of the shell uses: the title and the actions of the header (UX-10), the section it
-// shows, and the sign-in when the session is gone
-const shell = {
-  title(title) {
-    document.getElementById('page-title').textContent = title;
-  },
-  toolbar(...buttons) {
-    document.getElementById('page-toolbar').replaceChildren(...buttons);
-  },
-  page(id) {
-    for (const section of document.querySelectorAll('.shell-main .page, #page-empty')) {
-      section.hidden = section.id !== id;
-    }
-  },
-  signedOut() {
-    showLogin(LOGIN, text('ui.login.restore.expired'));
-  },
-};
-initRepositories(shell);
-
-// the pages behind the navigation; a page without one shows that there is nothing yet
-const PAGES = { repositories: showRepositories };
-
 function openPage(page) {
   for (const link of document.querySelectorAll('#nav [data-page]')) {
     const active = link.dataset.page === page;
     link.classList.toggle('active', active);
     if (active) {
       link.setAttribute('aria-current', 'page');
-      shell.title(link.textContent);
+      document.getElementById('page-title').textContent = link.textContent;
     } else {
       link.removeAttribute('aria-current');
     }
-  }
-  if (PAGES[page]) {
-    PAGES[page]();
-  } else {
-    shell.toolbar();
-    shell.page('page-empty');
   }
 }
 
