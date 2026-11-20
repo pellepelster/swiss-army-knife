@@ -1,8 +1,8 @@
 ---
-# the version of sak the server runs, the tag of its images; sakctl sets its own version in the
-# inventory of the run, so a server runs the version of the sakctl that deployed it
+# the version of sak the server runs, the tag of its images; sakadm sets its own version in the
+# inventory of the run, so a server runs the version of the sakadm that deployed it
 sak_version: latest
-# the tag of the images, the version unless sakctl gets SAK_DOCKER_IMAGE_TAG (e.g. <version>-rc, the
+# the tag of the images, the version unless sakadm gets SAK_DOCKER_IMAGE_TAG (e.g. <version>-rc, the
 # images of a release before it is released)
 sak_image_tag: "{{ sak_version }}"
 # the backend, pulled on every run: a release pushes it as its version
@@ -20,7 +20,7 @@ backend_data_path: "{{ backend_base_path }}/data"
 backend_s3_data_path: "{{ backend_data_path }}/s3"
 backend_config_file: "{{ backend_base_path }}/config.yaml"
 # the name of the deployment (required), its dns mode and its root domain (required), written
-# into the backend configuration (templates/backend-config.yaml.j2); sakctl sets them in the
+# into the backend configuration (templates/backend-config.yaml.j2); sakadm sets them in the
 # inventory of the run
 sak_name: ""
 sak_dns_mode: subdomain
@@ -28,7 +28,7 @@ sak_root_domain: ""
 # the directory of the acme ca caddy gets its certificates from, its default issuers when empty;
 # the staging ca of let's encrypt for tests
 sak_acme_ca: ""
-# the public half of the key sakctl signs its requests to the admin api with, 32 bytes as base64
+# the public half of the key sakadm signs its requests to the admin api with, 32 bytes as base64
 # (required); the key itself is nowhere
 sak_api_public_key: ""
 # the admin signs in with the password of the deployment (its hash is SAK_ADMIN_PASSWORD_HASH of

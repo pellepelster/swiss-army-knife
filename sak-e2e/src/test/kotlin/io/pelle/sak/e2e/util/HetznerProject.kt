@@ -108,7 +108,7 @@ class HetznerProject(
             ?.booleanOrNull == true
 
     /**
-     * creates an ssh key without any label, as a user of the project would: a resource sakctl
+     * creates an ssh key without any label, as a user of the project would: a resource sakadm
      * must never change or remove. A key of its own each time, hetzner refuses a fingerprint twice
      */
     fun createForeignSshKey(name: String) {
@@ -141,7 +141,7 @@ class HetznerProject(
         list("ssh_keys", "ssh_keys", "name=" + URLEncoder.encode(name, Charsets.UTF_8)).forEach { call("DELETE", "ssh_keys/${it.id()}") }
     }
 
-    /** the public ipv4 of the server of the deployment `name`; a read only, sakctl creates and removes it */
+    /** the public ipv4 of the server of the deployment `name`; a read only, sakadm creates and removes it */
     fun serverIpv4(name: String): String =
         list("servers", "servers", labeled)
             .single { it.sakName() == name }

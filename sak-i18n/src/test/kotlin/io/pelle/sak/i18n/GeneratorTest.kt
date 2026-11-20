@@ -53,7 +53,7 @@ class GeneratorTest {
     }
 
     @Test
-    fun `sakctl reads the three parts of ctl below their names and nothing else`() {
+    fun `sakadm reads the three parts of ctl below their names and nothing else`() {
         val files =
             files(
                 """

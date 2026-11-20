@@ -1,7 +1,7 @@
 ---
 title: "Review: security"
 linkTitle: "Security"
-description: "The security review of the whole application: the login and the sessions, the routes and the data of the backend, the S3 api and the ingress, the web app, the Android apps, sakctl and the server it builds."
+description: "The security review of the whole application: the login and the sessions, the routes and the data of the backend, the S3 api and the ingress, the web app, the Android apps, sakadm and the server it builds."
 weight: 8
 ---
 
@@ -12,7 +12,7 @@ weight: 8
 Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`), the routes and the data of the
 backend (`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and
 the ingress (`sak-s3`, `sak-storage`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
-(`android/`), sakctl (`sak-cli`) and the server it builds (`ansible/`). The question: what can somebody do who should
+(`android/`), sakadm (`sak-admin-cli`) and the server it builds (`ansible/`). The question: what can somebody do who should
 not, from the internet without a session, as a user of a multi user instance, with one key of a bucket, on the
 machine of the admin or in one container of the server.
 
@@ -50,7 +50,7 @@ Nothing found lets somebody without a session read data, get a session or get a 
   host; the service worker caches no answer of the api; the content security policy allows scripts of the page only.
 - **The Android apps.** The session is encrypted with a key of the keystore (AES-GCM), no backup, no cleartext, the
   certificates checked by the platform, only the main activity exported, no WebView.
-- **sakctl.** The keys are derived with a purpose each, the private ssh key goes to the agent through stdin only
+- **sakadm.** The keys are derived with a purpose each, the private ssh key goes to the agent through stdin only
   (`SECURITY-2`), the host key is checked from the first connection on, the files of a run are in a directory only
   the user reads, the web view loads its own pages only and has no plugin command.
 - **The server.** sshd takes keys only; the containers run as uid 10000, read only, without capabilities; the
@@ -70,7 +70,7 @@ included, and the key of the local settings. The purposes of the keys do not hel
 handed over. ACCEPTED-RISKS has only the guessing offline; the backup says the server never
 has the key that decrypts a backup.
 
-Fix: a password for the login of its own, derived by sakctl with a purpose (`admin-login`) and shown by it, so the
+Fix: a password for the login of its own, derived by sakadm with a purpose (`admin-login`) and shown by it, so the
 password of the deployment never leaves the machine of the admin; or a login where the server never sees the
 password (OPAQUE). Until then an entry in ACCEPTED-RISKS, and `SECURITY-1` says it (the rule changes
 only with the consent of the user).
@@ -200,7 +200,7 @@ that was not traced.
 Fix: the dns mode and the root domain from the labels, an answer of the server that differs is an error; from the
 server only the user mode and the mail server.
 
-### `SEC-17` The password of the mail server read from the server reaches the web view of sakctl
+### `SEC-17` The password of the mail server read from the server reaches the web view of sakadm
 
 `deployment_settings` answers `DetectedSmtp` with its password to the page. ACCEPTED-RISKS names only the passwords
 of the environment. The same things limit it: the policy of the web view, values written as text.
@@ -252,7 +252,7 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - `SEC-23` A streamed upload (`STREAMING-…`) is not bound to its signature: the signatures of the chunks and the
   checksums of the trailer are not checked (the code says so), the signed headers allow any body for 15 minutes. It
   takes the headers, which means breaking TLS.
-- `SEC-24` sakctl wipes less than `Cargo.toml` says: `expand` returns a plain array, the age keys as strings and
+- `SEC-24` sakadm wipes less than `Cargo.toml` says: `expand` returns a plain array, the age keys as strings and
   the password in `DeploymentRequest` and in the JSON to the web view are not wiped. Memory of the process only.
 - ~~`SEC-25` The lines of the server and of ansible go to the terminal as they come (`cli/server.rs`, `core/ssh.rs`);
   a server that is taken over can send escape sequences. Fix: no control characters in a line.~~ **Fixed:** every line

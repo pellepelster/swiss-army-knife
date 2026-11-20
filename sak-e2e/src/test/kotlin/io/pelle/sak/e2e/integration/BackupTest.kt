@@ -49,8 +49,8 @@ class BackupTest {
             NotesPage.create(page, backedUp)
         }
 
-        step("backing up the deployment with sakctl", deployment)
-        deployment.sakctl.run("backup", deployment.name) shouldBe 0
+        step("backing up the deployment with sakadm", deployment)
+        deployment.sakadm.run("backup", deployment.name) shouldBe 0
         val backup = backups.listFiles().orEmpty().single()
         backup.name shouldMatch Regex("${Regex.escape(deployment.name)}-\\d{8}T\\d{6}Z\\.age\\.sak")
         // encrypted on the server: the text of the note is nowhere in the file
@@ -64,8 +64,8 @@ class BackupTest {
             NotesPage.create(page, later)
         }
 
-        step("restoring ${backup.name} with sakctl, it waits until the backend answers again", deployment)
-        deployment.sakctl.run("restore", deployment.name, backup.path, "--yes") shouldBe 0
+        step("restoring ${backup.name} with sakadm, it waits until the backend answers again", deployment)
+        deployment.sakadm.run("restore", deployment.name, backup.path, "--yes") shouldBe 0
         step("checking that the note of the backup is back and the later one is gone", deployment)
 
         // the restore started the backend again: a new sign in

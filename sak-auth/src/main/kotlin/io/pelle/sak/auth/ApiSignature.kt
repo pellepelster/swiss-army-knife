@@ -22,8 +22,8 @@ private val logger = KotlinLogging.logger {}
 
 const val API_SIGNATURE_AUTH = "api-signature"
 
-// who acts with a signed request of sakctl: no e-mail address, what it creates is its own
-const val API_IDENTITY = "sakctl"
+// who acts with a signed request of sakadm: no e-mail address, what it creates is its own
+const val API_IDENTITY = "sakadm"
 
 // the scheme of the authorization header: `SAK-Ed25519 ts=<unix seconds>,nonce=<32 hex>,sig=<base64>`
 const val SIGNATURE_SCHEME = "SAK-Ed25519"
@@ -33,15 +33,15 @@ val apiSignatureSecurityScheme =
     HttpSecurityScheme(
         scheme = SIGNATURE_SCHEME,
         description =
-            "A request sakctl signs with the ed25519 key it derives from the password of the deployment, see sakctl " +
+            "A request sakadm signs with the ed25519 key it derives from the password of the deployment, see sakadm " +
                 "config show: the signature holds for the host, the method, the path, the time and a nonce of its own.",
     )
 
-// the requests of sakctl, signed with the ed25519 key it derives from the deployment password; the
+// the requests of sakadm, signed with the ed25519 key it derives from the deployment password; the
 // backend knows only the public half (api_public_key), no request carries a secret. The signature
 // holds for the host, the method, the path and query (without the prefix of caddy), the time and a
 // nonce, so a replay, an old request (MAX_AGE_SECONDS) or one for another host is refused. No body:
-// sakctl only reads
+// sakadm only reads
 class ApiSignature(
     publicKey: String,
     private val host: String,
@@ -105,7 +105,7 @@ class ApiSignature(
         // the der prefix of an ed25519 public key (rfc 8410) before its 32 bytes
         private val ED25519_X509_PREFIX = HexFormat.of().parseHex("302a300506032b6570032100")
 
-        // must match signed_text in sak-cli/src-tauri/src/core/config.rs; the body hash is of an
+        // must match signed_text in sak-admin-cli/src-tauri/src/core/config.rs; the body hash is of an
         // empty body
         fun signedText(
             method: String,
@@ -129,7 +129,7 @@ private class ApiSignatureProvider(
     class Config(
         name: String,
         val signature: ApiSignature?,
-        // the user sakctl acts as, its data is theirs
+        // the user sakadm acts as, its data is theirs
         val owner: String,
     ) : AuthenticationProvider.Config(name)
 
@@ -161,7 +161,7 @@ private fun ApplicationCall.hasBody() =
     (request.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0) > 0 || request.headers[HttpHeaders.TransferEncoding] != null
 
 
-// a signed request of sakctl is an admin that never expires, acting as owner (the admin of the
+// a signed request of sakadm is an admin that never expires, acting as owner (the admin of the
 // password login); without a public key every signed request is refused
 fun AuthenticationConfig.apiSignature(
     signature: ApiSignature?,

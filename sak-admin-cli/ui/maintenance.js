@@ -1,0 +1,69 @@
+// the maintenance of the server of a deployment, as `sakadm maintenance` has it. There is no cancel:
+// a command on the server is not stopped halfway, each has its timeout in rust
+import { openedDeployment } from './password.js';
+import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './views.js';
+
+const { invoke, Channel } = window.__TAURI__.core;
+
+const progress = document.getElementById('maintenance-progress');
+const answer = document.getElementById('maintenance-answer');
+const status = document.getElementById('maintenance-status');
+const backButton = document.getElementById('maintenance-back');
+let running = null;
+
+function line(value, warn = false) {
+  const item = document.createElement('li');
+  item.className = 'maintenance-line';
+  item.dataset.warn = String(warn);
+  item.textContent = value;
+  return item;
+}
+
+
+function finished() {
+  backButton.disabled = false;
+  backButton.focus();
+}
+
+// `action` is status, update, restart_services or reboot
+export async function showMaintenance(deployment, action) {
+  running = { deployment };
+  const { password } = openedDeployment();
+  document.getElementById('maintenance-title').textContent = text(`ui.maintenance.title_${action}`);
+  document.getElementById('maintenance-name').textContent = deployment.name;
+  progress.replaceChildren();
+  answer.replaceChildren();
+  backButton.disabled = true;
+  setStatus(status, text(`ui.maintenance.running_${action}`));
+  show('view-maintenance');
+  const visit = currentVisit();
+  // the closed menu had the focus
+  document.getElementById('maintenance-title').focus();
+  const channel = new Channel();
+  channel.onmessage = (message) => {
+    if (isCurrent(visit)) {
+      progress.append(line(message));
+    }
+  };
+  try {
+    const lines = await invoke('run_maintenance', { request: { action, name: deployment.name, password }, onLine: channel });
+    if (isCurrent(visit)) {
+      answer.replaceChildren(...lines.map(({ text: value, warn }) => line(value, warn)));
+      setStatus(status, text('ui.maintenance.finished'));
+    }
+  } catch (error) {
+    if (isCurrent(visit)) {
+      setFailure(status, String(error));
+    }
+  } finally {
+    if (isCurrent(visit)) {
+      finished();
+    }
+  }
+}
+
+backButton.addEventListener('click', async () => {
+  const { deployment } = running;
+  running = null;
+  navigate('deployment', deployment);
+});

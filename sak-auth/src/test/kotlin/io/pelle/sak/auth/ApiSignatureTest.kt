@@ -18,7 +18,7 @@ class ApiSignatureTest {
     ) = "SAK-Ed25519 ts=$timestamp,nonce=$nonce,sig=$sig"
 
     @Test
-    fun `takes what sakctl signs`() {
+    fun `takes what sakadm signs`() {
         ApiSignature.signedText("GET", "api.example.org", "/v1/config", TIMESTAMP, NONCE) shouldBe
             "sak-api-v1\nGET\napi.example.org\n/v1/config\n1767225600\n00112233445566778899aabbccddeeff\n" +
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -65,8 +65,8 @@ class ApiSignatureTest {
     }
 
     companion object {
-        // the vectors of sakctl: API_PUBLIC_KEY_VECTOR in sak-cli/src-tauri/src/core/keys.rs and
-        // SIGNATURE_VECTOR in sak-cli/src-tauri/src/core/config.rs, the key of `alpha` with
+        // the vectors of sakadm: API_PUBLIC_KEY_VECTOR in sak-admin-cli/src-tauri/src/core/keys.rs and
+        // SIGNATURE_VECTOR in sak-admin-cli/src-tauri/src/core/config.rs, the key of `alpha` with
         // `a password of sixteen`
         const val PUBLIC_KEY = "zQsVaUWSE58kHpvnSflQK13SMb1VdS23SZ9PAf7DvGQ="
         const val TIMESTAMP = 1_767_225_600L

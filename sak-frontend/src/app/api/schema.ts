@@ -348,7 +348,7 @@ export interface paths {
             'application/json': components['schemas']['ConnectResponse'];
           };
         };
-        /** @description A signed request of sakctl, which has no session to connect */
+        /** @description A signed request of sakadm, which has no session to connect */
         403: {
           headers: {
             [name: string]: unknown;
@@ -4549,7 +4549,7 @@ export interface paths {
     };
     /**
      * The settings of the deployment
-     * @description The name, the dns mode, the root domain, the user mode, the admin, the mail server with its password and the acme ca the deployment runs with, so sakctl can deploy it again with them. Only for a request signed by sakctl, no session.
+     * @description The name, the dns mode, the root domain, the user mode, the admin, the mail server with its password and the acme ca the deployment runs with, so sakadm can deploy it again with them. Only for a request signed by sakadm, no session.
      */
     get: {
       parameters: {

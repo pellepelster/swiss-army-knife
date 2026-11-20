@@ -4,7 +4,7 @@ plugins {
 }
 
 // the texts of every app in i18n/texts.yml, written into the files the backend, the web apps, the
-// android app and sakctl read (mise run i18n:generate); its test fails when they are not up to date
+// android app and sakadm read (mise run i18n:generate); its test fails when they are not up to date
 dependencies {
     implementation(libs.snakeyaml)
 }
@@ -30,7 +30,7 @@ tasks.test {
         rootDir.resolve("sak-api/src/main/resources/i18n"),
         rootDir.resolve("sak-frontend/src/app/i18n/catalog.en.ts"),
         rootDir.resolve("sak-frontend/src/app/i18n/catalog.de.ts"),
-        rootDir.resolve("sak-cli/src-tauri/locales"),
+        rootDir.resolve("sak-admin-cli/src-tauri/locales"),
     )
     androidModules.forEach { module ->
         inputs.files(rootDir.resolve("android/$module/src/main/res/values"), rootDir.resolve("android/$module/src/main/res/values-de"))

@@ -1,0 +1,1206 @@
+//! the one place deployments are listed, planned, created, deployed and destroyed
+
+use super::*;
+
+/// the cloud-init of the server: it installs the derived host key, and no other, before sshd
+/// first starts, so sakadm verifies the first connection against it
+pub fn user_data(host_key: &DerivedKey) -> String {
+    let private = host_key
+        .private_key()
+        .lines()
+        .map(|line| format!("    {line}"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "#cloud-config\nssh_deletekeys: true\nssh_genkeytypes: []\nssh_keys:\n  ed25519_private: |\n{private}\n  ed25519_public: {public}\n",
+        public = host_key.public_key()
+    )
+}
+
+/// a deployment checked and ready to plan and apply. The command line plans and applies the same
+/// one (`Planned`); the window prepares again for the apply, as the user can wait long on the check
+pub struct Prepared {
+    pub(super) provider: ProviderType,
+    pub(super) runtime: HetznerProviderRuntime,
+    pub(super) spec: DeploymentSpec,
+    /// the dns records of the deployment that the apply removes
+    pub(super) stale_records: Vec<HetznerDnsRecordLookup>,
+    /// a create or deploy with what it provisions the server with, or a destroy
+    pub(super) purpose: Purpose<Provisioning>,
+    /// a second server, ssh key or firewall: the plan shows it, nothing changes it
+    pub(super) left_out: Vec<sak_cloud::hetzner::deployment::LeftOut>,
+}
+
+/// what a plan or an apply is for: a create and a deploy with `P`, what they provision with; a
+/// destroy with whether the data volume goes too. `prepare` builds it from the `Intent`
+pub(super) enum Purpose<P> {
+    Create { provisioning: P },
+    Deploy { provisioning: P },
+    Destroy { delete_data: bool },
+}
+
+impl<P> Purpose<P> {
+    pub(super) fn intent(&self) -> Intent {
+        match self {
+            Purpose::Create { .. } => Intent::Create,
+            Purpose::Deploy { .. } => Intent::Deploy,
+            Purpose::Destroy { .. } => Intent::Destroy,
+        }
+    }
+
+    /// what a create or deploy provisions with; none for a destroy
+    pub(super) fn provisioning(&self) -> Option<&P> {
+        match self {
+            Purpose::Create { provisioning } | Purpose::Deploy { provisioning } => {
+                Some(provisioning)
+            }
+            Purpose::Destroy { .. } => None,
+        }
+    }
+
+    /// the same purpose with what `next` makes of the provisioning; a destroy goes as it is
+    pub(super) fn then<Q, E>(self, next: impl FnOnce(P) -> Result<Q, E>) -> Result<Purpose<Q>, E> {
+        Ok(match self {
+            Purpose::Create { provisioning } => Purpose::Create {
+                provisioning: next(provisioning)?,
+            },
+            Purpose::Deploy { provisioning } => Purpose::Deploy {
+                provisioning: next(provisioning)?,
+            },
+            Purpose::Destroy { delete_data } => Purpose::Destroy { delete_data },
+        })
+    }
+}
+
+/// who signs in: the admin always with the password; in multi user also the users by an e-mail
+/// link, which needs the mail server, and the admin by e-mail when its address is given
+pub(super) enum Users {
+    Single,
+    Multi {
+        smtp: Smtp,
+        admin_email: Option<String>,
+    },
+}
+
+impl Users {
+    pub(super) fn mode(&self) -> UserMode {
+        match self {
+            Users::Single => UserMode::Single,
+            Users::Multi { .. } => UserMode::Multi,
+        }
+    }
+}
+
+/// who signs in, from the user mode: multi user needs the mail server, single user refuses an
+/// address of the admin, which it would not use
+pub(super) fn users(
+    user_mode: Option<UserMode>,
+    smtp: Option<&Smtp>,
+    admin_email: Option<&str>,
+) -> Result<Users, SakadmError> {
+    match user_mode {
+        None => Err(t!(
+            "common.deployments.no_user_mode",
+            hint = crate::core::i18n::hint(crate::core::i18n::Hint::UserMode)
+        )
+        .to_string()
+        .into()),
+        Some(UserMode::Single) => match admin_email
+            .map(str::trim)
+            .filter(|address| !address.is_empty())
+        {
+            None => Ok(Users::Single),
+            Some(_) => Err(t!(
+                "common.deployments.admin_email_single",
+                hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmailSingle)
+            )
+            .to_string()
+            .into()),
+        },
+        Some(UserMode::Multi) => {
+            let smtp = smtp.cloned().ok_or_else(|| {
+                t!(
+                    "common.deployments.invalid_smtp_host",
+                    hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpHost)
+                )
+                .to_string()
+            })?;
+            check_smtp(&smtp)?;
+            let admin_email = match admin_email
+                .map(str::trim)
+                .filter(|address| !address.is_empty())
+            {
+                None => None,
+                Some(address) if is_address(address) => Some(address.to_lowercase()),
+                Some(_) => {
+                    return Err(t!(
+                        "common.deployments.invalid_admin_email",
+                        hint = crate::core::i18n::hint(crate::core::i18n::Hint::AdminEmail)
+                    )
+                    .to_string()
+                    .into());
+                }
+            };
+            Ok(Users::Multi { smtp, admin_email })
+        }
+    }
+}
+
+/// what a create or deploy provisions the server with, checked by `prepare`; a destroy has none
+pub(super) struct Provisioning {
+    /// the root domain, a zone of the project the deployment can use in its dns mode
+    pub(super) root_domain: String,
+    pub(super) users: Users,
+    /// where the certificates come from; it sets what sakadm trusts when it waits for the api
+    pub(super) acme_ca: AcmeCa,
+    pub(super) client_key: DerivedKey,
+    pub(super) host_key: DerivedKey,
+    /// the public half of the api key; the backend checks a signed request with it
+    pub(super) api_public_key: String,
+    /// the argon2id hash of the admin password (the deployment password)
+    pub(super) admin_password_hash: String,
+    /// the playbook runs even when the provisioning is up to date
+    pub(super) force: bool,
+    /// the key the settings are kept with on this machine after the apply (`local`)
+    pub(super) local_key: crate::core::keys::BackupKey,
+}
+
+/// a prepared deployment with its plan: the apply applies its diffs, so the markers of the server
+/// are read once for both. A destroy applies no diffs, it removes what it finds
+pub struct Planned {
+    pub plan: PlanResponse,
+    prepared: Prepared,
+    diffs: Vec<ResourceDiff>,
+}
+
+impl Prepared {
+    /// what the playbook gets; the provisioner adds the addresses of the server and the device of
+    /// the volume as it finds them
+    pub(super) fn provision_run(&self, provisioning: &Provisioning) -> ProvisionRun {
+        let (admin_email, smtp) = match &provisioning.users {
+            Users::Single => (String::new(), None),
+            Users::Multi { smtp, admin_email } => {
+                (admin_email.clone().unwrap_or_default(), Some(smtp.clone()))
+            }
+        };
+        ProvisionRun {
+            name: self.spec.name.clone(),
+            dns_mode: self.spec.dns_mode,
+            root_domain: provisioning.root_domain.clone(),
+            api_public_key: provisioning.api_public_key.clone(),
+            host: String::new(),
+            host_ipv6: None,
+            client_key: provisioning.client_key.clone(),
+            host_key: provisioning.host_key.clone(),
+            storage_device: String::new(),
+            admin_email,
+            smtp,
+            admin_password_hash: provisioning.admin_password_hash.clone(),
+            acme_ca: acme_directory(provisioning.acme_ca).map(String::from),
+        }
+    }
+
+    /// the resources of the spec and, after the server and the volume, the roles of the playbook
+    /// (`core::ansible_roles`). A destroy has no roles and creates nothing, so it refuses no
+    /// recreate (e.g. of a volume smaller than today)
+    pub(super) fn registry(
+        &self,
+        provisioner: impl FnOnce(ProvisionRun, bool) -> AnsibleRolesProvisioner,
+    ) -> Result<sak_cloud::api::Registry, String> {
+        let mut registry = self
+            .spec
+            .registry(&self.runtime)
+            .map_err(|error| error.to_string())?;
+        let Some(provisioning) = self.purpose.provisioning() else {
+            let spec = &self.spec;
+            let resources = [
+                spec.ssh_key().resource_ref(),
+                spec.data_volume().resource_ref(),
+                spec.ipv4().resource_ref(),
+                spec.ipv6().resource_ref(),
+                spec.firewall().resource_ref(),
+                spec.server().resource_ref(),
+            ]
+            .into_iter()
+            .chain(
+                spec.dns_records()
+                    .into_iter()
+                    .map(|record| record.resource_ref()),
+            );
+            for resource in resources {
+                registry = registry.recreatable(resource);
+            }
+            return Ok(registry);
+        };
+        registry.register::<AnsibleRoles, AnsibleRolesProvisioner>(Arc::new(provisioner(
+            self.provision_run(provisioning),
+            provisioning.force,
+        )));
+        registry
+            .add(AnsibleRoles {
+                name: self.spec.resource_name(),
+                server: self.spec.server().as_lookup(),
+                volume: self.spec.data_volume().as_lookup(),
+            })
+            .map_err(|error| error.to_string())?;
+        Ok(registry)
+    }
+}
+
+pub(super) fn failed(provider: ProviderType, error: impl ToString) -> String {
+    message("common.deployments.failed", provider, error)
+}
+
+/// a failure of the provider in a plan or an apply. A resource of someone else and a refused
+/// recreate each have their own exit code; nothing of them changed. A failed playbook keeps its
+/// own message, without the provider
+pub(super) fn cloud_failure(
+    key: &str,
+    provider: ProviderType,
+    error: sak_cloud::api::Error,
+) -> SakadmError {
+    match error {
+        sak_cloud::api::Error::NotOwned { .. } => SakadmError::new(
+            t!("common.deployments.not_owned", error = error.to_string()),
+            EXIT_NOT_OWNED,
+        ),
+        sak_cloud::api::Error::RecreateRefused { .. } => SakadmError::new(
+            t!(
+                "common.deployments.recreate_refused",
+                error = error.to_string()
+            ),
+            EXIT_RECREATE_REFUSED,
+        ),
+        sak_cloud::api::Error::Provisioning { message, .. } => message.into(),
+        error => message(key, provider, error).into(),
+    }
+}
+
+/// a message about the provider: `key` names what failed (list, plan, apply)
+pub(super) fn message(key: &str, provider: ProviderType, error: impl ToString) -> String {
+    t!(key, provider = provider.name(), error = error.to_string()).to_string()
+}
+
+/// manages the sak deployments at the providers: finds them by the name label, plans and applies
+/// a create, deploy or destroy. Every call gets the tokens, so a token added later counts at once
+#[derive(Default)]
+pub struct DeploymentManager;
+
+impl DeploymentManager {
+    /// the deployments at every provider with a token, by provider and name
+    pub async fn list(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+    ) -> Result<Vec<DeploymentResponse>, String> {
+        let mut deployments = Vec::new();
+        for (provider, token) in tokens {
+            match provider {
+                ProviderType::Hetzner => {
+                    let api = Arc::new(HetznerApi::new(&token));
+                    let runtime = HetznerProviderRuntime::from_api(api.clone());
+                    let discovered = discover(&api)
+                        .await
+                        .map_err(|error| failed(provider, error))?;
+                    for deployment in &discovered {
+                        // a deployment that cannot be compared says why, the others still show
+                        let state = state(&runtime, deployment).await;
+                        deployments.push(DeploymentResponse::of(provider, state, deployment));
+                    }
+                }
+            }
+        }
+        Ok(deployments)
+    }
+
+    /// the check of the page of a deployment: a deploy of the deployment as it is, completed from
+    /// it, and its plan. An apply of the check applies that deploy
+    pub async fn check(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+        location: Location,
+        detected: &Detected,
+        container: &ContainerRuntime,
+    ) -> Result<(DeploymentRequest, PlanResponse), SakadmError> {
+        let deployment = completed_with(
+            DeploymentRequest::as_it_is(name, password, location),
+            detected,
+            "",
+        )?;
+        let plan = self.plan(tokens, &deployment, container).await?;
+        Ok((deployment, plan))
+    }
+
+    /// a deploy with what is not given taken from the deployment (`detected`): the user mode, the
+    /// acme ca and, for multi user, the admin and the mail server. A complete deploy reads nothing
+    pub async fn completed(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        deployment: DeploymentRequest,
+        smtp_password: &str,
+    ) -> Result<DeploymentRequest, SakadmError> {
+        if !incomplete(&deployment) {
+            return Ok(deployment);
+        }
+        let detected = self
+            .detected(tokens, &deployment.name, &deployment.password)
+            .await?;
+        completed_from(deployment, &detected, smtp_password)
+    }
+
+    /// the deployment `name` at the hetzner project; a wrong name is a usage error (`EXIT_USAGE`)
+    pub(super) async fn find(
+        &self,
+        tokens: &[(ProviderType, String)],
+        name: &str,
+    ) -> Result<DiscoveredDeployment, SakadmError> {
+        let name = checked_name(name)?;
+        let Some((provider, token)) = tokens
+            .iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("common.deployments.no_provider").to_string().into());
+        };
+        discover(&HetznerApi::new(token))
+            .await
+            .map_err(|error| failed(*provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name)
+            .ok_or_else(|| {
+                t!("common.deployments.not_found", name = name)
+                    .to_string()
+                    .into()
+            })
+    }
+
+    /// the settings a deploy can take from a deployment: what it answers (`GET /v1/deployment`,
+    /// signed with the api key); else what this machine kept (`~/.sak/<name>/config.json`), else
+    /// the root domain and dns mode of its dns records. Why it did not answer is `unread`
+    pub async fn detected(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<Detected, SakadmError> {
+        let deployment = self.find(&tokens, name).await?;
+        verify_password(&deployment, &deployment.name, password)?;
+        Ok(match deployment_settings_of(&deployment, password).await {
+            Ok(running) => Detected::from_running(running),
+            Err(error) => Detected {
+                unread: Some(error),
+                ..local_settings(&deployment.name, password)
+                    .map(Detected::from_local)
+                    .unwrap_or_else(|| Detected::from_records(&deployment))
+            },
+        })
+    }
+
+    /// whether `password` is the one of the deployment `name`, by the password hashes on its
+    /// resources or its ssh key
+    pub async fn check_password(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<(), SakadmError> {
+        let deployment = self.find(&tokens, name).await?;
+        Ok(verify_password(&deployment, &deployment.name, password)?)
+    }
+
+    /// the server of the deployment `name` and the keys of `password` to reach it, password checked
+    pub async fn ssh_target(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<crate::core::ssh::SshTarget, SakadmError> {
+        let deployment = self.find(&tokens, name).await?;
+        let name = deployment.name.as_str();
+        verify_password(&deployment, name, password)?;
+        let server = deployment
+            .server
+            .as_ref()
+            .ok_or_else(|| t!("cli.ssh_no_server", name = name).to_string())?;
+        Ok(crate::core::ssh::SshTarget {
+            host: server
+                .public_ipv4
+                .clone()
+                .ok_or_else(|| t!("common.provision.no_address", name = name).to_string())?,
+            host_ipv6: server
+                .public_ipv6
+                .clone()
+                .map(|network| first_address(&network)),
+            client_key: crate::core::keys::derive_key(name, password)?,
+            host_key: crate::core::keys::derive_host_key(name, password)?,
+        })
+    }
+
+    /// where the deployment `name` answers its users, password checked
+    pub async fn public_endpoint(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+        password: &str,
+    ) -> Result<Endpoint, SakadmError> {
+        let deployment = self.find(&tokens, name).await?;
+        Ok(endpoint(&deployment, password)?)
+    }
+
+    /// the dns zones of the first hetzner project, each with the dns modes the deployment
+    /// `name` can use it in
+    pub async fn root_domains(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        name: &str,
+    ) -> Result<Vec<RootDomainResponse>, String> {
+        let Some((provider, token)) = tokens
+            .into_iter()
+            .find(|(provider, _)| *provider == ProviderType::Hetzner)
+        else {
+            return Err(t!("common.deployments.no_provider").to_string());
+        };
+        let runtime = HetznerProviderRuntime::from_api(Arc::new(HetznerApi::new(&token)));
+        let domains = root_domains(&runtime)
+            .await
+            .map_err(|error| failed(provider, error))?;
+        Ok(domains
+            .iter()
+            .map(|domain| root_domain_response(domain, name.trim()))
+            .collect())
+    }
+
+    /// checks the name (free for a create, existing otherwise), the password (hard to guess for a
+    /// create, the one of the deployment otherwise) and, but for a destroy, the root domain (a zone
+    /// that allows the dns mode). Then derives the keys and lays out the resource group
+    pub async fn prepare(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        deployment: &DeploymentRequest,
+    ) -> Result<Prepared, SakadmError> {
+        let name = checked_request(deployment)?;
+        let (password, intent) = (deployment.password.as_str(), deployment.intent);
+        let (provider, api) = hetzner_api(tokens)?;
+        let existing = discover(&api)
+            .await
+            .map_err(|error| failed(provider, error))?
+            .into_iter()
+            .find(|deployment| deployment.name == name);
+        let (purpose, acme_ca) = users_and_acme_ca(deployment)?;
+        let (dns_mode, root_domain) = resolve_dns(
+            name,
+            intent,
+            deployment.dns_mode,
+            deployment.root_domain.as_deref(),
+            existing.as_ref().and_then(DiscoveredDeployment::dns_mode),
+            existing
+                .as_ref()
+                .and_then(DiscoveredDeployment::root_domain),
+        )?;
+        // one read of the zones: the root domains, the records of the deployment, those in the way
+        let listings = HetznerDnsZoneProvisioner::new(api.clone())
+            .list_all()
+            .await
+            .map_err(|error| failed(provider, error))?;
+        let records = deployment_records(&listings, name);
+        let left_out = existing
+            .as_ref()
+            .map(|existing| existing.left_out.clone())
+            .unwrap_or_default();
+        let server_type = existing
+            .as_ref()
+            .and_then(|existing| existing.server.as_ref())
+            .map(|server| server.server_type);
+        let location = location_of(
+            name,
+            password,
+            intent,
+            existing,
+            deployment.location,
+            &records,
+        )?;
+        let runtime = HetznerProviderRuntime::from_api(api);
+        let purpose = purpose.then(|users| {
+            let domains: Vec<RootDomain> = listings.iter().map(RootDomain::of).collect();
+            Ok::<_, SakadmError>(Settings {
+                users,
+                root_domain: check_root_domain(&domains, root_domain.as_deref(), name, dns_mode)?,
+            })
+        })?;
+        let (spec, keys) = laid_out(
+            name,
+            password,
+            location,
+            server_type_of(server_type, location),
+            dns_mode,
+            purpose.provisioning(),
+            acme_ca,
+        )?;
+        let stale_records = stale_records(&records, &spec.dns_records(), &spec.identity());
+        if intent != Intent::Destroy {
+            check_records_in_the_way(&listings, &spec)?;
+        }
+        // not for a destroy: the argon2id of the admin password is slow
+        let purpose = purpose.then(|settings| {
+            Ok::<_, SakadmError>(Provisioning {
+                root_domain: settings.root_domain,
+                users: settings.users,
+                acme_ca,
+                client_key: keys.client_key,
+                host_key: keys.host_key,
+                api_public_key: keys.api_public_key,
+                admin_password_hash: crate::core::keys::admin_password_hash(name, password)?,
+                force: deployment.force,
+                local_key: crate::core::keys::local_settings_key(name, password)?,
+            })
+        })?;
+        Ok(Prepared {
+            provider,
+            runtime,
+            spec,
+            stale_records,
+            purpose,
+            left_out,
+        })
+    }
+
+    /// the resources diffed against the project, the roles against the markers of the server
+    /// (read through ssh in the image of the tools)
+    pub async fn plan(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        deployment: &DeploymentRequest,
+        container: &ContainerRuntime,
+    ) -> Result<PlanResponse, SakadmError> {
+        let prepared = self.prepare(tokens, deployment).await?;
+        Ok(self.plan_prepared(prepared, container).await?.plan)
+    }
+
+    /// the plan of a deployment prepared already, kept for its apply
+    pub async fn plan_prepared(
+        &self,
+        prepared: Prepared,
+        container: &ContainerRuntime,
+    ) -> Result<Planned, SakadmError> {
+        let intent = prepared.purpose.intent();
+        let delete_data = matches!(prepared.purpose, Purpose::Destroy { delete_data: true });
+        let force = prepared
+            .purpose
+            .provisioning()
+            .is_some_and(|provisioning| provisioning.force);
+        let volume = prepared.spec.data_volume().name;
+        let registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
+            run,
+            runtime: container.clone(),
+            force,
+            events: None,
+        })?;
+        // a destroy creates nothing, so no refused recreate stops its plan
+        let diffs = match prepared.purpose {
+            Purpose::Destroy { .. } => registry.compare_all().await,
+            Purpose::Create { .. } | Purpose::Deploy { .. } => registry.diff_all().await,
+        }
+        .map_err(|error| {
+            cloud_failure("common.deployments.plan_failed", prepared.provider, error)
+        })?;
+        let plan = PlanResponse {
+            name: prepared.spec.name.clone(),
+            public_key: prepared.spec.public_key.clone(),
+            resources: diffs
+                .iter()
+                .map(|diff| {
+                    let keep =
+                        intent == Intent::Destroy && !delete_data && diff.resource.name == volume;
+                    let provisioning = is_provisioning(&diff.resource);
+                    let kind = match ResourceKind::of(&diff.resource) {
+                        Some(kind) => PlannedKind::Resource(kind),
+                        None if provisioning => PlannedKind::Provisioning,
+                        // the registry is built here, of the kinds above only
+                        None => {
+                            return Err(SakadmError::from(format!(
+                                "{} is of no kind sakadm knows",
+                                diff.resource.log_text
+                            )));
+                        }
+                    };
+                    Ok(PlannedResource {
+                        resource: diff.resource.log_text.clone(),
+                        kind,
+                        name: diff.resource.name.clone(),
+                        resource_status: ResourceStatus::of(diff.status),
+                        action: if provisioning {
+                            Some(if diff.status == DiffStatus::UpToDate && !force {
+                                PlanAction::RunsWhenForced
+                            } else {
+                                PlanAction::WillRun
+                            })
+                        } else {
+                            action(intent, diff.status, diff.needs_recreate(), keep, false)
+                        },
+                        working: working(intent, diff.status, diff.needs_recreate(), false),
+                        status: diff.status,
+                        keep,
+                        // a destroy removes everything, so the changes are of no interest
+                        changes: match intent {
+                            Intent::Destroy => Vec::new(),
+                            Intent::Create | Intent::Deploy => diff
+                                .changes
+                                .iter()
+                                .map(|change| change.log_text())
+                                .collect(),
+                        },
+                    })
+                })
+                .chain(prepared.stale_records.iter().map(|record| {
+                    Ok(PlannedResource {
+                        resource: record.log_text(),
+                        kind: PlannedKind::Resource(ResourceKind::DnsRecord),
+                        name: record.resource_ref().name,
+                        resource_status: ResourceStatus::UpToDate,
+                        action: action(intent, DiffStatus::UpToDate, false, false, true),
+                        working: working(intent, DiffStatus::UpToDate, false, true),
+                        status: DiffStatus::UpToDate,
+                        keep: false,
+                        changes: Vec::new(),
+                    })
+                }))
+                // a duplicate the deployment does not use: a deploy and a destroy leave it
+                .chain(prepared.left_out.iter().map(|left_out| {
+                    Ok(PlannedResource {
+                        resource: format!("{} '{}'", key(&left_out.kind), left_out.name),
+                        kind: PlannedKind::Resource(left_out.kind),
+                        name: left_out.name.clone(),
+                        resource_status: ResourceStatus::of(DiffStatus::Duplicate),
+                        action: (intent == Intent::Destroy).then_some(PlanAction::WillKeep),
+                        working: Working::Check,
+                        status: DiffStatus::Duplicate,
+                        keep: intent == Intent::Destroy,
+                        changes: vec![t!("common.plan.left_out").to_string()],
+                    })
+                }))
+                .collect::<Result<Vec<_>, SakadmError>>()?,
+        };
+        Ok(Planned {
+            plan,
+            prepared,
+            diffs,
+        })
+    }
+
+    /// A create or deploy applies the resources by their dependencies, the roles after the server
+    /// and the volume, then removes the dns records of an old dns mode or root domain, sets the
+    /// version label and waits for the api. What is up to date stays, so a next run finishes a
+    /// failed one. A destroy removes the dns records, then every resource, dependents first; the
+    /// data volume only with `delete_data`
+    pub async fn prepare_and_apply(
+        &self,
+        tokens: Vec<(ProviderType, String)>,
+        deployment: &DeploymentRequest,
+        container: &ContainerRuntime,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakadmError> {
+        let prepared = self.prepare(tokens, deployment).await?;
+        self.apply_prepared(prepared, None, container, on_event)
+            .await
+    }
+
+    /// `prepare_and_apply` with the diffs of a plan made already
+    pub async fn apply(
+        &self,
+        planned: Planned,
+        container: &ContainerRuntime,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakadmError> {
+        let Planned {
+            prepared, diffs, ..
+        } = planned;
+        self.apply_prepared(prepared, Some(diffs), container, on_event)
+            .await
+    }
+
+    /// a create or deploy applies the `planned` diffs, or plans first without them
+    async fn apply_prepared(
+        &self,
+        prepared: Prepared,
+        planned: Option<Vec<ResourceDiff>>,
+        container: &ContainerRuntime,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakadmError> {
+        let provisioning = match &prepared.purpose {
+            Purpose::Create { provisioning } | Purpose::Deploy { provisioning } => provisioning,
+            Purpose::Destroy { delete_data } => {
+                let data_volume = if *delete_data {
+                    DataVolume::Delete
+                } else {
+                    DataVolume::Keep
+                };
+                self.destroy(&prepared, data_volume, on_event).await?;
+                // with its data the deployment is gone; else a create of the name finds them again
+                if *delete_data {
+                    let _ = crate::core::local::delete_settings(&prepared.spec.name);
+                }
+                return Ok(());
+            }
+        };
+        // kept before anything changes: a deploy that fails or is cancelled leaves the config it
+        // started with for a new try or the config form
+        keep_settings(&prepared, provisioning, on_event);
+        let provisioned = self
+            .apply_resources(&prepared, planned, container, on_event)
+            .await?;
+        self.remove_records(&prepared, on_event)
+            .await
+            .map_err(|error| {
+                cloud_failure("common.deployments.create_failed", prepared.provider, error)
+            })?;
+        if provisioned {
+            self.after_provisioning(&prepared, provisioning, on_event)
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// the dns records of the deployment, then every resource, dependents first; the data volume
+    /// only with `DataVolume::Delete`
+    async fn destroy(
+        &self,
+        prepared: &Prepared,
+        data_volume: DataVolume,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakadmError> {
+        let destroy_failed = |error| {
+            cloud_failure(
+                "common.deployments.destroy_failed",
+                prepared.provider,
+                error,
+            )
+        };
+        self.remove_records(prepared, on_event)
+            .await
+            .map_err(destroy_failed)?;
+        let registry = prepared
+            .spec
+            .destroy_registry(&prepared.runtime, data_volume)
+            .map_err(|error| error.to_string())?;
+        let mut report = |event: ApplyEvent| {
+            let event = match event {
+                ApplyEvent::Started(resource) => DeploymentEvent::Started {
+                    resource: resource.log_text,
+                },
+                ApplyEvent::Destroyed(resource, gone) => DeploymentEvent::Destroyed {
+                    resource: resource.log_text,
+                    text: destroyed_key(gone),
+                },
+                ApplyEvent::Applied(_) => return,
+            };
+            on_event(event);
+        };
+        registry
+            .destroy_all_with(&mut report)
+            .await
+            .map_err(destroy_failed)?;
+        Ok(())
+    }
+
+    /// applies the resources and the roles; their events and those of the playbook go through one
+    /// channel to `on_event`. Whether the roles ran
+    async fn apply_resources(
+        &self,
+        prepared: &Prepared,
+        planned: Option<Vec<ResourceDiff>>,
+        container: &ContainerRuntime,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<bool, SakadmError> {
+        // the channel closes when the registry and its report are gone
+        let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<DeploymentEvent>();
+        let registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
+            run,
+            runtime: container.clone(),
+            force,
+            events: Some(sender.clone()),
+        })?;
+        let provisioned = Arc::new(AtomicBool::new(false));
+        let apply = {
+            let provisioned = provisioned.clone();
+            async move {
+                let mut report = |event: ApplyEvent| {
+                    let event = match event {
+                        ApplyEvent::Started(resource) => DeploymentEvent::Started {
+                            resource: resource.log_text,
+                        },
+                        ApplyEvent::Applied(result) => {
+                            if is_provisioning(&result.resource)
+                                && result.applied != Applied::Unchanged
+                            {
+                                provisioned.store(true, Ordering::SeqCst);
+                            }
+                            DeploymentEvent::Applied {
+                                resource: result.resource.log_text,
+                                text: applied_key(result.applied),
+                            }
+                        }
+                        ApplyEvent::Destroyed(..) => return,
+                    };
+                    let _ = sender.send(event);
+                };
+                let result = match planned {
+                    Some(diffs) => registry.apply_planned_with(diffs, &mut report).await,
+                    None => registry.apply_all_with(&mut report).await,
+                };
+                drop(registry);
+                result
+            }
+        };
+        let forward = async {
+            while let Some(event) = receiver.recv().await {
+                on_event(event);
+            }
+        };
+        let (result, ()) = tokio::join!(apply, forward);
+        result.map_err(|error| {
+            cloud_failure("common.deployments.create_failed", prepared.provider, error)
+        })?;
+        Ok(provisioned.load(Ordering::SeqCst))
+    }
+
+    /// sets the version label of the server, then waits until the deployment answers through its
+    /// ingress with its certificate. A backend that did not start or a missing certificate fails
+    async fn after_provisioning(
+        &self,
+        prepared: &Prepared,
+        provisioning: &Provisioning,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> Result<(), SakadmError> {
+        let server = prepared
+            .runtime
+            .api
+            .servers()
+            .get_by_name(&prepared.spec.server().name)
+            .await
+            .map_err(|error| failed(prepared.provider, error))?
+            .ok_or_else(|| {
+                t!("common.deployments.not_found", name = prepared.spec.name).to_string()
+            })?;
+        // before the wait, which a next deploy does not repeat: its markers say it is provisioned
+        set_server_labels(
+            &prepared.runtime.api,
+            server.id,
+            &[(VERSION_LABEL, Some(crate::core::VERSION))],
+        )
+        .await
+        .map_err(|error| failed(prepared.provider, error))?;
+        let address = server
+            .public_net
+            .ipv4
+            .as_ref()
+            .and_then(|ip| ip.ip.parse::<std::net::IpAddr>().ok());
+        let api = crate::core::config::api_url(&sak_cloud::hetzner::deployment::base_domain(
+            &prepared.spec.name,
+            prepared.spec.dns_mode,
+            &provisioning.root_domain,
+        ));
+        on_event(DeploymentEvent::Provisioning {
+            message: t!("common.deployments.waiting_for_api", url = api.as_str()).to_string(),
+        });
+        crate::core::config::wait_for_api(
+            &api,
+            address,
+            acme_trust(provisioning.acme_ca),
+            crate::core::config::API_WAIT,
+            std::time::Duration::from_secs(5),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// removes the stale dns records, with an event when each starts and when it is done
+    pub(super) async fn remove_records(
+        &self,
+        prepared: &Prepared,
+        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+    ) -> sak_cloud::api::Result<()> {
+        for record in &prepared.stale_records {
+            on_event(DeploymentEvent::Started {
+                resource: record.log_text(),
+            });
+        }
+        remove_records(
+            &prepared.runtime,
+            &prepared.stale_records,
+            &mut |record, gone| {
+                on_event(DeploymentEvent::Destroyed {
+                    resource: record.log_text(),
+                    text: destroyed_key(gone),
+                })
+            },
+        )
+        .await
+    }
+}
+
+/// the checks that need nothing of the project: the name, the location and the password. Gives
+/// the name, trimmed
+fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakadmError> {
+    let DeploymentRequest {
+        name,
+        password,
+        password_repeat,
+        location,
+        intent,
+        ..
+    } = deployment;
+    let name = checked_name(name)?;
+    // a location Hetzner added after this release can be read, but nothing is created in it
+    if *location == Location::unknown && *intent != Intent::Destroy {
+        return Err(SakadmError::new(
+            t!("common.deployments.unknown_location", name = name),
+            crate::core::error::EXIT_USAGE,
+        ));
+    }
+    if password.chars().count() < MIN_PASSWORD_CHARS {
+        return Err(t!(
+            "common.deployments.short_password",
+            min = MIN_PASSWORD_CHARS
+        )
+        .to_string()
+        .into());
+    }
+    if password != password_repeat {
+        return Err(t!("common.deployments.password_mismatch")
+            .to_string()
+            .into());
+    }
+    // whoever reads the project can guess offline against the label and the public keys
+    if *intent == Intent::Create
+        && let Some(hint) = crate::core::keys::weak_password(name, password)
+    {
+        return Err(t!("common.deployments.weak_password", hint = hint)
+            .to_string()
+            .into());
+    }
+    Ok(name)
+}
+
+/// the api of the first hetzner project of `tokens`
+fn hetzner_api(
+    tokens: Vec<(ProviderType, String)>,
+) -> Result<(ProviderType, Arc<HetznerApi>), SakadmError> {
+    let Some((provider, token)) = tokens
+        .into_iter()
+        .find(|(provider, _)| *provider == ProviderType::Hetzner)
+    else {
+        return Err(t!("common.deployments.no_provider").to_string().into());
+    };
+    Ok((provider, Arc::new(HetznerApi::new(&token))))
+}
+
+/// keeps the settings on this machine, encrypted for the password (`local`), for the config form
+/// when the deployment does not answer. A failed write does not stop the deploy, it says so
+fn keep_settings(
+    prepared: &Prepared,
+    provisioning: &Provisioning,
+    on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
+) {
+    let (admin_email, smtp) = match &provisioning.users {
+        Users::Single => (None, None),
+        Users::Multi { smtp, admin_email } => (admin_email.clone(), Some(smtp.clone())),
+    };
+    let settings = LocalSettings {
+        location: Some(prepared.spec.location),
+        dns_mode: Some(prepared.spec.dns_mode),
+        root_domain: Some(provisioning.root_domain.clone()),
+        user_mode: Some(provisioning.users.mode()),
+        admin_email,
+        smtp,
+        acme_ca: Some(provisioning.acme_ca),
+        version: Some(env!("SAK_VERSION").to_string()),
+        deployed_at: Some(chrono::Utc::now().to_rfc3339()),
+    };
+    let message = match crate::core::local::write_settings(
+        &prepared.spec.name,
+        &provisioning.local_key,
+        &settings,
+    ) {
+        Ok(path) => t!("common.deployments.settings_kept", path = path.display()).to_string(),
+        Err(error) => t!("common.deployments.settings_not_kept", error = error).to_string(),
+    };
+    on_event(DeploymentEvent::Provisioning { message });
+}
+
+/// the settings this machine kept of `name`, none when they do not open with the password
+pub(super) fn local_settings(name: &str, password: &str) -> Option<LocalSettings> {
+    let key = crate::core::keys::local_settings_key(name, password).ok()?;
+    crate::core::local::read_settings(name, &key).ok().flatten()
+}
+
+/// the purpose with who signs in, and the acme ca (production by default), as the request has
+/// them; a deploy is completed before (`completed`)
+fn users_and_acme_ca(
+    deployment: &DeploymentRequest,
+) -> Result<(Purpose<Users>, AcmeCa), SakadmError> {
+    let user_mode = deployment.user_mode;
+    let acme_ca = deployment.acme_ca.unwrap_or_default();
+    let users = || {
+        users(
+            user_mode,
+            deployment.smtp.as_ref(),
+            deployment.admin_email.as_deref(),
+        )
+    };
+    let purpose = match deployment.intent {
+        Intent::Destroy => Purpose::Destroy {
+            delete_data: deployment.delete_data,
+        },
+        Intent::Create => Purpose::Create {
+            provisioning: users()?,
+        },
+        Intent::Deploy => Purpose::Deploy {
+            provisioning: users()?,
+        },
+    };
+    Ok((purpose, acme_ca))
+}
+
+/// where the deployment goes, once its existence fits the intent; the password checked against
+/// the `existing` deployment, or for a destroy of what is left against its `records`. An existing
+/// deployment stays where it is; `given` counts only when none of its server, volume and addresses
+/// exists
+fn location_of(
+    name: &str,
+    password: &str,
+    intent: Intent,
+    existing: Option<DiscoveredDeployment>,
+    given: Location,
+    records: &[DeploymentRecord],
+) -> Result<Location, SakadmError> {
+    match (intent, existing) {
+        (Intent::Create, Some(_)) => Err(t!("common.deployments.name_taken", name = name)
+            .to_string()
+            .into()),
+        (Intent::Create, None) => Ok(given),
+        (Intent::Deploy, None) => Err(t!("common.deployments.not_found", name = name)
+            .to_string()
+            .into()),
+        // destroyed already, maybe with records left. A destroy removes only records with the
+        // hash of the password, so records without one need no check
+        (Intent::Destroy, None) => {
+            let hashes: Vec<String> = records
+                .iter()
+                .filter_map(|record| record.labels.get(PASSWORD_HASH_LABEL).cloned())
+                .collect();
+            if !hashes.is_empty() {
+                check_password(&hashes, None, name, password)?;
+            }
+            Ok(given)
+        }
+        (Intent::Deploy | Intent::Destroy, Some(existing)) => {
+            verify_password(&existing, name, password)?;
+            Ok(existing
+                .location()
+                .map_err(|resources| {
+                    t!(
+                        "common.deployments.mixed_locations",
+                        name = name,
+                        resources = resources
+                    )
+                    .to_string()
+                })?
+                .unwrap_or(given))
+        }
+    }
+}
+
+/// what a create or deploy is set up with, its root domain checked against the zones
+struct Settings {
+    users: Users,
+    root_domain: String,
+}
+
+/// the keys derived from the name and the password that a provisioning needs
+struct Keys {
+    client_key: DerivedKey,
+    host_key: DerivedKey,
+    /// the public half of the api key
+    api_public_key: String,
+}
+
+/// the keys of `name` and `password` and the resource group they lay out: every resource with the
+/// dns mode and the hash of the password, the server with the cloud-init of its host key. With
+/// `settings` (none for a destroy) also the root domain, user mode, acme ca and version, so a
+/// deploy keeps them
+fn laid_out(
+    name: &str,
+    password: &str,
+    location: Location,
+    server_type: ServerType,
+    dns_mode: DnsMode,
+    settings: Option<&Settings>,
+    acme_ca: AcmeCa,
+) -> Result<(DeploymentSpec, Keys), SakadmError> {
+    let client_key = crate::core::keys::derive_key(name, password)?;
+    let host_key = crate::core::keys::derive_host_key(name, password)?;
+    let public_key = client_key.public_key();
+    let password_hash = crate::core::keys::password_hash(name, password)?;
+    let api_public_key = crate::core::keys::api_key(name, password)?.public_key();
+    let mut spec = DeploymentSpec::new(name, &public_key, location, server_type)
+        .map_err(|error| error.to_string())?
+        .with_dns_mode(dns_mode)
+        .with_password_hash(&password_hash);
+    if let Some(settings) = settings {
+        spec = spec
+            .with_root_domain(&settings.root_domain)
+            .with_user_mode(settings.users.mode())
+            .with_acme_ca(acme_ca)
+            .with_version(crate::core::VERSION);
+    }
+    spec.user_data = user_data(&host_key);
+    let keys = Keys {
+        client_key,
+        host_key,
+        api_public_key,
+    };
+    Ok((spec, keys))
+}
+
+/// a record of another owner on a name of the deployment stops a create or deploy before anything
+/// is created
+fn check_records_in_the_way(
+    listings: &[HetznerDnsZoneListing],
+    spec: &DeploymentSpec,
+) -> Result<(), SakadmError> {
+    let in_the_way = foreign_records(listings, spec);
+    if in_the_way.is_empty() {
+        return Ok(());
+    }
+    Err(SakadmError::new(
+        t!(
+            "common.deployments.not_owned",
+            error = t!(
+                "common.deployments.records_in_the_way",
+                records = in_the_way.join(", ")
+            )
+        ),
+        EXIT_NOT_OWNED,
+    ))
+}
+
+/// whether a deploy lacks what only the deployment tells: its user mode, its acme ca, and for
+/// multi user the admin and the mail server
+fn incomplete(deployment: &DeploymentRequest) -> bool {
+    deployment.user_mode.is_none()
+        || deployment.acme_ca.is_none()
+        || (deployment.user_mode == Some(UserMode::Multi)
+            && (deployment.smtp.is_none() || deployment.admin_email.is_none()))
+}
+
+/// `completed` with the settings of the deployment read before: nothing is read again
+pub fn completed_with(
+    deployment: DeploymentRequest,
+    detected: &Detected,
+    smtp_password: &str,
+) -> Result<DeploymentRequest, SakadmError> {
+    if !incomplete(&deployment) {
+        return Ok(deployment);
+    }
+    completed_from(deployment, detected, smtp_password)
+}

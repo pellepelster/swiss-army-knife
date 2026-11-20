@@ -18,10 +18,10 @@ data class SakConfig(
     // server; GET /api/v1/info answers it
     val name: String = DEFAULT_NAME,
     // the dns mode of the deployment, written by the provisioning of the server like the name;
-    // subdomain unless told, as sakctl creates a deployment
+    // subdomain unless told, as sakadm creates a deployment
     @SerialName("dns_mode")
     val dnsMode: DnsMode = DnsMode.SUBDOMAIN,
-    // the public half of the ed25519 key sakctl signs its requests to the api with, 32 bytes as
+    // the public half of the ed25519 key sakadm signs its requests to the api with, 32 bytes as
     // base64, derived from the password of the deployment and written by the provisioning of the
     // server; the key itself is nowhere on the server. Without it, the api takes sessions only
     @SerialName("api_public_key")
@@ -134,7 +134,7 @@ data class SakConfig(
         // the mail server of the login links (multi user); without it there is no e-mail login,
         // only the admin signs in, with the password (single user)
         val smtp: SmtpConfig? = null,
-        // the argon2id hash (phc string) of the admin password, the deployment password sakctl
+        // the argon2id hash (phc string) of the admin password, the deployment password sakadm
         // derives it from; without it there is no password login
         @SerialName("admin_password")
         val adminPassword: String? = null,
@@ -193,7 +193,7 @@ data class SakConfig(
 
 
         // the prefix and the longest suffix of the cloud names of a deployment, sak-<name>-data
-        // (RESOURCE_PREFIX and DATA_VOLUME_SUFFIX in sak-cli/cloud)
+        // (RESOURCE_PREFIX and DATA_VOLUME_SUFFIX in sak-admin-cli/cloud)
         private const val RESOURCE_PREFIX = "sak-"
         private const val DATA_VOLUME_SUFFIX = "-data"
 
@@ -202,7 +202,7 @@ data class SakConfig(
 
         const val MAX_NAME_LENGTH = DNS_LABEL_LENGTH - RESOURCE_PREFIX.length - DATA_VOLUME_SUFFIX.length
 
-        // what sakctl takes as a name (check_name in sak-cli/cloud): a hostname label short
+        // what sakadm takes as a name (check_name in sak-admin-cli/cloud): a hostname label short
         // enough for sak-<name>-data
         private val SAK_NAME = Regex("[a-z0-9]([a-z0-9-]{0,${MAX_NAME_LENGTH - 2}}[a-z0-9])?")
 

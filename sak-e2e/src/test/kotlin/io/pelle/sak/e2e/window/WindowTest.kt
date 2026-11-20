@@ -150,7 +150,7 @@ private object EnabledTimeout {
             .setTimeout(180_000.0)
 }
 
-// the screenshots of the window in docs/screenshots/sakctl-ui-<view>[-dark].png, light and dark
+// the screenshots of the window in docs/screenshots/sakadm-ui-<view>[-dark].png, light and dark
 @Tag("screenshots")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class WindowScreenshotTest {
@@ -178,7 +178,7 @@ class WindowScreenshotTest {
                 page.screenshot(
                     Page
                         .ScreenshotOptions()
-                        .setPath(SCREENSHOTS.resolve("sakctl-ui-$name$suffix.png"))
+                        .setPath(SCREENSHOTS.resolve("sakadm-ui-$name$suffix.png"))
                         .setAnimations(ScreenshotAnimations.DISABLED)
                         .setCaret(ScreenshotCaret.HIDE),
                 )
@@ -206,7 +206,7 @@ class WindowScreenshotTest {
     }
 }
 
-// the video of the window in build/videos/sakctl-ui.webm: the tour at the pace of the app, typed
+// the video of the window in build/videos/sakadm-ui.webm: the tour at the pace of the app, typed
 // like a person types
 @Tag("video")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -245,7 +245,7 @@ class WindowVideoTest {
         page.waitForTimeout(2_000.0)
         val video = checkNotNull(page.video()) { "the context records no video" }
         context.close()
-        video.saveAs(VIDEOS.resolve("sakctl-ui.webm"))
+        video.saveAs(VIDEOS.resolve("sakadm-ui.webm"))
         video.delete()
     }
 }

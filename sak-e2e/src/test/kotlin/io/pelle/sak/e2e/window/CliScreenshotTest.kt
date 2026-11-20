@@ -12,27 +12,27 @@ import java.util.concurrent.TimeUnit
 
 private val SCREENSHOTS: Path = Paths.get(System.getProperty("sak.e2e.screenshots") ?: "build/screenshots")
 
-// the binary of `cargo build` in sak-cli/src-tauri (mise run docs:screenshots builds it)
-private val SAKCTL: Path = Paths.get(System.getProperty("sak.e2e.sakctl") ?: "../sak-cli/src-tauri/target/debug/sakctl")
+// the binary of `cargo build` in sak-admin-cli/src-tauri (mise run docs:screenshots builds it)
+private val SAKADM: Path = Paths.get(System.getProperty("sak.e2e.sakadm") ?: "../sak-admin-cli/src-tauri/target/debug/sakadm")
 
 // the fonts of sak-theme, IBM Plex Mono for the terminal
 private val THEME: Path = Paths.get(System.getProperty("sak.e2e.theme") ?: "../sak-theme")
 
-// the command line of sakctl for the docs: what `sakctl --help` prints, in a terminal in the colors
+// the command line of sakadm for the docs: what `sakadm --help` prints, in a terminal in the colors
 // of the terminal blocks of the docs (site/assets/css/sak-code-block.css); the docs draw the window
-// around it (sakctl-cli-*.png, site/layouts/_default/_markup/render-image.html)
+// around it (sakadm-cli-*.png, site/layouts/_default/_markup/render-image.html)
 @Tag("screenshots")
 class CliScreenshotTest {
     @Test
     fun `the help of the command line`() {
-        val process = ProcessBuilder(SAKCTL.toString(), "--help").redirectErrorStream(true).start()
+        val process = ProcessBuilder(SAKADM.toString(), "--help").redirectErrorStream(true).start()
         val help = process.inputStream.bufferedReader().readText()
-        check(process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0) { "sakctl --help failed: $help" }
+        check(process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0) { "sakadm --help failed: $help" }
 
         // a file next to the fonts, so the page loads them as files
         val page = Files.createTempFile(THEME.toAbsolutePath(), "cli-", ".html")
         try {
-            Files.writeString(page, html("sakctl --help", help))
+            Files.writeString(page, html("sakadm --help", help))
             Playwright.create().use { playwright ->
                 val browser = playwright.chromium().launch()
                 val context = browser.newContext(Browser.NewContextOptions().setViewportSize(900, 400).setDeviceScaleFactor(2.0))
@@ -43,7 +43,7 @@ class CliScreenshotTest {
                 tab.locator(".terminal").screenshot(
                     com.microsoft.playwright.Locator
                         .ScreenshotOptions()
-                        .setPath(SCREENSHOTS.resolve("sakctl-cli-help.png"))
+                        .setPath(SCREENSHOTS.resolve("sakadm-cli-help.png"))
                         .setAnimations(ScreenshotAnimations.DISABLED),
                 )
             }

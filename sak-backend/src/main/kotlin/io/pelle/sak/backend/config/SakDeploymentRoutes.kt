@@ -19,7 +19,7 @@ private const val DEPLOYMENT_TAG = "config"
 fun SakConfig.SmtpConfig.response() =
     SmtpConfigResponse(host, port, username, !password.isNullOrEmpty(), password?.takeIf { it.isNotEmpty() }, from, tls, starttls)
 
-// mounted behind the signature of sakctl only and the admin role: a redeploy reads them again, the
+// mounted behind the signature of sakadm only and the admin role: a redeploy reads them again, the
 // password of the mail server included
 @OptIn(ExperimentalKtorApi::class)
 fun Route.deployment(config: SakConfig) {
@@ -44,7 +44,7 @@ fun Route.deployment(config: SakConfig) {
         summary = "The settings of the deployment"
         description =
             "The name, the dns mode, the root domain, the user mode, the admin, the mail server with its password and the " +
-            "acme ca the deployment runs with, so sakctl can deploy it again with them. Only for a request signed by sakctl, no session."
+            "acme ca the deployment runs with, so sakadm can deploy it again with them. Only for a request signed by sakadm, no session."
         responses {
             HttpStatusCode.OK {
                 description = "The settings of the deployment"

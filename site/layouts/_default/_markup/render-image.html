@@ -1,8 +1,8 @@
 {{- /* the image hook of relearn, its image and its lightbox as they are, in a frame drawn by CSS
    (assets/css/sak-frames.css) that the name of a screenshot asks for, the file keeps its pixels:
    web-*-desktop.png in a browser with the address of its page, web-*-mobile.png in a phone with
-   that address, android-*.png and pwa-*.png in a phone, sakctl-ui-* in a window of the sakctl ui,
-   sakctl-cli-* in a dark terminal; a name with -dark in a dark frame. A video (.mp4) plays muted in
+   that address, android-*.png and pwa-*.png in a phone, sakadm-ui-* in a window of the sakadm ui,
+   sakadm-cli-* in a dark terminal; a name with -dark in a dark frame. A video (.mp4) plays muted in
    a loop, in its frame too. Every other image as relearn shows it. A page below docs/ links a
    screenshot as ../screenshots/<name>.png (as many ../ as it is deep), so github finds it too */}}
 {{- $dest := .Destination | replaceRE `^(\.\./)+screenshots/` "screenshots/" }}
@@ -32,9 +32,9 @@
   {{- $kind = "phone-browser" }}
 {{- else if or (strings.HasPrefix $name "android-") (strings.HasPrefix $name "pwa-") }}
   {{- $kind = "phone" }}
-{{- else if strings.HasPrefix $name "sakctl-ui" }}
+{{- else if strings.HasPrefix $name "sakadm-ui" }}
   {{- $kind = "window" }}
-{{- else if strings.HasPrefix $name "sakctl-cli-" }}
+{{- else if strings.HasPrefix $name "sakadm-cli-" }}
   {{- $kind = "terminal" }}
   {{- $dark = true }}
 {{- end }}
@@ -62,7 +62,7 @@
   {{- if eq $kind "browser" -}}
   <span class="sak-frame-bar" aria-hidden="true"><span class="sak-frame-dots"><i></i><i></i><i></i></span><span class="sak-frame-address">{{ $address }}</span></span>
   {{- else if eq $kind "window" -}}
-  <span class="sak-frame-bar" aria-hidden="true"><span class="sak-frame-dots"><i></i><i></i><i></i></span><span class="sak-frame-title">sakctl</span></span>
+  <span class="sak-frame-bar" aria-hidden="true"><span class="sak-frame-dots"><i></i><i></i><i></i></span><span class="sak-frame-title">sakadm</span></span>
   {{- else if eq $kind "terminal" -}}
   <span class="sak-frame-bar" aria-hidden="true"><span class="sak-frame-dots"><i></i><i></i><i></i></span><span class="sak-frame-title">Terminal</span></span>
   {{- else -}}

@@ -1,0 +1,10 @@
+{
+  "name": "sak-admin-cli",
+  "version": "0.0.0",
+  "description": "The tauri command line that builds sakadm, installed by its lockfile (npm ci, mise run cli:install)",
+  "private": true,
+  "packageManager": "npm@12.2.2",
+  "devDependencies": {
+    "@tauri-apps/cli": "2.12.4"
+  }
+}

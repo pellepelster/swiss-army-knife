@@ -11,7 +11,7 @@ user interface. Use the same term for the same thing every time.
 
 - **Swiss Army Knife**, short **SAK**: The name of the product, in the user interface, the documentation and the
   code. Write it as three words, `Swiss Army Knife`, or as `SAK`; never `SwissArmyKnife`. Lower case `sak` is only a technical prefix, for example
-  `sakctl`, `sak-backend` or `sak.pelle.io/name`; a swiss army knife in lower case is the tool the icon shows.
+  `sakadm`, `sak-backend` or `sak.pelle.io/name`; a swiss army knife in lower case is the tool the icon shows.
 - **SAK Notes**, **SAK Grocery List** and **SAK Todo**: The names of the apps where they are installed: the Android app, its
   listing in Google Play and the installed web app (`name` and `short_name` of `<app>.webmanifest`, which a test
   checks against `app_name` of `i18n/texts.yml`). They are the same in every language. Inside SAK, where the
@@ -20,8 +20,8 @@ user interface. Use the same term for the same thing every time.
 - **deployment** and **SAK instance**: A SAK on its server, with its name, domains and data. Code and the
   documentation for developers (`docs/development/`) say **deployment**. Everything a person reads says **SAK
   instance** (German "SAK-Instanz"): the documentation for users (`README.md`, the other pages of `docs/`), the texts
-  of sakctl (its UI, its command line and its help) and the texts of the apps (web, Android, the messages of the
-  backend). The verb stays: the command `sakctl deploy`, **Deploy changes**, "a deploy" (German "ausrollen"). A term
+  of sakadm (its UI, its command line and its help) and the texts of the apps (web, Android, the messages of the
+  backend). The verb stays: the command `sakadm deploy`, **Deploy changes**, "a deploy" (German "ausrollen"). A term
   of another tool keeps its word, e.g. the "deployment target" of a static site generator.
 - **name**: The unique name of a SAK deployment. Each deployment has one name. Two
   deployments cannot have the same name. Each cloud resource of a deployment has
@@ -47,7 +47,7 @@ user interface. Use the same term for the same thing every time.
 - **delete**: The verb for taking away something a user made or added: a note, a list, an item, a label, a
   bucket, a domain, a redirect, a user. Use it, and the noun **deletion**, every time; never "remove" or "removal".
   Two exceptions: a label, a photo or a recording is **removed from** a note, it stays (the label with its other
-  notes, the file in the storage); a deployment is not deleted but **destroyed** (`sakctl destroy`), with its cloud
+  notes, the file in the storage); a deployment is not deleted but **destroyed** (`sakadm destroy`), with its cloud
   resources.
 - **setting scope**: Settings that belong together, for example **System**. A setting has one value in its scope.
   The settings page shows each scope as a tab and saves it on its own.
@@ -57,7 +57,7 @@ user interface. Use the same term for the same thing every time.
 - **resource status**: What a plan or the state of a deployment says of one of its resources, compared with what the
   deployment declares. It is one of three: **up-to-date** (the resource exists as declared), **missing**
   (it does not exist, also when a resource it depends on does not) or **has changes** (it
-  exists but differs). Messages use these words and no others for it, in the sakctl ui and the sakctl cli, the
+  exists but differs). Messages use these words and no others for it, in the sakadm ui and the sakadm cli, the
   status first and then what is done to the resource: `volume 'sak-alpha-data' missing, will be created`. A resource
   found under another name is no status but an error that stops the plan.
 - **instance status**: The state of a whole SAK instance: **up-to-date** when every resource is,

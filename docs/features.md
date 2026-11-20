@@ -1,13 +1,13 @@
 ---
 title: "Features"
-description: "The apps of Swiss Army Knife and what sakctl does for you."
+description: "The apps of Swiss Army Knife and what sakadm does for you."
 weight: 2
 ---
 
 # Features
 
 Swiss Army Knife is a self-hosted micro-cloud for families and small groups: a few apps on your own server, set up and
-looked after by one program, sakctl.
+looked after by one program, sakadm.
 
 ![The apps of a SAK instance](screenshots/web-apps-desktop.png)
 
@@ -18,8 +18,8 @@ Your data stays on your server and goes to no third party unless you turn it on.
 **Downloads from GitHub:** the software of SAK comes from GitHub. GitHub sees the IP address of the computer, server
 or phone that downloads, never your data:
 
-- sakctl and its updates come from the GitHub releases, and sakctl updates only when you ask.
-- At each start, sakctl downloads the image of its tools from the GitHub container registry (`ghcr.io`).
+- sakadm and its updates come from the GitHub releases, and sakadm updates only when you ask.
+- At each start, sakadm downloads the image of its tools from the GitHub container registry (`ghcr.io`).
 - At each deploy, the server downloads the images of SAK from `ghcr.io`, and the two images for its logs
   (VictoriaLogs and Vector) from Docker Hub.
 - The native Android apps and their updates come from the GitHub releases. An app updates only when you start it.
@@ -51,18 +51,18 @@ Sign in with just your e-mail address:
 
 ![Sign in with just your e-mail address](screenshots/web-login-email-desktop.png)
 
-## sakctl
+## sakadm
 
 One program on your computer sets up and looks after your SAK instance.
 
 **The UI, for beginners:** guides you from your Hetzner Cloud token to a running SAK instance, and shows a plan before
 each change.
 
-![Installing a SAK instance with the sakctl UI](screenshots/sakctl-ui.mp4)
+![Installing a SAK instance with the sakadm UI](screenshots/sakadm-ui.mp4)
 
 **The command line, for advanced users:** the same as commands, for scripts and automation.
 
-![The help of the sakctl command line](screenshots/sakctl-cli-help.png)
+![The help of the sakadm command line](screenshots/sakadm-cli-help.png)
 
 Both can:
 
@@ -151,4 +151,4 @@ and renewed automatically.
 
 ![Redirects](screenshots/web-redirects-desktop.png)
 
-Next: how [sakctl and your SAK instance](overview.md) belong together, or [install sakctl](installation.md).
+Next: how [sakadm and your SAK instance](overview.md) belong together, or [install sakadm](installation.md).

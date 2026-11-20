@@ -38,7 +38,7 @@ menu of a row, as the grocery lists have them.
 ### `TD-9` Not checked with this review
 
 - the date picker of the todo app in landscape was tested for a reachable OK button, nobody looked at a picture of it
-- the e2e tests in Hetzner Cloud (`mise run cli:test:e2e`) did not run; the todo app does not change sakctl
+- the e2e tests in Hetzner Cloud (`mise run cli:test:e2e`) did not run; the todo app does not change sakadm
 - `prettier --check src e2e` still flags the generated catalogs (`src/app/i18n/catalog.<language>.ts`) and
   `e2e/login.spec.ts`, `e2e/logs.spec.ts` and `e2e/swagger.spec.ts`; no task of mise and no script of `package.json`
   runs prettier

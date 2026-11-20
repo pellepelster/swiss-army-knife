@@ -67,12 +67,12 @@ private const val AUTH_TAG = "auth"
 
 data class SessionPrincipal(
     val email: String,
-    // null for a signed request of sakctl, which has no session that expires
+    // null for a signed request of sakadm, which has no session that expires
     val expiresAt: Instant?,
     val roles: Set<Role>,
     // signed in with the admin password, not with a link by e-mail
     val withPassword: Boolean = false,
-    // who the data of the session belongs to (MODEL-5): the user itself, the admin for sakctl
+    // who the data of the session belongs to (MODEL-5): the user itself, the admin for sakadm
     val owner: String = email,
 )
 
@@ -80,7 +80,7 @@ data class SessionPrincipal(
 val ApplicationCall.sessionEmail: String get() = principal<SessionPrincipal>()!!.email
 
 // who the data of the call belongs to and who creates it (MODEL-5): the signed in user, the admin of
-// the password login for a request of sakctl
+// the password login for a request of sakadm
 val ApplicationCall.owner: String get() = principal<SessionPrincipal>()!!.owner
 
 // an app with an e-mail login, its signin page at <url>/signin takes the login token; the name
@@ -352,7 +352,7 @@ fun Route.connectExchange(
 
 // the QR code that connects an app as the signed in user (SECURITY-3), behind
 // authenticate(SESSION_AUTH): the token is in the fragment, which a browser never sends; a signed
-// request of sakctl (no expiry) gets 403
+// request of sakadm (no expiry) gets 403
 @OptIn(ExperimentalKtorApi::class)
 fun Route.connect(
     tokens: TokenService,
@@ -388,7 +388,7 @@ fun Route.connect(
                     description = "The link of the QR code, its id and when it expires"
                     schema = jsonSchema<ConnectResponse>()
                 }
-                errors(HttpStatusCode.Forbidden, "A signed request of sakctl, which has no session to connect")
+                errors(HttpStatusCode.Forbidden, "A signed request of sakadm, which has no session to connect")
                 errors(HttpStatusCode.TooManyRequests, "Too many codes of this user")
             }
         }

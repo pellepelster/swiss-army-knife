@@ -104,7 +104,7 @@ class SakBackendTest {
         sakConfig().dataDir shouldBe dataDir
     }
 
-    // the template of the backend role rendered as ansible renders it, with the inventory sakctl
+    // the template of the backend role rendered as ansible renders it, with the inventory sakadm
     // writes: its variables, its filters and its conditions; anything else left is an error. The
     // admin, inside the block of the mail server, goes first, so the block ends at its own endif
     private fun renderTemplate(
@@ -134,7 +134,7 @@ class SakBackendTest {
         return tempDir.resolve("backend-config.yaml").also { Files.writeString(it, rendered) }
     }
 
-    // backend.env as sakctl writes it, as the environment the backend reads
+    // backend.env as sakadm writes it, as the environment the backend reads
     private fun <T> withBackendEnv(
         smtp: Boolean,
         block: () -> T,

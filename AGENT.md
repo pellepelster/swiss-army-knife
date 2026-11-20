@@ -27,7 +27,7 @@ Read this file first. It contains rules for the complete repository.
 - Run verification that can find regressions in the changed area.
 - Never log PII: no raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider
   subjects, tokens, passwords, auth codes, reset links, raw IPs of clients or users, or full query strings. The IP
-  addresses of the user's own servers (the server and the primary IPs of a deployment) are no PII: sakctl may show
+  addresses of the user's own servers (the server and the primary IPs of a deployment) are no PII: sakadm may show
   and log them, e.g. in `list` and while it provisions a server.
 - Encrypt all data at rest: databases, files, volumes, backups and logs. Data that is not encrypted at rest is a
   defect; record it as a feature or an accepted risk until it is fixed.
@@ -39,7 +39,7 @@ Read this file first. It contains rules for the complete repository.
 
 ## UI/UX
 
-How the apps (frontend, sakctl ui, sakctl cli, Android Apps) look and behave for their users is in
+How the apps (frontend, sakadm ui, sakadm cli, Android Apps) look and behave for their users is in
 [docs/development/UI-UX.md](docs/development/UI-UX.md), follow it for every change of a ui.
 
 ## Architecture
@@ -48,7 +48,7 @@ How SAK is built is in three levels below `docs/development/architecture/`, each
 repeating them:
 
 1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the backend layers, the api
-   contract, the model, the external systems, the server of a deployment, sakctl, the cloud resources and their
+   contract, the model, the external systems, the server of a deployment, sakadm, the cloud resources and their
    labels, privacy, security, the tests).
 2. [apps/INDEX.md](docs/development/architecture/apps/INDEX.md): what all apps share (the shared parts, the list-based
    apps, the frontend, privacy in the apps).
@@ -147,27 +147,27 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
   name stays a dns label of 63. DNS records are named by the dns mode, not by this rule.
 - A class (a struct in rust) that manages resources outside the process, at a cloud provider,
   a container runtime, a remote api, is called `<name>Manager` after what it manages, e.g.
-  `DeploymentManager` (`sak-cli`, the sak deployments at the providers). A manager is the one
+  `DeploymentManager` (`sak-admin-cli`, the sak deployments at the providers). A manager is the one
   place its resources are looked up, created, changed and removed from; the rest of the code
   asks it and holds no client of its own.
 
-## Cloud resources (`sak-cli/cloud`)
+## Cloud resources (`sak-admin-cli/cloud`)
 
 - The labels, the identity and what must stay are in architecture/SYSTEM.md, "Cloud resources". In the code:
 - Whatever creates resources sets the name label and the password hash label on creation, and declares them as the
   identity (`with_identity`, checked by `api::identity`); a resource of SAK without them is a defect.
 - A registry that may destroy declares its owner labels (`Registry::owned_by`), and only the resources that may be
   replaced are `Registry::recreatable`.
-- The password hash is `keys::password_hash` in `sak-cli` (30 bytes of the master key as hex); the firewall selects its
+- The password hash is `keys::password_hash` in `sak-admin-cli` (30 bytes of the master key as hex); the firewall selects its
   servers by the name label alone.
 
 ## Texts (`i18n/texts.yml`)
 
 - Every text a user reads goes into `i18n/texts.yml`, never into code or a generated file (`I18N-1` in SYSTEM.md);
   run `mise run i18n:generate` after a change of it.
-- `ctl.cli` texts only the sakctl cli shows, `ctl.ui` texts only the sakctl ui shows, `ctl.common` texts both show
+- `ctl.cli` texts only the sakadm cli shows, `ctl.ui` texts only the sakadm ui shows, `ctl.common` texts both show
   (the messages of core, the resource kinds and statuses, the actions of a plan), read as `cli.*`, `ui.*` and
-  `common.*`. A text moves to `ctl.common` once both use it. `sak-cli/src-tauri/locales/` is generated from it.
+  `common.*`. A text moves to `ctl.common` once both use it. `sak-admin-cli/src-tauri/locales/` is generated from it.
 
 ## Privacy in the code
 

@@ -146,7 +146,7 @@ fun Application.apps(
 
     install(Authentication) {
         session(tokens, rolesOf)
-        // sakctl acts as the admin, what it creates is theirs
+        // sakadm acts as the admin, what it creates is theirs
         apiSignature(config.apiPublicKey?.let { ApiSignature(it, config.apiHost, API_PATH_PREFIX) }, owner = admin)
     }
 
@@ -241,7 +241,7 @@ fun Application.apps(
                             servedFiles(fileService)
                         }
                     }
-                    // sakctl only, signed: holds the password of the mail server, no browser session gets it
+                    // sakadm only, signed: holds the password of the mail server, no browser session gets it
                     authenticate(API_SIGNATURE_AUTH) {
                         route("/deployment") {
                             requireRole(Role.ADMIN)

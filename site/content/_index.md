@@ -9,7 +9,7 @@ description: "The documentation of Swiss Army Knife (SAK): what it does, how to 
 
 ## Documentation
 
-What SAK does, how to install sakctl and create your SAK instance, and how to use the apps. The section
+What SAK does, how to install sakadm and create your SAK instance, and how to use the apps. The section
 **Development** tells how SAK is built and why.
 
 {{% pages description="true" display="tree" %}}

@@ -9,15 +9,15 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-// the page of the sakctl ui (sak-cli/ui) and the answers of rust for it, the fixtures that
+// the page of the sakadm ui (sak-admin-cli/ui) and the answers of rust for it, the fixtures that
 // `cargo test window_fixtures -- --ignored` writes (core/deployments/window_fixtures.rs)
-private val UI: Path = Paths.get(System.getProperty("sak.e2e.window.ui") ?: "../sak-cli/ui").toAbsolutePath().normalize()
+private val UI: Path = Paths.get(System.getProperty("sak.e2e.window.ui") ?: "../sak-admin-cli/ui").toAbsolutePath().normalize()
 private val FIXTURES: Path = Paths.get(System.getProperty("sak.e2e.window.fixtures") ?: "../build/ui-fixtures/window.json")
 
 // where the page is served from, no server listens there
-private const val ORIGIN = "http://sakctl.test"
+private const val ORIGIN = "http://sakadm.test"
 
-// the size of the window (sak-cli/src-tauri/tauri.conf.json)
+// the size of the window (sak-admin-cli/src-tauri/tauri.conf.json)
 const val WINDOW_WIDTH = 736
 const val WINDOW_HEIGHT = 686
 
@@ -73,13 +73,13 @@ private val BRIDGE =
     })();
     """.trimIndent()
 
-// a context that shows the window: its files from sak-cli/ui, rust replaced by the fixtures
+// a context that shows the window: its files from sak-admin-cli/ui, rust replaced by the fixtures
 fun Browser.window(
     scheme: ColorScheme = ColorScheme.LIGHT,
     options: Browser.NewContextOptions.() -> Unit = {},
 ): BrowserContext {
     check(Files.isDirectory(UI.resolve("theme"))) { "$UI/theme is missing, run mise run cli:theme" }
-    check(Files.exists(FIXTURES)) { "$FIXTURES is missing, run cargo test window_fixtures -- --ignored in sak-cli/src-tauri" }
+    check(Files.exists(FIXTURES)) { "$FIXTURES is missing, run cargo test window_fixtures -- --ignored in sak-admin-cli/src-tauri" }
     val context =
         newContext(
             Browser

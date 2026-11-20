@@ -5,13 +5,13 @@ java = "temurin-25.0.5+8.0.LTS"
 node = "26.13.1"
 # the python of the pipx tools, ansible-core needs 3.13 or newer
 python = { version = "3.15.2", os = ["linux", "macos"] }
-# linux and macOS only; sakctl itself runs ansible in the tools image
+# linux and macOS only; sakadm itself runs ansible in the tools image
 "pipx:ansible-core" = { version = "2.22.0", os = ["linux", "macos"] }
 pipx = { version = "1.18.16", os = ["linux", "macos"] }
 # the icon font of sak-frontend cut to the icons it uses (frontend:icons), woff2 needs brotli
 "pipx:fonttools" = { version = "4.68.0", extras = "woff", os = ["linux", "macos"] }
-# sakctl (sak-cli): tauri 2, the rust core in src-tauri/, the web ui in ui/; the tauri command line is
-# an npm package of sak-cli/package.json, installed by its lockfile (cli:install)
+# sakadm (sak-admin-cli): tauri 2, the rust core in src-tauri/, the web ui in ui/; the tauri command line is
+# an npm package of sak-admin-cli/package.json, installed by its lockfile (cli:install)
 rust = "1.100.0"
 # the docs site (site/), go for the hugo modules
 "hugo-extended" = "0.169.0"
@@ -20,7 +20,7 @@ go = "1.27.4"
 "github:nextest-rs/nextest" = { version = "0.9.151", version_prefix = "cargo-nextest-" }
 # the next version for `release`, from the tags v<version>
 svu = "3.4.4"
-# the signatures of the zips of sakctl (cli:release), keyless with a certificate of the workflow
+# the signatures of the zips of sakadm (cli:release), keyless with a certificate of the workflow
 cosign = "3.1.4"
 
 # the version of all artifacts: the tag v<version> in the workflow without the v, latest
@@ -28,12 +28,12 @@ cosign = "3.1.4"
 [env]
 VERSION = "{{ get_env(name='VERSION', default='latest') | trim_start(pat='v') }}"
 
-# the images on ghcr.io: the server (backend, ingress) and sakctl's tools and container runtime canary
+# the images on ghcr.io: the server (backend, ingress) and sakadm's tools and container runtime canary
 [vars]
 backend_image = "ghcr.io/pellepelster/sak-backend"
 ingress_image = "ghcr.io/pellepelster/sak-ingress"
-cli_image = "ghcr.io/pellepelster/sak-cli-tools"
-cli_canary = "ghcr.io/pellepelster/sak-cli-docker-canary"
+cli_image = "ghcr.io/pellepelster/sak-admin-cli-tools"
+cli_canary = "ghcr.io/pellepelster/sak-admin-cli-docker-canary"
 # the certificate of the key of the android apps, android:release:build and android:play:build check it
 android_cert_sha256 = "546205591d3d1ad2e3b10e38f2ef8ce154eb19b543125a5ea6c7bf2ef9890679"
 
@@ -123,7 +123,7 @@ docker buildx build --platform "${SAK_DOCKER_PLATFORMS:-linux/amd64,linux/arm64}
 IMAGE={{vars.ingress_image}} METADATA="$metadata" mise run image:sign
 """
 
-# sakctl on linux needs the webkitgtk headers, on debian/ubuntu:
+# sakadm on linux needs the webkitgtk headers, on debian/ubuntu:
 # sudo apt install libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
 # only when package.json or package-lock.json changed
@@ -148,11 +148,11 @@ depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmBuild"
 
-# into sak-cli/ui/theme/ (not committed): tauri bundles only sak-cli/ui/
+# into sak-admin-cli/ui/theme/ (not committed): tauri bundles only sak-admin-cli/ui/
 [tasks."cli:theme"]
-description = "Copy sak-theme into the sakctl ui"
+description = "Copy sak-theme into the sakadm ui"
 depends = ["theme:install"]
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 # bash on windows too (git bash), where mise would run cmd
 shell = "bash -c"
 run = """
@@ -162,77 +162,77 @@ cp ../sak-theme/node_modules/bootstrap/dist/css/bootstrap.min.css ui/theme/
 cp ../sak-theme/tokens.css ../sak-theme/bootstrap.css ../sak-theme/fonts.css ../sak-theme/components.css ui/theme/
 cp -r ../sak-theme/fonts ui/theme/fonts
 cp -r ../sak-theme/icons ui/theme/icons
-cp -r ../sak-theme/images/sakctl ui/theme/images
+cp -r ../sak-theme/images/sakadm ui/theme/images
 """
 
-# the tauri command line of sak-cli/package.json, exactly as its lockfile has it, with its
-# dependencies: its build makes the binaries of sakctl, which become the signed zips
+# the tauri command line of sak-admin-cli/package.json, exactly as its lockfile has it, with its
+# dependencies: its build makes the binaries of sakadm, which become the signed zips
 [tasks."cli:install"]
-description = "Install the tauri command line of sakctl"
-dir = "{{config_root}}/sak-cli"
+description = "Install the tauri command line of sakadm"
+dir = "{{config_root}}/sak-admin-cli"
 run = "npm ci --no-audit --no-fund"
 
 # the ui without arguments, the command line with them: `mise run cli:run -- --help`. tauri dev
 # hands what follows its second -- to the app. HCLOUD_TOKEN from pass unless set
 [tasks."cli:run"]
-description = "Run sakctl with reload"
+description = "Run sakadm with reload"
 depends = ["cli:install", "cli:theme"]
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
-run = '''sh -c 'if [ $# -eq 0 ]; then npx --no-install tauri dev; else npx --no-install tauri dev -- -- "$@"; fi' sakctl'''
+run = '''sh -c 'if [ $# -eq 0 ]; then npx --no-install tauri dev; else npx --no-install tauri dev -- -- "$@"; fi' sakadm'''
 
 # the installers of this platform (deb, rpm, AppImage; dmg; msi, nsis) in
 # src-tauri/target/release/bundle/
 [tasks."cli:build"]
-description = "Build the sakctl installers"
+description = "Build the sakadm installers"
 depends = ["cli:install", "cli:theme", "tools:image:build", "canary:image:build"]
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 run = "npx --no-install tauri build"
 
-# cli:build:<platform>, on that platform (workflow job sakctl): the binary zipped to
-# sak-cli/build/sak-cli-<platform>-<architecture>-<VERSION>.zip and its <zip>.sha256; x86_64, a
+# cli:build:<platform>, on that platform (workflow job sakadm): the binary zipped to
+# sak-admin-cli/build/sak-admin-cli-<platform>-<architecture>-<VERSION>.zip and its <zip>.sha256; x86_64, a
 # universal binary for macOS
 [tasks."cli:build:linux"]
-description = "Build sakctl for linux"
+description = "Build sakadm for linux"
 depends = ["cli:install", "cli:theme"]
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 run = """
 npx --no-install tauri build --no-bundle
 mkdir -p build
-rm -f "build/sak-cli-linux-x86_64-${VERSION}.zip"
-zip -j "build/sak-cli-linux-x86_64-${VERSION}.zip" src-tauri/target/release/sakctl
-(cd build && sha256sum "sak-cli-linux-x86_64-${VERSION}.zip" > "sak-cli-linux-x86_64-${VERSION}.zip.sha256")
+rm -f "build/sak-admin-cli-linux-x86_64-${VERSION}.zip"
+zip -j "build/sak-admin-cli-linux-x86_64-${VERSION}.zip" src-tauri/target/release/sakadm
+(cd build && sha256sum "sak-admin-cli-linux-x86_64-${VERSION}.zip" > "sak-admin-cli-linux-x86_64-${VERSION}.zip.sha256")
 """
 
 [tasks."cli:build:macos"]
-description = "Build sakctl for macOS"
+description = "Build sakadm for macOS"
 depends = ["cli:install", "cli:theme"]
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 run = """
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
 npx --no-install tauri build --target universal-apple-darwin --no-bundle
 mkdir -p build
-rm -f "build/sak-cli-macos-universal-${VERSION}.zip"
-zip -j "build/sak-cli-macos-universal-${VERSION}.zip" src-tauri/target/universal-apple-darwin/release/sakctl
-(cd build && shasum -a 256 "sak-cli-macos-universal-${VERSION}.zip" > "sak-cli-macos-universal-${VERSION}.zip.sha256")
+rm -f "build/sak-admin-cli-macos-universal-${VERSION}.zip"
+zip -j "build/sak-admin-cli-macos-universal-${VERSION}.zip" src-tauri/target/universal-apple-darwin/release/sakadm
+(cd build && shasum -a 256 "sak-admin-cli-macos-universal-${VERSION}.zip" > "sak-admin-cli-macos-universal-${VERSION}.zip.sha256")
 """
 
 # git bash has no zip but 7-Zip; -e stops at a failed step like sh does elsewhere. Two programs in
-# the zip: sakctl.exe, the window without a console, and sakctl-cli.exe, the same built with the
+# the zip: sakadm.exe, the window without a console, and sakadm-cli.exe, the same built with the
 # feature console as a console program, whose commands print to the terminal
 [tasks."cli:build:windows"]
-description = "Build sakctl for windows"
+description = "Build sakadm for windows"
 depends = ["cli:install", "cli:theme"]
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 shell = "bash -e -c"
 run = """
 mkdir -p build
 npx --no-install tauri build --no-bundle --features console
-cp src-tauri/target/release/sakctl.exe build/sakctl-cli.exe
+cp src-tauri/target/release/sakadm.exe build/sakadm-cli.exe
 npx --no-install tauri build --no-bundle
-rm -f "build/sak-cli-windows-x86_64-${VERSION}.zip"
-7z a -tzip "build/sak-cli-windows-x86_64-${VERSION}.zip" ./src-tauri/target/release/sakctl.exe ./build/sakctl-cli.exe
-(cd build && sha256sum "sak-cli-windows-x86_64-${VERSION}.zip" > "sak-cli-windows-x86_64-${VERSION}.zip.sha256")
+rm -f "build/sak-admin-cli-windows-x86_64-${VERSION}.zip"
+7z a -tzip "build/sak-admin-cli-windows-x86_64-${VERSION}.zip" ./src-tauri/target/release/sakadm.exe ./build/sakadm-cli.exe
+(cd build && sha256sum "sak-admin-cli-windows-x86_64-${VERSION}.zip" > "sak-admin-cli-windows-x86_64-${VERSION}.zip.sha256")
 """
 
 # the zips of cli:build:<platform> and their checksums as the github release v<VERSION>, where the
@@ -240,47 +240,47 @@ rm -f "build/sak-cli-windows-x86_64-${VERSION}.zip"
 # Each zip signed with cosign, keyless: a short-lived certificate of sigstore for the workflow run
 # of the tag (its id token, permission id-token: write), the signature and the certificate in
 # <zip>.sigstore.json. Each signature is verified for the identity the installation names and
-# against the trusted root of sigstore that sakctl embeds (sak-cli/src-tauri/trusted_root.json, the
-# one sakctl update verifies with), so a root cosign knows but sakctl does not fails the release
+# against the trusted root of sigstore that sakadm embeds (sak-admin-cli/src-tauri/trusted_root.json, the
+# one sakadm update verifies with), so a root cosign knows but sakadm does not fails the release
 # here, not the users
 [tasks."cli:release"]
-description = "Publish the GitHub release of sakctl"
-dir = "{{config_root}}/sak-cli"
+description = "Publish the GitHub release of sakadm"
+dir = "{{config_root}}/sak-admin-cli"
 run = """
 set -eu
 identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}"
 files=""
 for platform in linux-x86_64 macos-universal windows-x86_64; do
-  zip="build/sak-cli-${platform}-${VERSION}.zip"
+  zip="build/sak-admin-cli-${platform}-${VERSION}.zip"
   [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
   cosign sign-blob --yes --bundle "$zip.sigstore.json" "$zip"
   cosign verify-blob --bundle "$zip.sigstore.json" --certificate-identity "$identity" \
     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-    --trusted-root {{config_root}}/sak-cli/src-tauri/trusted_root.json "$zip"
+    --trusted-root {{config_root}}/sak-admin-cli/src-tauri/trusted_root.json "$zip"
   files="$files $zip $zip.sha256 $zip.sigstore.json"
 done
 # created once; a release that failed halfway runs again, its files are replaced
 if ! gh release view "v${VERSION}" >/dev/null 2>&1; then
   gh release create "v${VERSION}" --verify-tag --title "SAK $VERSION" \
-    --notes "sakctl for linux, macOS and windows and the android apps of the grocery lists, the notes and the todo lists, built from $(git rev-parse --short=12 HEAD)."
+    --notes "sakadm for linux, macOS and windows and the android apps of the grocery lists, the notes and the todo lists, built from $(git rev-parse --short=12 HEAD)."
 fi
 gh release upload "v${VERSION}" $files --clobber
 """
 
-# the command line without the ui: `mise run cli:sakctl -- --help`. HCLOUD_TOKEN from pass
+# the command line without the ui: `mise run cli:sakadm -- --help`. HCLOUD_TOKEN from pass
 # unless set
-[tasks."cli:sakctl"]
-description = "Run the sakctl command line"
-dir = "{{config_root}}/sak-cli/src-tauri"
+[tasks."cli:sakadm"]
+description = "Run the sakadm command line"
+dir = "{{config_root}}/sak-admin-cli/src-tauri"
 # the terminal itself: password prompts and ssh need it
 raw = true
 env = { HCLOUD_TOKEN = "{{ get_env(name='HCLOUD_TOKEN', default=exec(command='pass show hetzner/pelle.io/hcloud_api_token 2>/dev/null | head -n1')) }}" }
-run = '''sh -c 'cargo run -q -- "$@"' sakctl'''
+run = '''sh -c 'cargo run -q -- "$@"' sakadm'''
 
 # the context is the repository: the image contains the ansible collection of ansible/
 [tasks."tools:image:build"]
 description = "Build the tools image"
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 run = """
 docker buildx build --load --file Dockerfile --tag {{vars.cli_image}}:latest \
   --cache-from type=registry,ref={{vars.cli_image}}:buildcache ..
@@ -301,13 +301,13 @@ docker run --rm "$image" ansible-playbook --list-tasks pelle_io.sak.backend | gr
 docker run --rm "$image" ansible-playbook --list-tasks pelle_io.sak.server | grep -q "pelle_io.sak.storage :"
 docker run --rm "$image" ansible localhost -m ping
 # the callback posts the events of a run with its token
-docker run --rm -v "{{config_root}}/sak-cli/image-test:/test:ro" "$image" sh /test/callback.sh
+docker run --rm -v "{{config_root}}/sak-admin-cli/image-test:/test:ro" "$image" sh /test/callback.sh
 echo "the image of the tools works"
 """
 
 [tasks."tools:image:push"]
 description = "Push the tools image"
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 run = """
 set -eu
 metadata=$(mktemp)
@@ -322,7 +322,7 @@ IMAGE={{vars.cli_image}} METADATA="$metadata" mise run image:sign
 
 [tasks."canary:image:build"]
 description = "Build the canary image"
-dir = "{{config_root}}/sak-cli/canary"
+dir = "{{config_root}}/sak-admin-cli/canary"
 run = """
 docker buildx build --load --tag {{vars.cli_canary}}:latest \
   --cache-from type=registry,ref={{vars.cli_canary}}:buildcache .
@@ -332,13 +332,13 @@ docker buildx build --load --tag {{vars.cli_canary}}:latest \
 description = "Test the canary image"
 depends = ["canary:image:build"]
 run = """
-[ "$(docker run --rm {{vars.cli_canary}}:latest)" = "sak-cli-docker-canary" ]
+[ "$(docker run --rm {{vars.cli_canary}}:latest)" = "sak-admin-cli-docker-canary" ]
 echo "the canary works"
 """
 
 [tasks."canary:image:push"]
 description = "Push the canary image"
-dir = "{{config_root}}/sak-cli/canary"
+dir = "{{config_root}}/sak-admin-cli/canary"
 run = """
 set -eu
 metadata=$(mktemp)
@@ -372,7 +372,7 @@ echo "tagged $version, the workflow builds and releases it"
 # the image IMAGE as buildx pushed it (its --metadata-file METADATA) signed with cosign, keyless:
 # a short-lived certificate of sigstore for the workflow run (its id token, permission
 # id-token: write), the signature next to the digest in the registry. Verified for the identity
-# sakctl checks before it pulls the image, against the trusted root sakctl embeds. Outside of the
+# sakadm checks before it pulls the image, against the trusted root sakadm embeds. Outside of the
 # workflow nothing is signed: a push from a machine of a developer has no id token of the workflow
 [tasks."image:sign"]
 description = "Sign a pushed image with cosign, in the workflow only"
@@ -386,7 +386,7 @@ digest=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["conta
 cosign sign --yes "$IMAGE@$digest"
 cosign verify --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --trusted-root {{config_root}}/sak-cli/src-tauri/trusted_root.json "$IMAGE@$digest" >/dev/null
+  --trusted-root {{config_root}}/sak-admin-cli/src-tauri/trusted_root.json "$IMAGE@$digest" >/dev/null
 echo "signed $IMAGE@$digest"
 """
 
@@ -473,17 +473,17 @@ depends = ["frontend:install"]
 dir = "{{config_root}}/sak-frontend"
 run = "npx ng serve"
 
-# the data the sakctl ui shows in its screenshots and video (src/core/deployments/window_fixtures.rs)
+# the data the sakadm ui shows in its screenshots and video (src/core/deployments/window_fixtures.rs)
 [tasks."docs:window"]
-description = "Prepare the sakctl ui fixtures"
+description = "Prepare the sakadm ui fixtures"
 depends = ["cli:theme"]
-dir = "{{config_root}}/sak-cli/src-tauri"
+dir = "{{config_root}}/sak-admin-cli/src-tauri"
 run = "cargo test window_fixtures -- --ignored"
 
 # the version and the checksums of the zips of cli:build:<platform> for the installation page,
-# site/data/sakctl.yaml; a platform without a zip shows <sha256>
+# site/data/sakadm.yaml; a platform without a zip shows <sha256>
 [tasks."docs:data"]
-description = "Write the sakctl data of the docs"
+description = "Write the sakadm data of the docs"
 dir = "{{config_root}}/site"
 run = """
 set -eu
@@ -495,11 +495,11 @@ mkdir -p data
   echo "checksums:"
   for platform in linux macos windows; do
     case "$platform" in macos) architecture=universal ;; *) architecture=x86_64 ;; esac
-    checksum="../sak-cli/build/sak-cli-${platform}-${architecture}-${VERSION}.zip.sha256"
+    checksum="../sak-admin-cli/build/sak-admin-cli-${platform}-${architecture}-${VERSION}.zip.sha256"
     [ -f "$checksum" ] && echo "  $platform: '$(cut -d ' ' -f 1 "$checksum")'"
   done
   true
-} > data/sakctl.yaml
+} > data/sakadm.yaml
 """
 
 # http://localhost:1313, fully rebuilt on every change so menus and links follow
@@ -516,19 +516,19 @@ depends = ["docs:data"]
 dir = "{{config_root}}/site"
 run = "hugo --destination ../build/site --cleanDestinationDir --panicOnWarning"
 
-# docs/screenshots/: the apps against local:run (desktop and phone), the sakctl ui (light and
+# docs/screenshots/: the apps against local:run (desktop and phone), the sakadm ui (light and
 # dark), its command line help and the android apps
 [tasks."docs:screenshots"]
 description = "Take the screenshots"
 depends = ["docs:window", "android:screenshots"]
 dir = "{{config_root}}"
 run = [
-  "cd sak-cli/src-tauri && cargo build",
+  "cd sak-admin-cli/src-tauri && cargo build",
   "./gradlew :sak-e2e:e2eScreenshots",
 ]
 
-# build/videos/: the tours of the apps (against local:run) and of the sakctl ui as .webm, .mp4 and
-# .gif; the sakctl tour also to docs/screenshots/ for the docs and the README
+# build/videos/: the tours of the apps (against local:run) and of the sakadm ui as .webm, .mp4 and
+# .gif; the sakadm tour also to docs/screenshots/ for the docs and the README
 [tasks."docs:video"]
 description = "Record the videos"
 depends = ["docs:window"]
@@ -542,8 +542,8 @@ for video in build/videos/*.webm; do
 done
 ls -lh build/videos/*.mp4 build/videos/*.gif
 # the README on github plays no video: a small gif (6 fps, 560 px wide)
-cp build/videos/sakctl-ui.mp4 docs/screenshots/sakctl-ui.mp4
-ffmpeg -v error -y -i build/videos/sakctl-ui.mp4 -vf "fps=6,scale=560:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" docs/screenshots/sakctl-ui.gif
+cp build/videos/sakadm-ui.mp4 docs/screenshots/sakadm-ui.mp4
+ffmpeg -v error -y -i build/videos/sakadm-ui.mp4 -vf "fps=6,scale=560:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" docs/screenshots/sakadm-ui.gif
 '''
 
 # the tests, <part>:test:<kind> (docs/development/architecture/SYSTEM.md, "Tests"): unit tests need
@@ -573,7 +573,7 @@ run = [
   "npm --prefix sak-frontend run api:types",
 ]
 
-# the committed text files of the backend, the web apps, the android apps and sakctl; a test of
+# the committed text files of the backend, the web apps, the android apps and sakadm; a test of
 # sak-i18n fails while they are out of date
 [tasks."i18n:generate"]
 description = "Generate the texts of the apps from i18n/texts.yml"
@@ -614,11 +614,11 @@ depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmTest"
 
-# sakctl and sak-cloud (sak-cli/cloud/), without sakctl's modules named integration
+# sakadm and sak-cloud (sak-admin-cli/cloud/), without sakadm's modules named integration
 [tasks."cli:test:unit"]
 description = "Run the cli unit tests"
 depends = ["cli:theme"]
-dir = "{{config_root}}/sak-cli"
+dir = "{{config_root}}/sak-admin-cli"
 run = """
 set -e
 (cd src-tauri && cargo nextest run --no-fail-fast -E 'not test(/::integration::/)')
@@ -643,12 +643,12 @@ depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:e2eTest"
 
-# sakctl's modules named integration: docker and podman (pulling the images from ghcr.io), ssh in the
+# sakadm's modules named integration: docker and podman (pulling the images from ghcr.io), ssh in the
 # tools image, ssh-keygen
 [tasks."cli:test:integration"]
 description = "Run the cli integration tests"
 depends = ["cli:theme"]
-dir = "{{config_root}}/sak-cli/src-tauri"
+dir = "{{config_root}}/sak-admin-cli/src-tauri"
 run = "cargo nextest run --no-fail-fast -E 'test(/::integration::/)'"
 
 # sak-e2e: the apps in chromium against local:run
@@ -658,7 +658,7 @@ dir = "{{config_root}}"
 run = "./gradlew :sak-e2e:e2eLocal"
 
 # in the Hetzner Cloud project of HCLOUD_TOKEN, real servers (test-<id>), slow and not free: sak-cloud
-# against the api, then sak-e2e with two deployments of sakctl (sak-e2e/README.md). HCLOUD_TOKEN from
+# against the api, then sak-e2e with two deployments of sakadm (sak-e2e/README.md). HCLOUD_TOKEN from
 # pass unless set; gradle reads the secrets of sak-e2e itself. The deployments run SAK_DOCKER_IMAGE_TAG,
 # <VERSION>-rc unless set, which outside of CI the task builds and pushes first
 [tasks."cli:test:e2e"]
@@ -670,7 +670,7 @@ run = """
 set -e
 [ -n "$HCLOUD_TOKEN" ] || { echo "set HCLOUD_TOKEN, refer to sak-e2e/README.md" >&2; exit 1; }
 # a failing build stops before any server exists
-(cd sak-cli/src-tauri && cargo build)
+(cd sak-admin-cli/src-tauri && cargo build)
 # amd64 for the servers and this machine's platform for the tools image
 if [ -z "${CI:-}" ]; then
   case "$(uname -m)" in
@@ -682,7 +682,7 @@ if [ -z "${CI:-}" ]; then
 fi
 export SAK_DOCKER_IMAGE_TAG="${SAK_DOCKER_IMAGE_TAG:-${VERSION}-rc}"
 # one at a time: the tests share their ssh key and names
-(cd sak-cli/cloud && cargo nextest run --no-fail-fast --test-threads 1 -E 'kind(test)')
+(cd sak-admin-cli/cloud && cargo nextest run --no-fail-fast --test-threads 1 -E 'kind(test)')
 ./gradlew :sak-e2e:e2eIntegration --console=plain
 """
 

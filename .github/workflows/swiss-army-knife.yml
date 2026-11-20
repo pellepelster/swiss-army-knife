@@ -1,6 +1,6 @@
 # tests and builds everything: the unit tests of the backend, the frontend and the cli first, then,
 # when they are green, the images of the server (sak-backend-images: sak-backend and sak-ingress)
-# and of sak-cli (sak-cli-images: the tools and the canary), each in a job of its own, sakctl as a
+# and of sak-admin-cli (sak-admin-cli-images: the tools and the canary), each in a job of its own, sakadm as a
 # native binary for linux, macOS and windows, and the documentation of docs/ as a site. A push to
 # main pushes the images to ghcr.io as latest; the build of a tag v<version> (mise run release)
 # publishes: the images pushed as <VERSION>-rc, then all of them as <VERSION> (release), and after
@@ -39,8 +39,8 @@ env:
   VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
   # each job installs the tools it needs only, not every tool of the mise.toml files
   MISE_TASK_RUN_AUTO_INSTALL: "false"
-  # what sakctl builds against on linux, webkitgtk for its window
-  SAKCTL_APT_PACKAGES: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+  # what sakadm builds against on linux, webkitgtk for its window
+  SAKADM_APT_PACKAGES: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
   # the target directories stay small enough for the cache: no incremental builds, the debug info of
   # the tests only for the lines of a backtrace (the release profile strips everything)
   CARGO_INCREMENTAL: "0"
@@ -60,14 +60,14 @@ jobs:
             tools: java node
           - part: frontend
             tools: java node
-          # node copies sak-theme for sakctl, nextest runs the tests
+          # node copies sak-theme for sakadm, nextest runs the tests
           - part: cli
             tools: rust node github:nextest-rs/nextest
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: matrix.part == 'cli'
-        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKCTL_APT_PACKAGES
+        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKADM_APT_PACKAGES
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           install_args: ${{ matrix.tools }}
@@ -92,9 +92,9 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-            sak-cli/src-tauri/target
-            sak-cli/cloud/target
-          key: rust-test-unit-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-cli/src-tauri/Cargo.lock', 'sak-cli/cloud/Cargo.lock') }}
+            sak-admin-cli/src-tauri/target
+            sak-admin-cli/cloud/target
+          key: rust-test-unit-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-admin-cli/src-tauri/Cargo.lock', 'sak-admin-cli/cloud/Cargo.lock') }}
       - run: mise run ${{ matrix.part }}:test:unit
       - if: matrix.part == 'cli' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -103,9 +103,9 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-            sak-cli/src-tauri/target
-            sak-cli/cloud/target
-          key: rust-test-unit-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-cli/src-tauri/Cargo.lock', 'sak-cli/cloud/Cargo.lock') }}
+            sak-admin-cli/src-tauri/target
+            sak-admin-cli/cloud/target
+          key: rust-test-unit-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-admin-cli/src-tauri/Cargo.lock', 'sak-admin-cli/cloud/Cargo.lock') }}
 
   sak-backend-images:
     name: sak-backend-images (${{ matrix.image }})
@@ -154,8 +154,8 @@ jobs:
           # empty for a tag: the push tasks push <VERSION>-rc
           SAK_PUSH_TAG: ${{ github.ref_type != 'tag' && 'latest' || '' }}
 
-  sak-cli-images:
-    name: sak-cli-images (${{ matrix.image }})
+  sak-admin-cli-images:
+    name: sak-admin-cli-images (${{ matrix.image }})
     needs: test-unit
     strategy:
       fail-fast: false
@@ -190,14 +190,14 @@ jobs:
           # empty for a tag: the push tasks push <VERSION>-rc
           SAK_PUSH_TAG: ${{ github.ref_type != 'tag' && 'latest' || '' }}
 
-  # sakctl for each platform (mise run cli:build:<platform>): the window and the command line in
-  # one native binary with the page built in (on windows two: sakctl.exe for the window and
-  # sakctl-cli.exe, a console program, for the command line), no installers, zipped as
-  # sak-cli-<platform>-<architecture>-<VERSION>.zip and uploaded as that file, its sha-256 next to it
+  # sakadm for each platform (mise run cli:build:<platform>): the window and the command line in
+  # one native binary with the page built in (on windows two: sakadm.exe for the window and
+  # sakadm-cli.exe, a console program, for the command line), no installers, zipped as
+  # sak-admin-cli-<platform>-<architecture>-<VERSION>.zip and uploaded as that file, its sha-256 next to it
   # (<zip>.sha256). The programs are not signed for macOS and windows, they warn on the first start;
   # the release signs the zips with cosign
-  sakctl:
-    name: sakctl (${{ matrix.platform }})
+  sakadm:
+    name: sakadm (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
@@ -215,13 +215,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: matrix.platform == 'linux'
-        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKCTL_APT_PACKAGES
+        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKADM_APT_PACKAGES
       # the tools are installed after the action, saved to its cache in its post step
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           install: false
           cache_save_post: true
-      # the tauri command line comes with cli:build:<platform>, by the lockfile of sak-cli (cli:install)
+      # the tauri command line comes with cli:build:<platform>, by the lockfile of sak-admin-cli (cli:install)
       - run: mise install rust node
       # as in test-unit: by the version of rust and the lockfile, saved by a push to main only
       - id: rust
@@ -232,8 +232,8 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-            sak-cli/src-tauri/target
-          key: rust-${{ matrix.platform }}-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-cli/src-tauri/Cargo.lock') }}
+            sak-admin-cli/src-tauri/target
+          key: rust-${{ matrix.platform }}-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-admin-cli/src-tauri/Cargo.lock') }}
       - run: mise run cli:build:${{ matrix.platform }}
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -242,17 +242,17 @@ jobs:
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-            sak-cli/src-tauri/target
-          key: rust-${{ matrix.platform }}-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-cli/src-tauri/Cargo.lock') }}
+            sak-admin-cli/src-tauri/target
+          key: rust-${{ matrix.platform }}-${{ steps.rust.outputs.version }}-${{ hashFiles('sak-admin-cli/src-tauri/Cargo.lock') }}
       # the zip as it is, named like the file; a zip of the artifact would lose the executable bit
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          path: sak-cli/build/sak-cli-${{ matrix.platform }}-*.zip
+          path: sak-admin-cli/build/sak-admin-cli-${{ matrix.platform }}-*.zip
           archive: false
           if-no-files-found: error
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          path: sak-cli/build/sak-cli-${{ matrix.platform }}-*.zip.sha256
+          path: sak-admin-cli/build/sak-admin-cli-${{ matrix.platform }}-*.zip.sha256
           archive: false
           if-no-files-found: error
 
@@ -303,9 +303,9 @@ jobs:
 
   # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on
   # a pull request too. The address of the pages is its base url, the installation gets the
-  # checksums of the zips of sakctl (mise run docs:data)
+  # checksums of the zips of sakadm (mise run docs:data)
   docs-build:
-    needs: sakctl
+    needs: sakadm
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -315,8 +315,8 @@ jobs:
           install_args: hugo-extended go
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: sak-cli-*.sha256
-          path: sak-cli/build
+          pattern: sak-admin-cli-*.sha256
+          path: sak-admin-cli/build
           merge-multiple: true
       - id: pages
         if: github.ref_type == 'tag'
@@ -329,14 +329,14 @@ jobs:
         with:
           path: build/site
 
-  # from a tag v<version> only, when all images, all zips of sakctl and the apks are built: the images
+  # from a tag v<version> only, when all images, all zips of sakadm and the apks are built: the images
   # pushed as <VERSION>-rc as <VERSION> (mise run release:docker), the zips, their checksums and their
   # cosign signatures (keyless, with the id token of the job) as the github release of the tag (mise
   # run cli:release), where the installation downloads them, and the signed apks of the android apps
   # with their checksums and their bundles for google play (mise run android:release)
   release:
     if: github.ref_type == 'tag'
-    needs: [sak-backend-images, sak-cli-images, sakctl, sak-android-apps, docs-build]
+    needs: [sak-backend-images, sak-admin-cli-images, sakadm, sak-android-apps, docs-build]
     runs-on: ubuntu-26.04
     permissions:
       contents: write
@@ -356,11 +356,11 @@ jobs:
       # the zips as they are; without skip-decompress they would be extracted
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: sak-cli-*
-          path: sak-cli/build
+          pattern: sak-admin-cli-*
+          path: sak-admin-cli/build
           merge-multiple: true
           skip-decompress: true
-      - run: ls -l sak-cli/build
+      - run: ls -l sak-admin-cli/build
       - run: mise install cosign
       - run: mise run cli:release
         env:

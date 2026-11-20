@@ -1,0 +1,33 @@
+// no console window next to the app in windows release builds; there the commands of cli/
+// print nothing. The feature `console` builds the console program of windows, sakadm-cli.exe,
+// whose commands print to the terminal they run in (cli:build:windows)
+#![cfg_attr(
+    all(not(debug_assertions), not(feature = "console")),
+    windows_subsystem = "windows"
+)]
+
+//! sakadm: the window (gui) or, with a command as the first argument, the command line
+//! (cli), both on the same core
+
+// the texts of locales/, generated from `ctl` of i18n/texts.yml; english where a language has none
+rust_i18n::i18n!("locales", fallback = "en");
+
+mod cli;
+mod core;
+mod gui;
+
+fn main() {
+    core::i18n::init();
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if cli::is_command_line(&args) {
+        core::i18n::set_frontend(core::i18n::Frontend::CommandLine);
+        use clap::Parser;
+        let code = match cli::Cli::parse().command {
+            Some(command) => cli::run(command),
+            None => 0,
+        };
+        std::process::exit(code);
+    }
+    core::i18n::set_frontend(core::i18n::Frontend::Window);
+    gui::run();
+}

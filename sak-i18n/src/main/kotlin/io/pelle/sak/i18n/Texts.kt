@@ -13,7 +13,7 @@ val PLURAL_FORMS = setOf("zero", "one", "two", "few", "many", "other")
 // the platforms that read the texts of an app, each its own part of the section of the app
 val PLATFORMS = listOf("backend", "web", "android")
 
-// the parts of the section of sakctl: both, the command line, the window
+// the parts of the section of sakadm: both, the command line, the window
 val CTL_PARTS = listOf("common", "cli", "ui")
 
 private val PLACEHOLDER = Regex("""%\{([a-z_]+)}""")
@@ -89,7 +89,7 @@ class Texts private constructor(
     // the texts of no app for all platforms and for one, e.g. common and web
     fun platform(name: String): Group = root.group(name) ?: Group.EMPTY
 
-    // the sections of the apps, e.g. notes, without sakctl
+    // the sections of the apps, e.g. notes, without sakadm
     val apps: Map<String, Group>
         get() = root.children.filterKeys { it !in TOP_LEVEL && it != "ctl" }.mapValues { it.value as Group }
 

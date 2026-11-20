@@ -1,12 +1,12 @@
 # every text a user reads, in every language: the source of the texts of the backend, the web
-# apps, the android apps and sakctl. `mise run i18n:generate` writes them into the files each of them
+# apps, the android apps and sakadm. `mise run i18n:generate` writes them into the files each of them
 # reads (sak-i18n), the generated files are committed and a test fails when they are not up to date.
 #
 # A section is either for every app, or the one of an app with its texts by platform:
 #   common, backend, web, android    texts of no app: for backend, web and android, or for one
 #   <app>.common                     texts of the app on every platform it has a part for
 #   <app>.backend, .web, .android    texts of the app on one platform
-#   ctl.common, ctl.cli, ctl.ui      sakctl, a program of its own: both, the command line, the
+#   ctl.common, ctl.cli, ctl.ui      sakadm, a program of its own: both, the command line, the
 #                                    window; it reads all three, as common.*, cli.* and ui.*
 # A platform reads common and its own part merged, the platform drops out of the key: notes.backend
 # .too_many_photos is notes.too_many_photos in the backend, its error code. A key is in one part only.
@@ -14,7 +14,7 @@
 # A text has every language, `{ en: "…", de: "…" }`, with the same %{name} placeholders; a text
 # that is the same in every language, a name, is a plain string. A plural (android only) has the
 # forms of the language, `en: { one: "%{count} item", other: "%{count} items" }`. German uses "du"
-# in sakctl and no form of address elsewhere, the words are the ones of the glossary.
+# in sakadm and no form of address elsewhere, the words are the ones of the glossary.
 
 common:
   login:
@@ -792,8 +792,8 @@ ctl:
         en: "The user mode, the admin and the mail server of %{name} could not be read from its backend: %{error}"
         de: "Der Benutzermodus, der Admin und der Mailserver von %{name} konnten nicht aus seinem Backend gelesen werden: %{error}"
       unknown_location:
-        en: "%{name} is in a location this sakctl does not know. Update sakctl (sakctl update) to deploy it."
-        de: "%{name} ist an einem Standort, den dieses sakctl nicht kennt. Aktualisiere sakctl (sakctl update), um sie auszurollen."
+        en: "%{name} is in a location this sakadm does not know. Update sakadm (sakadm update) to deploy it."
+        de: "%{name} ist an einem Standort, den dieses sakadm nicht kennt. Aktualisiere sakadm (sakadm update), um sie auszurollen."
       not_compared:
         en: "%{name} could not be compared with what a deploy declares: %{error}"
         de: "%{name} konnte nicht mit dem verglichen werden, was ein Ausrollen anlegt: %{error}"
@@ -833,8 +833,8 @@ ctl:
         de: "Die SAK-Instanz antwortet nicht innerhalb von %{seconds} Sekunden unter %{url}, zuletzt: %{error}. Neue DNS-Einträge und das TLS-Zertifikat brauchen manchmal eine Weile: versuche es später mit einem erneuten Ausrollen, von der SAK-Instanz geht nichts verloren."
       no_smtp: { en: "No mail server", de: "Kein Mailserver" }
       not_https:
-        en: "The api %{url} is no https address, sakctl asks the api over https only."
-        de: "Die API %{url} ist keine https-Adresse, sakctl fragt die API nur über https."
+        en: "The api %{url} is no https address, sakadm asks the api over https only."
+        de: "Die API %{url} ist keine https-Adresse, sakadm fragt die API nur über https."
     smtp:
       sent:
         en: "The mail server %{host} took the test e-mail to %{to}. If it does not arrive, look in the spam folder."
@@ -873,8 +873,8 @@ ctl:
       has_changes: { en: "has changes", de: "hat Änderungen" }
     plan:
       left_out:
-        en: "a second one of the SAK instance, sakctl leaves it as it is; delete it if it is not needed"
-        de: "ein zweites der SAK-Instanz, sakctl lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
+        en: "a second one of the SAK instance, sakadm leaves it as it is; delete it if it is not needed"
+        de: "ein zweites der SAK-Instanz, sakadm lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
       intro: { en: "Create the SAK instance", de: "Erstelle die SAK-Instanz" }
       intro_deploy:
         en: "Redeploy the SAK instance"
@@ -915,11 +915,11 @@ ctl:
         de: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
     images:
       not_signed:
-        en: "%{image} has no signature, sakctl does not pull it."
-        de: "%{image} hat keine Signatur, sakctl lädt es nicht."
+        en: "%{image} has no signature, sakadm does not pull it."
+        de: "%{image} hat keine Signatur, sakadm lädt es nicht."
       signature_invalid:
-        en: "%{image} is not signed by %{signer}, sakctl does not pull it: %{error}"
-        de: "%{image} ist nicht von %{signer} signiert, sakctl lädt es nicht: %{error}"
+        en: "%{image} is not signed by %{signer}, sakadm does not pull it: %{error}"
+        de: "%{image} ist nicht von %{signer} signiert, sakadm lädt es nicht: %{error}"
       failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
       unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
       unreadable:
@@ -927,8 +927,8 @@ ctl:
         de: "Die Antwort von %{url} konnte nicht gelesen werden: %{error}"
     maintenance:
       timeout:
-        en: "The server did not answer within %{minutes} minutes, sakctl stopped waiting. What the server started may still finish there."
-        de: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakctl wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
+        en: "The server did not answer within %{minutes} minutes, sakadm stopped waiting. What the server started may still finish there."
+        de: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakadm wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
       connecting:
         en: "Asking the server of %{name} at root@%{host}…"
         de: "Frage den Server von %{name} unter root@%{host}…"
@@ -962,29 +962,29 @@ ctl:
         de: "Kein Dienst nutzt alte Bibliotheken, keiner wurde neu gestartet."
     update:
       checking:
-        en: "Asking %{receiver} for the newest release of sakctl…"
-        de: "Frage %{receiver} nach dem neuesten Release von sakctl…"
+        en: "Asking %{receiver} for the newest release of sakadm…"
+        de: "Frage %{receiver} nach dem neuesten Release von sakadm…"
       no_release:
-        en: "This sakctl (%{version}) is no release, there is no version to compare it with."
-        de: "Dieses sakctl (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
-      up_to_date: { en: "sakctl %{version} is up-to-date.", de: "sakctl %{version} ist aktuell." }
+        en: "This sakadm (%{version}) is no release, there is no version to compare it with."
+        de: "Dieses sakadm (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
+      up_to_date: { en: "sakadm %{version} is up-to-date.", de: "sakadm %{version} ist aktuell." }
       newer:
-        en: "sakctl %{newest} is available, this is %{current}."
-        de: "sakctl %{newest} ist verfügbar, dies ist %{current}."
+        en: "sakadm %{newest} is available, this is %{current}."
+        de: "sakadm %{newest} ist verfügbar, dies ist %{current}."
       installing:
-        en: "Downloading sakctl %{version} from %{receiver}…"
-        de: "Lade sakctl %{version} von %{receiver}…"
+        en: "Downloading sakadm %{version} from %{receiver}…"
+        de: "Lade sakadm %{version} von %{receiver}…"
       installed:
-        en: "sakctl is updated from %{current} to %{newest}. Start sakctl again to use it."
-        de: "sakctl ist von %{current} auf %{newest} aktualisiert. Starte sakctl erneut, um es zu verwenden."
+        en: "sakadm is updated from %{current} to %{newest}. Start sakadm again to use it."
+        de: "sakadm ist von %{current} auf %{newest} aktualisiert. Starte sakadm erneut, um es zu verwenden."
       unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
       failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
       not_https:
-        en: "%{url} is no https address, sakctl asks github over https only."
-        de: "%{url} ist keine https-Adresse, sakctl fragt github nur über https."
+        en: "%{url} is no https address, sakadm asks github over https only."
+        de: "%{url} ist keine https-Adresse, sakadm fragt github nur über https."
       not_github:
-        en: "%{url} is no address of github, sakctl downloads from github only."
-        de: "%{url} ist keine Adresse von github, sakctl lädt nur von github herunter."
+        en: "%{url} is no address of github, sakadm downloads from github only."
+        de: "%{url} ist keine Adresse von github, sakadm lädt nur von github herunter."
       unreadable:
         en: "The newest release on %{receiver} could not be read: %{error}"
         de: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
@@ -999,8 +999,8 @@ ctl:
         en: "%{name} has no %{binary}, nothing was changed."
         de: "%{name} enthält kein %{binary}, nichts wurde geändert."
       not_replaced:
-        en: "sakctl at %{path} could not be replaced: %{error}"
-        de: "sakctl unter %{path} konnte nicht ersetzt werden: %{error}"
+        en: "sakadm at %{path} could not be replaced: %{error}"
+        de: "sakadm unter %{path} konnte nicht ersetzt werden: %{error}"
   cli:
     mail:
       reading: { en: "Reading the mail server of %{name}…", de: "Lese den Mailserver von %{name}…" }
@@ -1087,11 +1087,11 @@ ctl:
     restore_no_terminal:
       en: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
       de: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
-    update_hint: { en: "Run sakctl update to install it.", de: "sakctl update installiert es." }
+    update_hint: { en: "Run sakadm update to install it.", de: "sakadm update installiert es." }
     maintenance:
       reboot_hint:
-        en: "A reboot is pending, run sakctl maintenance reboot %{name}."
-        de: "Ein Neustart steht an, führe sakctl maintenance reboot %{name} aus."
+        en: "A reboot is pending, run sakadm maintenance reboot %{name}."
+        de: "Ein Neustart steht an, führe sakadm maintenance reboot %{name} aus."
   ui:
     hint:
       user_mode: { en: "Choose it in the form.", de: "Wähle ihn im Formular." }
@@ -1103,22 +1103,22 @@ ctl:
         en: "Empty the e-mail address of the admin, or choose multiple users."
         de: "Leere die E-Mail-Adresse des Admins, oder wähle mehrere Benutzer."
       root_domain:
-        en: "The window cannot set it on an existing SAK instance: deploy it once with sakctl deploy --root-domain."
-        de: "Das Fenster kann sie bei einer bestehenden SAK-Instanz nicht setzen: rolle sie einmal mit sakctl deploy --root-domain aus."
+        en: "The window cannot set it on an existing SAK instance: deploy it once with sakadm deploy --root-domain."
+        de: "Das Fenster kann sie bei einer bestehenden SAK-Instanz nicht setzen: rolle sie einmal mit sakadm deploy --root-domain aus."
       smtp_password:
-        en: "The window cannot ask for it: deploy it once with sakctl deploy and SAK_SMTP_PASSWORD."
-        de: "Das Fenster kann nicht danach fragen: rolle sie einmal mit sakctl deploy und SAK_SMTP_PASSWORD aus."
+        en: "The window cannot ask for it: deploy it once with sakadm deploy and SAK_SMTP_PASSWORD."
+        de: "Das Fenster kann nicht danach fragen: rolle sie einmal mit sakadm deploy und SAK_SMTP_PASSWORD aus."
       smtp_from: { en: "Correct the sender address in the form.", de: "Korrigiere die Absenderadresse im Formular." }
     quit: { en: "Quit", de: "Beenden" }
     update:
-      version: { en: "sakctl %{version}", de: "sakctl %{version}" }
+      version: { en: "sakadm %{version}", de: "sakadm %{version}" }
       check: { en: "Check for updates", de: "Nach Updates suchen" }
       idle:
-        en: "Asks %{receiver} for the newest release of sakctl."
-        de: "Fragt %{receiver} nach dem neuesten Release von sakctl."
+        en: "Asks %{receiver} for the newest release of sakadm."
+        de: "Fragt %{receiver} nach dem neuesten Release von sakadm."
       install: { en: "Update to %{version}", de: "Auf %{version} aktualisieren" }
       restart: { en: "Restart", de: "Neu starten" }
-      restart_hint: { en: "Restart to use sakctl %{version}.", de: "Starte neu, um sakctl %{version} zu verwenden." }
+      restart_hint: { en: "Restart to use sakadm %{version}.", de: "Starte neu, um sakadm %{version} zu verwenden." }
       restart_while_running:
         en: "A SAK instance is being changed, restart when it is done."
         de: "Eine SAK-Instanz wird gerade geändert, starte neu, wenn das fertig ist."
@@ -1250,8 +1250,8 @@ ctl:
       smtp_test: { en: "Send test e-mail", de: "Test-E-Mail senden" }
       smtp_test_title: { en: "Send a test e-mail", de: "Test-E-Mail senden" }
       smtp_test_text:
-        en: "sakctl sends it with the mail server above from %{from}, as the SAK instance will send its login links."
-        de: "sakctl sendet sie mit dem Mailserver oben von %{from}, so wie die SAK-Instanz ihre Login-Links senden wird."
+        en: "sakadm sends it with the mail server above from %{from}, as the SAK instance will send its login links."
+        de: "sakadm sendet sie mit dem Mailserver oben von %{from}, so wie die SAK-Instanz ihre Login-Links senden wird."
       smtp_test_to: { en: "Send to", de: "Senden an" }
       smtp_test_send: { en: "Send", de: "Senden" }
       smtp_sending: { en: "Sending the test e-mail…", de: "Sende die Test-E-Mail…" }

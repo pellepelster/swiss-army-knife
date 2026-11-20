@@ -201,7 +201,7 @@ class SakAppsTest {
         shared: Boolean = false,
     ) = post(port, "/api/v1/grocery/lists", """{"name":"$name","shared":$shared}""", sessionToken).json().string("id")
 
-    // a request signed like sakctl signs it, for the path as caddy hands it on (below /api)
+    // a request signed like sakadm signs it, for the path as caddy hands it on (below /api)
     private fun signed(
         port: Int,
         path: String,
@@ -1390,7 +1390,7 @@ class SakAppsTest {
                     "/api/v1/health",
                 )
             // the routes behind the login require the session token or a signed request of
-            // sakctl, the login itself does not
+            // sakadm, the login itself does not
             val me = paths.getValue("/api/v1/auth/who-am-i").jsonObject.getValue("get").jsonObject
             me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"), setOf("api-signature"))
             paths.getValue("/api/v1/auth/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
@@ -1535,7 +1535,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `sakctl reads the settings of the deployment to deploy it again, no session does`() {
+    fun `sakadm reads the settings of the deployment to deploy it again, no session does`() {
         withServer { port ->
             get(port, "/api/v1/deployment").statusCode() shouldBe 401
             get(port, "/api/v1/deployment", signIn(port)).statusCode() shouldBe 401
@@ -1693,7 +1693,7 @@ class SakAppsTest {
             val smtp = answer.json().getValue("smtp").jsonObject
             smtp.getValue("passwordSet").jsonPrimitive.content shouldBe "true"
             smtp.string("password") shouldBe "the-smtp-password"
-            // the sender of the login mails, sakctl takes it over as well
+            // the sender of the login mails, sakadm takes it over as well
             smtp.string("from") shouldBe "login@example.org"
             // only for admins
             get(port, "/api/v1/deployment").statusCode() shouldBe 401
@@ -1702,14 +1702,14 @@ class SakAppsTest {
 
     @Test
     fun `a signed request works without any admin address`() {
-        // single user: no list of allowed addresses, sakctl is let in all the same
+        // single user: no list of allowed addresses, sakadm is let in all the same
         withServer(config(smtp = false, admins = false)) { port ->
             signed(port, "/api/v1/deployment").statusCode() shouldBe 200
         }
     }
 
     @Test
-    fun `sakctl signs in as itself and acts as the admin`() {
+    fun `sakadm signs in as itself and acts as the admin`() {
         withServer { port ->
             val session = signIn(port)
             post(port, "/api/v1/notes", """{"text":"of the admin","color":"yellow","labels":[]}""", session).statusCode() shouldBe 201
@@ -1717,7 +1717,7 @@ class SakAppsTest {
             // its data is the admin's
             signed(port, "/api/v1/notes").body() shouldContain "of the admin"
             signed(port, "/api/v1/auth/who-am-i").json().let {
-                it.string("username") shouldBe "sakctl"
+                it.string("username") shouldBe "sakadm"
                 it.getValue("roles").jsonArray.map { role -> role.jsonPrimitive.content } shouldBe listOf("admin")
             }
         }
@@ -1742,12 +1742,12 @@ class SakAppsTest {
     }
 
     @Test
-    fun `a session token naming sakctl or admin gets no role of them`() {
+    fun `a session token naming sakadm or admin gets no role of them`() {
         val config = config()
         withServer(config) { port ->
             // signed with the key of the server, the subjects of the token and of the password login
             val tokens = TokenService(SigningKey.fromPem(signingKey(config)!!), FRONTEND_URL)
-            for (subject in listOf("sakctl", "admin")) {
+            for (subject in listOf("sakadm", "admin")) {
                 val forged = tokens.issueSessionToken(subject, setOf(Role.ADMIN)).token
                 get(port, "/api/v1/notes", forged).statusCode() shouldBe 401
             }
@@ -1755,7 +1755,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `a signed request of sakctl reaches the api like an admin session, once, for its host and path`() {
+    fun `a signed request of sakadm reaches the api like an admin session, once, for its host and path`() {
         withServer { port ->
             signed(port, "/api/v1/deployment").statusCode() shouldBe 200
             signed(port, "/api/v1/notes").statusCode() shouldBe 200
@@ -1774,7 +1774,7 @@ class SakAppsTest {
             signed(port, "/api/v1/deployment", authorization = signature("GET", "/v1/deployment", timestamp = old)).statusCode() shouldBe 401
             val other = KeyPairGenerator.getInstance("Ed25519").generateKeyPair().private
             signed(port, "/api/v1/deployment", authorization = signature("GET", "/v1/deployment", key = other)).statusCode() shouldBe 401
-            // a signed request carries no body, sakctl only reads
+            // a signed request carries no body, sakadm only reads
             signed(port, "/api/v1/notes", method = "POST", json = """{"text":"x","color":"yellow","labels":[]}""")
                 .statusCode() shouldBe 401
         }
@@ -1918,18 +1918,18 @@ class SakAppsTest {
     }
 
     companion object {
-        // the hash of the admin password `a password of sixteen`, the vector of sakctl
-        // (ADMIN_PASSWORD_VECTOR in sak-cli/src-tauri/src/core/keys.rs)
+        // the hash of the admin password `a password of sixteen`, the vector of sakadm
+        // (ADMIN_PASSWORD_VECTOR in sak-admin-cli/src-tauri/src/core/keys.rs)
         private const val ADMIN_PASSWORD_HASH =
             "\$argon2id\$v=19\$m=65536,t=3,p=1\$al/AGZtQJD5CTnS21yvIXg\$L7n0a0d/Gu4awCZm7tuz99SWhVvUedmj0UABpTBu6l4"
         private const val ADMIN_PASSWORD = "a password of sixteen"
 
         // the api key of the tests, its public half in the configuration; that the backend checks
-        // what sakctl signs is ApiSignatureTest, with the vectors of sakctl
+        // what sakadm signs is ApiSignatureTest, with the vectors of sakadm
         private val API_KEYS = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
         private val API_PUBLIC_KEY = Base64.getEncoder().encodeToString(API_KEYS.public.encoded.takeLast(32).toByteArray())
 
-        // the authorization header sakctl sends for a request to api.example.org
+        // the authorization header sakadm sends for a request to api.example.org
         private fun signature(
             method: String,
             path: String,

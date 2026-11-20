@@ -11,7 +11,7 @@ import java.text.Normalizer
 import java.util.Base64
 
 // the admin password, checked against its argon2id hash in the phc string format
-// ($argon2id$v=19$m=<kib>,t=<passes>,p=<lanes>$<salt>$<hash>, base64 without padding) that sakctl
+// ($argon2id$v=19$m=<kib>,t=<passes>,p=<lanes>$<salt>$<hash>, base64 without padding) that sakadm
 // writes into the configuration; the password itself is never kept. Open only for the tests of check
 open class AdminPassword(
     phc: String,
@@ -42,11 +42,11 @@ open class AdminPassword(
 
     private val checking = Mutex()
 
-    // one at a time: a check takes the memory cost of the hash from the heap (64 MiB as sakctl writes
+    // one at a time: a check takes the memory cost of the hash from the heap (64 MiB as sakadm writes
     // it), two at once could use it up
     suspend fun check(password: String): Boolean = checking.withLock { withContext(Dispatchers.Default) { matches(password) } }
 
-    // the password as nfc like sakctl hashes it, compared in constant time; blocks
+    // the password as nfc like sakadm hashes it, compared in constant time; blocks
     open fun matches(password: String): Boolean {
         val parameters =
             Argon2Parameters

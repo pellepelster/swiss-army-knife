@@ -1,4 +1,4 @@
-// The screens of the sakctl ui (sak-cli/ui) as redesigned, and the buttons that lead from one
+// The screens of the sakadm ui (sak-admin-cli/ui) as redesigned, and the buttons that lead from one
 // to the next. A relation is labeled with its button, or with what leads there without a button.
 // Open it with `npx likec4 start docs/design/ui`.
 
@@ -41,7 +41,7 @@ model {
     description 'The tokens of the providers; Next only with at least one token'
   }
   select = screen 'Select the provider' {
-    description 'The providers sakctl supports'
+    description 'The providers sakadm supports'
   }
   token = screen 'Token of the provider' {
     description 'The API token, validated by rust before it is added; a token that is refused stays with its error'
@@ -137,7 +137,7 @@ model {
 
 views {
   view index {
-    title 'Screen flow of the sakctl ui'
+    title 'Screen flow of the sakadm ui'
     description 'Which button leads from one screen to the next'
     include *
     exclude resources

@@ -3,7 +3,7 @@ package io.pelle.sak.backend.config.model
 import kotlinx.serialization.Serializable
 
 // the settings the deployment was created or deployed with, as far as the backend has them: what
-// sakctl fills a redeploy with
+// sakadm fills a redeploy with
 @Serializable
 data class DeploymentResponse(
     val name: String,

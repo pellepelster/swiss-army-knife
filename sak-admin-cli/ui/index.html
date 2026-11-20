@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Swiss Army Knife</title>
+    <!-- the theme of ../../sak-theme, copied to theme/ by mise run cli:theme; style.css has the
+         layout -->
+    <link rel="stylesheet" href="theme/bootstrap.min.css">
+    <link rel="stylesheet" href="theme/fonts.css">
+    <link rel="stylesheet" href="theme/tokens.css">
+    <link rel="stylesheet" href="theme/bootstrap.css">
+    <link rel="stylesheet" href="theme/components.css">
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <!-- one view at a time (show() of views.js); data-text is the key of a text of
+         src-tauri/locales/ -->
+    <main class="view splash" id="view-splash">
+      <div class="splash-brand">
+        <img class="splash-icon" src="theme/images/icon.svg" alt="">
+        <h1 class="splash-title">Swiss Army Knife</h1>
+        <div class="splash-checks">
+          <ul class="checks" id="checks" aria-live="polite"></ul>
+          <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
+        </div>
+      </div>
+      <div class="splash-footer btn-group" role="group" id="splash-footer">
+        <button type="button" class="btn btn-outline-secondary" id="splash-quit" data-text="ui.quit" disabled></button>
+      </div>
+    </main>
+
+    <main class="view page" id="view-providers" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 data-text="ui.providers.title"></h1>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="providers-add"><i class="sak-icon-plus" aria-hidden="true"></i> <span data-text="ui.providers.add"></span></button>
+        </div>
+      </header>
+      <p class="hint" id="providers-empty" data-text="ui.providers.empty"></p>
+      <ul class="list-group" id="provider-tokens"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-primary" id="providers-next" data-text="ui.next" disabled></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-select" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 data-text="ui.select.title"></h1>
+        </div>
+      </header>
+      <ul class="list-group" id="provider-types"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="select-cancel" data-text="ui.cancel"></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-token" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 class="provider">
+            <img class="provider-logo" id="token-logo" alt="">
+            <span id="token-provider"></span>
+          </h1>
+        </div>
+      </header>
+      <form class="page-form" id="token-form">
+        <div>
+          <label class="form-label" for="token-input" data-text="ui.token.label"></label>
+          <input class="form-control" id="token-input" type="password" autocomplete="off" spellcheck="false">
+          <div class="form-text" id="token-hint"></div>
+        </div>
+        <p class="hint" id="token-status" aria-live="polite"></p>
+        <div class="page-footer">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="token-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="token-add"><i class="sak-icon-plus" aria-hidden="true"></i> <span data-text="ui.token.add"></span></button>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <main class="view page" id="view-deployments" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 data-text="ui.deployments.title"></h1>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployments-create"><i class="sak-icon-plus" aria-hidden="true"></i> <span data-text="ui.deployments.create"></span></button>
+        </div>
+      </header>
+      <p class="hint" id="deployments-status" aria-live="polite"></p>
+      <ul class="deployments" id="deployments"></ul>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployments-back" data-text="ui.back"></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-deployment" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 class="provider">
+            <img class="provider-logo" id="deployment-logo" alt="">
+            <span class="sak-mono" id="deployment-name"></span>
+            <span class="sak-status" id="deployment-status"></span>
+          </h1>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-danger" id="deployment-destroy" data-text="ui.deployment.destroy"></button>
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" id="deployment-maintenance" aria-haspopup="menu" aria-expanded="false" data-text="ui.deployment.maintenance"></button>
+            <ul class="dropdown-menu maintenance-menu" id="deployment-maintenance-menu" role="menu">
+              <li><button type="button" class="dropdown-item" role="menuitem" data-action="status" data-text="ui.maintenance.status"></button></li>
+              <li><button type="button" class="dropdown-item" role="menuitem" data-action="update" data-text="ui.maintenance.update"></button></li>
+              <li><button type="button" class="dropdown-item" role="menuitem" data-action="restart_services" data-text="ui.maintenance.restart_services"></button></li>
+              <li><button type="button" class="dropdown-item" role="menuitem" data-action="reboot" data-text="ui.maintenance.reboot"></button></li>
+            </ul>
+          </div>
+          <button type="button" class="btn btn-outline-secondary" id="deployment-edit-config" data-text="ui.deployment.edit_config"></button>
+          <button type="button" class="btn btn-primary" id="deployment-check" data-text="ui.deployment.check"></button>
+        </div>
+      </header>
+      <!-- the configuration, read once when the page opened, and where it comes from -->
+      <p class="hint" id="deployment-config-source" aria-live="polite"></p>
+      <ul class="resources deployment-config" id="deployment-config"></ul>
+      <!-- the resources as the list found them, after the check as the plan has them -->
+      <ul class="resources" id="deployment-resources"></ul>
+      <p class="hint" id="deployment-message" aria-live="polite"></p>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="deployment-back" data-text="ui.back"></button>
+          <button type="button" class="btn btn-outline-secondary" id="deployment-force" data-text="ui.plan.force_deploy" disabled></button>
+          <button type="button" class="btn btn-outline-secondary" id="deployment-deploy" data-text="ui.plan.deploy_changes" disabled></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-password" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 data-text="ui.password.title"></h1>
+        </div>
+      </header>
+      <form class="page-form" id="password-form">
+        <p class="hint"><span data-text="ui.password.intro"></span> <strong class="sak-mono" id="password-name"></strong></p>
+        <div>
+          <label class="form-label" for="password-input" data-text="ui.password.title"></label>
+          <div class="input-group">
+            <input class="form-control" id="password-input" type="password" autocomplete="current-password" spellcheck="false">
+            <button type="button" class="btn btn-outline-secondary password-toggle" id="password-toggle" aria-pressed="false">
+              <svg class="password-eye" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>
+                <circle cx="12" cy="12" r="3"/>
+                <path class="password-eye-strike" d="M4 4l16 16"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <p class="hint" id="password-status" aria-live="polite"></p>
+        <div class="page-footer">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="password-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="password-next" data-text="ui.next" disabled></button>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <main class="view page" id="view-create" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 id="create-title" data-text="ui.create.title"></h1>
+        </div>
+      </header>
+      <form class="page-form" id="create-form">
+        <!-- a deploy of a new config: where the settings of the form come from -->
+        <p class="hint" id="create-source" aria-live="polite" hidden></p>
+        <div>
+          <label class="form-label" for="create-name" data-text="ui.create.name"></label>
+          <input class="form-control" id="create-name" type="text" autocomplete="off" spellcheck="false" required aria-describedby="create-name-invalid">
+          <div class="invalid-feedback" id="create-name-invalid"></div>
+          <div class="form-text" data-text="ui.create.name_hint"></div>
+        </div>
+        <div id="create-password-group">
+          <label class="form-label" for="create-password" data-text="ui.create.password"></label>
+          <input class="form-control" id="create-password" type="password" autocomplete="new-password" minlength="16" required>
+          <div class="form-text" id="create-password-hint" data-text="ui.create.password_hint"></div>
+        </div>
+        <div id="create-repeat-group">
+          <label class="form-label" for="create-password-repeat" data-text="ui.create.password_repeat"></label>
+          <input class="form-control" id="create-password-repeat" type="password" autocomplete="new-password" minlength="16" required>
+          <div class="invalid-feedback" data-text="common.deployments.password_mismatch"></div>
+        </div>
+        <div id="create-location-group">
+          <label class="form-label" for="create-location" data-text="ui.create.location"></label>
+          <select class="form-select" id="create-location"></select>
+          <div class="form-text" data-text="ui.create.location_hint"></div>
+        </div>
+        <div id="create-root-domain-group">
+          <label class="form-label" for="create-root-domain" data-text="ui.create.root_domain"></label>
+          <select class="form-select" id="create-root-domain"></select>
+          <div class="form-text" data-text="ui.create.root_domain_hint"></div>
+          <div class="form-text text-warning" id="create-root-domain-note" hidden></div>
+        </div>
+        <fieldset id="create-dns-mode">
+          <legend class="form-label fs-6" data-text="ui.create.dns_mode"></legend>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="dns-mode" id="create-dns-mode-subdomain" value="subdomain" checked>
+            <label class="form-check-label" for="create-dns-mode-subdomain" data-text="ui.create.dns_mode_subdomain"></label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="dns-mode" id="create-dns-mode-domain" value="domain">
+            <label class="form-check-label" for="create-dns-mode-domain" data-text="ui.create.dns_mode_domain"></label>
+          </div>
+          <div class="form-text" id="create-dns-mode-hint"></div>
+        </fieldset>
+        <fieldset id="create-user-mode">
+          <legend class="form-label fs-6" data-text="ui.create.user_mode"></legend>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="user-mode" id="create-user-mode-single" value="single" checked>
+            <label class="form-check-label" for="create-user-mode-single" data-text="ui.create.user_mode_single"></label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="user-mode" id="create-user-mode-multi" value="multi">
+            <label class="form-check-label" for="create-user-mode-multi" data-text="ui.create.user_mode_multi"></label>
+          </div>
+          <div class="form-text" id="create-user-mode-hint"></div>
+        </fieldset>
+        <!-- multi user only: the admin's address and the mail server -->
+        <div id="create-admin-email-group">
+          <label class="form-label" for="create-admin-email" data-text="ui.create.admin_email"></label>
+          <input class="form-control" id="create-admin-email" type="email" autocomplete="email" spellcheck="false" maxlength="254">
+          <div class="form-text" data-text="ui.create.admin_email_hint"></div>
+        </div>
+        <fieldset id="create-smtp">
+          <legend class="form-label fs-6" data-text="ui.create.smtp"></legend>
+          <div class="form-text" data-text="ui.create.smtp_hint"></div>
+          <div class="smtp-grid">
+            <div>
+              <label class="form-label" for="create-smtp-host" data-text="ui.create.smtp_host"></label>
+              <input class="form-control" id="create-smtp-host" type="text" autocomplete="off" spellcheck="false" maxlength="253" placeholder="smtp.example.org">
+            </div>
+            <div>
+              <label class="form-label" for="create-smtp-port" data-text="ui.create.smtp_port"></label>
+              <input class="form-control" id="create-smtp-port" type="number" min="1" max="65535" value="587">
+            </div>
+            <div>
+              <label class="form-label" for="create-smtp-username" data-text="ui.create.smtp_username"></label>
+              <input class="form-control" id="create-smtp-username" type="text" autocomplete="off" spellcheck="false">
+            </div>
+            <div>
+              <label class="form-label" for="create-smtp-password" data-text="ui.create.smtp_password"></label>
+              <input class="form-control" id="create-smtp-password" type="password" autocomplete="off">
+              <div class="form-text" id="create-smtp-password-hint" data-text="ui.create.smtp_password_again" hidden></div>
+            </div>
+          </div>
+          <div class="smtp-from">
+            <label class="form-label" for="create-smtp-from" data-text="ui.create.smtp_from"></label>
+            <input class="form-control" id="create-smtp-from" type="email" autocomplete="off" spellcheck="false" maxlength="254">
+            <div class="form-text" data-text="ui.create.smtp_from_hint"></div>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="create-smtp-starttls" checked>
+            <label class="form-check-label" for="create-smtp-starttls" data-text="ui.create.smtp_starttls"></label>
+          </div>
+          <div class="smtp-test">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="create-smtp-test" data-text="ui.create.smtp_test"></button>
+            <span class="hint" id="create-smtp-status" aria-live="polite"></span>
+          </div>
+        </fieldset>
+        <div class="form-check" id="create-delete-data-group" hidden>
+          <input class="form-check-input" type="checkbox" id="create-delete-data">
+          <label class="form-check-label" for="create-delete-data" data-text="ui.create.delete_data"></label>
+        </div>
+        <p class="hint" id="create-status" aria-live="polite"></p>
+        <div class="page-footer">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="create-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="create-plan" data-text="ui.create.plan"></button>
+          </div>
+        </div>
+      </form>
+    </main>
+
+    <main class="view page" id="view-plan" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 data-text="ui.plan.title"></h1>
+        </div>
+      </header>
+      <p class="hint"><span id="plan-intro" data-text="common.plan.intro"></span> <strong class="sak-mono" id="plan-name"></strong></p>
+      <ul class="resources" id="plan-resources"></ul>
+      <p class="hint" id="plan-status" aria-live="polite"></p>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="plan-cancel" data-text="ui.cancel"></button>
+          <button type="button" class="btn btn-outline-secondary" id="plan-force" data-text="ui.plan.force_deploy"></button>
+          <button type="button" class="btn btn-primary" id="plan-deploy" data-text="ui.plan.deploy_changes"></button>
+        </div>
+      </div>
+    </main>
+
+    <main class="view page" id="view-run" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 id="run-title"></h1>
+        </div>
+      </header>
+      <ul class="resources" id="run-resources"></ul>
+      <p class="hint" id="run-status" aria-live="polite"></p>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="run-cancel" data-text="ui.cancel"></button>
+          <button type="button" class="btn btn-primary" id="run-done" data-text="ui.run.done" disabled></button>
+        </div>
+      </div>
+    </main>
+    <!-- the maintenance has no cancel: a command on the server is not stopped halfway -->
+    <main class="view page" id="view-maintenance" hidden>
+      <header class="page-header">
+        <div class="page-title">
+          <img class="app-icon" src="theme/images/icon.svg" alt="">
+          <h1 id="maintenance-title" tabindex="-1"></h1>
+        </div>
+      </header>
+      <p class="hint"><span data-text="ui.maintenance.intro"></span> <strong class="sak-mono" id="maintenance-name"></strong></p>
+      <ul class="maintenance-lines maintenance-progress sak-mono" id="maintenance-progress" aria-live="polite"></ul>
+      <ul class="maintenance-lines maintenance-answer" id="maintenance-answer" aria-live="polite"></ul>
+      <p class="hint" id="maintenance-status" aria-live="polite"></p>
+      <div class="page-footer">
+        <div class="btn-group" role="group">
+          <button type="button" class="btn btn-outline-secondary" id="maintenance-back" data-text="ui.back" disabled></button>
+        </div>
+      </div>
+    </main>
+    <dialog class="confirm" id="destroy-confirm">
+      <form method="dialog">
+        <h2 class="confirm-title" id="destroy-confirm-title"></h2>
+        <p id="destroy-confirm-text"></p>
+        <div class="btn-group" role="group">
+          <button type="submit" class="btn btn-outline-secondary" value="cancel" data-text="ui.cancel" autofocus></button>
+          <button type="submit" class="btn btn-danger" value="destroy" data-text="ui.plan.destroy"></button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="confirm" id="reboot-confirm">
+      <form method="dialog">
+        <h2 class="confirm-title" id="reboot-confirm-title"></h2>
+        <p data-text="ui.maintenance.confirm_text"></p>
+        <div class="btn-group" role="group">
+          <button type="submit" class="btn btn-outline-secondary" value="cancel" data-text="ui.cancel" autofocus></button>
+          <button type="submit" class="btn btn-primary" value="reboot" data-text="ui.maintenance.reboot"></button>
+        </div>
+      </form>
+    </dialog>
+    <!-- the recipient of the test e-mail -->
+    <dialog class="confirm" id="smtp-test">
+      <form method="dialog">
+        <h2 class="confirm-title" data-text="ui.create.smtp_test_title"></h2>
+        <p id="smtp-test-text"></p>
+        <div class="smtp-test-to">
+          <label class="form-label" for="smtp-test-to" data-text="ui.create.smtp_test_to"></label>
+          <input class="form-control" id="smtp-test-to" type="email" autocomplete="email" spellcheck="false" maxlength="254" required>
+        </div>
+        <div class="btn-group" role="group">
+          <button type="submit" class="btn btn-outline-secondary" value="cancel" formnovalidate data-text="ui.cancel"></button>
+          <button type="submit" class="btn btn-primary" value="send" data-text="ui.create.smtp_test_send"></button>
+        </div>
+      </form>
+    </dialog>
+    <!-- the version of sakadm and its update (update.js), below every view -->
+    <footer class="app-footer">
+      <span id="update-version"></span>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="update-button"></button>
+      <span class="hint update-status" id="update-status" aria-live="polite"></span>
+    </footer>
+  </body>
+</html>

@@ -2,17 +2,17 @@
 # {{ ansible_managed }}
 #
 # sak-backend <command>: the maintenance of the deployment {{ sak_name }} on its server, run by
-# sakctl through ssh as root. Messages go to standard error, each line starting with
+# sakadm through ssh as root. Messages go to standard error, each line starting with
 # "sak-backend: ". The commands that change something take one lock, so only one of them runs.
 # Exit codes: 0 done, 1 failed or wrong arguments, 2 another command holds the lock
 #
 #   backup <age recipient>  the data below {{ sak_data_dir }} as one tar stream, compressed with
 #                           zstd and encrypted with age to <recipient> (the public half of the
-#                           backup key sakctl derives), on standard output. Nothing stops: the
+#                           backup key sakadm derives), on standard output. Nothing stops: the
 #                           database is copied with VACUUM INTO, victorialogs with its own
 #                           snapshots, the files as hard links of one moment
 #   restore                 replaces the data with the backup on standard input, decrypted by
-#                           sakctl and still compressed with zstd. The archive is extracted and
+#                           sakadm and still compressed with zstd. The archive is extracted and
 #                           checked first (its deployment, a version not newer than the one of the
 #                           server, the database); until then nothing changes. The files of the
 #                           provisioning stay

@@ -114,7 +114,7 @@
     executable: /bin/bash
   notify: Restart sak-victorialogs
 
-# called by sakctl through ssh (sakctl backup, restore and maintenance), as root
+# called by sakadm through ssh (sakadm backup, restore and maintenance), as root
 - name: Install sak-backend
   ansible.builtin.template:
     src: sak-backend.j2
