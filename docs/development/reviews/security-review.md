@@ -200,13 +200,13 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
   keychain, not wiped when it goes (as `SEC-24` for sakadm); the state of a callback is compared with `!=`, not in
   constant time (128 bits, on the loopback: no practical way to measure it).
-- `SEC-38` The browser of a desktop sign-in is started on `/start` of the app on the loopback, which gives the state
-  out once. Another user of the machine sees the port in the arguments of the opener and can ask
-  `/start` before the browser of the user does. When their callback also comes before the browser asks, the app is
-  signed in as them and no longer listens: the browser shows a failed connection, the menu of the app their name,
-  nothing else tells. It needs an account at the same instance and a browser that starts slowly. They can also end
-  every sign-in with a request of `/start`. To close it the app would keep listening after the sign-in for a time
-  and sign out when a second `/start` comes.
+- `SEC-38` On macOS and windows every program of the machine can ask the page of a desktop sign-in on the loopback
+  (`/start`), which gives the state out once; the port is found by trying the ports. Another user who asks before
+  the browser of the user does, and whose callback also comes first, signs the app in as them: the browser shows a
+  failed connection, the menu of the app their name. It needs an account at the same instance. They can also end
+  every sign-in with a request of `/start`. On linux the app takes only connections of its own user
+  (`peer_user`, from `/proc/net/tcp`), so this is closed there. To close it elsewhere the app would keep listening
+  after the sign-in for a time and sign out when a second `/start` comes. sak-backup is built for linux only so far.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
   10 MiB. The change streams (`…/changes`) have no largest number for a user and stay open when the session ends.
 
@@ -223,8 +223,8 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - `prettier`, the tests and the e2e tests did not run for this review; it changes no code.
 - For the desktop sign-in (2026-11-20): the window was not driven by a person, and macOS and windows not at all:
   what the Keychain and the Credential Manager give to other programs, and whether their openers show the url to
-  other users, is not checked. `SEC-38` rests on how `xdg-open` is started (the url as an argument); the process list
-  was not read during a sign-in.
+  other users, is not checked. That linux refuses a connection of another user (`SEC-38`) rests on the tests of the parser and on the
+  sign-ins of the tests, which are of the same user; no second user tried it.
 - The new crates (`keyring` 4.2.0 with `zbus` for the Secret Service, in the lockfiles of all three desktop
   crates) were not read; that is for [the review of the supply chain](supply-chain-review.md).
 - That tauri refuses the commands of the opener plugin to the web view without a capability file is from its

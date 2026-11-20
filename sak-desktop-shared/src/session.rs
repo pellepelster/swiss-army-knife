@@ -124,6 +124,9 @@ pub enum LoginError {
     TimedOut,
     /// the instance refused the token: expired, used, or the user may no longer sign in
     Refused,
+    /// only programs of other users of the machine asked, e.g. a proxy of the system: the browser
+    /// of the user never reached the app
+    OtherUser,
     /// the start page was asked for twice: another program may have the state, the sign-in ends
     Interfered,
     /// the instance did not answer as expected
@@ -142,6 +145,7 @@ impl LoginError {
             LoginError::TimedOut => "timed_out",
             LoginError::Refused => "refused",
             LoginError::Interfered => "interfered",
+            LoginError::OtherUser => "other_user",
             LoginError::Failed(_) => "failed",
         }
     }
@@ -620,14 +624,21 @@ fn wait(
     timeout: Duration,
 ) -> Result<String, LoginError> {
     let deadline = Instant::now() + timeout;
+    let port = server.server_addr().to_ip().map(|address| address.port());
     let mut started = false;
+    // a request of another user of the machine was refused
+    let mut strangers = false;
     loop {
         if cancel.load(Ordering::SeqCst) {
             return Err(LoginError::Cancelled);
         }
         let left = deadline.saturating_duration_since(Instant::now());
         if left.is_zero() {
-            return Err(LoginError::TimedOut);
+            return Err(if strangers {
+                LoginError::OtherUser
+            } else {
+                LoginError::TimedOut
+            });
         }
         let Some(request) = server
             .recv_timeout(left.min(POLL))
@@ -635,6 +646,16 @@ fn wait(
         else {
             continue;
         };
+        // the loopback is open to every user of the machine: only the user of the app counts, so
+        // nobody else gets the state or ends the sign-in (SEC-38)
+        let peer = request.remote_addr().map(|address| address.port());
+        if let (Some(peer), Some(port)) = (peer, port) {
+            if peer_user(peer, port) == PeerUser::Other {
+                strangers = true;
+                respond(request, 404, None);
+                continue;
+            }
+        }
         match callback(request.method(), request.url(), state) {
             Callback::Start if !started => {
                 started = true;
@@ -675,6 +696,55 @@ fn respond(request: tiny_http::Request, status: u16, page: Option<&(String, Stri
         ))
         .with_header(header("Referrer-Policy", "no-referrer"));
     let _ = request.respond(response);
+}
+
+/// whose connection a request on the loopback came on
+#[derive(Debug, PartialEq, Eq)]
+enum PeerUser {
+    /// the user of the app, or a system that does not tell (not linux, no /proc)
+    Same,
+    /// another user of the machine, or a connection that is gone already
+    Other,
+}
+
+/// the user at the other end of the connection from the port `peer` to the port `port` of the
+/// app, both on the loopback. linux tells the user of every tcp socket in /proc/net/tcp; macOS
+/// and windows have nothing as simple, there every request counts
+#[cfg(target_os = "linux")]
+fn peer_user(peer: u16, port: u16) -> PeerUser {
+    use std::os::unix::fs::MetadataExt;
+    let (Ok(table), Ok(own)) = (
+        std::fs::read_to_string("/proc/net/tcp"),
+        std::fs::metadata("/proc/self").map(|process| process.uid()),
+    ) else {
+        return PeerUser::Same;
+    };
+    match socket_user(&table, peer, port) {
+        Some(user) if user == own => PeerUser::Same,
+        _ => PeerUser::Other,
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn peer_user(_: u16, _: u16) -> PeerUser {
+    PeerUser::Same
+}
+
+/// the uid of the socket in `table` (/proc/net/tcp) that is connected from the local port `from`
+/// to the remote port `to` on the loopback: the end of the client, not the one the app accepted
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn socket_user(table: &str, from: u16, to: u16) -> Option<u32> {
+    const LOOPBACK: &str = "0100007F";
+    let (local, remote) = (
+        format!("{LOOPBACK}:{from:04X}"),
+        format!("{LOOPBACK}:{to:04X}"),
+    );
+    table.lines().skip(1).find_map(|line| {
+        let fields: Vec<&str> = line.split_whitespace().collect();
+        (fields.get(1) == Some(&local.as_str()) && fields.get(2) == Some(&remote.as_str()))
+            .then(|| fields.get(7)?.parse().ok())
+            .flatten()
+    })
 }
 
 /// answers the request of the browser that follows the callback with the page that says it is
@@ -1103,6 +1173,26 @@ mod tests {
             .await;
         assert_eq!(result, Err(LoginError::Interfered));
         assert_eq!(manager.user(), None);
+    }
+
+    #[test]
+    fn the_user_of_a_connection_is_the_one_of_the_socket_of_the_client() {
+        // the browser (uid 1000) from port 54321 to the app on 36901, and the end the app accepted
+        let table = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n\
+   0: 0100007F:9025 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1001        0 980357 2 0 100 0 0 10 0\n\
+   1: 0100007F:D431 0100007F:9025 01 00000000:00000000 00:00000000 00000000  1000        0 980360 1 0 20 4 30 10 -1\n\
+   2: 0100007F:9025 0100007F:D431 01 00000000:00000000 00:00000000 00000000  1001        0 980361 1 0 20 4 30 10 -1\n\
+   3: C0A80005:D431 0100007F:9025 01 00000000:00000000 00:00000000 00000000     0        0 980362 1 0 20 4 30 10 -1\n";
+        assert_eq!(socket_user(table, 0xD431, 0x9025), Some(1000));
+        // no such connection
+        assert_eq!(socket_user(table, 0xD432, 0x9025), None);
+        assert_eq!(socket_user("", 0xD431, 0x9025), None);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_connection_that_is_not_there_is_not_of_the_user() {
+        assert_eq!(peer_user(1, 2), PeerUser::Other);
     }
 
     #[test]

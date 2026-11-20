@@ -157,6 +157,7 @@ mod tests {
             LoginError::TimedOut,
             LoginError::Refused,
             LoginError::Interfered,
+            LoginError::OtherUser,
             LoginError::Failed("500".to_string()),
         ] {
             let key = format!("ui.login.error.{}", error.kind());

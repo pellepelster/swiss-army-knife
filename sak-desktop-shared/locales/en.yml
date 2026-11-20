@@ -25,6 +25,7 @@ ui:
       timed_out: "The browser did not come back in time. Sign in again."
       refused: "The SAK instance refused the sign-in. Sign in again."
       interfered: "The sign-in was opened a second time, by the browser or by another program. It was stopped for safety. Sign in again."
+      other_user: "The browser did not reach the app: only programs of other users of this computer asked, e.g. a proxy. Open the browser as the user of this app and sign in again."
       failed: "The SAK instance did not answer as expected: %{error}"
     restore:
       expired: "The session expired. Sign in again."
