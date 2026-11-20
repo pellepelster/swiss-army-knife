@@ -190,6 +190,16 @@ code {
   --bs-card-inner-border-radius: calc(var(--sak-radius-lg) - 1px);
 }
 
+/* a navigation of pills (the navigation on the left of sak-backup): the active entry is the accent,
+   as the primary button, the others are muted until hovered */
+.nav-pills {
+  --bs-nav-link-color: var(--sak-muted);
+  --bs-nav-link-hover-color: var(--sak-ink);
+  --bs-nav-pills-border-radius: var(--sak-radius);
+  --bs-nav-pills-link-active-color: var(--sak-accent-ink);
+  --bs-nav-pills-link-active-bg: var(--sak-accent);
+}
+
 /* a tab folder: the card right after the tabs is the folder, the active tab is cut from the same
    sheet (its fill, its line, none below), the other tabs lie flat on the page; one row, scrolled
    sideways where it does not fit */
