@@ -49,7 +49,7 @@ jobs:
           id="$(gh api "/users/${SLUG}%5Bbot%5D" --jq .id)"
           echo "git_author=${SLUG}[bot] <${id}+${SLUG}[bot]@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
       # Renovate 44 needs node 24, the runner has an older one
-      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           install_args: node@24
       - env:
