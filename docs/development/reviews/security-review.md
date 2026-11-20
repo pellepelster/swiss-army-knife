@@ -1,7 +1,7 @@
 ---
 title: "Review: security"
 linkTitle: "Security"
-description: "The security review of the whole application: the login and the sessions, the routes and the data of the backend, the S3 api and the ingress, the web app, the Android apps, sakadm and the server it builds."
+description: "The security review of the whole application: the login and the sessions, the routes and the data of the backend, the S3 api and the ingress, the web app, the Android apps, sakadm and the server it builds, and the sign-in of the desktop apps."
 weight: 8
 ---
 
@@ -23,6 +23,13 @@ How it was done: the code was read, route by route; nothing ran against a deploy
 estimate or on what caddy, podman or victorialogs do, it says so. The fixed findings are in the history of git.
 
 Nothing found lets somebody without a session read data, get a session or get a role.
+
+**Added 2026-11-20:** the sign-in of the desktop apps (the three commits after `fcfc50ca`): the connect token with
+a pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in
+through the browser, `instances.json`, the keychain) and the window of sak-backup. The question for it: what can
+another program or another user of the machine do, a link somebody sends, or a host on the way. Its findings are
+`SEC-31` to `SEC-37`. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
+person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
 
 ## What is good
 
@@ -53,6 +60,14 @@ Nothing found lets somebody without a session read data, get a session or get a 
 - **sakadm.** The keys are derived with a purpose each, the private ssh key goes to the agent through stdin only
   (`SECURITY-2`), the host key is checked from the first connection on, the files of a run are in a directory only
   the user reads, the web view loads its own pages only and has no plugin command.
+- **The sign-in of a desktop app.** The connect token is bound to the pkce challenge of the app: without the
+  verifier it is a 401, a wrong verifier does not use it up, a token of a QR code is refused with a verifier and the
+  other way round (`ConnectTest`). The page sends the browser to `127.0.0.1` only, with a port that is a number; it
+  asks for the token only after a click, and it can not be framed (`frame-ancestors 'none'`). The app takes the
+  callback only with its state of 128 bits, answers everything else 404, and listens on the loopback only. The api
+  is https unless the SAK address is on the loopback. The token is in no file, no log and no error text; the page
+  of the app on the loopback escapes its texts and loads nothing. caddy writes no query, so the state is in no log
+  of the server. The window has no plugin command, the browser opens only on an http or https url the app built.
 - **The server.** sshd takes keys only; the containers run as uid 10000, read only, without capabilities; the
   backend, victorialogs and the admin api of caddy listen on loopback; the firewall of the cloud opens 22, 443 and
   icmp.
@@ -165,7 +180,82 @@ the user only. The repository has no terraform any more.
 
 Fix: delete the directory; replace the keys if they are still good anywhere.
 
+### `SEC-31` The page that connects a desktop app does not tell which app asks
+
+`/connect-desktop` takes the port and the challenge from its link and shows the same question for every link: "A
+desktop app on this computer asks to sign in as you" (`connect-desktop-page.ts`). Whoever makes the link holds the
+verifier. A program of another user of the machine (a shared computer, a terminal server) listens on a port of the
+loopback, which is not private to a user, and gets the link opened in the browser of the victim: by mail, by a page
+(`window.open`), or at the moment the victim starts a real sign-in, so two tabs ask the same. One click on "Connect"
+sends a token for the challenge of the attacker to the port of the attacker: a session of the victim with its full
+30 days, of the admin when the victim is the admin. A link from the internet alone gets nothing, nobody listens on
+the loopback of the victim for it; the token then stays in the address bar, of no use without the verifier.
+
+The click is the only guard, and the page gives the user nothing to check.
+
+#### Plan
+
+1. The app shows a short code next to "Sign in in the browser…", made from its challenge (e.g. 6 characters of its
+   sha-256, in two groups).
+2. The page computes the same code from the challenge of its link, shows it and says: "Connect only when SAK Backup
+   shows this code".
+3. The texts of the page and of the app name the code; a test of the page and one of the shared crate hold the same
+   vector, as `pkce_challenge` does.
+
+### `SEC-32` A release build signs in over http on the loopback and sends the kept token there at every start
+
+`Address::parse` takes `http://localhost:<port>` and `http://127.0.0.1:<port>` in every build (`session.rs`), for
+`local:run`. The Android apps take http in the debug build only (`allowUrl`). With the remembered sign-ins the start
+of the app sends the token of the keychain to whatever listens on that port (`restore`: `.well-known/sak.json`, then
+`who-am-i` with the token), without a question. On a shared machine another user who binds the port while the
+instance of the user does not run gets the token. It affects only somebody who signed in at a loopback address, so
+a developer; a release for users needs no http at all.
+
+Fix: http on the loopback only in a debug build (`cfg!(debug_assertions)`), and an address of `instances.json`
+that the build no longer takes is left out, as an invalid one is today.
+
 ## Could fix
+
+### `SEC-33` The state of a sign-in is an argument of the program that opens the browser
+
+The app hands the url with the port, the state and the challenge to the opener of the system (`xdg-open <url>`,
+`window.rs`). On linux the arguments of a process are readable by every user of the machine (`/proc/<pid>/cmdline`,
+unless `hidepid` is set). The state is what makes the app take a callback. Another user who reads it and has an
+account at the same instance gets a connect token for the challenge from their own session and calls the callback
+first: the app is signed in as them (the menu shows their name, nothing else tells), and what the user does next,
+later a backup, happens in the account of the attacker. With the state alone they end the sign-in
+(`error=cancelled`).
+
+Fix: the url on the command line carries no secret. The app opens `http://127.0.0.1:<port>/start`, answers it once
+with a redirect to `/connect-desktop` with the state, and refuses a second request of `/start`. A program that asks
+first is then noticed: the browser of the user gets the refusal, not the page.
+
+### `SEC-34` The app follows redirects, and the api of an instance is read again at every start
+
+- The client of `SessionManager` has the redirect policy of reqwest (10 hops). A `307` or `308` of the api sends the
+  body of the exchange, the connect token and the verifier, on to another host; a redirect of
+  `/.well-known/sak.json` is followed too. reqwest drops the `Authorization` header when the host changes, so the
+  session token itself does not travel.
+- `restore` reads the api from `.well-known/sak.json` of the SAK address each time and sends the kept token to the
+  host it names, any https host. Whoever can change that one static answer at the SAK address (the web app and the
+  api are two hosts, `SERVER-6`) gets the token of every desktop app at its next start, without a sign-in.
+
+Both need the server of the instance or its DNS, which is trusted with the data anyway; the tokens it gets this
+way are its own. Fix: `redirect::Policy::none()` for the client; `instances.json` keeps the api next to the address
+after a sign-in, and a start that finds another one shows the sign-in instead of sending the token.
+
+### `SEC-35` A token in the keychain outlives what the user sees of it
+
+- A sign-in at a second instance leaves the token of the first in the keychain (`login` replaces the session in
+  memory only). The app shows no list of instances yet, so the user can not delete it: it goes when the instance
+  drops out of the 20 of `instances.json`, or with a sign-in and a sign-out at the first again.
+- A sign-out deletes the token on the machine only; the backend has no revocation, the token is good until it
+  expires. A copy taken from the keychain before (on linux every program of the user reads an unlocked Secret
+  Service, ACCEPTED-RISKS.md) stays good, and renews itself as `SEC-4` says.
+
+Fix: the first with the list of instances (a sign-out per instance, "forget this instance"); until then a sign-in
+at another instance deletes the token of the one before. The second is `SEC-4`: its plan (a session that an end
+and a sign-out reach on the server) covers the desktop apps too.
 
 ### ~~`SEC-12` The key pair of a bucket can not be replaced~~
 
@@ -265,6 +355,12 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
   podman 5.4: a binary with a file capability still gains it under no-new-privileges, as long as the bounding set
   keeps it (`AddCapability=NET_BIND_SERVICE`). The image keeps the file capability, the local docker compose needs
   it to bind 80 and 443 in the host network.
+- `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
+  keychain, not wiped when it goes (as `SEC-24` for sakadm); the state of a callback is compared with `!=`, not in
+  constant time (128 bits, on the loopback: no practical way to measure it).
+- `SEC-37` The used connect token stays in the history of the browser, in the url of the page on the loopback
+  (`http://127.0.0.1:<port>/callback?state=…&token=…`). It is used and bound to the verifier, so it is of no use;
+  an answer that redirects to a page without a query would keep it out.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
   10 MiB. The change streams (`…/changes`) have no largest number for a user and stay open when the session ends.
 - ~~`SEC-30` The comment at `0001-initial.yaml:511` says only the owner of a list changes its categories; `GROCERY-13`
@@ -281,3 +377,11 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - The Android apps beyond their requests, intents and temporary files, and the pages of the grocery and todo lists
   of the web app line by line (they were searched for sinks).
 - `prettier`, the tests and the e2e tests did not run for this review; it changes no code.
+- For the desktop sign-in (2026-11-20): the window was not driven by a person, and macOS and windows not at all:
+  what the Keychain and the Credential Manager give to other programs, and whether their openers show the url to
+  other users, is not checked. `SEC-33` rests on how `xdg-open` is started (the url as an argument); the process list
+  was not read during a sign-in.
+- The new crates (`keyring` 4.2.0 with `zbus` for the Secret Service, in the lockfiles of all three desktop
+  crates) were not read; that is for [the review of the supply chain](supply-chain-review.md).
+- That tauri refuses the commands of the opener plugin to the web view without a capability file is from its
+  documentation, as for sakadm.
