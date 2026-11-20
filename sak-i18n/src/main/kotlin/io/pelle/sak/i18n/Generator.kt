@@ -28,7 +28,7 @@ val ANDROID_APPS: Map<String, String> =
         .map { it.substringBefore('#').trim() }
         .filter { it.isNotEmpty() }
         .associateWith { "android/$it/src/main/res" }
-const val CTL_DIR = "sak-admin-cli/src-tauri/locales"
+const val ADMIN_CLI_DIR = "sak-admin-cli/src-tauri/locales"
 
 private const val GENERATED = "generated from $SOURCE by sak-i18n (mise run i18n:generate), do not edit"
 
@@ -69,18 +69,18 @@ class Generator(
         return res
     }
 
-    // the texts of sakadm, a program of its own: the three parts of ctl, each below its name, as the
+    // the texts of sakadm, a program of its own: the three parts of admin_cli, each below its name, as the
     // command line and the window are one program
-    fun ctl(): Group = Group(CTL_PARTS.associateWith { part -> texts.ctl.group(part) ?: Group.EMPTY })
+    fun adminCli(): Group = Group(ADMIN_CLI_PARTS.associateWith { part -> texts.adminCli.group(part) ?: Group.EMPTY })
 
     fun files(): Map<String, String> {
         val backend = platform("backend")
         val web = platform("web")
         val android = android()
-        val ctl = ctl()
+        val adminCli = adminCli()
         noPlurals("backend", backend)
         noPlurals("web", web)
-        noPlurals("sakadm", ctl)
+        noPlurals("sakadm", adminCli)
         for ((path, text) in backend.leaves()) {
             if (LANGUAGES.any { language -> text.all(language).any { '$' in it } }) {
                 problems += "$path has a \$, the backend reads it as a variable of the environment"
@@ -105,7 +105,7 @@ class Generator(
             }
         }
         for (language in LANGUAGES) {
-            files["$CTL_DIR/$language.yml"] = Yaml.write(ctl, language, "# the texts of sakadm in $language, $GENERATED")
+            files["$ADMIN_CLI_DIR/$language.yml"] = Yaml.write(adminCli, language, "# the texts of sakadm in $language, $GENERATED")
         }
         if (problems.isNotEmpty()) throw TextsException(problems.distinct())
         return files

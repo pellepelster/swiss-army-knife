@@ -14,7 +14,7 @@ val PLURAL_FORMS = setOf("zero", "one", "two", "few", "many", "other")
 val PLATFORMS = listOf("backend", "web", "android")
 
 // the parts of the section of sakadm: both, the command line, the window
-val CTL_PARTS = listOf("common", "cli", "ui")
+val ADMIN_CLI_PARTS = listOf("common", "cli", "ui")
 
 private val PLACEHOLDER = Regex("""%\{([a-z_]+)}""")
 private val KEY = Regex("""[a-z][a-z0-9_]*""")
@@ -91,9 +91,9 @@ class Texts private constructor(
 
     // the sections of the apps, e.g. notes, without sakadm
     val apps: Map<String, Group>
-        get() = root.children.filterKeys { it !in TOP_LEVEL && it != "ctl" }.mapValues { it.value as Group }
+        get() = root.children.filterKeys { it !in TOP_LEVEL && it != "admin_cli" }.mapValues { it.value as Group }
 
-    val ctl: Group get() = root.group("ctl") ?: Group.EMPTY
+    val adminCli: Group get() = root.group("admin_cli") ?: Group.EMPTY
 
     companion object {
         private val TOP_LEVEL = listOf("common") + PLATFORMS
@@ -126,7 +126,7 @@ class Texts private constructor(
                 val parts =
                     when (name) {
                         in TOP_LEVEL -> continue
-                        "ctl" -> CTL_PARTS
+                        "admin_cli" -> ADMIN_CLI_PARTS
                         else -> listOf("common") + PLATFORMS
                     }
                 for ((part, node) in section.children) {

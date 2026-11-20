@@ -165,9 +165,9 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 
 - Every text a user reads goes into `i18n/texts.yml`, never into code or a generated file (`I18N-1` in SYSTEM.md);
   run `mise run i18n:generate` after a change of it.
-- `ctl.cli` texts only the sakadm cli shows, `ctl.ui` texts only the sakadm ui shows, `ctl.common` texts both show
+- `admin_cli.cli` texts only the sakadm cli shows, `admin_cli.ui` texts only the sakadm ui shows, `admin_cli.common` texts both show
   (the messages of core, the resource kinds and statuses, the actions of a plan), read as `cli.*`, `ui.*` and
-  `common.*`. A text moves to `ctl.common` once both use it. `sak-admin-cli/src-tauri/locales/` is generated from it.
+  `common.*`. A text moves to `admin_cli.common` once both use it. `sak-admin-cli/src-tauri/locales/` is generated from it.
 
 ## Privacy in the code
 

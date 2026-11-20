@@ -9,7 +9,7 @@
 //! sakadm: the window (gui) or, with a command as the first argument, the command line
 //! (cli), both on the same core
 
-// the texts of locales/, generated from `ctl` of i18n/texts.yml; english where a language has none
+// the texts of locales/, generated from `admin_cli` of i18n/texts.yml; english where a language has none
 rust_i18n::i18n!("locales", fallback = "en");
 
 mod cli;

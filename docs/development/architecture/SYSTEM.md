@@ -216,7 +216,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`) writes what each part
   reads from it; the generated files are committed, never edited, and a test fails when they are not up to date. A
   text of an app is in its section (`<app>.common`, `.backend`, `.web`, `.android`), one of no app in `common`,
-  `backend`, `web` or `android`, one of sakadm in `ctl`; a text two parts show alike moves to their `common`.
+  `backend`, `web` or `android`, one of sakadm in `admin_cli`; a text two parts show alike moves to their `common`.
 
 ## Privacy
 

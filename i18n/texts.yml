@@ -6,7 +6,7 @@
 #   common, backend, web, android    texts of no app: for backend, web and android, or for one
 #   <app>.common                     texts of the app on every platform it has a part for
 #   <app>.backend, .web, .android    texts of the app on one platform
-#   ctl.common, ctl.cli, ctl.ui      sakadm, a program of its own: both, the command line, the
+#   admin_cli.common, .cli, .ui      sakadm, a program of its own: both, the command line, the
 #                                    window; it reads all three, as common.*, cli.* and ui.*
 # A platform reads common and its own part merged, the platform drops out of the key: notes.backend
 # .too_many_photos is notes.too_many_photos in the backend, its error code. A key is in one part only.
@@ -556,7 +556,7 @@ android:
     en: "The update was not installed: %{reason}"
     de: "Das Update wurde nicht installiert: %{reason}"
 
-ctl:
+admin_cli:
   common:
     backup:
       no_home:

@@ -53,20 +53,20 @@ class GeneratorTest {
     }
 
     @Test
-    fun `sakadm reads the three parts of ctl below their names and nothing else`() {
+    fun `sakadm reads the three parts of admin_cli below their names and nothing else`() {
         val files =
             files(
                 """
                 common:
                   shared: { save: { en: "Save", de: "Speichern" } }
-                ctl:
+                admin_cli:
                   common: { done: { en: "Done", de: "Fertig" } }
                   cli: { hint: { en: "Give --name", de: "Gib --name an" } }
                   ui: { quit: { en: "Quit", de: "Beenden" } }
                 """,
             )
-        files.getValue("$CTL_DIR/de.yml") shouldContain "common:\n  done: \"Fertig\"\ncli:\n  hint: \"Gib --name an\"\nui:\n  quit: \"Beenden\"\n"
-        files.getValue("$CTL_DIR/en.yml") shouldNotContain "Save"
+        files.getValue("$ADMIN_CLI_DIR/de.yml") shouldContain "common:\n  done: \"Fertig\"\ncli:\n  hint: \"Gib --name an\"\nui:\n  quit: \"Beenden\"\n"
+        files.getValue("$ADMIN_CLI_DIR/en.yml") shouldNotContain "Save"
     }
 
     @Test
@@ -141,13 +141,13 @@ class GeneratorTest {
             """
             notes:
               ios: { title: { en: "Notes", de: "Notizen" } }
-            ctl:
+            admin_cli:
               web: { title: { en: "Notes", de: "Notizen" } }
             """,
         ) shouldBe
             listOf(
                 "notes.ios is no part of a section, they are common, backend, web, android",
-                "ctl.web is no part of a section, they are common, cli, ui",
+                "admin_cli.web is no part of a section, they are common, cli, ui",
             )
     }
 
