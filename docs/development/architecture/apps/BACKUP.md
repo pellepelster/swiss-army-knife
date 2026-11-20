@@ -16,23 +16,8 @@ A desktop app, no app of the backend (refer to [the architecture of the apps](IN
 |-----------------------|-----------------------------|----------------------------------------------------------------------------|
 | sak-backup            | `sak-backup/src-tauri`      | The window: tauri, its commands, its texts (`sak_backup` of texts.yml)     |
 | The pages             | `sak-backup/ui`             | The navigation on the left, the menu of the user at the top right          |
-| sak-desktop-shared    | `sak-desktop-shared`        | What sak-backup and sakadm share (see below)                               |
+| sak-desktop-shared    | `sak-desktop-shared`        | What the desktop apps share (`DESK-1` in SYSTEM.md)                        |
 | The page of the login | `sak-frontend`, `connect/`  | `/connect-desktop`, where the user confirms the connection of the app      |
-
-## What the desktop apps share
-
-`sak-desktop-shared` is a crate that sak-backup and sakadm use:
-
-- `session`: the sign-in through the browser and the session (`SessionManager`), see below.
-- `window`: the tauri commands of the sign-in (`restore_session`, `known_instances`, `login`, `cancel_login`,
-  `logout`). An app manages a `SessionManager` (`window::session_manager`) and an `InstanceStore`
-  (`window::instance_store`) and lists them in its `generate_handler!`.
-- `instances`: the SAK addresses the app signed in at (`InstanceStore`), see below.
-- `secrets`: the session tokens in the keychain of the system (`SecretStore`, `Keychain`), see below.
-- `i18n`: the language of the system, the texts of the window; its own texts are `desktop_shared` of texts.yml.
-- `desktop`: the desktop entry of linux.
-- `ui/`: `views.js` (the views and their texts), `login.js` and `login.css` (the view of the sign-in).
-  `mise run desktop:ui` copies them to `ui/shared/` of each app, next to the theme in `ui/theme/`.
 
 ## Sign-in
 

@@ -183,6 +183,21 @@ The backend serves apps to its users, for example static hosting and notes. How 
   `SAK_DOCKER_IMAGE_TAG` that no workflow pushes is pulled unchecked. Third-party images (victorialogs, vector) are
   pinned by digest.
 
+## Desktop apps
+
+- `DESK-1` **The desktop apps share one crate.** What sakadm and sak-backup both need is in `sak-desktop-shared`,
+  never copied into an app:
+    - `session`: the sign-in through the browser and the session (`SessionManager`).
+    - `window`: the tauri commands of the sign-in. An app manages a `SessionManager` and an `InstanceStore` and
+      lists the commands in its `generate_handler!`.
+    - `instances`: the SAK addresses of the sign-ins (`InstanceStore`).
+    - `secrets`: the session tokens in the keychain of the system (`SecretStore`).
+    - `i18n`: the language of the system and the texts of the window; its own texts are `desktop_shared` of
+      texts.yml.
+    - `desktop`: the desktop entry of linux.
+    - `ui/`: the views and the view of the sign-in. `mise run desktop:ui` copies them to `ui/shared/` of each app,
+      next to the theme in `ui/theme/`.
+
 ## Cloud resources
 
 - `CLOUD-1` **The name label.** Every cloud resource of a deployment (server, volume, primary IP, firewall, ssh key,

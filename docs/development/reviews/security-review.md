@@ -28,7 +28,7 @@ Nothing found lets somebody without a session read data, get a session or get a 
 a pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in
 through the browser, `instances.json`, the keychain) and the window of sak-backup. The question for it: what can
 another program or another user of the machine do, a link somebody sends, or a host on the way. Its findings are
-`SEC-31` to `SEC-38`; `SEC-31`, `SEC-32`, `SEC-33`, `SEC-35` and `SEC-37` are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
+`SEC-34`, `SEC-36` and `SEC-38`; the others it had are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
 person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
 
 ## What is good
@@ -154,97 +154,7 @@ with a code of their own.
 Fix: always name the host and ask before the exchange; when a deployment is stored and the code names another, the
 dialog that is there for a session.
 
-### ~~`SEC-9` One key of a bucket can fill the data volume~~
-
-**Fixed:** a write to a bucket (a put, the start of an upload, a part, a completion) starts only while the data volume
-has more than `s3_min_free_bytes` free (2 GiB) and stops when it falls below while the body streams (`WriteGuard`,
-checked every 64 MiB), with 507 `InsufficientStorage`; an object of one request and a part have at most 5 GiB
-(`EntityTooLarge`), caddy lets at most that through to the s3 api; part numbers are from 1 to 10,000; the uploads with
-no part or start for a day go at the start of the backend and every hour; the usage of a bucket counts the parts of
-its unfinished uploads. A largest size for each bucket is not there: one bucket can still crowd out the others.
-
-HOSTING-7 says a leaked key pair gives away one site. It can stop the deployment: the route of the S3 api in caddy
-has no largest body (the comment in `SakApps.kt` says so), `putObject` and `uploadPart` write what comes, a part
-number is checked only for `< 1`, and the parts of an upload that is never completed or aborted are never removed
-(`removeStale` is for `.tmp` only). The volume also has the database, the certificates of caddy and the logs. The
-statistics of a bucket count `data/` only, so the admin sees nothing grow.
-
-Fix: refuse a write when the volume has less than a floor free, or a largest size for each bucket; part numbers to
-10000; uploads older than a day removed at the start and with the cleanup; `uploads/` counted in the usage.
-
-### ~~`SEC-11` Secrets of an old setup are in the working copy~~
-
-Not a finding of the code: `terraform/modules/hcloud/backend/` is ignored by git and was never committed, but it
-still has a private ssh key (`.ssh/id_ed25519`), `.ansible/backend.env` and `.ansible/credentials/`, all readable by
-the user only. The repository has no terraform any more.
-
-Fix: delete the directory; replace the keys if they are still good anywhere.
-
-**Fixed:** the directory `terraform/` is deleted from the working copy, with its line in `.gitignore`. The keys
-were not replaced: the server of that setup is gone.
-
-### ~~`SEC-31` The page that connects a desktop app does not tell which app asks~~
-
-`/connect-desktop` takes the port and the challenge from its link and shows the same question for every link: "A
-desktop app on this computer asks to sign in as you" (`connect-desktop-page.ts`). Whoever makes the link holds the
-verifier. A program of another user of the machine (a shared computer, a terminal server) listens on a port of the
-loopback, which is not private to a user, and gets the link opened in the browser of the victim: by mail, by a page
-(`window.open`), or at the moment the victim starts a real sign-in, so two tabs ask the same. One click on "Connect"
-sends a token for the challenge of the attacker to the port of the attacker: a session of the victim with its full
-30 days, of the admin when the victim is the admin. A link from the internet alone gets nothing, nobody listens on
-the loopback of the victim for it; the token then stays in the address bar, of no use without the verifier.
-
-The click is the only guard, and the page gives the user nothing to check.
-
-#### Plan
-
-1. The app shows a short code next to "Sign in in the browser…", made from its challenge (e.g. 6 characters of its
-   sha-256, in two groups).
-2. The page computes the same code from the challenge of its link, shows it and says: "Connect only when SAK Backup
-   shows this code".
-3. The texts of the page and of the app name the code; a test of the page and one of the shared crate hold the same
-   vector, as `pkce_challenge` does.
-
-**Fixed:** the app and the page both show a code of 6 characters made from the challenge (`connect_code` of
-`sak-desktop-shared`, `connectCode` of the page, one test vector in both). The page shows it in its warning and
-has no "Connect" before it is there; the app shows it while it waits and says to confirm only with this code. A
-link of another program shows another code.
-
-### ~~`SEC-32` A release build signs in over http on the loopback and sends the kept token there at every start~~
-
-`Address::parse` takes `http://localhost:<port>` and `http://127.0.0.1:<port>` in every build (`session.rs`), for
-`local:run`. The Android apps take http in the debug build only (`allowUrl`). With the remembered sign-ins the start
-of the app sends the token of the keychain to whatever listens on that port (`restore`: `.well-known/sak.json`, then
-`who-am-i` with the token), without a question. On a shared machine another user who binds the port while the
-instance of the user does not run gets the token. It affects only somebody who signed in at a loopback address, so
-a developer; a release for users needs no http at all.
-
-Fix: http on the loopback only in a debug build (`cfg!(debug_assertions)`), and an address of `instances.json`
-that the build no longer takes is left out, as an invalid one is today.
-
-**Fixed:** `Address::parse` takes http on the loopback in a debug build only; a release takes https alone, and an
-api of http only for an address of http. `instances.json` of a release leaves an http address out, so its token is
-never sent.
-
 ## Could fix
-
-### ~~`SEC-33` The state of a sign-in is an argument of the program that opens the browser~~
-
-The app hands the url with the port, the state and the challenge to the opener of the system (`xdg-open <url>`,
-`window.rs`). On linux the arguments of a process are readable by every user of the machine (`/proc/<pid>/cmdline`,
-unless `hidepid` is set). The state is what makes the app take a callback. Another user who reads it and has an
-account at the same instance gets a connect token for the challenge from their own session and calls the callback
-first: the app is signed in as them (the menu shows their name, nothing else tells), and what the user does next,
-later a backup, happens in the account of the attacker. With the state alone they end the sign-in
-(`error=cancelled`).
-
-Fix: the url on the command line carries no secret. The app opens `http://127.0.0.1:<port>/start`, answers it once
-with a redirect to `/connect-desktop` with the state, and refuses a second request of `/start`. A program that asks
-first is then noticed: the browser of the user gets the refusal, not the page.
-
-**Fixed:** the browser is started on `http://127.0.0.1:<port>/start`, which has no secret. Its first request is
-led on to the page of the instance, a callback before it is a 404, and a second request ends the sign-in
-(`LoginError::Interfered`) with a page and a text that say so. What is left is `SEC-38`.
 
 ### `SEC-34` The app follows redirects, and the api of an instance is read again at every start
 
@@ -259,43 +169,6 @@ led on to the page of the instance, a callback before it is a 404, and a second 
 Both need the server of the instance or its DNS, which is trusted with the data anyway; the tokens it gets this
 way are its own. Fix: `redirect::Policy::none()` for the client; `instances.json` keeps the api next to the address
 after a sign-in, and a start that finds another one shows the sign-in instead of sending the token.
-
-### ~~`SEC-35` A token in the keychain outlives what the user sees of it~~
-
-- A sign-in at a second instance leaves the token of the first in the keychain (`login` replaces the session in
-  memory only). The app shows no list of instances yet, so the user can not delete it: it goes when the instance
-  drops out of the 20 of `instances.json`, or with a sign-in and a sign-out at the first again.
-- A sign-out deletes the token on the machine only; the backend has no revocation, the token is good until it
-  expires. A copy taken from the keychain before (on linux every program of the user reads an unlocked Secret
-  Service, ACCEPTED-RISKS.md) stays good, and renews itself as `SEC-4` says.
-
-Fix: the first with the list of instances (a sign-out per instance, "forget this instance"); until then a sign-in
-at another instance deletes the token of the one before. The second is `SEC-4`: its plan (a session that an end
-and a sign-out reach on the server) covers the desktop apps too.
-
-**Fixed:** a sign-in deletes the tokens the keychain has of every other known address, so the keychain has only
-the token of the instance the window shows. That a sign-out does not reach the server stays `SEC-4`.
-
-### ~~`SEC-12` The key pair of a bucket can not be replaced~~
-
-**Fixed:** `POST /api/v1/static-hosting/{bucket}/secret` writes a new access key id and secret, the ones before stop
-working at once; the credentials tab of a bucket replaces them after asking in place, Keep the safe default.
-
-There is no route that makes a new key pair; a leaked one ends only with the bucket, whose name stays taken
-(`MODEL-3`), after every redirect to it is changed. So a leaked key is likely left as it is.
-
-Fix: `POST /api/v1/static-hosting/{bucket}/secret` writes a new access key id and secret.
-
-### ~~`SEC-13` A copy in the S3 api writes an empty object~~
-
-**Fixed:** a `PUT` with `x-amz-copy-source` (a copy of an object or of a part) answers 501 `NotImplemented`, the
-target stays as it is.
-
-`PUT /<bucket>/<key>` with `x-amz-copy-source` goes to `putObject`: the header is read nowhere, the empty body
-verifies, and an object of 0 bytes replaces the target with a 200. A copy of a key onto itself (a change of its
-metadata) destroys it. No attack, a loss of data for a client that copies on the server.
-
-Fix: 501 `NotImplemented` when the header is there.
 
 ### `SEC-16` A deploy takes the root domain from the running server
 
@@ -316,17 +189,6 @@ of the environment. The same things limit it: the policy of the web view, values
 
 Fix: answer `passwordSet` only, the password stays in `LoadedSettings`; or the entry says it.
 
-### ~~`SEC-18` Signing out of the web app keeps the data of the user in the page~~
-
-**Fixed:** a sign-out and a session the backend rejects load the login as a new page (`LEAVE_PAGE`), so the stores of
-the pages and the thumbnails of the user before go with the old one.
-
-`signOut` and `sessionRejected` navigate to `/login` without a reload. The stores are of the root (`NotesStore`, the
-blob urls of the thumbnails) and are not emptied: the next user of the tab sees the notes of the one before until
-their own answer comes, and under the error when it fails. Traced for the notes; the other stores are built alike.
-
-Fix: load the page again on a sign out (`location.assign('/login')`).
-
 ### `SEC-20` What OpenRouter answers has no largest size
 
 No request sets `max_tokens`, the answer is read whole (`BodyHandlers.ofString()`), and `FileTextService` stores the
@@ -335,22 +197,6 @@ lot costs money, 30 times an hour for each user. `OpenRouterSpeechTranscriber` a
 answer of another shape (`jsonObject`, `jsonPrimitive` throw).
 
 Fix: `max_tokens`, a largest length of the stored text, the answer read through a largest size.
-
-### ~~`SEC-21` The logs have more than they should~~
-
-- `allowLoginLink` logs the whole address of the client next to the hash of the user ("not sending another login
-  link to … for …"); everywhere else it is masked (`maskedAddress`, `ip_mask 24 64` in the Caddyfile).
-- The query of a request to the api is stored with the access logs (vector keeps `request.uri`, 2048 characters):
-  what a user types into the field of a grocery list (`suggestions?text=…`), the label notes are filtered by, the
-  search of the admin. No route serves the logs of the api, they are on the server only.
-
-Fix: `maskedAddress(client)`; vector drops the query for the sites of the api and the web app.
-
-**Fixed:** every log line of the backend names a client by its network (`logClient`, /24 and /64 like caddy) and a
-user by `logAddress`; a logged exception goes through `logCause`, which hashes the e-mail addresses and masks the ipv4
-addresses of its messages and those of its causes. The failures of OpenRouter log no cause (a json error names what
-the model answered), the S3 api and the error handler log the path without the query. Caddy writes no query and no
-referer into its logs, for every site, and vector drops a query that is still there.
 
 ### `SEC-22` What is used once is forgotten with a restart
 
@@ -363,26 +209,13 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
   takes the headers, which means breaking TLS.
 - `SEC-24` sakadm wipes less than `Cargo.toml` says: `expand` returns a plain array, the age keys as strings and
   the password in `DeploymentRequest` and in the JSON to the web view are not wiped. Memory of the process only.
-- ~~`SEC-25` The lines of the server and of ansible go to the terminal as they come (`cli/server.rs`, `core/ssh.rs`);
-  a server that is taken over can send escape sequences. Fix: no control characters in a line.~~ **Fixed:** every line
-  of the server and of ansible, and the text of the provisioning events, has its control characters replaced
-  (`encoding::printable`).
 - `SEC-26` The host filters nothing that comes in: the table of nftables has the rule for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
-- ~~`SEC-28` The ingress has no `NoNewPrivileges`, for the capability of the caddy binary. An ambient capability
-  given by podman could allow it; to try.~~ **Fixed:** the ingress quadlet sets `NoNewPrivileges=true`. Tried with
-  podman 5.4: a binary with a file capability still gains it under no-new-privileges, as long as the bounding set
-  keeps it (`AddCapability=NET_BIND_SERVICE`). The image keeps the file capability, the local docker compose needs
-  it to bind 80 and 443 in the host network.
 - `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
   keychain, not wiped when it goes (as `SEC-24` for sakadm); the state of a callback is compared with `!=`, not in
   constant time (128 bits, on the loopback: no practical way to measure it).
-- ~~`SEC-37` The used connect token stays in the history of the browser, in the url of the page on the loopback
-  (`http://127.0.0.1:<port>/callback?state=…&token=…`). It is used and bound to the verifier, so it is of no use;
-  an answer that redirects to a page without a query would keep it out.~~
-  **Fixed:** the callback answers with a redirect to `/done` of the app, a page without a query; the browser stays
-  there. A browser may still keep the address of the callback as a redirect it followed (Firefox does).
-- `SEC-38` Left of `SEC-33`: another user of the machine sees the port in the arguments of the opener and can ask
+- `SEC-38` The browser of a desktop sign-in is started on `/start` of the app on the loopback, which gives the state
+  out once. Another user of the machine sees the port in the arguments of the opener and can ask
   `/start` before the browser of the user does. When their callback also comes before the browser asks, the app is
   signed in as them and no longer listens: the browser shows a failed connection, the menu of the app their name,
   nothing else tells. It needs an account at the same instance and a browser that starts slowly. They can also end
@@ -390,8 +223,6 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
   and sign out when a second `/start` comes.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
   10 MiB. The change streams (`…/changes`) have no largest number for a user and stay open when the session ends.
-- ~~`SEC-30` The comment at `0001-initial.yaml:511` says only the owner of a list changes its categories; `GROCERY-13`
-  and the code let every user who sees it.~~ **Fixed:** the comment no longer says who changes the categories.
 
 ## Not checked
 
@@ -406,7 +237,7 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - `prettier`, the tests and the e2e tests did not run for this review; it changes no code.
 - For the desktop sign-in (2026-11-20): the window was not driven by a person, and macOS and windows not at all:
   what the Keychain and the Credential Manager give to other programs, and whether their openers show the url to
-  other users, is not checked. `SEC-33` rests on how `xdg-open` is started (the url as an argument); the process list
+  other users, is not checked. `SEC-38` rests on how `xdg-open` is started (the url as an argument); the process list
   was not read during a sign-in.
 - The new crates (`keyring` 4.2.0 with `zbus` for the Secret Service, in the lockfiles of all three desktop
   crates) were not read; that is for [the review of the supply chain](supply-chain-review.md).
