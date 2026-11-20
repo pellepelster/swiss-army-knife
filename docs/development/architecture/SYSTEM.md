@@ -255,21 +255,13 @@ The backend serves apps to its users, for example static hosting and notes. How 
   Nothing of it is stored on the user's machine: sakadm derives it again for every run, so losing a machine loses
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
 - `SECURITY-2` **The ssh key must never be written to disk.**
-- `SECURITY-3` **An app is connected with a QR code.** A signed in session of the web app, by e-mail or with the admin
-  password, shows a QR code on request: the SAK address with a connect token in the fragment of the link
-  (`https://<sak address>/connect#token=…`), which a browser never sends. The token is good for one exchange within 2
-  minutes, for a session of the same user with its own full time; the roles are the ones the user has at the exchange.
-  Only the app scans it, in the app, never the browser. Whoever photographs the code signs in as the user until it is
-  used or expired: it shows only while asked for, a few codes an hour, and the page tells when an app used it. A signed
-  request of sakadm shows no code. A desktop app (sak-backup) gets its connect token through the browser instead: it
-  listens on `127.0.0.1` on a random port for one request and opens `https://<sak address>/connect-desktop` with the
-  port, a random state and the pkce challenge (S256) of a verifier it keeps. The page signs the user in, asks the user
-  to confirm, gets a token bound to the challenge and sends the browser to `http://127.0.0.1:<port>/callback`, never to
-  another host. The app checks the state and exchanges the token with the verifier: a token caught on the way is of
-  no use without it. The page and the app show the same code, made from the challenge, so the user sees which app
-  asks. The app keeps the session token only in the keychain of the system (Secret Service, Keychain, Credential
-  Manager), one entry per SAK address, never in a file; without a keychain in memory only. When it is taken up again
-  and forgotten is `DESKTOP-1` ([UI-UX.md](../UI-UX.md)). A release of the app takes https only.
+- `SECURITY-3` **An app is connected by a signed in session.** An app never asks for a password. A signed in session
+  of the web app hands it a connect token: good for one exchange within 2 minutes, for a session of the same user
+  with its own full time and the roles the user has at the exchange. A phone scans the token as a QR code, which
+  shows only while asked for; whoever photographs it signs in as the user until it is used or expired. A desktop app
+  gets the token through the browser of the user, after the user confirmed on a page that tells which app asks, and
+  the token is of use only to the app that asked. A desktop app keeps its session only in the keychain of the system,
+  never in a file. A signed request of sakadm connects no app.
 
 ## Tests
 

@@ -124,6 +124,8 @@ pub enum LoginError {
     TimedOut,
     /// the instance refused the token: expired, used, or the user may no longer sign in
     Refused,
+    /// the start page was asked for twice: another program may have the state, the sign-in ends
+    Interfered,
     /// the instance did not answer as expected
     Failed(String),
 }
@@ -139,6 +141,7 @@ impl LoginError {
             LoginError::Cancelled => "cancelled",
             LoginError::TimedOut => "timed_out",
             LoginError::Refused => "refused",
+            LoginError::Interfered => "interfered",
             LoginError::Failed(_) => "failed",
         }
     }
@@ -180,6 +183,8 @@ pub struct Pages {
     pub signed_in: (String, String),
     /// the same after the user cancelled in the browser
     pub cancelled: (String, String),
+    /// the same when the start page was asked for a second time
+    pub interfered: (String, String),
 }
 
 /// a session at a SAK instance; no Debug, it holds the session token
@@ -298,7 +303,8 @@ impl SessionManager {
         }
     }
 
-    /// signs in at `address` through the browser, which `open` opens on the url it is given; its
+    /// signs in at `address` through the browser, which `open` opens on the url it is given (the
+    /// start page of the app on the loopback, which leads the browser on to the instance); its
     /// second argument is the code the app shows, the page shows the same (`connect_code`). A
     /// sign-in that still waits is cancelled; the session replaces the one before
     pub async fn login(
@@ -341,17 +347,21 @@ impl SessionManager {
         let verifier = random_base64::<32>()?;
         let state = random_base64::<16>()?;
         let challenge = pkce_challenge(&verifier);
+        // the url the browser is started with has no secret: other users of the machine read the
+        // arguments of a process. The state is in the redirect of the first request of /start
+        let start = start_url(&address, port, &state, &challenge);
         open(
-            start_url(&address, port, &state, &challenge).as_str(),
+            &format!("http://127.0.0.1:{port}{START_PATH}"),
             &connect_code(&challenge),
         )
         .map_err(LoginError::Browser)?;
 
         let timeout = self.timeout;
-        let token =
-            tokio::task::spawn_blocking(move || wait(&server, &state, &pages, &cancel, timeout))
-                .await
-                .map_err(|error| LoginError::Failed(error.to_string()))??;
+        let token = tokio::task::spawn_blocking(move || {
+            wait(&server, &start, &state, &pages, &cancel, timeout)
+        })
+        .await
+        .map_err(|error| LoginError::Failed(error.to_string()))??;
 
         let session_token = self.exchange(&api, &token, &verifier).await?;
         let user = self.who_am_i(&api, &session_token).await?;
@@ -527,9 +537,14 @@ fn random_base64<const N: usize>() -> Result<String, LoginError> {
     Ok(URL_SAFE_NO_PAD.encode(bytes))
 }
 
+/// the page of the app the browser is started with; its first request is led on to the instance
+const START_PATH: &str = "/start";
+
 /// what a request on the loopback is
 #[derive(Debug, PartialEq, Eq)]
 enum Callback {
+    /// the start page
+    Start,
     Token(String),
     Cancelled,
     /// anything else, e.g. the favicon or a wrong state: answered 404, the wait goes on
@@ -540,6 +555,9 @@ fn callback(method: &tiny_http::Method, path: &str, state: &str) -> Callback {
     let Ok(url) = Url::parse(&format!("http://127.0.0.1{path}")) else {
         return Callback::Other;
     };
+    if *method == tiny_http::Method::Get && url.path() == START_PATH && url.query().is_none() {
+        return Callback::Start;
+    }
     if *method != tiny_http::Method::Get || url.path() != "/callback" {
         return Callback::Other;
     }
@@ -558,15 +576,20 @@ fn callback(method: &tiny_http::Method, path: &str, state: &str) -> Callback {
     }
 }
 
-/// waits for the browser to come back with the token of `state`
+/// leads the first request of the start page on to `start`, the page of the instance, then waits
+/// for the browser to come back with the token of `state`. A second request of the start page
+/// ends the sign-in: whoever asked first has the state, and only one of the two is the browser of
+/// the user (SEC-33)
 fn wait(
     server: &tiny_http::Server,
+    start: &Url,
     state: &str,
     pages: &Pages,
     cancel: &AtomicBool,
     timeout: Duration,
 ) -> Result<String, LoginError> {
     let deadline = Instant::now() + timeout;
+    let mut started = false;
     loop {
         if cancel.load(Ordering::SeqCst) {
             return Err(LoginError::Cancelled);
@@ -582,6 +605,16 @@ fn wait(
             continue;
         };
         match callback(request.method(), request.url(), state) {
+            Callback::Start if !started => {
+                started = true;
+                redirect(request, start);
+            }
+            Callback::Start => {
+                respond(request, 409, Some(&pages.interfered));
+                return Err(LoginError::Interfered);
+            }
+            // nobody has the state before the start page gave it out
+            Callback::Token(_) | Callback::Cancelled if !started => respond(request, 404, None),
             Callback::Token(token) => {
                 respond(request, 200, Some(&pages.signed_in));
                 return Ok(token);
@@ -607,6 +640,14 @@ fn respond(request: tiny_http::Request, status: u16, page: Option<&(String, Stri
             "Content-Security-Policy",
             "default-src 'none'; style-src 'unsafe-inline'",
         ))
+        .with_header(header("Referrer-Policy", "no-referrer"));
+    let _ = request.respond(response);
+}
+
+fn redirect(request: tiny_http::Request, to: &Url) {
+    let response = tiny_http::Response::empty(302)
+        .with_header(header("Location", to.as_str()))
+        .with_header(header("Cache-Control", "no-store"))
         .with_header(header("Referrer-Policy", "no-referrer"));
     let _ = request.respond(response);
 }
@@ -643,6 +684,7 @@ mod tests {
         Pages {
             signed_in: ("Signed in".to_string(), "Close <this> tab.".to_string()),
             cancelled: ("Cancelled".to_string(), "Nothing happened.".to_string()),
+            interfered: ("Stopped".to_string(), "Opened twice.".to_string()),
         }
     }
 
@@ -664,9 +706,23 @@ mod tests {
         answer
     }
 
-    /// the parameters of the page the app opened
+    /// where the start page of the app leads the browser, the page of the instance
+    fn started(url: &str) -> String {
+        // nothing of the sign-in is in the url the browser is started with
+        assert!(url.ends_with("/start") && !url.contains('?'), "{url}");
+        let answer = browse(url);
+        assert!(answer.starts_with("HTTP/1.1 302"), "{answer}");
+        answer
+            .lines()
+            .find_map(|line| line.strip_prefix("Location: "))
+            .unwrap()
+            .trim()
+            .to_string()
+    }
+
+    /// the parameters of the page the start page of the app leads to
     fn opened(url: &str) -> (u16, String, String) {
-        let url = Url::parse(url).unwrap();
+        let url = Url::parse(&started(url)).unwrap();
         let param = |name: &str| {
             url.query_pairs()
                 .find(|(key, _)| key == name)
@@ -734,15 +790,12 @@ mod tests {
         let seen = browser.clone();
         let user = manager
             .login(address(&server), pages(), |url, code| {
-                assert!(url.starts_with(&format!(
-                    "{}connect-desktop?port=",
-                    address(&server).as_str()
-                )));
-                let (port, state, challenge) = opened(url);
-                assert_eq!(challenge.len(), 43);
-                assert_eq!(code, connect_code(&challenge));
-                *seen.lock().unwrap() = Some(challenge);
+                let (url, code) = (url.to_string(), code.to_string());
                 std::thread::spawn(move || {
+                    let (port, state, challenge) = opened(&url);
+                    assert_eq!(challenge.len(), 43);
+                    assert_eq!(code, connect_code(&challenge));
+                    *seen.lock().unwrap() = Some(challenge);
                     // a request that is not the callback, and one of another state, change nothing
                     assert!(
                         browse(&format!("http://127.0.0.1:{port}/favicon.ico"))
@@ -813,8 +866,9 @@ mod tests {
         let manager = SessionManager::default();
         let result = manager
             .login(address(&server), pages(), |url, _| {
-                let (port, state, _) = opened(url);
+                let url = url.to_string();
                 std::thread::spawn(move || {
+                    let (port, state, _) = opened(&url);
                     let page = browse(&format!(
                         "http://127.0.0.1:{port}/callback?state={state}&error=cancelled"
                     ));
@@ -872,8 +926,9 @@ mod tests {
         let manager = SessionManager::default();
         let result = manager
             .login(address(&server), pages(), |url, _| {
-                let (port, state, _) = opened(url);
+                let url = url.to_string();
                 std::thread::spawn(move || {
+                    let (port, state, _) = opened(&url);
                     browse(&format!(
                         "http://127.0.0.1:{port}/callback?state={state}&token=t"
                     ))
@@ -964,6 +1019,33 @@ mod tests {
         }
     }
 
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_start_page_leads_to_the_instance_once_and_a_second_request_ends_the_sign_in() {
+        let server = instance(session_token()).await;
+        let manager = SessionManager::default();
+        let instance_address = address(&server);
+        let result = manager
+            .login(address(&server), pages(), move |url, _| {
+                let url = url.to_string();
+                std::thread::spawn(move || {
+                    // another program asks first and has the state
+                    let first = started(&url);
+                    assert!(first.starts_with(&format!(
+                        "{}connect-desktop?port=",
+                        instance_address.as_str()
+                    )));
+                    // the browser of the user is the second: it is told, the sign-in ends
+                    let second = browse(&url);
+                    assert!(second.starts_with("HTTP/1.1 409"), "{second}");
+                    assert!(second.contains("<h1>Stopped</h1>"), "{second}");
+                });
+                Ok(())
+            })
+            .await;
+        assert_eq!(result, Err(LoginError::Interfered));
+        assert_eq!(manager.user(), None);
+    }
+
     #[test]
     fn the_code_is_the_one_the_page_computes() {
         // the same vector as connect-desktop-page.spec.ts
@@ -1031,6 +1113,12 @@ mod tests {
             Callback::Other
         );
         assert_eq!(callback(&get, "/callback?token=t", "s"), Callback::Other);
+        assert_eq!(callback(&get, "/start", "s"), Callback::Start);
+        assert_eq!(callback(&get, "/start?x=1", "s"), Callback::Other);
+        assert_eq!(
+            callback(&tiny_http::Method::Post, "/start", "s"),
+            Callback::Other
+        );
         assert_eq!(
             callback(&get, "/callback?state=s&token=", "s"),
             Callback::Other
@@ -1058,8 +1146,9 @@ mod tests {
     async fn sign_in(manager: &SessionManager, server: &MockServer) -> Result<User, LoginError> {
         manager
             .login(address(server), pages(), |url, _| {
-                let (port, state, _) = opened(url);
+                let url = url.to_string();
                 std::thread::spawn(move || {
+                    let (port, state, _) = opened(&url);
                     browse(&format!(
                         "http://127.0.0.1:{port}/callback?state={state}&token=t"
                     ))

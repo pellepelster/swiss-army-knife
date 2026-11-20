@@ -36,52 +36,19 @@ A desktop app, no app of the backend (refer to [the architecture of the apps](IN
 
 ## Sign-in
 
-The flow is the one of a desktop app in `SECURITY-3`:
+What the user sees is in [UI-UX.md](../../UI-UX.md): `DESKTOP-1` (a sign-in is remembered), `DESKTOP-2` (sign-in
+through the browser) and `DESKTOP-3` (the SAK addresses are remembered). The security of it is `SECURITY-3`. In the
+code:
 
-1. The user types the SAK address, https. Only a debug build (`mise run backup:run`) takes http on the loopback:
-   `localhost:4200`, the address of `local:run`, is `http://localhost:4200` there.
-2. The app reads the api from `<SAK address>/.well-known/sak.json` (`SERVER-6`). An address that names no api fails
-   before the browser opens.
-3. The app listens on `127.0.0.1` on a random port and opens `/connect-desktop` with the port, a state and the pkce
-   challenge. The app and the page show the same code, made from the challenge; the user confirms only when they
-   match. The page signs the user in, the user confirms, the browser comes back to
-   `http://127.0.0.1:<port>/callback` with a connect token.
-4. The app exchanges the token with the verifier (`POST <api>/auth/login/connect`) and reads the user
-   (`GET <api>/auth/who-am-i`).
-
-A sign-in waits 15 minutes for the browser, long enough for a login link by e-mail; Cancel stops it.
-
-## Remembered sign-ins
-
-What the user sees is `DESKTOP-1` ([UI-UX.md](../../UI-UX.md)); how it is kept:
-
-The session token goes into the keychain of the system after a sign-in: the Secret Service on linux, the Keychain on
-macOS, the Credential Manager on windows. The entry is the identifier of the app (`io.pelle.sak.backup`) with the SAK
-address as its user, one per instance; the token is never in a file (`SECURITY-3`).
-
-- At the start the app takes the token of the instance used last and asks `who-am-i` with it. When the instance
-  accepts it, the app opens signed in; when it refuses it (expired, or the user may no longer sign in) the token is
-  deleted and the sign-in says so; when the instance does not answer the token stays and the sign-in says so.
-- A sign-out deletes the token. An instance that drops out of `instances.json` loses its token too.
-- Without a keychain (no Secret Service running) nothing is kept: the session is in memory only, a line on the
-  standard error says why.
-- The keychain is reached away from the async threads of the app, as the Secret Service may wait for d-bus.
-
-## Local file
-
-The app remembers the SAK addresses it signed in at, in `instances.json` in its config directory (tauri's
-`app_config_dir`, after the identifier `io.pelle.sak.backup`; e.g. `~/.config/io.pelle.sak.backup/` on linux):
-
-```json
-{ "instances": [ { "address": "https://sak.example.org/" } ] }
-```
-
-- A list, so the app can know several instances later; the one used last is first, the first is the address the
-  sign-in shows. At most 20.
-- An address goes first after a sign-in that succeeded; a failed one changes nothing, a sign-out keeps it.
-- Addresses only, never a session. The file is plain, only for the user (`0600`, its directory `0700`; refer to
-  [ACCEPTED-RISKS.md](../../ACCEPTED-RISKS.md)). It is written to a new file that replaces it, so a crash leaves the
-  old one or the new one. A file that does not read is no instance, the next sign-in writes it anew.
+- The api of a SAK address is the one of its `/.well-known/sak.json` (`SERVER-6`). A release takes https only; a
+  debug build (`mise run backup:run`) takes http on the loopback too, e.g. `localhost:4200` of `local:run`.
+- The browser is started on a page of the app on the loopback, which leads it on to `/connect-desktop` of the
+  instance once; the url the browser is started with has no secret. The token comes back to the loopback and is
+  bound to the app by pkce. A sign-in waits 15 minutes for the browser.
+- The addresses are in `instances.json` in the config directory of the app (`{ "instances": [ { "address": … } ] }`,
+  at most 20, only for the user; refer to [ACCEPTED-RISKS.md](../../ACCEPTED-RISKS.md)).
+- The session token is in the keychain under the identifier of the app, with the SAK address as its user. The app
+  shows one instance, so a sign-in deletes the tokens of the other addresses.
 
 ## Privacy
 

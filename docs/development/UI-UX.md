@@ -146,3 +146,11 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   no longer accepts the sign-in, or does not answer, the app shows the sign-in screen with the SAK address filled
   in and says why. A sign-out forgets the sign-in and keeps the SAK address. On a computer without a keychain the
   app remembers the SAK address only.
+- `DESKTOP-2` **Sign-in through the browser.** A desktop app has no sign-in form of its own. Its first screen asks
+  for the SAK address and has one button. The button opens the browser of the user, where the user signs in as in
+  the web app and confirms the connection of the app. The app and the page in the browser show the same code; the
+  user confirms only when the codes are the same. While the browser is open, the app waits and has a button to
+  cancel. A sign-in that fails shows the cause on the sign-in screen.
+- `DESKTOP-3` **The SAK addresses are remembered on the computer.** A desktop app remembers the SAK addresses of its
+  successful sign-ins, on the computer of the user only, the last one first. The sign-in screen shows the last
+  address. A failed sign-in is not remembered.

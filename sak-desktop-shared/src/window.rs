@@ -77,6 +77,15 @@ pub async fn login(
         })
         .await
         .map_err(|error| message(&error))?;
+    // the window shows one instance: the tokens the keychain still has of the others go, the
+    // user could not sign out of them (SEC-35)
+    for other in instances.addresses() {
+        if other != address.as_str() {
+            if let Ok(other) = Address::parse(&other) {
+                sessions.forget(&other).await;
+            }
+        }
+    }
     // signed in all the same, the address is typed again next time
     match instances.remember(&address) {
         Ok(dropped) => {
@@ -113,6 +122,10 @@ pub fn pages(app: &str) -> Pages {
             t!("ui.login.browser.cancelled_title").to_string(),
             t!("ui.login.browser.cancelled", app = app).to_string(),
         ),
+        interfered: (
+            t!("ui.login.browser.interfered_title").to_string(),
+            t!("ui.login.browser.interfered", app = app).to_string(),
+        ),
     }
 }
 
@@ -142,6 +155,7 @@ mod tests {
             LoginError::Cancelled,
             LoginError::TimedOut,
             LoginError::Refused,
+            LoginError::Interfered,
             LoginError::Failed("500".to_string()),
         ] {
             let key = format!("ui.login.error.{}", error.kind());

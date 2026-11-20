@@ -14,6 +14,8 @@ ui:
       signed_in: "%{app} is signed in. You can close this tab."
       cancelled_title: "Sign-in cancelled"
       cancelled: "%{app} is not signed in. You can close this tab."
+      interfered_title: "Sign-in stopped"
+      interfered: "This sign-in of %{app} was opened a second time, by the browser or by another program. It was stopped for safety. Sign in again in %{app}."
     error:
       invalid_address: "An address like sak.example.org is needed."
       no_instance: "No SAK instance answers at this address."
@@ -22,6 +24,7 @@ ui:
       cancelled: "The sign-in was cancelled."
       timed_out: "The browser did not come back in time. Sign in again."
       refused: "The SAK instance refused the sign-in. Sign in again."
+      interfered: "The sign-in was opened a second time, by the browser or by another program. It was stopped for safety. Sign in again."
       failed: "The SAK instance did not answer as expected: %{error}"
     restore:
       expired: "The session expired. Sign in again."

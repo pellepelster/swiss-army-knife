@@ -28,7 +28,7 @@ Nothing found lets somebody without a session read data, get a session or get a 
 a pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in
 through the browser, `instances.json`, the keychain) and the window of sak-backup. The question for it: what can
 another program or another user of the machine do, a link somebody sends, or a host on the way. Its findings are
-`SEC-31` to `SEC-37`; `SEC-31` and `SEC-32` are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
+`SEC-31` to `SEC-38`; `SEC-31`, `SEC-32`, `SEC-33` and `SEC-35` are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
 person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
 
 ## What is good
@@ -228,7 +228,7 @@ never sent.
 
 ## Could fix
 
-### `SEC-33` The state of a sign-in is an argument of the program that opens the browser
+### ~~`SEC-33` The state of a sign-in is an argument of the program that opens the browser~~
 
 The app hands the url with the port, the state and the challenge to the opener of the system (`xdg-open <url>`,
 `window.rs`). On linux the arguments of a process are readable by every user of the machine (`/proc/<pid>/cmdline`,
@@ -241,6 +241,10 @@ later a backup, happens in the account of the attacker. With the state alone the
 Fix: the url on the command line carries no secret. The app opens `http://127.0.0.1:<port>/start`, answers it once
 with a redirect to `/connect-desktop` with the state, and refuses a second request of `/start`. A program that asks
 first is then noticed: the browser of the user gets the refusal, not the page.
+
+**Fixed:** the browser is started on `http://127.0.0.1:<port>/start`, which has no secret. Its first request is
+led on to the page of the instance, a callback before it is a 404, and a second request ends the sign-in
+(`LoginError::Interfered`) with a page and a text that say so. What is left is `SEC-38`.
 
 ### `SEC-34` The app follows redirects, and the api of an instance is read again at every start
 
@@ -256,7 +260,7 @@ Both need the server of the instance or its DNS, which is trusted with the data 
 way are its own. Fix: `redirect::Policy::none()` for the client; `instances.json` keeps the api next to the address
 after a sign-in, and a start that finds another one shows the sign-in instead of sending the token.
 
-### `SEC-35` A token in the keychain outlives what the user sees of it
+### ~~`SEC-35` A token in the keychain outlives what the user sees of it~~
 
 - A sign-in at a second instance leaves the token of the first in the keychain (`login` replaces the session in
   memory only). The app shows no list of instances yet, so the user can not delete it: it goes when the instance
@@ -268,6 +272,9 @@ after a sign-in, and a start that finds another one shows the sign-in instead of
 Fix: the first with the list of instances (a sign-out per instance, "forget this instance"); until then a sign-in
 at another instance deletes the token of the one before. The second is `SEC-4`: its plan (a session that an end
 and a sign-out reach on the server) covers the desktop apps too.
+
+**Fixed:** a sign-in deletes the tokens the keychain has of every other known address, so the keychain has only
+the token of the instance the window shows. That a sign-out does not reach the server stays `SEC-4`.
 
 ### ~~`SEC-12` The key pair of a bucket can not be replaced~~
 
@@ -373,6 +380,12 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - `SEC-37` The used connect token stays in the history of the browser, in the url of the page on the loopback
   (`http://127.0.0.1:<port>/callback?state=…&token=…`). It is used and bound to the verifier, so it is of no use;
   an answer that redirects to a page without a query would keep it out.
+- `SEC-38` Left of `SEC-33`: another user of the machine sees the port in the arguments of the opener and can ask
+  `/start` before the browser of the user does. When their callback also comes before the browser asks, the app is
+  signed in as them and no longer listens: the browser shows a failed connection, the menu of the app their name,
+  nothing else tells. It needs an account at the same instance and a browser that starts slowly. They can also end
+  every sign-in with a request of `/start`. To close it the app would keep listening after the sign-in for a time
+  and sign out when a second `/start` comes.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
   10 MiB. The change streams (`…/changes`) have no largest number for a user and stay open when the session ends.
 - ~~`SEC-30` The comment at `0001-initial.yaml:511` says only the owner of a list changes its categories; `GROCERY-13`

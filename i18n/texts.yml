@@ -2204,6 +2204,10 @@ desktop_shared:
         cancelled:
           en: "%{app} is not signed in. You can close this tab."
           de: "%{app} ist nicht angemeldet. Du kannst diesen Tab schließen."
+        interfered_title: { en: "Sign-in stopped", de: "Anmeldung gestoppt" }
+        interfered:
+          en: "This sign-in of %{app} was opened a second time, by the browser or by another program. It was stopped for safety. Sign in again in %{app}."
+          de: "Diese Anmeldung von %{app} wurde ein zweites Mal geöffnet, vom Browser oder von einem anderen Programm. Sie wurde zur Sicherheit gestoppt. Melde dich in %{app} erneut an."
       error:
         invalid_address:
           en: "An address like sak.example.org is needed."
@@ -2222,6 +2226,9 @@ desktop_shared:
         refused:
           en: "The SAK instance refused the sign-in. Sign in again."
           de: "Die SAK-Instanz hat die Anmeldung abgelehnt. Melde dich erneut an."
+        interfered:
+          en: "The sign-in was opened a second time, by the browser or by another program. It was stopped for safety. Sign in again."
+          de: "Die Anmeldung wurde ein zweites Mal geöffnet, vom Browser oder von einem anderen Programm. Sie wurde zur Sicherheit gestoppt. Melde dich erneut an."
         failed:
           en: "The SAK instance did not answer as expected: %{error}"
           de: "Die SAK-Instanz hat nicht wie erwartet geantwortet: %{error}"
