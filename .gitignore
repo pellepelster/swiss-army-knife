@@ -4,7 +4,4 @@ build/
 .idea/
 *.iml
 out/
-# what the former terraform setup left locally: its providers, the ssh key and backend.env
-# of the server it created
-terraform/
 .ansible/

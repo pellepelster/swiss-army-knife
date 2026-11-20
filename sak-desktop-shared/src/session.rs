@@ -34,6 +34,12 @@ impl Address {
     /// `sak.example.org` and `https://sak.example.org/notes` are `https://sak.example.org/`; a
     /// login in it is refused
     pub fn parse(text: &str) -> Result<Address, LoginError> {
+        // http only in a build of the development, as the debug build of the android apps
+        Address::parse_with(text, cfg!(debug_assertions))
+    }
+
+    /// `parse`, with http on the loopback (e.g. `localhost:4200` of local:run) only when `http`
+    fn parse_with(text: &str, http: bool) -> Result<Address, LoginError> {
         let text = text.trim();
         if text.is_empty() {
             return Err(LoginError::InvalidAddress);
@@ -41,11 +47,13 @@ impl Address {
         // without a scheme https, http for the loopback (e.g. localhost:4200 of local:run)
         let text = if text.contains("://") {
             text.to_string()
-        } else if ["localhost", "127.0.0.1", "[::1]"].iter().any(|host| {
-            text == *host
-                || text.starts_with(&format!("{host}:"))
-                || text.starts_with(&format!("{host}/"))
-        }) {
+        } else if http
+            && ["localhost", "127.0.0.1", "[::1]"].iter().any(|host| {
+                text == *host
+                    || text.starts_with(&format!("{host}:"))
+                    || text.starts_with(&format!("{host}/"))
+            })
+        {
             format!("http://{text}")
         } else {
             format!("https://{text}")
@@ -57,7 +65,8 @@ impl Address {
             Some(Host::Ipv6(ip)) => ip.is_loopback(),
             None => return Err(LoginError::InvalidAddress),
         };
-        if !secure(&url, loopback) || !url.username().is_empty() || url.password().is_some() {
+        if !secure(&url, http && loopback) || !url.username().is_empty() || url.password().is_some()
+        {
             return Err(LoginError::InvalidAddress);
         }
         url.set_path("/");
@@ -66,13 +75,10 @@ impl Address {
         Ok(Address(url))
     }
 
-    fn loopback(&self) -> bool {
-        match self.0.host() {
-            Some(Host::Domain(domain)) => domain == "localhost",
-            Some(Host::Ipv4(ip)) => ip.is_loopback(),
-            Some(Host::Ipv6(ip)) => ip.is_loopback(),
-            None => false,
-        }
+    /// an address of the development, which `parse` takes on the loopback only; its api may be
+    /// http too
+    fn http(&self) -> bool {
+        self.0.scheme() == "http"
     }
 
     /// `https://sak.example.org/`
@@ -85,9 +91,9 @@ impl Address {
     }
 }
 
-/// https, or http for the development: a SAK address on the loopback
-fn secure(url: &Url, loopback: bool) -> bool {
-    url.scheme() == "https" || (url.scheme() == "http" && loopback)
+/// https, or http where the development may have it
+fn secure(url: &Url, http: bool) -> bool {
+    url.scheme() == "https" || (url.scheme() == "http" && http)
 }
 
 /// who is signed in, as `GET <api>/auth/who-am-i` answers: `admin` for the admin password, else
@@ -292,13 +298,14 @@ impl SessionManager {
         }
     }
 
-    /// signs in at `address` through the browser, which `open` opens on the url it is given. A
+    /// signs in at `address` through the browser, which `open` opens on the url it is given; its
+    /// second argument is the code the app shows, the page shows the same (`connect_code`). A
     /// sign-in that still waits is cancelled; the session replaces the one before
     pub async fn login(
         &self,
         address: Address,
         pages: Pages,
-        open: impl FnOnce(&str) -> Result<(), String>,
+        open: impl FnOnce(&str, &str) -> Result<(), String>,
     ) -> Result<User, LoginError> {
         let cancel = Arc::new(AtomicBool::new(false));
         if let Some(older) = self.pending.lock().unwrap().replace(cancel.clone()) {
@@ -319,7 +326,7 @@ impl SessionManager {
         &self,
         address: Address,
         pages: Pages,
-        open: impl FnOnce(&str) -> Result<(), String>,
+        open: impl FnOnce(&str, &str) -> Result<(), String>,
         cancel: Arc<AtomicBool>,
     ) -> Result<User, LoginError> {
         let server = tiny_http::Server::http("127.0.0.1:0")
@@ -333,8 +340,12 @@ impl SessionManager {
         let api = self.api(&address).await?;
         let verifier = random_base64::<32>()?;
         let state = random_base64::<16>()?;
-        open(start_url(&address, port, &state, &pkce_challenge(&verifier)).as_str())
-            .map_err(LoginError::Browser)?;
+        let challenge = pkce_challenge(&verifier);
+        open(
+            start_url(&address, port, &state, &challenge).as_str(),
+            &connect_code(&challenge),
+        )
+        .map_err(LoginError::Browser)?;
 
         let timeout = self.timeout;
         let token =
@@ -422,7 +433,7 @@ impl SessionManager {
             .await
             .map_err(|_| LoginError::NoInstance)?;
         let mut api = Url::parse(announced.api.trim()).map_err(|_| LoginError::NoInstance)?;
-        if !secure(&api, address.loopback()) || api.host().is_none() {
+        if !secure(&api, address.http()) || api.host().is_none() {
             return Err(LoginError::NoInstance);
         }
         if !api.path().ends_with('/') {
@@ -494,6 +505,19 @@ fn start_url(address: &Address, port: u16, state: &str, challenge: &str) -> Url 
 /// pkce S256 (rfc 7636): the sha-256 of the verifier as base64url without padding
 pub fn pkce_challenge(verifier: &str) -> String {
     URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+}
+
+/// the code the app and the page `/connect-desktop` both show, so the user sees that the page
+/// asks for this app and not for another program (SEC-31): 6 characters of the sha-256 of the
+/// challenge, none that reads as another (no 0, O, 1, I), as `ABC-DEF`. The page computes the same
+pub fn connect_code(challenge: &str) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let digest = Sha256::digest(challenge.as_bytes());
+    let code: String = digest[..6]
+        .iter()
+        .map(|byte| ALPHABET[usize::from(byte & 31)] as char)
+        .collect();
+    format!("{}-{}", &code[..3], &code[3..])
 }
 
 /// N random bytes as base64url; 32 bytes are a verifier of 43 characters
@@ -697,8 +721,9 @@ mod tests {
         }))
     }
 
+    // http, as a build of the development takes it
     fn address(server: &MockServer) -> Address {
-        Address::parse(&server.uri()).unwrap()
+        Address::parse_with(&server.uri(), true).unwrap()
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -708,13 +733,14 @@ mod tests {
         let browser = Arc::new(Mutex::new(None));
         let seen = browser.clone();
         let user = manager
-            .login(address(&server), pages(), |url| {
+            .login(address(&server), pages(), |url, code| {
                 assert!(url.starts_with(&format!(
                     "{}connect-desktop?port=",
                     address(&server).as_str()
                 )));
                 let (port, state, challenge) = opened(url);
                 assert_eq!(challenge.len(), 43);
+                assert_eq!(code, connect_code(&challenge));
                 *seen.lock().unwrap() = Some(challenge);
                 std::thread::spawn(move || {
                     // a request that is not the callback, and one of another state, change nothing
@@ -786,7 +812,7 @@ mod tests {
         let server = instance(session_token()).await;
         let manager = SessionManager::default();
         let result = manager
-            .login(address(&server), pages(), |url| {
+            .login(address(&server), pages(), |url, _| {
                 let (port, state, _) = opened(url);
                 std::thread::spawn(move || {
                     let page = browse(&format!(
@@ -808,8 +834,11 @@ mod tests {
         let server = instance(session_token()).await;
         let manager = Arc::new(SessionManager::default());
         let waiting = manager.clone();
-        let login =
-            tokio::spawn(async move { waiting.login(address(&server), pages(), |_| Ok(())).await });
+        let login = tokio::spawn(async move {
+            waiting
+                .login(address(&server), pages(), |_, _| Ok(()))
+                .await
+        });
         tokio::time::sleep(Duration::from_millis(100)).await;
         manager.cancel();
         assert_eq!(login.await.unwrap(), Err(LoginError::Cancelled));
@@ -819,7 +848,9 @@ mod tests {
     async fn a_browser_that_does_not_come_back_times_out() {
         let server = instance(session_token()).await;
         let manager = SessionManager::with_timeout(Duration::from_millis(300));
-        let result = manager.login(address(&server), pages(), |_| Ok(())).await;
+        let result = manager
+            .login(address(&server), pages(), |_, _| Ok(()))
+            .await;
         assert_eq!(result, Err(LoginError::TimedOut));
     }
 
@@ -828,7 +859,9 @@ mod tests {
         let server = instance(session_token()).await;
         let manager = SessionManager::default();
         let result = manager
-            .login(address(&server), pages(), |_| Err("no browser".to_string()))
+            .login(address(&server), pages(), |_, _| {
+                Err("no browser".to_string())
+            })
             .await;
         assert_eq!(result, Err(LoginError::Browser("no browser".to_string())));
     }
@@ -838,7 +871,7 @@ mod tests {
         let server = instance(ResponseTemplate::new(401)).await;
         let manager = SessionManager::default();
         let result = manager
-            .login(address(&server), pages(), |url| {
+            .login(address(&server), pages(), |url, _| {
                 let (port, state, _) = opened(url);
                 std::thread::spawn(move || {
                     browse(&format!(
@@ -856,7 +889,7 @@ mod tests {
     async fn an_address_without_an_api_or_with_an_insecure_one_opens_no_browser() {
         let manager = SessionManager::default();
         let empty = MockServer::start().await;
-        let opened = |_: &str| -> Result<(), String> { panic!("the browser opened") };
+        let opened = |_: &str, _: &str| -> Result<(), String> { panic!("the browser opened") };
         assert_eq!(
             manager.login(address(&empty), pages(), opened).await,
             Err(LoginError::NoInstance)
@@ -881,29 +914,39 @@ mod tests {
     #[test]
     fn an_address_is_the_origin_of_a_sak_instance() {
         assert_eq!(
-            Address::parse(" sak.example.org ").unwrap().as_str(),
-            "https://sak.example.org/"
-        );
-        assert_eq!(
-            Address::parse("https://sak.example.org/").unwrap().as_str(),
-            "https://sak.example.org/"
-        );
-        assert_eq!(
-            Address::parse("https://sak.example.org/notes?a=b#c")
+            Address::parse_with(" sak.example.org ", true)
                 .unwrap()
                 .as_str(),
             "https://sak.example.org/"
         );
         assert_eq!(
-            Address::parse("localhost:4200").unwrap().as_str(),
+            Address::parse_with("https://sak.example.org/", true)
+                .unwrap()
+                .as_str(),
+            "https://sak.example.org/"
+        );
+        assert_eq!(
+            Address::parse_with("https://sak.example.org/notes?a=b#c", true)
+                .unwrap()
+                .as_str(),
+            "https://sak.example.org/"
+        );
+        assert_eq!(
+            Address::parse_with("localhost:4200", true)
+                .unwrap()
+                .as_str(),
             "http://localhost:4200/"
         );
         assert_eq!(
-            Address::parse("http://localhost:4200").unwrap().as_str(),
+            Address::parse_with("http://localhost:4200", true)
+                .unwrap()
+                .as_str(),
             "http://localhost:4200/"
         );
         assert_eq!(
-            Address::parse("http://127.0.0.1:8080").unwrap().as_str(),
+            Address::parse_with("http://127.0.0.1:8080", true)
+                .unwrap()
+                .as_str(),
             "http://127.0.0.1:8080/"
         );
         for refused in [
@@ -914,11 +957,53 @@ mod tests {
             "https://",
         ] {
             assert_eq!(
-                Address::parse(refused),
+                Address::parse_with(refused, true),
                 Err(LoginError::InvalidAddress),
                 "{refused}"
             );
         }
+    }
+
+    #[test]
+    fn the_code_is_the_one_the_page_computes() {
+        // the same vector as connect-desktop-page.spec.ts
+        assert_eq!(
+            connect_code("ZtNPunH49FD35FWYhT5Tv8I7vRKQJ8uxMaL0_9eHjNA"),
+            "DCF-ACE"
+        );
+    }
+
+    #[test]
+    fn http_is_for_the_loopback_of_a_development_build_only() {
+        for address in [
+            "localhost:4200",
+            "http://localhost:4200",
+            "http://127.0.0.1:8080",
+            "http://[::1]:8080",
+        ] {
+            assert!(Address::parse_with(address, true).is_ok(), "{address}");
+        }
+        // a release: https, also on the loopback
+        assert_eq!(
+            Address::parse_with("http://localhost:4200", false),
+            Err(LoginError::InvalidAddress)
+        );
+        assert_eq!(
+            Address::parse_with("http://127.0.0.1:8080", false),
+            Err(LoginError::InvalidAddress)
+        );
+        assert_eq!(
+            Address::parse_with("localhost:4200", false)
+                .unwrap()
+                .as_str(),
+            "https://localhost:4200/"
+        );
+        assert!(!Address::parse_with("localhost:4200", false).unwrap().http());
+        // never for another host
+        assert_eq!(
+            Address::parse_with("http://sak.example.org", true),
+            Err(LoginError::InvalidAddress)
+        );
     }
 
     #[test]
@@ -972,7 +1057,7 @@ mod tests {
     /// signs in at the instance with the browser of the tests
     async fn sign_in(manager: &SessionManager, server: &MockServer) -> Result<User, LoginError> {
         manager
-            .login(address(server), pages(), |url| {
+            .login(address(server), pages(), |url, _| {
                 let (port, state, _) = opened(url);
                 std::thread::spawn(move || {
                     browse(&format!(

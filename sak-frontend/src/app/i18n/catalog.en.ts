@@ -146,7 +146,8 @@ export const TEXTS = {
   connect_desktop: {
     title: 'Connect a desktop app',
     question: 'A desktop app on this computer, e.g. SAK Backup, asks to sign in as you.',
-    warning: 'Connect it only if you just started the sign-in in the app yourself.',
+    warning: 'Connect it only if you just started the sign-in in the app yourself and the app shows this code:',
+    code: 'Code of the desktop app',
     connect: 'Connect',
     cancel: 'Cancel',
     connecting: 'Connecting…',

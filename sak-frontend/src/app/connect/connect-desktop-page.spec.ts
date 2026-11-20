@@ -7,7 +7,7 @@ import { routes } from '../app.routes';
 import { authInterceptor } from '../auth/auth.interceptor';
 import { LEAVE_PAGE } from '../auth/auth.service';
 import { pageHelpers, signedIn } from '../testing/page';
-import { desktopCallback, desktopRequest } from './connect-desktop-page';
+import { connectCode, desktopCallback, desktopRequest } from './connect-desktop-page';
 
 const CHALLENGE = 'ZtNPunH49FD35FWYhT5Tv8I7vRKQJ8uxMaL0_9eHjNA';
 const STATE = 'state-of-the-app-1234';
@@ -47,6 +47,13 @@ describe('desktopRequest', () => {
   });
 });
 
+describe('connectCode', () => {
+  it('is the code the desktop app computes', async () => {
+    // the same vector as session.rs of sak-desktop-shared
+    expect(await connectCode(CHALLENGE)).toBe('DCF-ACE');
+  });
+});
+
 describe('ConnectDesktopPage', () => {
   let http: HttpTestingController;
   let left: string[];
@@ -70,8 +77,11 @@ describe('ConnectDesktopPage', () => {
     localStorage.clear();
   });
 
+  // opens the page and waits for its code
   async function open(url = URL_OF_APP) {
     const harness = await RouterTestingHarness.create(url);
+    await connectCode(CHALLENGE);
+    await harness.fixture.whenStable();
     return { harness, ...pageHelpers(() => harness) };
   }
 
@@ -80,6 +90,7 @@ describe('ConnectDesktopPage', () => {
     const { harness, button, text } = await open();
     http.expectNone('/api/v1/auth/connect');
     expect(text('warning')).toContain('Connect it only if you just started the sign-in');
+    expect(text('code')).toBe('DCF-ACE');
 
     button('Connect').click();
     const request = http.expectOne('/api/v1/auth/connect');

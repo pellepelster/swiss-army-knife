@@ -28,7 +28,7 @@ Nothing found lets somebody without a session read data, get a session or get a 
 a pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in
 through the browser, `instances.json`, the keychain) and the window of sak-backup. The question for it: what can
 another program or another user of the machine do, a link somebody sends, or a host on the way. Its findings are
-`SEC-31` to `SEC-37`. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
+`SEC-31` to `SEC-37`; `SEC-31` and `SEC-32` are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
 person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
 
 ## What is good
@@ -172,7 +172,7 @@ statistics of a bucket count `data/` only, so the admin sees nothing grow.
 Fix: refuse a write when the volume has less than a floor free, or a largest size for each bucket; part numbers to
 10000; uploads older than a day removed at the start and with the cleanup; `uploads/` counted in the usage.
 
-### `SEC-11` Secrets of an old setup are in the working copy
+### ~~`SEC-11` Secrets of an old setup are in the working copy~~
 
 Not a finding of the code: `terraform/modules/hcloud/backend/` is ignored by git and was never committed, but it
 still has a private ssh key (`.ssh/id_ed25519`), `.ansible/backend.env` and `.ansible/credentials/`, all readable by
@@ -180,7 +180,10 @@ the user only. The repository has no terraform any more.
 
 Fix: delete the directory; replace the keys if they are still good anywhere.
 
-### `SEC-31` The page that connects a desktop app does not tell which app asks
+**Fixed:** the directory `terraform/` is deleted from the working copy, with its line in `.gitignore`. The keys
+were not replaced: the server of that setup is gone.
+
+### ~~`SEC-31` The page that connects a desktop app does not tell which app asks~~
 
 `/connect-desktop` takes the port and the challenge from its link and shows the same question for every link: "A
 desktop app on this computer asks to sign in as you" (`connect-desktop-page.ts`). Whoever makes the link holds the
@@ -202,7 +205,12 @@ The click is the only guard, and the page gives the user nothing to check.
 3. The texts of the page and of the app name the code; a test of the page and one of the shared crate hold the same
    vector, as `pkce_challenge` does.
 
-### `SEC-32` A release build signs in over http on the loopback and sends the kept token there at every start
+**Fixed:** the app and the page both show a code of 6 characters made from the challenge (`connect_code` of
+`sak-desktop-shared`, `connectCode` of the page, one test vector in both). The page shows it in its warning and
+has no "Connect" before it is there; the app shows it while it waits and says to confirm only with this code. A
+link of another program shows another code.
+
+### ~~`SEC-32` A release build signs in over http on the loopback and sends the kept token there at every start~~
 
 `Address::parse` takes `http://localhost:<port>` and `http://127.0.0.1:<port>` in every build (`session.rs`), for
 `local:run`. The Android apps take http in the debug build only (`allowUrl`). With the remembered sign-ins the start
@@ -213,6 +221,10 @@ a developer; a release for users needs no http at all.
 
 Fix: http on the loopback only in a debug build (`cfg!(debug_assertions)`), and an address of `instances.json`
 that the build no longer takes is left out, as an invalid one is today.
+
+**Fixed:** `Address::parse` takes http on the loopback in a debug build only; a release takes https alone, and an
+api of http only for an address of http. `instances.json` of a release leaves an http address out, so its token is
+never sent.
 
 ## Could fix
 

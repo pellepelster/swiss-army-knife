@@ -144,7 +144,8 @@ export const TEXTS = {
   connect_desktop: {
     title: 'Desktop-App verbinden',
     question: 'Eine Desktop-App auf diesem Computer, z. B. SAK Backup, möchte sich als du anmelden.',
-    warning: 'Verbinde sie nur, wenn du die Anmeldung gerade selbst in der App gestartet hast.',
+    warning: 'Verbinde sie nur, wenn du die Anmeldung gerade selbst in der App gestartet hast und die App diesen Code zeigt:',
+    code: 'Code der Desktop-App',
     connect: 'Verbinden',
     cancel: 'Abbrechen',
     connecting: 'Verbinde…',

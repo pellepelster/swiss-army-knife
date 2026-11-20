@@ -138,3 +138,11 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `CLI-6` **Scriptable.** Every input is an argument or an environment variable, `--help` lists them all.
 - `CLI-8` **Exit codes tell what happened.** Success, failure, wrong arguments and each refusal a script may handle
   have a code of their own, listed by `--help`.
+
+## Desktop apps
+
+- `DESKTOP-1` **A sign-in is remembered.** A desktop app that signs in at a SAK instance (sak-backup) remembers the
+  SAK address and the sign-in. At its next start it opens signed in, without the sign-in screen. When the instance
+  no longer accepts the sign-in, or does not answer, the app shows the sign-in screen with the SAK address filled
+  in and says why. A sign-out forgets the sign-in and keeps the SAK address. On a computer without a keychain the
+  app remembers the SAK address only.

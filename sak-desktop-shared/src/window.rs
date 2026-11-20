@@ -9,6 +9,7 @@ use crate::session::{
 };
 use rust_i18n::t;
 use std::sync::Arc;
+use tauri::ipc::Channel;
 use tauri::{Manager, State};
 use tauri_plugin_opener::OpenerExt;
 
@@ -60,11 +61,16 @@ pub async fn login(
     sessions: State<'_, SessionManager>,
     instances: State<'_, InstanceStore>,
     address: String,
+    // gets the code the window shows while the browser asks, the page shows the same (SEC-31)
+    on_code: Channel<String>,
 ) -> Result<User, String> {
     let address = Address::parse(&address).map_err(|error| message(&error))?;
     let pages = pages(&app.package_info().name);
     let user = sessions
-        .login(address.clone(), pages, |url| {
+        .login(address.clone(), pages, |url, code| {
+            on_code
+                .send(code.to_string())
+                .map_err(|error| error.to_string())?;
             app.opener()
                 .open_url(url, None::<&str>)
                 .map_err(|error| error.to_string())

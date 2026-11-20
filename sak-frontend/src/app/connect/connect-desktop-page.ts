@@ -35,6 +35,18 @@ export function desktopCallback(request: DesktopRequest, token: string | null): 
   return `http://127.0.0.1:${request.port}/callback?${query}`;
 }
 
+// the code the page and the desktop app both show, so the user sees that the page asks for that
+// app and not for another program (SEC-31): 6 characters of the sha-256 of the challenge, none that
+// reads as another, as ABC-DEF. `connect_code` of sak-desktop-shared computes the same
+export async function connectCode(challenge: string): Promise<string> {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const digest = new Uint8Array(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(challenge)),
+  );
+  const code = [...digest.slice(0, 6)].map((byte) => alphabet[byte & 31]).join('');
+  return `${code.slice(0, 3)}-${code.slice(3)}`;
+}
+
 type State =
   | { readonly kind: 'asking' }
   | { readonly kind: 'connecting' }
@@ -43,7 +55,8 @@ type State =
 
 // /connect-desktop: a desktop app on this computer asks for a session of the signed in user
 // (SECURITY-3). Only after the user confirms, the page gets a connect token bound to the challenge
-// of the app and sends the browser with it to the loopback port of the app. The token is never
+// of the app and sends the browser with it to the loopback port of the app; the code of the
+// challenge tells the user which app asks. The token is never
 // shown, it leaves the page only in that redirect
 @Component({
   selector: 'app-connect-desktop-page',
@@ -64,6 +77,12 @@ type State =
             <p class="alert alert-warning" data-testid="warning">
               <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i
               >{{ 'connect_desktop.warning' | t }}
+              <strong
+                class="d-block fs-3 font-monospace mt-2"
+                data-testid="code"
+                [attr.aria-label]="'connect_desktop.code' | t"
+                >{{ code() }}</strong
+              >
             </p>
             @if (current.kind === 'failed') {
               <p class="alert alert-danger" role="alert" data-testid="error">
@@ -82,7 +101,7 @@ type State =
               <button
                 type="button"
                 class="btn btn-primary"
-                [disabled]="current.kind === 'connecting'"
+                [disabled]="current.kind === 'connecting' || !code()"
                 (click)="connect()"
               >
                 {{
@@ -107,7 +126,13 @@ export class ConnectDesktopPage {
 
   protected readonly state = signal<State>(this.request ? { kind: 'asking' } : { kind: 'invalid' });
 
+  // shown before the user can connect
+  protected readonly code = signal('');
+
   constructor() {
+    if (this.request) {
+      void connectCode(this.request.challenge).then((code) => this.code.set(code));
+    }
     // the state and the challenge do not stay in the history
     inject(Location).replaceState('/connect-desktop');
   }

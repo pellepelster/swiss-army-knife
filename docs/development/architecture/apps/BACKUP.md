@@ -38,12 +38,13 @@ A desktop app, no app of the backend (refer to [the architecture of the apps](IN
 
 The flow is the one of a desktop app in `SECURITY-3`:
 
-1. The user types the SAK address. `localhost:4200`, the address of `local:run`, is `http://localhost:4200`; every
-   other address is https.
+1. The user types the SAK address, https. Only a debug build (`mise run backup:run`) takes http on the loopback:
+   `localhost:4200`, the address of `local:run`, is `http://localhost:4200` there.
 2. The app reads the api from `<SAK address>/.well-known/sak.json` (`SERVER-6`). An address that names no api fails
    before the browser opens.
 3. The app listens on `127.0.0.1` on a random port and opens `/connect-desktop` with the port, a state and the pkce
-   challenge. The page signs the user in, the user confirms, the browser comes back to
+   challenge. The app and the page show the same code, made from the challenge; the user confirms only when they
+   match. The page signs the user in, the user confirms, the browser comes back to
    `http://127.0.0.1:<port>/callback` with a connect token.
 4. The app exchanges the token with the verifier (`POST <api>/auth/login/connect`) and reads the user
    (`GET <api>/auth/who-am-i`).
@@ -51,6 +52,8 @@ The flow is the one of a desktop app in `SECURITY-3`:
 A sign-in waits 15 minutes for the browser, long enough for a login link by e-mail; Cancel stops it.
 
 ## Remembered sign-ins
+
+What the user sees is `DESKTOP-1` ([UI-UX.md](../../UI-UX.md)); how it is kept:
 
 The session token goes into the keychain of the system after a sign-in: the Secret Service on linux, the Keychain on
 macOS, the Credential Manager on windows. The entry is the identifier of the app (`io.pelle.sak.backup`) with the SAK

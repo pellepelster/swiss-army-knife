@@ -7,6 +7,7 @@ ui:
     address_hint: "Die Adresse deiner SAK-Instanz, z. B. sak.example.org"
     sign_in: "Anmelden"
     waiting: "Melde dich im Browser an und bestätige dort die Verbindung."
+    code: "Bestätige nur, wenn der Browser diesen Code zeigt: %{code}"
     cancel: "Abbrechen"
     browser:
       signed_in_title: "Angemeldet"

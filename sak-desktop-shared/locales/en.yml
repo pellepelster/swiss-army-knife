@@ -7,6 +7,7 @@ ui:
     address_hint: "The address of your SAK instance, e.g. sak.example.org"
     sign_in: "Sign in"
     waiting: "Sign in in the browser and confirm the connection there."
+    code: "Confirm only when the browser shows this code: %{code}"
     cancel: "Cancel"
     browser:
       signed_in_title: "Signed in"

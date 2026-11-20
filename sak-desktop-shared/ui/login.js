@@ -3,7 +3,7 @@
 // through the browser. The view builds itself into the body on its first show
 import { setFailure, setStatus, show, text } from './views.js';
 
-const { invoke } = window.__TAURI__.core;
+const { invoke, Channel } = window.__TAURI__.core;
 
 let view = null;
 let options = null;
@@ -59,8 +59,13 @@ function build() {
     event.preventDefault();
     waiting(true);
     setStatus(status, text('ui.login.waiting'));
+    // the code the page in the browser shows too, so the user sees it asks for this app
+    const onCode = new Channel();
+    onCode.onmessage = (code) => {
+      setStatus(status, `${text('ui.login.waiting')} ${text('ui.login.code', { code })}`);
+    };
     try {
-      const user = await invoke('login', { address: address.value });
+      const user = await invoke('login', { address: address.value, onCode });
       options.onSignedIn(user);
     } catch (error) {
       waiting(false);
