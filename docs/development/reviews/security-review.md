@@ -28,7 +28,7 @@ Nothing found lets somebody without a session read data, get a session or get a 
 a pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in
 through the browser, `instances.json`, the keychain) and the window of sak-backup. The question for it: what can
 another program or another user of the machine do, a link somebody sends, or a host on the way. Its findings are
-`SEC-31` to `SEC-38`; `SEC-31`, `SEC-32`, `SEC-33` and `SEC-35` are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
+`SEC-31` to `SEC-38`; `SEC-31`, `SEC-32`, `SEC-33`, `SEC-35` and `SEC-37` are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
 person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
 
 ## What is good
@@ -377,9 +377,11 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
   keychain, not wiped when it goes (as `SEC-24` for sakadm); the state of a callback is compared with `!=`, not in
   constant time (128 bits, on the loopback: no practical way to measure it).
-- `SEC-37` The used connect token stays in the history of the browser, in the url of the page on the loopback
+- ~~`SEC-37` The used connect token stays in the history of the browser, in the url of the page on the loopback
   (`http://127.0.0.1:<port>/callback?state=…&token=…`). It is used and bound to the verifier, so it is of no use;
-  an answer that redirects to a page without a query would keep it out.
+  an answer that redirects to a page without a query would keep it out.~~
+  **Fixed:** the callback answers with a redirect to `/done` of the app, a page without a query; the browser stays
+  there. A browser may still keep the address of the callback as a redirect it followed (Firefox does).
 - `SEC-38` Left of `SEC-33`: another user of the machine sees the port in the arguments of the opener and can ask
   `/start` before the browser of the user does. When their callback also comes before the browser asks, the app is
   signed in as them and no longer listens: the browser shows a failed connection, the menu of the app their name,

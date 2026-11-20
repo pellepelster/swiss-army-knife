@@ -43,7 +43,7 @@ code:
 - The api of a SAK address is the one of its `/.well-known/sak.json` (`SERVER-6`). A release takes https only; a
   debug build (`mise run backup:run`) takes http on the loopback too, e.g. `localhost:4200` of `local:run`.
 - The browser is started on a page of the app on the loopback, which leads it on to `/connect-desktop` of the
-  instance once; the url the browser is started with has no secret. The token comes back to the loopback and is
+  instance once; the url the browser is started with has no secret. The token comes back to the loopback, which leads the browser on to a page without the token in its url, and is
   bound to the app by pkce. A sign-in waits 15 minutes for the browser.
 - The addresses are in `instances.json` in the config directory of the app (`{ "instances": [ { "address": … } ] }`,
   at most 20, only for the user; refer to [ACCEPTED-RISKS.md](../../ACCEPTED-RISKS.md)).

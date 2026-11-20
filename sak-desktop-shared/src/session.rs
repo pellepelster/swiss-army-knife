@@ -540,6 +540,12 @@ fn random_base64<const N: usize>() -> Result<String, LoginError> {
 /// the page of the app the browser is started with; its first request is led on to the instance
 const START_PATH: &str = "/start";
 
+/// the page of the app the callback leads the browser on to, with no token in its url
+const DONE_PATH: &str = "/done";
+
+/// how long the app waits for the browser to ask for the page after the callback
+const DONE_WAIT: Duration = Duration::from_secs(3);
+
 /// what a request on the loopback is
 #[derive(Debug, PartialEq, Eq)]
 enum Callback {
@@ -616,7 +622,9 @@ fn wait(
             // nobody has the state before the start page gave it out
             Callback::Token(_) | Callback::Cancelled if !started => respond(request, 404, None),
             Callback::Token(token) => {
-                respond(request, 200, Some(&pages.signed_in));
+                // the page the browser stays on has no token in its url (SEC-37)
+                redirect_to(request, DONE_PATH);
+                serve_done(server, pages);
                 return Ok(token);
             }
             Callback::Cancelled => {
@@ -644,9 +652,30 @@ fn respond(request: tiny_http::Request, status: u16, page: Option<&(String, Stri
     let _ = request.respond(response);
 }
 
+/// answers the request of the browser that follows the callback with the page that says it is
+/// signed in; a browser that does not come within DONE_WAIT gets none, the sign-in goes on
+fn serve_done(server: &tiny_http::Server, pages: &Pages) {
+    let deadline = Instant::now() + DONE_WAIT;
+    loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        let Ok(Some(request)) = server.recv_timeout(left) else {
+            return;
+        };
+        if *request.method() == tiny_http::Method::Get && request.url() == DONE_PATH {
+            respond(request, 200, Some(&pages.signed_in));
+            return;
+        }
+        respond(request, 404, None);
+    }
+}
+
 fn redirect(request: tiny_http::Request, to: &Url) {
+    redirect_to(request, to.as_str())
+}
+
+fn redirect_to(request: tiny_http::Request, to: &str) {
     let response = tiny_http::Response::empty(302)
-        .with_header(header("Location", to.as_str()))
+        .with_header(header("Location", to))
         .with_header(header("Cache-Control", "no-store"))
         .with_header(header("Referrer-Policy", "no-referrer"));
     let _ = request.respond(response);
@@ -804,9 +833,13 @@ mod tests {
                     let other =
                         format!("http://127.0.0.1:{port}/callback?state=other&token=stolen");
                     assert!(browse(&other).starts_with("HTTP/1.1 404"));
-                    let page = browse(&format!(
+                    let callback = browse(&format!(
                         "http://127.0.0.1:{port}/callback?state={state}&token=connect-token"
                     ));
+                    // the browser is led on to a page without the token in its url
+                    assert!(callback.starts_with("HTTP/1.1 302"), "{callback}");
+                    assert!(callback.contains("Location: /done\r\n"), "{callback}");
+                    let page = browse(&format!("http://127.0.0.1:{port}/done"));
                     assert!(page.starts_with("HTTP/1.1 200"), "{page}");
                     assert!(
                         page.contains("<h1>Signed in</h1><p>Close &lt;this&gt; tab.</p>"),
@@ -931,7 +964,8 @@ mod tests {
                     let (port, state, _) = opened(&url);
                     browse(&format!(
                         "http://127.0.0.1:{port}/callback?state={state}&token=t"
-                    ))
+                    ));
+                    browse(&format!("http://127.0.0.1:{port}/done"))
                 });
                 Ok(())
             })
@@ -1151,7 +1185,8 @@ mod tests {
                     let (port, state, _) = opened(&url);
                     browse(&format!(
                         "http://127.0.0.1:{port}/callback?state={state}&token=t"
-                    ))
+                    ));
+                    browse(&format!("http://127.0.0.1:{port}/done"))
                 });
                 Ok(())
             })
