@@ -12,7 +12,7 @@ pipx = { version = "1.18.16", os = ["linux", "macos"] }
 "pipx:fonttools" = { version = "4.68.0", extras = "woff", os = ["linux", "macos"] }
 # sakctl (sak-cli): tauri 2, the rust core in src-tauri/, the web ui in ui/; the tauri command line is
 # an npm package of sak-cli/package.json, installed by its lockfile (cli:install)
-rust = "1.99.1"
+rust = "1.100.0"
 # the docs site (site/), go for the hugo modules
 "hugo-extended" = "0.169.0"
 go = "1.27.4"
