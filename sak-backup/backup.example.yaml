@@ -1,0 +1,104 @@
+# the backups of the deployment pelle-io with restic: each night to a storage box, each week
+# also to an object storage of another location. The format is in README.md. Secrets are never
+# in this file, only where to read them.
+version: 1
+
+# where the snapshots go: a restic repository each, one password each
+repositories:
+  storage-box:
+    # any repository url restic knows (local path, sftp:, rest:, s3:, b2:, rclone: …)
+    url: sftp:u123456@u123456.your-storagebox.de:/sak/pelle-io
+    password:
+      file: /etc/sak-backup/storage-box.password
+    # restic -o <key>=<value>
+    options:
+      sftp.args: "-p 23 -i /etc/sak-backup/storage-box.key -o StrictHostKeyChecking=yes"
+
+  object-storage:
+    url: s3:https://nbg1.your-objectstorage.com/sak-backups/pelle-io
+    password:
+      file: /etc/sak-backup/object-storage.password
+    # the environment of restic for this repository, a secret again as a reference
+    env:
+      AWS_ACCESS_KEY_ID:
+        file: /etc/sak-backup/object-storage.access-key
+      AWS_SECRET_ACCESS_KEY:
+        file: /etc/sak-backup/object-storage.secret-key
+    limits:
+      upload: 20MiB/s
+
+# what is backed up, when and how long it is kept
+backups:
+  pelle-io:
+    repositories: [storage-box, object-storage]
+
+    # systemd OnCalendar, the same for all repositories unless one names its own below
+    schedule:
+      on: "*-*-* 03:00:00"
+      jitter: 30m
+
+    # the lock of sak-backend: no backup during a restore, an update or a reboot, and the
+    # other way round; waits up to the timeout, then the run fails
+    lock:
+      file: /run/sak-backend.lock
+      timeout: 1h
+
+    # a consistent copy of the data before restic reads it: the database with VACUUM INTO,
+    # the files as hard links, a snapshot of victorialogs (as sak-backend backup does)
+    prepare:
+      run: [/usr/local/bin/sak-backend, stage]
+      timeout: 30m
+    # always, also after a failed prepare or backup: removes the copy and the snapshot
+    cleanup:
+      run: [/usr/local/bin/sak-backend, unstage]
+
+    source:
+      # restic runs in this directory, the paths below are relative to it, so a snapshot has
+      # the same paths whatever directory the copy was made in
+      root: /storage/data/.backup-pelle-io
+      paths:
+        - backend/data
+        - ingress
+        - vector
+        - victorialogs
+      exclude:
+        - backend/data/sak.db-wal
+        - backend/data/sak.db-shm
+      one_file_system: true
+
+    # the server is replaced now and then (a new image, a new type), the host of the snapshots
+    # stays the name of the deployment so retention and restore find them all
+    host: pelle-io
+    tags: [sak, pelle-io]
+
+    # restic forget after each successful backup, by repository; prune on its own schedule
+    retention:
+      keep_last: 3
+      keep_daily: 7
+      keep_weekly: 5
+      keep_monthly: 12
+      prune:
+        on: "Sun *-*-* 04:30:00"
+
+    # restic check: the structure each time it runs, a part of the data each time too
+    check:
+      on: "Sun *-*-* 05:30:00"
+      read_data_subset: 5%
+
+    # per repository: a different schedule or retention than the backup's
+    overrides:
+      object-storage:
+        schedule:
+          on: "Sat *-*-* 03:30:00"
+        retention:
+          keep_last: 1
+          keep_weekly: 8
+          keep_monthly: 24
+
+    # a json report of every run that failed (or of every run with on: [failure, success])
+    report:
+      url: https://api.example.org/v1/backup-reports
+      on: [failure]
+      headers:
+        Authorization:
+          file: /etc/sak-backup/report.token
