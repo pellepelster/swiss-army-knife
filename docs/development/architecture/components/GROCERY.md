@@ -42,7 +42,7 @@ An app to manage grocery lists.
   Dose, Bund, Stück), or none. A unit the item has that is not in the list stays one to choose. No number takes the
   unit away too. The web shows the fields in the row, Enter or Save saves, Escape or Cancel keeps the quantity; Android
   shows them in a dialog, Save saves, Cancel keeps it.
-- `GROCERY-16` **Items from a photo.** With the AI features turned on (the setting of the grocery lists, `PRIVACY-2`)
+- `GROCERY-16` **Items from a photo.** With the AI features turned on (the setting of the grocery lists)
   a robot next to the field of a new item takes a photo or lets the user choose one, of a recipe or a shopping list.
   Its label names OpenRouter, where the photo goes (`PRIVACY-2`). The AI reads the items in it, with their quantity
   (`GROCERY-15`); an item the recipe names twice is one, its quantities added up, water from the tap is none;

@@ -67,11 +67,6 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `ansible` | The collection `pelle_io.sak` that provisions the server. |
 | `sak-e2e` | The end-to-end tests: the apps in a browser, and sakadmin against a real cloud project. |
 
-### Apps
-
-The backend serves apps to its users, for example static hosting and notes. How they and the other components are built is in
-[the architecture of the components](components/INDEX.md).
-
 ## Backend layers
 
 - `LAYER-1` **Routes → services → repositories.** All business logic is in a service of its entity, next to the routes

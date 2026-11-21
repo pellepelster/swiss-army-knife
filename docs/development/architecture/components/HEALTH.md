@@ -22,10 +22,6 @@ None stored. Every check runs on each request, all at once.
 
 `GET /api/v1/health`: each check with its state (healthy, unhealthy, unknown) and the state of each domain.
 
-## Settings
-
-None.
-
 ## External systems
 
 - `HEALTH-1` **Name servers** are asked directly for the domains; they see the address of the server and the names

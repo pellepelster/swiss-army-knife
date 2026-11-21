@@ -23,14 +23,6 @@ Redirects every request for a domain to another domain, the path kept, with a pe
 
 Create, change the target of, read and delete a redirect.
 
-## Settings
-
-None.
-
-## External systems
-
-None.
-
 ## Decisions
 
 - `REDIRECTS-3` **A bucket as the target** follows the bucket: a redirect leads to where the bucket is served now.

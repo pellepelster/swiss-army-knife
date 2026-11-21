@@ -26,14 +26,6 @@ domains of the bucket.
 - `HOSTING-5` Read the key pair of a bucket, only on its own endpoint.
 - `HOSTING-6` The S3 api takes requests signed with the key pair of a bucket, for that bucket only.
 
-## Settings
-
-None.
-
-## External systems
-
-None. The health of the domains asks name servers directly.
-
 ## Decisions
 
 - `HOSTING-7` **One key pair for each bucket.** A key pair accesses its own bucket only; a leaked key pair gives away
