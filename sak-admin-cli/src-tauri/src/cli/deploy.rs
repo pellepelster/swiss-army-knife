@@ -6,7 +6,7 @@ use super::*;
 pub(super) async fn list(
     manager: &DeploymentManager,
     provider: &HetznerToken,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let deployments = manager.list(provider.tokens()).await?;
     if deployments.is_empty() {
         log(Level::Info, t!("common.deployments.empty"));
@@ -79,7 +79,7 @@ pub(super) async fn plan_and_apply(
     deployment: &DeploymentRequest,
     runtime: &ContainerRuntime,
     args: &DeploymentArgs,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let DeploymentArgs { show_log, yes, .. } = *args;
     // the project and the markers are read once, for the plan and the apply
     let prepared = manager.prepare(provider.tokens(), deployment).await?;

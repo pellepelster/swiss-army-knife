@@ -9,7 +9,7 @@
 <!-- /docs-link -->
 
 Swiss Army Knife is a self-hosted, privacy first micro-cloud for families and small groups: a few apps on your own
-server, set up and looked after by one program, sakadm.
+server, set up and looked after by one program, sakadmin.
 
 <!-- the docs home shows the README up to here, its features page has the rest in detail -->
 
@@ -30,7 +30,7 @@ The notes, the grocery lists and the todo lists also have a native Android app.
 ## Privacy first
 
 Your data never goes to a third party unless you turn it on. The apps load nothing from outside, and your data stays
-on your server. sakadm, the server and the native Android apps download the software of SAK from GitHub, which sees
+on your server. sakadmin, the server and the native Android apps download the software of SAK from GitHub, which sees
 their IP address but never your data
 ([all downloads](https://pellepelster.github.io/swiss-army-knife/features/#privacy-first)).
 
@@ -48,7 +48,7 @@ the native Android apps.
 - **No passwords for users:** no sign-up, users sign in with a link sent by e-mail.
 - **Simple sharing:** data is private, or shared with everyone. No roles, no groups.
 
-## sakadm
+## sakadmin
 
 One program on your computer sets up and looks after your SAK instance.
 
@@ -56,14 +56,14 @@ One program on your computer sets up and looks after your SAK instance.
 it changes anything.
 
 <p align="center">
-  <img src="docs/screenshots/sakadm-ui.gif" alt="Installing a SAK instance with the sakadm UI" width="560">
+  <img src="docs/screenshots/sakadmin-ui.gif" alt="Installing a SAK instance with the sakadmin UI" width="560">
 </p>
 
 **The command line, for advanced users:** the same as commands, for scripts and automation (on Windows the program
-`sakadm-cli.exe`).
+`sakadmin-cli.exe`).
 
 <p align="center">
-  <img src="docs/screenshots/sakadm-cli-help.png" alt="The help of the sakadm command line" width="80%">
+  <img src="docs/screenshots/sakadmin-cli-help.png" alt="The help of the sakadmin command line" width="80%">
 </p>
 
 Both can install, update and destroy a SAK instance, back up and restore all its data as one encrypted file, maintain
@@ -91,7 +91,7 @@ as a web app (PWA).
 
 You need a Hetzner Cloud project, a domain whose DNS zone is in that project, and Docker or Podman on your computer.
 
-1. [Install sakadm](https://pellepelster.github.io/swiss-army-knife/installation/).
+1. [Install sakadmin](https://pellepelster.github.io/swiss-army-knife/installation/).
 2. [Create your first SAK instance](https://pellepelster.github.io/swiss-army-knife/first-steps/).
 
 Or read [all features](https://pellepelster.github.io/swiss-army-knife/features/).

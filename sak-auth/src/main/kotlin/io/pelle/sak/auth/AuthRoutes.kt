@@ -68,12 +68,12 @@ private const val AUTH_TAG = "auth"
 
 data class SessionPrincipal(
     val email: String,
-    // null for a signed request of sakadm, which has no session that expires
+    // null for a signed request of sakadmin, which has no session that expires
     val expiresAt: Instant?,
     val roles: Set<Role>,
     // signed in with the admin password, not with a link by e-mail
     val withPassword: Boolean = false,
-    // who the data of the session belongs to (MODEL-5): the user itself, the admin for sakadm
+    // who the data of the session belongs to (MODEL-5): the user itself, the admin for sakadmin
     val owner: String = email,
 )
 
@@ -81,7 +81,7 @@ data class SessionPrincipal(
 val ApplicationCall.sessionEmail: String get() = principal<SessionPrincipal>()!!.email
 
 // who the data of the call belongs to and who creates it (MODEL-5): the signed in user, the admin of
-// the password login for a request of sakadm
+// the password login for a request of sakadmin
 val ApplicationCall.owner: String get() = principal<SessionPrincipal>()!!.owner
 
 // an app with an e-mail login, its signin page at <url>/signin takes the login token; the name
@@ -361,7 +361,7 @@ fun Route.connectExchange(
 // the QR code that connects an app as the signed in user (SECURITY-3), or the token the web app hands
 // a desktop app on the loopback, bound to the pkce challenge of the app; behind
 // authenticate(SESSION_AUTH): the token is in the fragment, which a browser never sends; a signed
-// request of sakadm (no expiry) gets 403
+// request of sakadmin (no expiry) gets 403
 @OptIn(ExperimentalKtorApi::class)
 fun Route.connect(
     tokens: TokenService,
@@ -408,7 +408,7 @@ fun Route.connect(
                     schema = jsonSchema<ConnectResponse>()
                 }
                 errors(HttpStatusCode.BadRequest, "A malformed challenge")
-                errors(HttpStatusCode.Forbidden, "A signed request of sakadm, which has no session to connect")
+                errors(HttpStatusCode.Forbidden, "A signed request of sakadmin, which has no session to connect")
                 errors(HttpStatusCode.TooManyRequests, "Too many codes of this user")
             }
         }
@@ -523,7 +523,7 @@ internal fun ApplicationCall.clientAddress(): String =
 
 // the client as the limits count it: an IPv6 address by its /64, which one host has whole, an IPv4
 // address by itself
-internal fun ApplicationCall.clientNetwork(): String = clientNetwork(clientAddress())
+fun ApplicationCall.clientNetwork(): String = clientNetwork(clientAddress())
 
 internal fun clientNetwork(address: String): String {
     // only a literal with a colon is parsed, which never asks the dns

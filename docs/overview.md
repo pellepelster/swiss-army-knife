@@ -1,19 +1,19 @@
 ---
 title: "Overview"
-description: "How sakadm on your computer and your SAK instance in the cloud belong together."
+description: "How sakadmin on your computer and your SAK instance in the cloud belong together."
 weight: 1
 ---
 
 # Overview
 
-Swiss Army Knife has two parts: **sakadm**, a program on your computer, and a **SAK instance**, your own server in the
-cloud that runs the apps. sakadm sets up and looks after the SAK instance. You and your users need only a browser or a
+Swiss Army Knife has two parts: **sakadmin**, a program on your computer, and a **SAK instance**, your own server in the
+cloud that runs the apps. sakadmin sets up and looks after the SAK instance. You and your users need only a browser or a
 phone.
 
 ```text
         your computer                                   Hetzner Cloud
  ┌───────────────────────────┐              ┌──────────────────────────────────────┐
- │ sakadm                    │   creates,   │ your SAK instance                    │
+ │ sakadmin                    │   creates,   │ your SAK instance                    │
  │  UI or command line       │──deploys,───▶│  server, data volume, addresses,     │
  │                           │   backs up   │  firewall, DNS records               │
  │ ~/.sak/<name>/backups     │◀─────────────│  the apps: notes, grocery lists,     │
@@ -24,9 +24,9 @@ phone.
                                  browser, phone ──────┘  you and your users
 ```
 
-## sakadm
+## sakadmin
 
-sakadm has a UI and a command line. With the API token of your Hetzner Cloud project, it:
+sakadmin has a UI and a command line. With the API token of your Hetzner Cloud project, it:
 
 - **creates** a SAK instance: server, data volume, addresses, firewall, DNS records and the apps;
 - **deploys** it again, to change its settings or update it;
@@ -34,7 +34,7 @@ sakadm has a UI and a command line. With the API token of your Hetzner Cloud pro
 - **maintains** its server: package upgrades and reboots;
 - **destroys** it, and keeps its data volume unless you ask otherwise.
 
-Before a change, sakadm shows a plan of what it creates, changes or deletes.
+Before a change, sakadmin shows a plan of what it creates, changes or deletes.
 
 ## The SAK instance
 
@@ -48,20 +48,20 @@ A SAK instance is one server at Hetzner Cloud with a name, for example `family`,
 All data is on the data volume, a disk that outlives the server: a deploy can replace the server, the data volume
 stays.
 
-The SAK instance runs on its own. You need sakadm only to set it up, change or update it, back it up and maintain it.
+The SAK instance runs on its own. You need sakadmin only to set it up, change or update it, back it up and maintain it.
 
 ## The password
 
-sakadm finds a SAK instance again with its name and password alone; it keeps only the backups on your computer. All
+sakadmin finds a SAK instance again with its name and password alone; it keeps only the backups on your computer. All
 keys of the SAK instance, for the server and for the backups, come from the password. So:
 
-- sakadm on another computer, with the same name, password and Hetzner token, manages the same SAK instance;
+- sakadmin on another computer, with the same name, password and Hetzner token, manages the same SAK instance;
 - the admin signs in to the apps with the same password;
 - nobody can recover a lost password, and the backups made with it are lost too.
 
 ## Versions
 
-sakadm and the SAK instance have the same version. `sakadm update` (or **Check for updates** in the UI) updates
-sakadm; the next deploy brings the SAK instance to the same version.
+sakadmin and the SAK instance have the same version. `sakadmin update` (or **Check for updates** in the UI) updates
+sakadmin; the next deploy brings the SAK instance to the same version.
 
-Next: [install sakadm](installation.md).
+Next: [install sakadmin](installation.md).

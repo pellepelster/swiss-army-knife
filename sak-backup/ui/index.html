@@ -25,8 +25,8 @@
           <span data-text="ui.title"></span>
         </div>
         <ul class="nav nav-pills flex-column" id="nav">
-          <li class="nav-item"><button type="button" class="nav-link" data-page="backups" data-text="ui.nav.backups"></button></li>
           <li class="nav-item"><button type="button" class="nav-link" data-page="repositories" data-text="ui.nav.repositories"></button></li>
+          <li class="nav-item"><button type="button" class="nav-link" data-page="plans" data-text="ui.nav.plans"></button></li>
           <li class="nav-item"><button type="button" class="nav-link" data-page="snapshots" data-text="ui.nav.snapshots"></button></li>
         </ul>
         <!-- the menu of the user, at the bottom of the navigation -->
@@ -43,9 +43,176 @@
       <main class="shell-main">
         <header class="page-header">
           <h1 id="page-title"></h1>
+          <!-- the actions of the page (UX-10), filled by the page -->
+          <div class="btn-group" role="group" id="page-toolbar"></div>
         </header>
-        <p class="hint" data-text="ui.nav.empty"></p>
+        <p class="hint page" id="page-empty" data-text="ui.nav.empty"></p>
+
+        <!-- the repositories of the instance (BACKUP-1): their list (UX-11) and the form that creates one -->
+        <section class="page" id="page-repositories" hidden>
+          <p class="hint" id="repositories-status" aria-live="polite"></p>
+          <ul class="rows" id="repositories-list"></ul>
+        </section>
+        <section class="page page-fill" id="page-repository" hidden>
+          <form class="page-form" id="repository-form" novalidate>
+            <p class="hint" data-text="ui.repositories.create_hint"></p>
+            <div>
+              <label class="form-label" for="repository-name" data-text="ui.name"></label>
+              <input class="form-control" id="repository-name" type="text" spellcheck="false" autocapitalize="off" aria-describedby="repository-name-hint repository-name-error">
+              <div class="form-text" id="repository-name-hint" data-text="ui.name_hint"></div>
+              <div class="field-error" id="repository-name-error"></div>
+            </div>
+            <!-- the error of the save, above its buttons (UX-15) -->
+            <p class="hint" id="repository-status" aria-live="polite"></p>
+            <!-- the buttons of the form, bottom right, the main one rightmost (UX-9) -->
+            <div class="form-buttons">
+              <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary" id="repository-cancel" data-text="ui.cancel"></button>
+                <button type="submit" class="btn btn-primary" id="repository-submit" data-text="ui.repositories.create"></button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- the snapshots of a repository, as restic of this computer lists them with the password -->
+        <!-- the run of a backup plan (BACKUP-5): its progress, what it skipped, how it ended -->
+        <section class="page page-fill" id="page-run" hidden>
+          <div class="run-page">
+            <div class="progress" id="run-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" hidden>
+              <div class="progress-bar" id="run-bar"></div>
+            </div>
+            <p class="hint" id="run-status" aria-live="polite"></p>
+            <ul class="run-skipped" id="run-skipped"></ul>
+            <div class="form-buttons">
+              <button type="button" class="btn btn-outline-secondary" id="run-close"></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-snapshots" hidden>
+          <form class="page-form" id="snapshots-form" novalidate>
+            <p class="hint" id="snapshots-intro"></p>
+            <div class="snapshots-fields">
+              <label for="snapshots-repository" data-text="ui.plans.repository"></label>
+              <select class="form-select" id="snapshots-repository"></select>
+              <button type="submit" class="btn btn-primary" id="snapshots-submit" data-text="ui.snapshots.show"></button>
+            </div>
+          </form>
+          <p class="hint" id="snapshots-status" aria-live="polite"></p>
+          <ul class="rows" id="snapshots-list"></ul>
+        </section>
+
+        <!-- the backup plans (BACKUP-5): their list and the form that creates or changes one -->
+        <section class="page" id="page-plans" hidden>
+          <p class="hint" id="plans-status" aria-live="polite"></p>
+          <ul class="rows" id="plans-list"></ul>
+        </section>
+        <section class="page page-fill" id="page-plan" hidden>
+          <form class="page-form" id="plan-form" novalidate>
+            <p class="hint" id="plan-host"></p>
+            <div>
+              <label class="form-label" for="plan-name" data-text="ui.name"></label>
+              <input class="form-control" id="plan-name" type="text" spellcheck="false" autocapitalize="off" aria-describedby="plan-name-error">
+              <div class="field-error" id="plan-name-error"></div>
+            </div>
+            <div>
+              <label class="form-label" for="plan-repository" data-text="ui.plans.repository"></label>
+              <select class="form-select" id="plan-repository" aria-describedby="plan-repository-error"></select>
+              <div class="field-error" id="plan-repository-error"></div>
+            </div>
+            <fieldset>
+              <legend class="form-label" data-text="ui.plans.paths"></legend>
+              <ul class="paths" id="plan-paths"></ul>
+              <div class="btn-group path-buttons" role="group">
+                <button type="button" class="btn btn-outline-secondary" id="plan-add-folder" data-text="ui.plans.add_folder"></button>
+                <button type="button" class="btn btn-outline-secondary" id="plan-add-file" data-text="ui.plans.add_file"></button>
+              </div>
+              <div class="field-error" id="plan-path-error"></div>
+            </fieldset>
+            <!-- how many snapshots a run keeps (BACKUP-8) -->
+            <fieldset>
+              <legend class="form-label" data-text="ui.plans.keep"></legend>
+              <div class="keep-fields">
+                <div>
+                  <label class="form-label" for="plan-keep-last" data-text="ui.plans.keep_last"></label>
+                  <input class="form-control" id="plan-keep-last" type="number" min="1" max="1000" step="1" inputmode="numeric" aria-describedby="plan-keep-hint plan-keep-error">
+                </div>
+                <div>
+                  <label class="form-label" for="plan-keep-daily" data-text="ui.plans.keep_daily"></label>
+                  <input class="form-control" id="plan-keep-daily" type="number" min="1" max="1000" step="1" inputmode="numeric" aria-describedby="plan-keep-hint plan-keep-error">
+                </div>
+                <div>
+                  <label class="form-label" for="plan-keep-weekly" data-text="ui.plans.keep_weekly"></label>
+                  <input class="form-control" id="plan-keep-weekly" type="number" min="1" max="1000" step="1" inputmode="numeric" aria-describedby="plan-keep-hint plan-keep-error">
+                </div>
+                <div>
+                  <label class="form-label" for="plan-keep-monthly" data-text="ui.plans.keep_monthly"></label>
+                  <input class="form-control" id="plan-keep-monthly" type="number" min="1" max="1000" step="1" inputmode="numeric" aria-describedby="plan-keep-hint plan-keep-error">
+                </div>
+                <div>
+                  <label class="form-label" for="plan-keep-yearly" data-text="ui.plans.keep_yearly"></label>
+                  <input class="form-control" id="plan-keep-yearly" type="number" min="1" max="1000" step="1" inputmode="numeric" aria-describedby="plan-keep-hint plan-keep-error">
+                </div>
+              </div>
+              <div class="form-text" id="plan-keep-hint" data-text="ui.plans.keep_hint"></div>
+              <div class="field-error" id="plan-keep-error"></div>
+            </fieldset>
+            <p class="hint" id="plan-status" aria-live="polite"></p>
+            <div class="form-buttons">
+              <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary" id="plan-cancel" data-text="ui.cancel"></button>
+                <button type="submit" class="btn btn-primary" id="plan-submit"></button>
+              </div>
+            </div>
+          </form>
+        </section>
       </main>
     </div>
+
+    <!-- the password of a repository, asked for when restic needs it and no variable gives it
+         (password-dialog.js); it goes to rust for one call, never into the page beyond it -->
+    <!-- the question before an action that changes files of this computer (confirm-dialog.js) -->
+    <dialog class="password-dialog" id="confirm-dialog" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message">
+      <form method="dialog" class="page-form" id="confirm-dialog-form" novalidate>
+        <h2 class="h5 mb-0" id="confirm-dialog-title"></h2>
+        <p id="confirm-dialog-message"></p>
+        <div class="form-buttons">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="confirm-dialog-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="confirm-dialog-submit"></button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="password-dialog" id="password-dialog" aria-labelledby="password-dialog-title">
+      <form method="dialog" class="page-form" id="password-dialog-form" novalidate>
+        <h2 class="h5 mb-0" id="password-dialog-title"></h2>
+        <p class="hint" id="password-dialog-hint"></p>
+        <div>
+          <label class="form-label" for="password-dialog-password" data-text="ui.plans.run_password"></label>
+          <input class="form-control" id="password-dialog-password" type="password" autocomplete="off">
+          <div class="form-text" data-text="ui.plans.run_password_hint"></div>
+        </div>
+        <div id="password-dialog-repeat-field">
+          <label class="form-label" for="password-dialog-repeat" data-text="ui.plans.run_password_repeat"></label>
+          <input class="form-control" id="password-dialog-repeat" type="password" autocomplete="off">
+        </div>
+        <div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="password-dialog-remember" aria-describedby="password-dialog-remember-hint">
+            <label class="form-check-label" for="password-dialog-remember" data-text="ui.plans.remember"></label>
+          </div>
+          <div class="form-text" id="password-dialog-remember-hint" data-text="ui.plans.remember_hint"></div>
+        </div>
+        <div class="field-error" id="password-dialog-error"></div>
+        <div class="form-buttons">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="password-dialog-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="password-dialog-submit"></button>
+          </div>
+        </div>
+      </form>
+    </dialog>
   </body>
 </html>

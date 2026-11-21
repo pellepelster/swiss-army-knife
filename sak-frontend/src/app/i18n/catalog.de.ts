@@ -112,6 +112,8 @@ export const TEXTS = {
     static_hosting_description: 'Websites aus S3-Buckets',
     redirects: 'Weiterleitungen',
     redirects_description: 'Domains, die woanders hinführen',
+    backups: 'Backups',
+    backups_description: 'Repositorys von restic und ihre Größe',
   },
   home: {
     title: 'Apps',
@@ -508,6 +510,19 @@ export const TEXTS = {
       starting: 'Wird gestartet…',
       subject_new: 'die neue Notiz',
       subject: 'Notiz %{note}',
+    },
+  },
+  backups: {
+    list: {
+      intro: 'Deine restic-Repositorys.',
+      empty: 'Noch keine Repositorys. Erstelle eins in der App SAK Backup.',
+      pages: 'Seiten der Repositorys',
+      load_failed: 'Die Repositorys konnten nicht geladen werden.',
+      total: '%{size} auf dieser Seite',
+      created: 'Erstellt am %{date}',
+      size: 'Größe',
+      delete_unavailable: 'Ein Repository kann noch nicht gelöscht werden.',
+      copy_url: 'Adresse kopieren',
     },
   },
   redirects: {

@@ -53,7 +53,7 @@ class GeneratorTest {
     }
 
     @Test
-    fun `sakadm reads the three parts of admin_cli below their names and nothing else`() {
+    fun `sakadmin reads the three parts of admin_cli below their names and nothing else`() {
         val files =
             files(
                 """
@@ -70,7 +70,7 @@ class GeneratorTest {
     }
 
     @Test
-    fun `sak-backup reads its own section, not the one of sakadm`() {
+    fun `sakbackup reads its own section, not the one of sakadmin`() {
         val files =
             files(
                 """
@@ -81,7 +81,7 @@ class GeneratorTest {
                 """,
             )
         val backup = files.getValue("sak-backup/src-tauri/locales/de.yml")
-        backup shouldContain "# the texts of sak-backup in de"
+        backup shouldContain "# the texts of sakbackup in de"
         backup shouldContain "ui:\n  login: \"Anmelden\"\n"
         backup shouldNotContain "Beenden"
         files.getValue("$ADMIN_CLI_DIR/de.yml") shouldNotContain "Anmelden"

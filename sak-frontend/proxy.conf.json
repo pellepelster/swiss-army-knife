@@ -10,5 +10,9 @@
   "/swagger/openapi.json": {
     "target": "http://localhost:8080",
     "secure": false
+  },
+  "/restic": {
+    "target": "http://localhost:8080",
+    "secure": false
   }
 }

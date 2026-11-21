@@ -35,6 +35,7 @@ import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
 import io.pelle.sak.auth.SmtpMailSender
 import io.pelle.sak.backend.users.AppLinkMailer
+import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.auth.TokenService
 import io.pelle.sak.auth.login
 import io.pelle.sak.auth.whoAmI
@@ -51,6 +52,7 @@ import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
 import io.pelle.sak.backend.grocery.grocery
 import io.pelle.sak.backend.todo.todo
+import io.pelle.sak.backend.restic.restic
 import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.backend.settings.settings as settingsRoutes
 import io.pelle.sak.config.SakConfig
@@ -109,6 +111,27 @@ private val SecurityHeaders =
         }
     }
 
+// the admin of the password login: the first of the admins, the same user as by e-mail (multi
+// user), or ADMIN_USERNAME without admins (single user)
+fun adminOf(auth: SakConfig.AuthConfig) = auth.admins.firstOrNull()?.trim()?.lowercase() ?: ADMIN_USERNAME
+
+// the roles of an address: the admins of the configuration, then the users an admin added (the
+// table, asked on every request of a session and every login of restic: a deleted user's next
+// request is refused)
+fun rolesOf(
+    auth: SakConfig.AuthConfig,
+    users: UserService,
+): (String) -> Set<Role> {
+    val admins = auth.admins.map { it.trim().lowercase() }.toSet() + adminOf(auth)
+    return { email ->
+        when {
+            email in admins -> setOf(Role.ADMIN)
+            users.isUser(email) -> setOf(Role.USER)
+            else -> emptySet()
+        }
+    }
+}
+
 // sak-frontend and its api: caddy proxies sak.<base_domain> unchanged and api.<base_domain>/v1
 // below /api. All that can fail happens before anything is installed, so a failure leaves no half app
 fun Application.apps(
@@ -128,25 +151,14 @@ fun Application.apps(
             SmtpMailSender(host, port, username, password, from, tls = tls, starttls = starttls)
         }
     val adminPassword = auth.adminPassword?.let(::AdminPassword)
-    // the admin of the password login: the first of the admins, the same user as by e-mail (multi
-    // user), or ADMIN_USERNAME without admins (single user)
-    val admin = auth.admins.firstOrNull()?.trim()?.lowercase() ?: ADMIN_USERNAME
-    val admins = auth.admins.map { it.trim().lowercase() }.toSet() + admin
-    // the admins of the configuration, then the users an admin added (the table, asked on every
-    // request of a session: a deleted user's next request is refused)
-    val rolesOf = { email: String ->
-        when {
-            email in admins -> setOf(Role.ADMIN)
-            userService.isUser(email) -> setOf(Role.USER)
-            else -> emptySet()
-        }
-    }
-    // every app that prepares the data of a user who signs in, e.g. the list of the notes (NOTES-1)
+    val admin = adminOf(auth)
+    val rolesOf = rolesOf(auth, userService)
+    // every app that prepares the data of a user who signs in: the first list of each list-based app (LIST-1)
     val onLogin = LoginListener { owner, language -> loginListeners.forEach { it.signedIn(owner, language) } }
 
     install(Authentication) {
         session(tokens, rolesOf)
-        // sakadm acts as the admin, what it creates is theirs
+        // sakadmin acts as the admin, what it creates is theirs
         apiSignature(config.apiPublicKey?.let { ApiSignature(it, config.apiHost, API_PATH_PREFIX) }, owner = admin)
     }
 
@@ -222,6 +234,10 @@ fun Application.apps(
                             requireRole(Role.ADMIN, Role.USER)
                             todo(todoService)
                         }
+                        route("/restic") {
+                            requireRole(Role.ADMIN, Role.USER)
+                            restic(resticService, resticBackupPlanService, resticStore, config.apiHost)
+                        }
                         route("/users") {
                             requireRole(Role.ADMIN)
                             users(userService, mailSender?.let { AppLinkMailer(it, loginApp(config)) })
@@ -241,7 +257,7 @@ fun Application.apps(
                             servedFiles(fileService)
                         }
                     }
-                    // sakadm only, signed: holds the password of the mail server, no browser session gets it
+                    // sakadmin only, signed: holds the password of the mail server, no browser session gets it
                     authenticate(API_SIGNATURE_AUTH) {
                         route("/deployment") {
                             requireRole(Role.ADMIN)

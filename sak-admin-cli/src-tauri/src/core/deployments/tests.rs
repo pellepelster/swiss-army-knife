@@ -212,7 +212,7 @@ fn a_name_is_checked_once_and_a_wrong_one_is_a_usage_error() {
     for wrong in ["", "Alpha", "-alpha", "a_b", &"a".repeat(MAX_NAME_LEN + 1)] {
         assert_eq!(
             checked_name(wrong),
-            Err(SakadmError::new(
+            Err(SakadminError::new(
                 t!("common.deployments.invalid_name", max = MAX_NAME_LEN),
                 EXIT_USAGE
             )),
@@ -279,7 +279,7 @@ fn deploy() -> DeploymentRequest {
 }
 
 #[tokio::test]
-async fn nothing_is_created_in_a_location_this_sakadm_does_not_know() {
+async fn nothing_is_created_in_a_location_this_sakadmin_does_not_know() {
     let unknown = DeploymentRequest {
         location: Location::unknown,
         ..deploy()
@@ -639,7 +639,7 @@ fn domains() -> Vec<RootDomain> {
 #[test]
 fn a_root_domain_must_be_a_zone_of_the_project() {
     // a failure of its own, not one of the root domain conflicts
-    let en = |result: Result<String, SakadmError>| {
+    let en = |result: Result<String, SakadminError>| {
         let error = result.unwrap_err();
         assert_eq!(error.exit_code, crate::core::error::EXIT_FAILED);
         error.message
@@ -700,7 +700,7 @@ fn a_root_domain_must_be_a_zone_of_the_project() {
 fn a_root_domain_of_a_domain_deployment_stops_every_other_deployment() {
     assert_eq!(
         check_root_domain(&domains(), Some("pelle.io"), "alpha", DnsMode::Domain),
-        Err(SakadmError::new(
+        Err(SakadminError::new(
             t!(
                 "common.deployments.domain_taken",
                 domain = "pelle.io",
@@ -711,7 +711,7 @@ fn a_root_domain_of_a_domain_deployment_stops_every_other_deployment() {
     );
     assert_eq!(
         check_root_domain(&domains(), Some("pelle.io"), "alpha", DnsMode::Subdomain),
-        Err(SakadmError::new(
+        Err(SakadminError::new(
             t!(
                 "common.deployments.domain_mixed",
                 domain = "pelle.io",
@@ -731,7 +731,7 @@ fn a_root_domain_of_subdomain_deployments_takes_only_the_subdomain_mode() {
     let by = format!("gamma, {}", t!("common.deployments.unnamed"));
     assert_eq!(
         check_root_domain(&domains(), Some("example.com"), "alpha", DnsMode::Domain),
-        Err(SakadmError::new(
+        Err(SakadminError::new(
             t!(
                 "common.deployments.subdomain_only",
                 domain = "example.com",
@@ -791,7 +791,7 @@ fn smtp(host: &str, port: u16) -> Smtp {
 
 #[test]
 fn multi_user_has_a_mail_server_and_maybe_an_admin_single_user_neither() {
-    let error = |result: Result<Users, SakadmError>| match result {
+    let error = |result: Result<Users, SakadminError>| match result {
         Err(error) => error.message,
         Ok(users) => panic!("{:?}", users.mode()),
     };
@@ -1174,7 +1174,7 @@ async fn only_the_volume(spec: &DeploymentSpec, size: u64) -> wiremock::MockServ
 
 #[tokio::test]
 async fn a_destroy_plans_without_refusing_a_volume_smaller_than_today() {
-    // the volume was made 16 GB; a later sakadm declares 32
+    // the volume was made 16 GB; a later sakadmin declares 32
     let mut spec = DeploymentSpec::new(
         "alpha",
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE+u0dEVRZDzzp4E1teCqF49r8ig3YEk8eaPqNWfDcPb alpha",
@@ -1378,7 +1378,7 @@ fn kept() -> LocalSettings {
 /// the settings of another version, older or newer: what is missing or not known is none, a
 /// field this version does not know is ignored, the rest still counts
 #[test]
-fn the_settings_of_another_version_of_sakadm_are_read_as_far_as_they_go() {
+fn the_settings_of_another_version_of_sakadmin_are_read_as_far_as_they_go() {
     let written = serde_json::to_value(kept().clone()).unwrap();
     let read = |json: serde_json::Value| -> Detected {
         Detected::from_local(serde_json::from_value::<LocalSettings>(json).unwrap())
@@ -1392,7 +1392,7 @@ fn the_settings_of_another_version_of_sakadm_are_read_as_far_as_they_go() {
         Some("sak@example.org")
     );
 
-    // an older sakadm: no sender, no acme ca, no version
+    // an older sakadmin: no sender, no acme ca, no version
     let mut older = written.clone();
     older["smtp"].as_object_mut().unwrap().remove("from");
     for field in ["acmeCa", "version"] {
@@ -1409,7 +1409,7 @@ fn the_settings_of_another_version_of_sakadm_are_read_as_far_as_they_go() {
     assert_eq!(older.acme_ca, None);
     assert_eq!(older.root_domain.as_deref(), Some("pelle.io"));
 
-    // a newer sakadm: fields and values this version does not know
+    // a newer sakadmin: fields and values this version does not know
     let mut newer = written.clone();
     newer["somethingNew"] = serde_json::json!({ "nested": [1, 2, 3] });
     newer["smtp"]["oauth"] = serde_json::json!(true);

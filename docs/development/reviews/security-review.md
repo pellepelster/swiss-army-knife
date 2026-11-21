@@ -1,7 +1,7 @@
 ---
 title: "Review: security"
 linkTitle: "Security"
-description: "The security review of the whole application: the login and the sessions, the routes and the data of the backend, the S3 api and the ingress, the web app, the Android apps, sakadm and the server it builds, and the sign-in of the desktop apps."
+description: "The security review of the whole application: the login and the sessions, the routes and the data of the backend, the S3 api and the ingress, the web app, the Android apps, sakadmin and the server it builds, and the sign-in of the desktop apps."
 weight: 8
 ---
 
@@ -12,7 +12,7 @@ weight: 8
 Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`), the routes and the data of the
 backend (`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and
 the ingress (`sak-s3`, `sak-storage`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
-(`android/`), sakadm (`sak-admin-cli`) and the server it builds (`ansible/`). The question: what can somebody do who should
+(`android/`), sakadmin (`sak-admin-cli`) and the server it builds (`ansible/`). The question: what can somebody do who should
 not, from the internet without a session, as a user of a multi user instance, with one key of a bucket, on the
 machine of the admin or in one container of the server.
 
@@ -26,7 +26,7 @@ Nothing found lets somebody without a session read data, get a session or get a 
 
 **Added 2026-11-20:** the sign-in of the desktop apps (the three commits after `fcfc50ca`): the connect token with
 a pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in
-through the browser, `instances.json`, the keychain) and the window of sak-backup. The question for it: what can
+through the browser, `instances.json`, the keychain) and the window of sakbackup. The question for it: what can
 another program or another user of the machine do, a link somebody sends, or a host on the way. Its findings are
 `SEC-36` and `SEC-38`; the others it had are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
 person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
@@ -57,7 +57,7 @@ person in a browser. Nothing found gives a session to somebody who is not on the
   host; the service worker caches no answer of the api; the content security policy allows scripts of the page only.
 - **The Android apps.** The session is encrypted with a key of the keystore (AES-GCM), no backup, no cleartext, the
   certificates checked by the platform, only the main activity exported, no WebView.
-- **sakadm.** The keys are derived with a purpose each, the private ssh key goes to the agent through stdin only
+- **sakadmin.** The keys are derived with a purpose each, the private ssh key goes to the agent through stdin only
   (`SECURITY-2`), the host key is checked from the first connection on, the files of a run are in a directory only
   the user reads, the web view loads its own pages only and has no plugin command.
 - **The sign-in of a desktop app.** The connect token is bound to the pkce challenge of the app: without the
@@ -85,7 +85,7 @@ included, and the key of the local settings. The purposes of the keys do not hel
 handed over. ACCEPTED-RISKS has only the guessing offline; the backup says the server never
 has the key that decrypts a backup.
 
-Fix: a password for the login of its own, derived by sakadm with a purpose (`admin-login`) and shown by it, so the
+Fix: a password for the login of its own, derived by sakadmin with a purpose (`admin-login`) and shown by it, so the
 password of the deployment never leaves the machine of the admin; or a login where the server never sees the
 password (OPAQUE). Until then an entry in ACCEPTED-RISKS, and `SECURITY-1` says it (the rule changes
 only with the consent of the user).
@@ -168,7 +168,7 @@ that was not traced.
 Fix: the dns mode and the root domain from the labels, an answer of the server that differs is an error; from the
 server only the user mode and the mail server.
 
-### `SEC-17` The password of the mail server read from the server reaches the web view of sakadm
+### `SEC-17` The password of the mail server read from the server reaches the web view of sakadmin
 
 `deployment_settings` answers `DetectedSmtp` with its password to the page. ACCEPTED-RISKS names only the passwords
 of the environment. The same things limit it: the policy of the web view, values written as text.
@@ -193,12 +193,12 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - `SEC-23` A streamed upload (`STREAMING-…`) is not bound to its signature: the signatures of the chunks and the
   checksums of the trailer are not checked (the code says so), the signed headers allow any body for 15 minutes. It
   takes the headers, which means breaking TLS.
-- `SEC-24` sakadm wipes less than `Cargo.toml` says: `expand` returns a plain array, the age keys as strings and
+- `SEC-24` sakadmin wipes less than `Cargo.toml` says: `expand` returns a plain array, the age keys as strings and
   the password in `DeploymentRequest` and in the JSON to the web view are not wiped. Memory of the process only.
 - `SEC-26` The host filters nothing that comes in: the table of nftables has the rule for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
 - `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
-  keychain, not wiped when it goes (as `SEC-24` for sakadm); the state of a callback is compared with `!=`, not in
+  keychain, not wiped when it goes (as `SEC-24` for sakadmin); the state of a callback is compared with `!=`, not in
   constant time (128 bits, on the loopback: no practical way to measure it).
 - `SEC-38` On macOS and windows every program of the machine can ask the page of a desktop sign-in on the loopback
   (`/start`), which gives the state out once; the port is found by trying the ports. Another user who asks before
@@ -206,7 +206,7 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
   failed connection, the menu of the app their name. It needs an account at the same instance. They can also end
   every sign-in with a request of `/start`. On linux the app takes only connections of its own user
   (`peer_user`, from `/proc/net/tcp`), so this is closed there. To close it elsewhere the app would keep listening
-  after the sign-in for a time and sign out when a second `/start` comes. sak-backup is built for linux only so far.
+  after the sign-in for a time and sign out when a second `/start` comes. sakbackup is built for linux only so far.
 - `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
   10 MiB. The change streams (`…/changes`) have no largest number for a user and stay open when the session ends.
 
@@ -228,4 +228,4 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - The new crates (`keyring` 4.2.0 with `zbus` for the Secret Service, in the lockfiles of all three desktop
   crates) were not read; that is for [the review of the supply chain](supply-chain-review.md).
 - That tauri refuses the commands of the opener plugin to the web view without a capability file is from its
-  documentation, as for sakadm.
+  documentation, as for sakadmin.

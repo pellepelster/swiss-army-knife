@@ -19,7 +19,7 @@ pub enum DeploymentEvent {
         resource: String,
         text: &'static str,
     },
-    /// a message about the provisioning: it starts, or sakadm waits for the api
+    /// a message about the provisioning: it starts, or sakadmin waits for the api
     Provisioning {
         message: String,
     },

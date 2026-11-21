@@ -54,6 +54,19 @@ class GroceryServiceTest {
     ) = service.categories(PELLE, listId)!!.single { it.name == name }.id
 
     @Test
+    fun `a user who never had a list gets a private first list with the categories in their language at the sign-in (LIST-1)`() {
+        service.signedIn("anna@example.org", Language.DE)
+        service.signedIn("anna@example.org", Language.DE)
+        val first = service.lists("anna@example.org").single()
+        (first.name to first.shared) shouldBe ("Meine Einkäufe" to false)
+        service.categories("anna@example.org", first.id)!!.map { it.name } shouldBe DefaultGroceryCategory.of(Language.DE).map { it.name }
+
+        service.deleteList("anna@example.org", first.id)
+        service.signedIn("anna@example.org", Language.DE)
+        service.lists("anna@example.org") shouldBe emptyList()
+    }
+
+    @Test
     fun `a list shows the items to buy by category, the ones without one last, not the bought ones`() {
         val own = list(PELLE)
         val soap = add(PELLE, own, input("Soap", categoryId = category(own, "Household")))

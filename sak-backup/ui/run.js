@@ -1,0 +1,271 @@
+// a run of restic for a backup plan of this computer (BACKUP-3, BACKUP-5), a backup or a restore, on
+// a page of its own: the password comes from SAK_BACKUP_REPO_PASSWORD, which rust reads, the
+// keychain, or the dialog (twice on the first backup into a repository, again when it was wrong); the
+// page shows the progress and ends with what restic did, what it skipped, or why it failed (UX-15).
+// One run at a time; it goes on while another page is open, and its row opens its page again
+import { confirmAction } from './confirm-dialog.js';
+import { askPassword } from './password-dialog.js';
+import { message, signedOut } from './rows.js';
+import { setFailure, setStatus, text } from './shared/views.js';
+
+const { invoke, Channel } = window.__TAURI__.core;
+
+// the text of a password restic refused, by where it came from
+export const WRONG = {
+  wrong_password: 'ui.plans.run_wrong_password',
+  wrong_environment_password: 'ui.plans.run_wrong_environment',
+  wrong_kept_password: 'ui.plans.run_wrong_kept',
+};
+
+// the text of a failure of restic or of the instance (UX-15): its own for the ones the user can
+// act on, else `failed` with what went wrong; null when the session is gone and the sign-in shows
+export function runFailure(failure, shell, failed) {
+  if (failure?.kind === 'api') return signedOut(failure.error, shell) ? null : failed(message(failure.error));
+  const known = {
+    no_restic: () => text('ui.plans.run_no_restic'),
+    cancelled: () => text('ui.plans.run_cancelled'),
+    running: () => text('ui.plans.run_busy'),
+    no_snapshot: () => text('ui.plans.no_snapshot'),
+    unknown_snapshot: () => text('ui.snapshots.unknown'),
+    other_computer: () => text('ui.plans.run_other_computer', { host: failure.host }),
+    repository_missing: () => text('ui.plans.run_repository_missing', { repository: shown?.repository }),
+  }[failure?.kind];
+  return known ? known() : failed(failure?.message ?? String(failure));
+}
+
+const $ = (id) => document.getElementById(id);
+const progress = $('run-progress');
+const bar = $('run-bar');
+const status = $('run-status');
+const skipped = $('run-skipped');
+const close = $('run-close');
+
+let shell = null;
+// the backup plan whose run the page shows, the name of its repository and what the run does,
+// 'backup' or 'restore'; and whether restic runs for it
+let shown = null;
+let running = false;
+const listeners = new Set();
+
+export function initRun(pageShell) {
+  shell = pageShell;
+}
+
+// told when a run starts or ends, so the rows change their button
+export function onRunsChanged(listener) {
+  listeners.add(listener);
+}
+
+// the id of the backup plan restic runs for, null while none runs
+export function runningPlan() {
+  return running ? shown.plan.id : null;
+}
+
+function changed() {
+  for (const listener of listeners) listener();
+}
+
+// bytes in the unit that fits, in the locale of the user
+export function size(bytes) {
+  const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${units[unit]}`;
+}
+
+// the page of the run, as it is
+export function showRun() {
+  const title = shown.kind === 'restore' ? 'ui.plans.restore_title' : 'ui.plans.run_title';
+  shell.title(text(title, { name: shown.plan.name, repository: shown.repository }));
+  shell.toolbar();
+  shell.page('page-run');
+}
+
+// a backup is cancelled, a restore goes on when the page is left
+close.addEventListener('click', () => {
+  if (running && shown.kind === 'backup') invoke('cancel_backup');
+  else shell.open('plans');
+});
+
+// one run of restic; the error it ended with, null when it backed up
+async function run(password, init, remember) {
+  running = true;
+  changed();
+  progress.hidden = true;
+  skipped.replaceChildren();
+  close.textContent = text('ui.plans.run_cancel');
+  setStatus(status, text('ui.plans.run_starting'));
+  const onEvent = new Channel();
+  onEvent.onmessage = (event) => {
+    if (event.kind === 'initializing') {
+      setStatus(status, text('ui.plans.run_initializing'));
+    } else if (event.kind === 'progress') {
+      progress.hidden = false;
+      const percent = Math.round(event.percent * 100);
+      bar.style.width = `${percent}%`;
+      progress.setAttribute('aria-valuenow', String(percent));
+      setStatus(status, text('ui.plans.run_progress', {
+        files: event.files_done,
+        total: event.total_files,
+        done: size(event.bytes_done),
+        size: size(event.total_bytes),
+      }));
+    } else if (event.kind === 'expiring') {
+      progress.hidden = true;
+      setStatus(status, text('ui.plans.run_expiring'));
+    } else if (event.kind === 'skipped') {
+      const line = document.createElement('li');
+      line.textContent = text('ui.plans.run_skipped', { message: event.message });
+      skipped.append(line);
+    }
+  };
+  try {
+    const summary = await invoke('run_backup', { id: shown.plan.id, password, init, remember, onEvent });
+    progress.hidden = true;
+    const done = text('ui.plans.run_done', {
+      new: summary.filesNew,
+      changed: summary.filesChanged,
+      added: size(summary.dataAdded),
+    });
+    // the backup is done either way; then what went of the older snapshots (BACKUP-8), none after an
+    // empty snapshot (BK-13)
+    if (summary.empty) {
+      setFailure(status, `${done} ${text('ui.plans.run_empty')}`);
+    } else if (summary.expireFailed) {
+      setFailure(status, `${done} ${text('ui.plans.run_expire_failed', { error: summary.expireFailed })}`);
+    } else if (summary.removed > 0) {
+      setStatus(status, `${done} ${text('ui.plans.run_removed', { count: summary.removed })}`);
+    } else {
+      setStatus(status, done);
+    }
+    return null;
+  } catch (failure) {
+    progress.hidden = true;
+    setStatus(status, '');
+    return failure;
+  } finally {
+    running = false;
+    close.textContent = text('ui.plans.run_back');
+    changed();
+  }
+}
+
+// runs the backup plan on its page, asking for the password as long as it is needed: first with none,
+// so rust takes the one of SAK_BACKUP_REPO_PASSWORD or the kept one; twice for a new repository.
+// `repository` is the name of its repository
+export async function startRun(plan, repository) {
+  if (running) return;
+  shown = { plan, repository, kind: 'backup' };
+  showRun();
+  const ask = (options) =>
+    askPassword({ title: text('ui.plans.run'), action: text('ui.plans.run_start'), ...options });
+  let password = null;
+  let init = false;
+  let remember = false;
+  for (;;) {
+    const failure = await run(password, init, remember);
+    if (failure === null) return;
+    let asked;
+    // a new repository with the password of SAK_BACKUP_REPO_PASSWORD: only when the user says so (BK-6)
+    if (failure?.kind === 'needs_init_environment') {
+      const confirmed = await confirmAction({
+        title: text('ui.plans.run_init_environment_title', { repository }),
+        message: text('ui.plans.run_init_environment', { repository }),
+        action: text('ui.plans.run_init_environment_action'),
+      });
+      if (!confirmed) {
+        shell.open('plans');
+        return;
+      }
+      init = true;
+      continue;
+    }
+    if (failure?.kind === 'needs_init') {
+      init = true;
+      asked = await ask({ twice: true, hint: text('ui.plans.run_init_hint', { repository }) });
+    } else if (failure?.kind === 'no_password') {
+      asked = await ask({ twice: init });
+    } else if (WRONG[failure?.kind]) {
+      asked = await ask({ twice: init, failure: text(WRONG[failure.kind]) });
+    } else {
+      const said = runFailure(failure, shell, (error) => text('ui.plans.run_failed', { error }));
+      if (said !== null) setFailure(status, said);
+      return;
+    }
+    // cancelled in the dialog: back to the backup plans
+    if (asked === null) {
+      shell.open('plans');
+      return;
+    }
+    ({ password, remember } = asked);
+  }
+}
+
+// restores the newest snapshot of the backup plan on its page, below target or where the files were
+// for null; asking for the password as long as it is needed, first with none as for a backup
+export async function startRestore(plan, repository, target) {
+  if (running) return;
+  shown = { plan, repository, kind: 'restore' };
+  showRun();
+  let password = null;
+  let remember = false;
+  for (;;) {
+    const failure = await restore(target, password, remember);
+    if (failure === null) return;
+    if (failure?.kind === 'no_password' || WRONG[failure?.kind]) {
+      const asked = await askPassword({
+        title: text('ui.plans.restore'),
+        action: text('ui.plans.restore'),
+        hint: plan.name,
+        failure: WRONG[failure.kind] ? text(WRONG[failure.kind]) : '',
+      });
+      // cancelled in the dialog: back to the backup plans
+      if (asked === null) {
+        shell.open('plans');
+        return;
+      }
+      ({ password, remember } = asked);
+    } else {
+      const said = runFailure(failure, shell, (error) => text('ui.plans.restore_failed', { error }));
+      if (said !== null) setFailure(status, said);
+      return;
+    }
+  }
+}
+
+// one restore of restic; the error it ended with, null when it restored, maybe skipping files
+async function restore(target, password, remember) {
+  running = true;
+  changed();
+  progress.hidden = true;
+  skipped.replaceChildren();
+  close.textContent = text('ui.plans.run_back');
+  setStatus(status, text('ui.plans.restoring', { name: shown.plan.name }));
+  try {
+    const summary = await invoke('restore_backup', { id: shown.plan.id, target, password, remember });
+    if (summary.skipped.length > 0) {
+      setFailure(status, text('ui.plans.restore_skipped', { count: summary.skipped.length }));
+      skipped.replaceChildren(
+        ...summary.skipped.map((file) => {
+          const line = document.createElement('li');
+          line.textContent = file;
+          return line;
+        }),
+      );
+    } else {
+      const name = shown.plan.name;
+      setStatus(status, target ? text('ui.plans.restored_to', { name, target }) : text('ui.plans.restored', { name }));
+    }
+    return null;
+  } catch (failure) {
+    setStatus(status, '');
+    return failure;
+  } finally {
+    running = false;
+    changed();
+  }
+}

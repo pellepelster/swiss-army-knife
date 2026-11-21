@@ -52,7 +52,7 @@ pub enum AnsibleEvent {
 }
 
 impl AnsibleEvent {
-    /// the event with its text as sakadm prints it, without control characters
+    /// the event with its text as sakadmin prints it, without control characters
     pub fn printable(self) -> Self {
         use crate::core::encoding::printable;
         let message = |msg: Option<String>| msg.map(|text| printable(&text));

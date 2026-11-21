@@ -168,7 +168,7 @@ class FileTextServiceTest {
     @Test
     fun `tells when the content of a file can not be read`() {
         val lost = photo("lost")
-        files.byId(PELLE, lost)!!.sha256.let { Files.delete(tempDir.resolve("files").resolve(it.take(2)).resolve(it)) }
+        files.byId(PELLE, lost)!!.resourceId.let { Files.delete(tempDir.resolve("files").resolve(it.value).resolve("content")) }
 
         service.discover(PELLE, lost).shouldBeInstanceOf<DiscoverTextResult.Failed>().cause.shouldBeInstanceOf<IOException>()
         recognizer.images shouldBe emptyList()

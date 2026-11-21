@@ -1,4 +1,4 @@
-# the endpoint of sakadm as the image test sees it: every post as its authorization and body, one line
+# the endpoint of sakadmin as the image test sees it: every post as its authorization and body, one line
 import http.server
 
 

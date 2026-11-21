@@ -22,8 +22,8 @@ document in its own one.
 
 The login, the settings, the labels and the file storage are no apps; all apps share them (refer to
 [Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`FRONTEND-1`), whose rules are
-in [HEALTH.md](HEALTH.md). sak-backup is no app of the backend either: it is a desktop app, whose architecture is in
-[BACKUP.md](BACKUP.md).
+in [HEALTH.md](HEALTH.md). The backups have a part in the backend, the repositories of restic, and a desktop app,
+sakbackup, which runs restic; their architecture is in [BACKUP.md](BACKUP.md).
 
 ## Shared parts
 
@@ -39,9 +39,10 @@ in [HEALTH.md](HEALTH.md). sak-backup is no app of the backend either: it is a d
 An app whose items belong to lists of the user keeps to these rules; the notes, the grocery lists and the todo lists
 are such apps.
 
-- `LIST-1` **New lists.** A user starts without lists and creates them; only an app that hides its lists makes one
-  at the sign-in (`NOTES-1`). The owner of a list renames, shares and deletes it, the last one too. A new item always
-  names its list; no request makes a list on the side.
+- `LIST-1` **A first list.** When a user signs in who never had a list of their own, each list-based app makes them a
+  private list named "My <entity>" in their language, e.g. "My Todos"; the shared lists of others do not count. The
+  owner of a list renames, shares and deletes it, the last one too; a deleted list does not come back. A new item
+  always names its list; no request makes a list on the side.
 - `LIST-2` **Shared lists.** A list has a shared flag; a shared list is shared with all other users, who can add items
   to it and delete items from it, and change its icon and its categories. Only its owner renames, shares or unshares
   it and deletes it. Unlike `MODEL-5`, where a row belongs to its owner, every user can delete an item of a shared

@@ -1,7 +1,7 @@
 # sak-theme
 
 The design tokens and the shared components of SAK as plain css, with bootstrap as a dependency. A page without a
-build (sakadm) links them, the Angular app (sak-frontend) imports them; both use the same values and the same
+build (sakadmin) links them, the Angular app (sak-frontend) imports them; both use the same values and the same
 bootstrap. The palette is the one of blcks-theme: the light "paper" surface by default, the dark "terminal" surface
 when the system prefers dark, the accent green of the rack-led icon, IBM Plex Sans and Mono.
 
@@ -29,17 +29,17 @@ when the system prefers dark, the accent green of the rack-led icon, IBM Plex Sa
   - `web/`: the favicons and `icons/` (the app icons as svg and png, also for the manifests), copied into
     sak-frontend by its `angular.json`. The docs site uses `favicon.svg`.
   - `sources/`: the sources of the png icons, not shipped.
-  - `sakadm/`: the SAK icon and `providers/` (the logo of each cloud provider), copied by `mise run desktop:ui`.
-  - `tauri/`: the icons of the sakadm installers and windows (`sak-admin-cli/src-tauri/tauri.conf.json`).
+  - `sakadmin/`: the SAK icon and `providers/` (the logo of each cloud provider), copied by `mise run desktop:ui`.
+  - `tauri/`: the icons of the sakadmin installers and windows (`sak-admin-cli/src-tauri/tauri.conf.json`).
   - `android/icons/`: the icons of the Android apps (Font Awesome as vector drawables), a res directory of `core` and
     of each app. `android/<app>/`: the launcher icon of the app.
 
-The stylesheet of a consumer has no color literal, every color is a `var(--sak-…)`. The tests of sakadm check this
+The stylesheet of a consumer has no color literal, every color is a `var(--sak-…)`. The tests of sakadmin check this
 for its `ui/style.css`.
 
 ## Consumers
 
-- **sakadm:** `mise run desktop:ui` runs `npm ci` here and copies bootstrap and the files into `sak-admin-cli/ui/theme/`
+- **sakadmin:** `mise run desktop:ui` runs `npm ci` here and copies bootstrap and the files into `sak-admin-cli/ui/theme/`
   (not committed, tauri bundles it). `index.html` links them before its own `style.css`, which has only the layout.
   `admin-cli:run`, `admin-cli:build` and `admin-cli:test:unit` copy first.
 - **sak-frontend:** builds a bootstrap subset from the scss here (`sak-frontend/src/bootstrap.scss`, only the

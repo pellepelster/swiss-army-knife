@@ -39,6 +39,15 @@ class RateLimiter(
         return true
     }
 
+    // whether the key has used up its events in the window, without counting one more: a guard
+    // that refuses before it checks, e.g. a login, asks this first
+    @Synchronized
+    fun exhausted(key: String): Boolean {
+        val timestamps = events[key] ?: return false
+        dropBefore(timestamps, clock.instant().minus(window))
+        return timestamps.size >= maxEvents
+    }
+
     // the number of keys kept, for the tests
     @Synchronized
     internal fun keys(): Int = events.size

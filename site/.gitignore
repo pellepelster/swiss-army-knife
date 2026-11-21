@@ -3,4 +3,4 @@
 public/
 resources/_gen/
 # written by mise run docs:data
-data/sakadm.yaml
+data/sakadmin.yaml

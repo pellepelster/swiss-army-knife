@@ -16,8 +16,9 @@ pub trait SecretStore: Send + Sync {
 }
 
 /// the keychain of the system: the Secret Service on linux, the Keychain on macOS, the
-/// Credential Manager on windows. The entry is the service (the identifier of the app) and the
-/// address as the user
+/// Credential Manager on windows. An entry is the service (e.g. the identifier of the app) and an
+/// account: the address of an instance for a session token, or what else an app keeps (sakbackup:
+/// the passwords of its repositories)
 pub struct Keychain {
     service: String,
 }
@@ -29,31 +30,45 @@ impl Keychain {
         }
     }
 
-    fn entry(&self, address: &Address) -> Result<keyring::Entry, String> {
-        keyring::Entry::new(&self.service, address.as_str()).map_err(|error| error.to_string())
+    fn entry(&self, account: &str) -> Result<keyring::Entry, String> {
+        keyring::Entry::new(&self.service, account).map_err(|error| error.to_string())
     }
-}
 
-impl SecretStore for Keychain {
-    fn get(&self, address: &Address) -> Result<Option<String>, String> {
-        match self.entry(address)?.get_password() {
-            Ok(token) => Ok(Some(token)),
+    /// the secret of the account, none when there is none
+    pub fn read(&self, account: &str) -> Result<Option<String>, String> {
+        match self.entry(account)?.get_password() {
+            Ok(secret) => Ok(Some(secret)),
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(error) => Err(error.to_string()),
         }
     }
 
-    fn set(&self, address: &Address, token: &str) -> Result<(), String> {
-        self.entry(address)?
-            .set_password(token)
+    pub fn write(&self, account: &str, secret: &str) -> Result<(), String> {
+        self.entry(account)?
+            .set_password(secret)
             .map_err(|error| error.to_string())
     }
 
-    fn delete(&self, address: &Address) -> Result<(), String> {
-        match self.entry(address)?.delete_credential() {
+    /// removes the secret, also when there is none
+    pub fn remove(&self, account: &str) -> Result<(), String> {
+        match self.entry(account)?.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(error) => Err(error.to_string()),
         }
+    }
+}
+
+impl SecretStore for Keychain {
+    fn get(&self, address: &Address) -> Result<Option<String>, String> {
+        self.read(address.as_str())
+    }
+
+    fn set(&self, address: &Address, token: &str) -> Result<(), String> {
+        self.write(address.as_str(), token)
+    }
+
+    fn delete(&self, address: &Address) -> Result<(), String> {
+        self.remove(address.as_str())
     }
 }
 

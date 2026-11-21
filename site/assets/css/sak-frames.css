@@ -1,5 +1,5 @@
 /* the frames around the screenshots (layouts/_default/_markup/render-image.html): a browser, a
-   phone and a window of the sakadm ui, drawn here so the files keep their pixels. A frame has the colors of
+   phone and a window of the sakadmin ui, drawn here so the files keep their pixels. A frame has the colors of
    its screenshot, light or dark (.sak-frame-dark), whatever mode the page is in; it never clips or
    transforms, so the enlarged image of relearn (position: fixed) still covers the page */
 .sak-frame {
@@ -99,7 +99,7 @@
   border-radius: 0 0 0.6rem 0.6rem;
 }
 
-/* a window of the sakadm ui, or a terminal of the sakadm cli: its title in the middle of the bar */
+/* a window of the sakadmin ui, or a terminal of the sakadmin cli: its title in the middle of the bar */
 .sak-frame-window,
 .sak-frame-terminal {
   max-width: 75%;

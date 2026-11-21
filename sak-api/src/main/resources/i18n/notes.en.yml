@@ -27,6 +27,7 @@ errors:
   recording_not_stored: "The recording could not be stored."
   no_text_in_recording: "There is no text in the recording."
   not_discovered: "The text could not be discovered."
+first_list: "My Notes"
 text_too_long: "The text must have at most %{max} characters."
 invalid_color: "The color must be one of %{colors}."
 too_many_labels: "A note can have at most %{max} labels."

@@ -22,38 +22,38 @@ pub const EXIT_NOT_OWNED: i32 = 5;
 /// a resource that must stay (the data volume, a primary ip) would have to be replaced and
 /// lose what it holds; nothing was changed
 pub const EXIT_RECREATE_REFUSED: i32 = 6;
-/// `sakadm update --check`: a newer release of sakadm exists
+/// `sakadmin update --check`: a newer release of sakadmin exists
 pub const EXIT_UPDATE_AVAILABLE: i32 = 7;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SakadmError {
+pub struct SakadminError {
     pub message: String,
     pub exit_code: i32,
 }
 
-impl SakadmError {
+impl SakadminError {
     pub fn new(message: impl ToString, exit_code: i32) -> Self {
-        SakadmError {
+        SakadminError {
             message: message.to_string(),
             exit_code,
         }
     }
 }
 
-impl From<String> for SakadmError {
+impl From<String> for SakadminError {
     fn from(message: String) -> Self {
-        SakadmError::new(message, EXIT_FAILED)
+        SakadminError::new(message, EXIT_FAILED)
     }
 }
 
-impl fmt::Display for SakadmError {
+impl fmt::Display for SakadminError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.message)
     }
 }
 
 /// the page gets only the message
-impl Serialize for SakadmError {
+impl Serialize for SakadminError {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.message)
     }
@@ -65,14 +65,14 @@ mod tests {
 
     #[test]
     fn an_error_is_its_message_to_the_page_and_fails_with_one_unless_told() {
-        let error = SakadmError::from("no".to_string());
+        let error = SakadminError::from("no".to_string());
         assert_eq!(error.exit_code, EXIT_FAILED);
         assert_eq!(
             serde_json::to_value(&error).unwrap(),
             serde_json::json!("no")
         );
         assert_eq!(
-            SakadmError::new("taken", EXIT_DOMAIN_TAKEN).to_string(),
+            SakadminError::new("taken", EXIT_DOMAIN_TAKEN).to_string(),
             "taken"
         );
     }

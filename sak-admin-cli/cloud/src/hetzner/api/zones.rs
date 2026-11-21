@@ -153,7 +153,7 @@ pub enum ZoneStatus {
     Ok,
     Updating,
     Error,
-    /// a status this sakadm does not know yet
+    /// a status this sakadmin does not know yet
     #[serde(other)]
     Unknown,
 }
@@ -177,7 +177,7 @@ pub enum RRType {
     SVCB,
     TLSA,
     TXT,
-    /// a type this sakadm does not know, in a zone of the user: read, never written
+    /// a type this sakadmin does not know, in a zone of the user: read, never written
     #[serde(other)]
     Unknown,
 }

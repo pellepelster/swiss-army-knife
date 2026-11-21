@@ -86,7 +86,7 @@ mod tests {
     use super::*;
 
     const ENTRY: DesktopEntry = DesktopEntry {
-        app_id: "sakadm",
+        app_id: "sakadmin",
         name: "Swiss Army Knife",
         comment: "Create, update and back up your Swiss Army Knife",
         icon: b"png",
@@ -94,19 +94,19 @@ mod tests {
 
     #[test]
     fn the_entry_starts_the_binary_and_names_the_icon_of_the_window() {
-        let entry = ENTRY.entry(Path::new("/home/alpha/.local/bin/sakadm"));
+        let entry = ENTRY.entry(Path::new("/home/alpha/.local/bin/sakadmin"));
         assert!(entry.starts_with("[Desktop Entry]\n"));
-        assert!(entry.contains("\nExec=\"/home/alpha/.local/bin/sakadm\"\n"));
-        assert!(entry.contains("\nIcon=sakadm\n"));
-        assert!(entry.contains("\nStartupWMClass=sakadm\n"));
+        assert!(entry.contains("\nExec=\"/home/alpha/.local/bin/sakadmin\"\n"));
+        assert!(entry.contains("\nIcon=sakadmin\n"));
+        assert!(entry.contains("\nStartupWMClass=sakadmin\n"));
         assert!(entry.contains("\nName=Swiss Army Knife\n"));
     }
 
     #[test]
     fn a_path_with_spaces_and_quotes_stays_one_argument() {
-        let entry = ENTRY.entry(Path::new("/home/a b/my \"bin\"/sakadm"));
+        let entry = ENTRY.entry(Path::new("/home/a b/my \"bin\"/sakadmin"));
         assert!(
-            entry.contains("\nExec=\"/home/a b/my \\\\\"bin\\\\\"/sakadm\"\n"),
+            entry.contains("\nExec=\"/home/a b/my \\\\\"bin\\\\\"/sakadmin\"\n"),
             "{entry}"
         );
     }
@@ -114,22 +114,22 @@ mod tests {
     #[test]
     fn the_files_are_written_once_and_again_when_the_binary_moves() {
         let data = std::env::temp_dir().join(format!("sak-desktop-{}", std::process::id()));
-        let entry = data.join("applications/sakadm.desktop");
-        let icon = data.join("icons/hicolor/512x512/apps/sakadm.png");
-        ENTRY.write(&data, Path::new("/opt/sakadm")).unwrap();
+        let entry = data.join("applications/sakadmin.desktop");
+        let icon = data.join("icons/hicolor/512x512/apps/sakadmin.png");
+        ENTRY.write(&data, Path::new("/opt/sakadmin")).unwrap();
         assert_eq!(std::fs::read(&icon).unwrap(), ENTRY.icon);
         assert!(
             std::fs::read_to_string(&entry)
                 .unwrap()
-                .contains("Exec=\"/opt/sakadm\"")
+                .contains("Exec=\"/opt/sakadmin\"")
         );
         ENTRY
-            .write(&data, Path::new("/usr/local/bin/sakadm"))
+            .write(&data, Path::new("/usr/local/bin/sakadmin"))
             .unwrap();
         assert!(
             std::fs::read_to_string(&entry)
                 .unwrap()
-                .contains("Exec=\"/usr/local/bin/sakadm\"")
+                .contains("Exec=\"/usr/local/bin/sakadmin\"")
         );
         std::fs::remove_dir_all(&data).unwrap();
     }

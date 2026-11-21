@@ -1,6 +1,6 @@
 # tests and builds everything: the unit tests of the backend, the frontend and the cli first, then,
 # when they are green, the images of the server (sak-backend-images: sak-backend and sak-ingress)
-# and of sak-admin-cli (sak-admin-cli-images: the tools and the canary), each in a job of its own, sakadm as a
+# and of sak-admin-cli (sak-admin-cli-images: the tools and the canary), each in a job of its own, sakadmin as a
 # native binary for linux, macOS and windows, and the documentation of docs/ as a site. A push to
 # main pushes the images to ghcr.io as latest; the build of a tag v<version> (mise run release)
 # publishes: the images pushed as <VERSION>-rc, then all of them as <VERSION> (release), and after
@@ -39,8 +39,8 @@ env:
   VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
   # each job installs the tools it needs only, not every tool of the mise.toml files
   MISE_TASK_RUN_AUTO_INSTALL: "false"
-  # what sakadm builds against on linux, webkitgtk for its window
-  SAKADM_APT_PACKAGES: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+  # what sakadmin builds against on linux, webkitgtk for its window
+  SAKADMIN_APT_PACKAGES: libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
   # the target directories stay small enough for the cache: no incremental builds, the debug info of
   # the tests only for the lines of a backtrace (the release profile strips everything)
   CARGO_INCREMENTAL: "0"
@@ -60,7 +60,7 @@ jobs:
             tools: java node
           - part: frontend
             tools: java node
-          # the desktop apps (sakadm, sak-backup, sak-desktop-shared): node copies sak-theme, nextest
+          # the desktop apps (sakadmin, sakbackup, sak-desktop-shared): node copies sak-theme, nextest
           # runs the tests
           - part: admin-cli
             tools: rust node github:nextest-rs/nextest
@@ -68,7 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: matrix.part == 'admin-cli'
-        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKADM_APT_PACKAGES
+        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKADMIN_APT_PACKAGES
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           install_args: ${{ matrix.tools }}
@@ -195,14 +195,14 @@ jobs:
           # empty for a tag: the push tasks push <VERSION>-rc
           SAK_PUSH_TAG: ${{ github.ref_type != 'tag' && 'latest' || '' }}
 
-  # sakadm for each platform (mise run admin-cli:build:<platform>): the window and the command line in
-  # one native binary with the page built in (on windows two: sakadm.exe for the window and
-  # sakadm-cli.exe, a console program, for the command line), no installers, zipped as
+  # sakadmin for each platform (mise run admin-cli:build:<platform>): the window and the command line in
+  # one native binary with the page built in (on windows two: sakadmin.exe for the window and
+  # sakadmin-cli.exe, a console program, for the command line), no installers, zipped as
   # sak-admin-cli-<platform>-<architecture>-<VERSION>.zip and uploaded as that file, its sha-256 next to it
   # (<zip>.sha256). The programs are not signed for macOS and windows, they warn on the first start;
   # the release signs the zips with cosign
-  sakadm:
-    name: sakadm (${{ matrix.platform }})
+  sakadmin:
+    name: sakadmin (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
@@ -220,7 +220,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: matrix.platform == 'linux'
-        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKADM_APT_PACKAGES
+        run: sudo apt-get update -q && sudo apt-get install -q -y --no-install-recommends $SAKADMIN_APT_PACKAGES
       # the tools are installed after the action, saved to its cache in its post step
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
@@ -308,9 +308,9 @@ jobs:
 
   # the site of docs/ (site/, hugo and the theme relearn); a link that does not resolve fails it, on
   # a pull request too. The address of the pages is its base url, the installation gets the
-  # checksums of the zips of sakadm (mise run docs:data)
+  # checksums of the zips of sakadmin (mise run docs:data)
   docs-build:
-    needs: sakadm
+    needs: sakadmin
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -334,14 +334,14 @@ jobs:
         with:
           path: build/site
 
-  # from a tag v<version> only, when all images, all zips of sakadm and the apks are built: the images
+  # from a tag v<version> only, when all images, all zips of sakadmin and the apks are built: the images
   # pushed as <VERSION>-rc as <VERSION> (mise run release:docker), the zips, their checksums and their
   # cosign signatures (keyless, with the id token of the job) as the github release of the tag (mise
   # run admin-cli:release), where the installation downloads them, and the signed apks of the android apps
   # with their checksums and their bundles for google play (mise run android:release)
   release:
     if: github.ref_type == 'tag'
-    needs: [sak-backend-images, sak-admin-cli-images, sakadm, sak-android-apps, docs-build]
+    needs: [sak-backend-images, sak-admin-cli-images, sakadmin, sak-android-apps, docs-build]
     runs-on: ubuntu-26.04
     permissions:
       contents: write

@@ -68,8 +68,19 @@ tasks.distZip {
 // openrouter (a few cents each run) only when selected by name:
 // ./gradlew :sak-backend:test --tests '*RecipeIngredientsTest*' --rerun
 tasks.test {
+    // the integration tests (TEST-2) run in integrationTest
+    useJUnitPlatform { excludeTags("integration") }
     inputs.file(rootProject.file("ansible/roles/backend/templates/backend-config.yaml.j2")).withPathSensitivity(PathSensitivity.RELATIVE)
     passSecrets(mapOf("OPENROUTER_API_KEY" to "openrouter/pelle/api-key"), selectedTest = "RecipeIngredientsTest")
+}
+
+// the tests that need a program of the machine, e.g. restic (TEST-2); not part of check
+val integrationTest by tasks.registering(Test::class) {
+    group = "verification"
+    description = "Run the integration tests of the backend"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform { includeTags("integration") }
 }
 
 // runs with the image the role deploys; needs docker, so not part of check (the console's e2eTest depends on it)

@@ -17,7 +17,7 @@ pub enum ServerStatus {
     Deleting,
     Migrating,
     Rebuilding,
-    /// also a status this sakadm does not know yet
+    /// also a status this sakadmin does not know yet
     #[serde(other)]
     Unknown,
 }

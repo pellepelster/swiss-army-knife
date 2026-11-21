@@ -39,7 +39,7 @@ impl Address {
     }
 
     /// `parse`, with http on the loopback (e.g. `localhost:4200` of local:run) only when `http`
-    pub(crate) fn parse_with(text: &str, http: bool) -> Result<Address, LoginError> {
+    pub fn parse_with(text: &str, http: bool) -> Result<Address, LoginError> {
         let text = text.trim();
         if text.is_empty() {
             return Err(LoginError::InvalidAddress);
@@ -266,6 +266,32 @@ impl SessionManager {
         if api.as_str() != known {
             return Err(RestoreError::Changed);
         }
+        match self.take_up(address.clone(), api, token).await {
+            Err(RestoreError::Expired) => {
+                self.forget(&address).await;
+                Err(RestoreError::Expired)
+            }
+            taken => taken.map(Some),
+        }
+    }
+
+    /// takes up the session of `token` at `address`, e.g. one a script was given (`sakbackup` with
+    /// SAK_BACKUP_SESSION_TOKEN): checked with the instance, never kept in the keychain
+    pub async fn use_token(&self, address: Address, token: String) -> Result<User, RestoreError> {
+        let api = self
+            .api(&address)
+            .await
+            .map_err(|_| RestoreError::Unreachable)?;
+        self.take_up(address, api, token).await
+    }
+
+    /// the session of `token` once `who-am-i` of `api` takes it
+    async fn take_up(
+        &self,
+        address: Address,
+        api: Url,
+        token: String,
+    ) -> Result<User, RestoreError> {
         let response = self
             .client
             .get(
@@ -277,7 +303,6 @@ impl SessionManager {
             .await
             .map_err(|_| RestoreError::Unreachable)?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-            self.forget(&address).await;
             return Err(RestoreError::Expired);
         }
         let user = response
@@ -292,7 +317,7 @@ impl SessionManager {
             token,
             user: user.clone(),
         });
-        Ok(Some(user))
+        Ok(user)
     }
 
     /// removes the session the keychain has of `address`, e.g. of an instance no longer known
@@ -1343,6 +1368,33 @@ mod tests {
             after.restore(address(&server), api_of(&server)).await,
             Ok(None)
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_token_given_is_taken_up_and_never_kept() {
+        let server = instance(session_token()).await;
+        let secrets = Arc::new(crate::secrets::Memory::default());
+        let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
+        let user = manager
+            .use_token(address(&server), "session-token".to_string())
+            .await
+            .unwrap();
+        assert_eq!(user.username, "anna@example.org");
+        assert!(
+            manager
+                .request(reqwest::Method::GET, "auth/who-am-i")
+                .is_some()
+        );
+        assert_eq!(kept(&secrets, &server), None);
+        // a token the instance does not take gives no session
+        let other = SessionManager::default();
+        assert!(
+            other
+                .use_token(address(&server), "wrong".to_string())
+                .await
+                .is_err()
+        );
+        assert_eq!(other.user(), None);
     }
 
     #[tokio::test(flavor = "multi_thread")]

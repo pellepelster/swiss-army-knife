@@ -1,6 +1,6 @@
 # sak-desktop-shared
 
-What the desktop apps of SAK (sakadm, sak-backup) share: the sign-in through the browser, its window, the texts and
+What the desktop apps of SAK (sakadmin, sakbackup) share: the sign-in through the browser, its window, the texts and
 the desktop entry of linux. The architecture is in
 [SYSTEM.md](../docs/development/architecture/SYSTEM.md#desktop-apps) (`DESK-1`).
 

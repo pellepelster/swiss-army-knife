@@ -1,4 +1,4 @@
-# the tools sakadm runs in a container instead of on the user's machine: ansible (its ansible-core
+# the tools sakadmin runs in a container instead of on the user's machine: ansible (its ansible-core
 # the minor version of the root mise.toml) and the pelle_io.sak collection of ../ansible. The build
 # context is the repository (mise run tools:image:build), Dockerfile.dockerignore lets only ansible/ in
 FROM debian:13.7-slim

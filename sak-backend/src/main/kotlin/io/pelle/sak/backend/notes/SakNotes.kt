@@ -256,6 +256,7 @@ private fun Parameters.Builder.noteId() =
 // the texts of the notes (notes.backend in i18n/texts.yml)
 object NotesTexts : Catalog("notes") {
     val TEXT_TOO_LONG = text("text_too_long")
+    val FIRST_LIST = text("first_list")
     val INVALID_COLOR = text("invalid_color")
     val TOO_MANY_LABELS = text("too_many_labels")
     val UNKNOWN_PHOTO = text("unknown_photo")

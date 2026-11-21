@@ -133,6 +133,36 @@ class ListTable<R : Record>(
             null
         }
 
+    // the first list of an owner who never had a list of their own, deleted ones included (LIST-1):
+    // private, made in one transaction with created as insert does; null when they had one. A first
+    // list made at the same time, e.g. by another sign-in, wins, the name is unique per owner
+    fun insertFirst(
+        owner: String,
+        name: String,
+        created: (DSLContext, Int, Instant) -> Unit = { _, _, _ -> },
+    ): SakList? =
+        try {
+            database.dsl.transactionResult { configuration ->
+                val dsl = DSL.using(configuration)
+                if (dsl.fetchExists(table, this.owner.eq(owner))) return@transactionResult null
+                val now = clock.instant()
+                val id =
+                    dsl
+                        .insertInto(table)
+                        .set(this.owner, owner)
+                        .set(this.name, name)
+                        .set(this.shared, false)
+                        .set(createdAt, now)
+                        .returningResult(this.id)
+                        .fetchOne()!!
+                        .value1()!!
+                created(dsl, id, now)
+                list(dsl, owner, id)!!
+            }
+        } catch (_: IntegrityConstraintViolationException) {
+            null
+        }
+
     // every user who sees the list changes its icon (LIST-2), only the owner renames, shares or
     // unshares it: a rename of another user would tell the names of the owner's private lists, which
     // are unique with the shared ones

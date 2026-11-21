@@ -69,7 +69,7 @@ class Generator(
         return res
     }
 
-    // the texts of a program of its own (sakadm, sak-backup): the three parts of its section, each below its
+    // the texts of a program of its own (sakadmin, sakbackup): the three parts of its section, each below its
     // name, as the command line and the window are one program
     fun program(name: String): Group = Group(ADMIN_CLI_PARTS.associateWith { part -> texts.program(name).group(part) ?: Group.EMPTY })
 

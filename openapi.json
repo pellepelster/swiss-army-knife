@@ -301,7 +301,7 @@
                         }
                     },
                     "403": {
-                        "description": "A signed request of sakadm, which has no session to connect",
+                        "description": "A signed request of sakadmin, which has no session to connect",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4440,6 +4440,461 @@
                 ]
             }
         },
+        "/api/v1/restic/plans": {
+            "post": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "Create a backup plan of restic",
+                "description": "A repository of the user and the absolute paths of one computer, named by its host name.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResticBackupPlanRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new backup plan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticBackupPlanResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name, host or path, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The user has a backup plan of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The repository is none of the user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "The backup plans of restic",
+                "description": "The backup plans of the signed in user, of every computer, by name.",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the backup plans",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ResticBackupPlanResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/restic/plans/{id}": {
+            "put": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "Change a backup plan of restic",
+                "description": "Replaces all values of a backup plan of the user, its paths as a whole.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the backup plan",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResticBackupPlanRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed backup plan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticBackupPlanResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name, host or path, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user has no such backup plan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The user has another backup plan of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The repository is none of the user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "A backup plan of restic",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the backup plan",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The backup plan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticBackupPlanResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user has no such backup plan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/restic/repositories": {
+            "post": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "Create a repository of restic",
+                "description": "A repository the instance keeps and serves with the REST protocol of restic, with a new token as its only login. restic initializes it (restic init) with a password the instance never gets.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResticRepositoryRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "description": "The new repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticRepositoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid name, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The user has a repository of the name",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "get": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "The repositories of restic",
+                "description": "The repositories of the signed in user, by name, with the bytes they take, without their tokens.",
+                "parameters": [
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Where the page starts in the whole list, 0 by default",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "How many items the page has at most, 50 by default and 100 at most",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A page of the repositories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": [
+                                        "items",
+                                        "pagination"
+                                    ],
+                                    "properties": {
+                                        "items": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ResticRepositoryResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationResponse"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid page",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/restic/repositories/{id}/token": {
+            "get": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "The token of a repository of restic",
+                "description": "The only login of the REST backend of the repository: the password of the user named like its id.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the repository",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ResticTokenResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user has no such repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
         "/api/v1/users": {
             "post": {
                 "tags": [
@@ -5153,7 +5608,7 @@
                     "config"
                 ],
                 "summary": "The settings of the deployment",
-                "description": "The name, the dns mode, the root domain, the user mode, the admin, the mail server with its password and the acme ca the deployment runs with, so sakadm can deploy it again with them. Only for a request signed by sakadm, no session.",
+                "description": "The name, the dns mode, the root domain, the user mode, the admin, the mail server with its password and the acme ca the deployment runs with, so sakadmin can deploy it again with them. Only for a request signed by sakadmin, no session.",
                 "responses": {
                     "200": {
                         "description": "The settings of the deployment",
@@ -6645,6 +7100,186 @@
                     }
                 }
             },
+            "ResticBackupPlanResponse": {
+                "type": "object",
+                "title": "ResticBackupPlanResponse",
+                "required": [
+                    "id",
+                    "name",
+                    "repositoryId",
+                    "host",
+                    "paths",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "repositoryId": {
+                        "type": "integer"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "paths": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "keepLast": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "keepDaily": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "keepWeekly": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "keepMonthly": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "keepYearly": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ResticBackupPlanRequest": {
+                "type": "object",
+                "title": "ResticBackupPlanRequest",
+                "required": [
+                    "name",
+                    "repositoryId",
+                    "host",
+                    "paths"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "repositoryId": {
+                        "type": "integer"
+                    },
+                    "host": {
+                        "type": "string"
+                    },
+                    "paths": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "keepLast": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "keepDaily": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "keepWeekly": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "keepMonthly": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "keepYearly": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "ResticRepositoryResponse": {
+                "type": "object",
+                "title": "ResticRepositoryResponse",
+                "required": [
+                    "id",
+                    "name",
+                    "url",
+                    "size",
+                    "createdAt"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "size": {
+                        "type": "integer"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ResticRepositoryRequest": {
+                "type": "object",
+                "title": "ResticRepositoryRequest",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ResticTokenResponse": {
+                "type": "object",
+                "title": "ResticTokenResponse",
+                "required": [
+                    "token"
+                ],
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    }
+                }
+            },
             "UserResponse": {
                 "type": "object",
                 "title": "UserResponse",
@@ -7019,7 +7654,7 @@
             },
             "api-signature": {
                 "scheme": "SAK-Ed25519",
-                "description": "A request sakadm signs with the ed25519 key it derives from the password of the deployment, see sakadm config show: the signature holds for the host, the method, the path, the time and a nonce of its own.",
+                "description": "A request sakadmin signs with the ed25519 key it derives from the password of the deployment, see sakadmin config show: the signature holds for the host, the method, the path, the time and a nonce of its own.",
                 "type": "http"
             }
         }

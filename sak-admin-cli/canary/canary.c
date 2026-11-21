@@ -1,4 +1,4 @@
-/* the canary of sakadm's first check: a container runtime that can pull and run this works */
+/* the canary of sakadmin's first check: a container runtime that can pull and run this works */
 #include <stdio.h>
 
 int main(void) {

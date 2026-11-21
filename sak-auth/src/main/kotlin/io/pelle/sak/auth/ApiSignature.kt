@@ -22,8 +22,8 @@ private val logger = KotlinLogging.logger {}
 
 const val API_SIGNATURE_AUTH = "api-signature"
 
-// who acts with a signed request of sakadm: no e-mail address, what it creates is its own
-const val API_IDENTITY = "sakadm"
+// who acts with a signed request of sakadmin: no e-mail address, what it creates is its own
+const val API_IDENTITY = "sakadmin"
 
 // the scheme of the authorization header: `SAK-Ed25519 ts=<unix seconds>,nonce=<32 hex>,sig=<base64>`
 const val SIGNATURE_SCHEME = "SAK-Ed25519"
@@ -33,15 +33,15 @@ val apiSignatureSecurityScheme =
     HttpSecurityScheme(
         scheme = SIGNATURE_SCHEME,
         description =
-            "A request sakadm signs with the ed25519 key it derives from the password of the deployment, see sakadm " +
+            "A request sakadmin signs with the ed25519 key it derives from the password of the deployment, see sakadmin " +
                 "config show: the signature holds for the host, the method, the path, the time and a nonce of its own.",
     )
 
-// the requests of sakadm, signed with the ed25519 key it derives from the deployment password; the
+// the requests of sakadmin, signed with the ed25519 key it derives from the deployment password; the
 // backend knows only the public half (api_public_key), no request carries a secret. The signature
 // holds for the host, the method, the path and query (without the prefix of caddy), the time and a
 // nonce, so a replay, an old request (MAX_AGE_SECONDS) or one for another host is refused. No body:
-// sakadm only reads
+// sakadmin only reads
 class ApiSignature(
     publicKey: String,
     private val host: String,
@@ -129,7 +129,7 @@ private class ApiSignatureProvider(
     class Config(
         name: String,
         val signature: ApiSignature?,
-        // the user sakadm acts as, its data is theirs
+        // the user sakadmin acts as, its data is theirs
         val owner: String,
     ) : AuthenticationProvider.Config(name)
 
@@ -161,7 +161,7 @@ private fun ApplicationCall.hasBody() =
     (request.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0) > 0 || request.headers[HttpHeaders.TransferEncoding] != null
 
 
-// a signed request of sakadm is an admin that never expires, acting as owner (the admin of the
+// a signed request of sakadmin is an admin that never expires, acting as owner (the admin of the
 // password login); without a public key every signed request is refused
 fun AuthenticationConfig.apiSignature(
     signature: ApiSignature?,

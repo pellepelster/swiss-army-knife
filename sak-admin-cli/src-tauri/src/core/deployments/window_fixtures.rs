@@ -1,4 +1,4 @@
-//! the answers of the window's commands for the screenshots and the video of the sakadm ui
+//! the answers of the window's commands for the screenshots and the video of the sakadmin ui
 //! (`sak-e2e`, its README): a create of `family` on `krawallbu.de` in subdomain mode for a single
 //! user (docs/first-steps.md), built from the real types, texts and resources so the window shows
 //! nothing rust would not send. `mise run docs:screenshots` and `docs:videos` run it (`cargo test

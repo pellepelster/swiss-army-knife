@@ -220,12 +220,29 @@ class FilesystemBinaryStorage(
     }
 
     override fun list(prefix: BlobPath): List<BlobListEntry> {
-        val dir = resolve(prefix)
         val entries = mutableListOf<BlobListEntry>()
-        walk(dir) { file, attributes ->
-            entries.add(BlobListEntry(dir.relativize(file).map { it.toString() }, attributes.size(), attributes.lastModifiedTime().toInstant()))
-        }
+        forEach(prefix) { entries.add(it) }
         return entries.sortedBy { it.path }
+    }
+
+    override fun forEach(
+        prefix: BlobPath,
+        visit: (BlobListEntry) -> Unit,
+    ) {
+        val dir = resolve(prefix)
+        walk(dir) { file, attributes ->
+            visit(BlobListEntry(dir.relativize(file).map { it.toString() }, attributes.size(), attributes.lastModifiedTime().toInstant()))
+        }
+    }
+
+    override fun children(path: BlobPath): List<String> {
+        val dir = resolve(path)
+        if (!Files.isDirectory(dir)) return emptyList()
+        return try {
+            Files.list(dir).use { entries -> entries.filter { it != tmpDir }.map { it.fileName.toString() }.toList() }.sorted()
+        } catch (_: NoSuchFileException) {
+            emptyList()
+        }
     }
 
     override fun usage(prefix: BlobPath): BlobUsage {

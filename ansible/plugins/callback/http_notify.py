@@ -1,5 +1,5 @@
-# Posts one JSON event for every play, task start and task result to the endpoint sakadm serves
-# for the run, so sakadm can follow the provisioning task by task. Enabled with
+# Posts one JSON event for every play, task start and task result to the endpoint sakadmin serves
+# for the run, so sakadmin can follow the provisioning task by task. Enabled with
 # ANSIBLE_CALLBACKS_ENABLED=pelle_io.sak.http_notify; the endpoint is SAK_EVENTS_URL, the token of
 # the run is read from the file SAK_EVENTS_TOKEN_FILE, so it is in no environment. A post that fails
 # is a warning, never a failure of the run.
@@ -14,7 +14,7 @@ from ansible.plugins.callback import CallbackBase
 DOCUMENTATION = """
     name: http_notify
     type: notification
-    short_description: POST each play, task and result to the endpoint of sakadm
+    short_description: POST each play, task and result to the endpoint of sakadmin
     description:
         - Sends a JSON event for every play start, task start and task result, and the counts at the end.
     options: {}

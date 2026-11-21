@@ -128,7 +128,7 @@ class SakCaddyTest {
             Json.parseToJsonElement(
                 """
                 {
-                  "match": [{ "host": ["sak.example.org"], "path": ["/s3", "/s3/*", "/api", "/api/*"] }],
+                  "match": [{ "host": ["sak.example.org"], "path": ["/s3", "/s3/*", "/api", "/api/*", "/restic", "/restic/*"] }],
                   "handle": [
                     { "handler": "log_append", "key": "site", "value": "sak" },
                     { "handler": "static_response", "status_code": 404 }
@@ -175,8 +175,27 @@ class SakCaddyTest {
                 }
                 """.trimIndent(),
             )
-        // http, the two frontend routes, the api, the s3 api, the site, unmatched; no redirects, no console host
-        routes.size shouldBe 7
+        // the REST backend of restic below /restic, as it is, before the s3 api (SERVER-7)
+        routes[4] shouldBe
+            Json.parseToJsonElement(
+                """
+                {
+                  "match": [{ "host": ["api.example.org"], "path": ["/restic", "/restic/*"] }],
+                  "handle": [
+                    { "handler": "log_append", "key": "site", "value": "api" },
+                    {
+                      "handler": "headers",
+                      "response": { "set": { "Strict-Transport-Security": ["max-age=31536000"] }, "deferred": true }
+                    },
+                    { "handler": "request_body", "max_size": ${RESTIC_MAX_BODY_SIZE} },
+                    { "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:8080" }] }
+                  ],
+                  "terminal": true
+                }
+                """.trimIndent(),
+            )
+        // http, the two frontend routes, the api, restic, the s3 api, the site, unmatched; no redirects, no console host
+        routes.size shouldBe 8
     }
 
     @Test

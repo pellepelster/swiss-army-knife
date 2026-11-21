@@ -36,6 +36,7 @@ priority:
   high: "Hohe Priorität"
   normal: "Normale Priorität"
   low: "Niedrige Priorität"
+first_list: "Meine Todos"
 invalid_icon: "Ein Icon muss ein Emoji sein."
 invalid_list_name: "Ein Listenname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
 invalid_title: "Eine Aufgabe muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."

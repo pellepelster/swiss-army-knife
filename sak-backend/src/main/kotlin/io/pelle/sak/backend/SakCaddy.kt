@@ -9,6 +9,8 @@ import io.pelle.sak.ingress.caddyConfig
 import io.pelle.sak.ingress.model.CaddyConfig
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.WriteGuard
+import io.pelle.sak.backend.restic.RESTIC_PATH_PREFIX
+import io.pelle.sak.backend.restic.ResticStore
 import io.pelle.sak.storage.FilesystemBinaryStorage
 import java.nio.file.Files
 import java.nio.file.Path
@@ -17,6 +19,13 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 const val S3_PATH_PREFIX = "/s3"
+
+// the names no bucket may have: the REST backend of restic is below /restic of the api host (SERVER-7)
+val RESERVED_BUCKETS = setOf(RESTIC_PATH_PREFIX.removePrefix("/"))
+
+// the most caddy lets through to the REST backend of restic: its largest file, with room for the
+// headers
+const val RESTIC_MAX_BODY_SIZE = ResticStore.MAX_FILE_BYTES + 1024L * 1024
 
 // the buckets on the binary storage of s3DataDir; where a bucket is on disk only sak-s3 knows
 fun bucketStorage(config: SakConfig): BinaryStorageS3Backend {
@@ -69,7 +78,7 @@ fun caddyConfig(
                 // the api and the s3 api belong to api.<base_domain> only
                 route {
                     host(config.frontendHost)
-                    path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*", API_PATH_PREFIX, "$API_PATH_PREFIX/*")
+                    path(S3_PATH_PREFIX, "$S3_PATH_PREFIX/*", API_PATH_PREFIX, "$API_PATH_PREFIX/*", RESTIC_PATH_PREFIX, "$RESTIC_PATH_PREFIX/*")
                     logField(SITE_LOG_FIELD, FRONTEND_SITE)
                     respond(404)
                     terminal()
@@ -92,6 +101,19 @@ fun caddyConfig(
                     responseHeader("Strict-Transport-Security", "max-age=31536000")
                     maxRequestBodySize(APPS_MAX_BODY_SIZE)
                     rewrite("$API_PATH_PREFIX{http.request.uri}")
+                    reverseProxy("localhost:$port")
+                    terminal()
+                }
+
+                // the REST backend of restic (SERVER-7), below /restic of the backend too; before
+                // the s3 api, no bucket is named restic. Its repositories have users, so only with
+                // the login
+                route {
+                    host(config.apiHost)
+                    path(RESTIC_PATH_PREFIX, "$RESTIC_PATH_PREFIX/*")
+                    logField(SITE_LOG_FIELD, API_SITE)
+                    responseHeader("Strict-Transport-Security", "max-age=31536000")
+                    maxRequestBodySize(RESTIC_MAX_BODY_SIZE)
                     reverseProxy("localhost:$port")
                     terminal()
                 }

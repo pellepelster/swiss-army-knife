@@ -13,26 +13,26 @@ import java.util.concurrent.TimeUnit
 private val SCREENSHOTS: Path = Paths.get(System.getProperty("sak.e2e.screenshots") ?: "build/screenshots")
 
 // the binary of `cargo build` in sak-admin-cli/src-tauri (mise run docs:screenshots builds it)
-private val SAKADM: Path = Paths.get(System.getProperty("sak.e2e.sakadm") ?: "../sak-admin-cli/src-tauri/target/debug/sakadm")
+private val SAKADM: Path = Paths.get(System.getProperty("sak.e2e.sakadmin") ?: "../sak-admin-cli/src-tauri/target/debug/sakadmin")
 
 // the fonts of sak-theme, IBM Plex Mono for the terminal
 private val THEME: Path = Paths.get(System.getProperty("sak.e2e.theme") ?: "../sak-theme")
 
-// the command line of sakadm for the docs: what `sakadm --help` prints, in a terminal in the colors
+// the command line of sakadmin for the docs: what `sakadmin --help` prints, in a terminal in the colors
 // of the terminal blocks of the docs (site/assets/css/sak-code-block.css); the docs draw the window
-// around it (sakadm-cli-*.png, site/layouts/_default/_markup/render-image.html)
+// around it (sakadmin-cli-*.png, site/layouts/_default/_markup/render-image.html)
 @Tag("screenshots")
 class CliScreenshotTest {
     @Test
     fun `the help of the command line`() {
         val process = ProcessBuilder(SAKADM.toString(), "--help").redirectErrorStream(true).start()
         val help = process.inputStream.bufferedReader().readText()
-        check(process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0) { "sakadm --help failed: $help" }
+        check(process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0) { "sakadmin --help failed: $help" }
 
         // a file next to the fonts, so the page loads them as files
         val page = Files.createTempFile(THEME.toAbsolutePath(), "cli-", ".html")
         try {
-            Files.writeString(page, html("sakadm --help", help))
+            Files.writeString(page, html("sakadmin --help", help))
             Playwright.create().use { playwright ->
                 val browser = playwright.chromium().launch()
                 val context = browser.newContext(Browser.NewContextOptions().setViewportSize(900, 400).setDeviceScaleFactor(2.0))
@@ -43,7 +43,7 @@ class CliScreenshotTest {
                 tab.locator(".terminal").screenshot(
                     com.microsoft.playwright.Locator
                         .ScreenshotOptions()
-                        .setPath(SCREENSHOTS.resolve("sakadm-cli-help.png"))
+                        .setPath(SCREENSHOTS.resolve("sakadmin-cli-help.png"))
                         .setAnimations(ScreenshotAnimations.DISABLED),
                 )
             }

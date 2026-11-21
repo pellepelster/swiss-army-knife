@@ -2,6 +2,7 @@ package io.pelle.sak.backend.files
 
 import io.pelle.sak.api.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.files.StoredFile
@@ -53,14 +54,14 @@ sealed interface StoreFileResult {
     data object RecordingTooLong : StoreFileResult
 }
 
-// the file storage of every app, the only way to the files. Every upload is a file with an id; its
-// content is a blob (MODEL-7) below the first two characters of its sha-256, stored once. The type
-// comes from the first bytes, never from the uploader. Thumbnails are made on the first request and
-// kept next to the blob; at most one decode for each processor runs at a time, as a decoded photo
-// takes up to 17 MB of the heap.
+// the file storage of every app, the only way to the files. Every upload is a file with an id and a
+// resource id; its content is a blob (MODEL-7) below the resource id (MODEL-8), each upload its own.
+// The type comes from the first bytes, never from the uploader. Thumbnails are made on the first
+// request and kept next to the content; at most one decode for each processor runs at a time, as a
+// decoded photo takes up to 17 MB of the heap.
 class FileService(
     private val repository: FileRepository,
-    private val dir: Path,
+    private val storage: BinaryStorage,
     val maxSize: Long,
 ) {
     constructor(
@@ -68,15 +69,21 @@ class FileService(
         dir: Path,
         clock: Clock = Clock.systemUTC(),
         maxSize: Long = DEFAULT_MAX_SIZE,
-    ) : this(FileRepository(database, clock), dir, maxSize)
+    ) : this(database, FilesystemBinaryStorage(dir), clock, maxSize)
 
-    // the content and size whose thumbnail is being made, by its sha-256 and the size
+    // no resource id of a directory that is there without a file, e.g. from a restore of the instance
+    private constructor(
+        database: SakDatabase,
+        storage: BinaryStorage,
+        clock: Clock,
+        maxSize: Long,
+    ) : this(FileRepository(database, clock, free = { storage.children(directory(it)).isEmpty() }), storage, maxSize)
+
+    // the file and size whose thumbnail is being made, by its resource id and the size
     private val thumbnailLocks = ConcurrentHashMap<String, Any>()
 
     // the decodes that may run at the same time, of different contents or sizes
     private val decodes = Semaphore(Runtime.getRuntime().availableProcessors())
-
-    private val storage: BinaryStorage = FilesystemBinaryStorage(dir)
 
     // a file of the owner, the address that uploaded it; another one's file is none
     fun byId(
@@ -98,7 +105,18 @@ class FileService(
     }
 
     // the content of a stored file, null when it is not in the storage
-    fun content(file: StoredFile): BlobContent? = storage.content(blob(file.sha256))
+    fun content(file: StoredFile): BlobContent? = storage.content(blob(file.resourceId, CONTENT))
+
+    // moves the content of the files from below their sha-256 to their resource ids, once after the
+    // update that brought the resource ids (FileLayoutMigration)
+    fun migrateLayout(): FileLayoutMigration.Result = FileLayoutMigration(storage, repository.locations()).run()
+
+    // the directories of the storage that are named as a resource id no file has, e.g. left by a
+    // restore of the instance (MODEL-8); they are kept, and no new file gets one of them
+    fun leftovers(): List<String> {
+        val known = repository.resourceIds()
+        return storage.children(BlobPath(emptyList())).filter { name -> ResourceId.of(name)?.let { it !in known } == true }
+    }
 
     // a jpeg of at most size (one of SCALED_SIZES) pixels on the longer side: an image scaled down,
     // a recording as its waveform. Null when the file can not be read; a marker next to it keeps it
@@ -108,12 +126,11 @@ class FileService(
         size: Int = THUMBNAIL_SIZE,
     ): BlobContent? {
         require(size in SCALED_SIZES) { "no scaled size $size" }
-        val suffix = if (size == THUMBNAIL_SIZE) THUMBNAIL_SUFFIX else ".thumbnail-$size.jpg"
-        val thumbnail = blob(file.sha256, suffix)
-        val none = blob(file.sha256, NO_THUMBNAIL_SUFFIX)
+        val thumbnail = blob(file.resourceId, thumbnailName(size))
+        val none = blob(file.resourceId, NO_THUMBNAIL)
         storage.content(thumbnail)?.let { return it }
         if (storage.stat(none) != null) return null
-        val key = "${file.sha256}-$size"
+        val key = "${file.resourceId}-$size"
         val lock = thumbnailLocks.computeIfAbsent(key) { Any() }
         try {
             synchronized(lock) {
@@ -164,7 +181,7 @@ class FileService(
         }
 
     // reads at most maxSize bytes into a blob of its own while the sha-256 is computed, then moves
-    // it to the path of the sha-256
+    // it below the resource id of the new file
     fun store(
         content: InputStream,
         owner: String,
@@ -199,10 +216,12 @@ class FileService(
             check(storage.content(upload)!!, contentType)?.let { return it }
 
             val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
-            // the content is in place before the file refers to it
-            val target = blob(sha256)
-            if (storage.stat(target) == null) storage.move(upload, target)
-            return StoreFileResult.Stored(repository.insert(sha256, contentType, size, owner))
+            // the content is in place before the file is committed
+            val file =
+                repository.insert(sha256, contentType, size, owner) { resourceId ->
+                    checkNotNull(storage.move(upload, blob(resourceId, CONTENT))) { "the upload is gone" }
+                }
+            return StoreFileResult.Stored(file)
         } finally {
             storage.delete(upload)
         }
@@ -271,14 +290,23 @@ class FileService(
 
         private const val BUFFER_SIZE = 64 * 1024
 
-        // where an upload is written before its sha-256 is known
+        // where an upload is written before its sha-256 is known; no resource id, those have 12 characters
         private const val UPLOADS = "uploads"
 
-        // the path of a content and of what is kept next to it (e.g. its thumbnails)
-        private fun blob(
-            sha256: String,
-            suffix: String = "",
-        ) = BlobPath(listOf(sha256.take(2), sha256 + suffix))
+        // the directory of a file: its content and what is kept next to it (e.g. its thumbnails)
+        internal fun directory(resourceId: ResourceId) = BlobPath(listOf(resourceId.value))
+
+        internal fun blob(
+            resourceId: ResourceId,
+            name: String,
+        ) = directory(resourceId).resolve(name)
+
+        internal const val CONTENT = "content"
+
+        internal fun thumbnailName(size: Int) = "thumbnail-$size.jpg"
+
+        // next to a content that has no thumbnail, it can not be read
+        internal const val NO_THUMBNAIL = "no-thumbnail"
 
         private const val HEAD_SIZE = 12
 
@@ -290,11 +318,6 @@ class FileService(
 
         // the scaled size for one that was asked for, null for the file itself
         fun scaledSize(asked: Int): Int? = SCALED_SIZES.firstOrNull { it >= asked }
-
-        private const val THUMBNAIL_SUFFIX = ".thumbnail.jpg"
-
-        // next to a content that has no thumbnail, it can not be read
-        private const val NO_THUMBNAIL_SUFFIX = ".no-thumbnail"
 
         private const val WAVEFORM_BARS = 48
 

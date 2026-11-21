@@ -1,6 +1,6 @@
 //! everything a deployment derives from its name and password: the ssh client and host keys, the
 //! password hash label, the api key, the backup key and the admin password hash. The same values on
-//! every machine, so sakadm keeps no key; what it keeps (`local`) is encrypted with values derived
+//! every machine, so sakadmin keeps no key; what it keeps (`local`) is encrypted with values derived
 //! here.
 //!
 //! One strong argon2id (`MASTER_PARAMS`) gives the master key; hkdf-sha256 expands each value from
@@ -125,7 +125,7 @@ fn derive(name: &str, password: &str, purpose: &str, comment: &str) -> Result<De
     })
 }
 
-/// the client key of a deployment: the server is created with its public half, sakadm logs in
+/// the client key of a deployment: the server is created with its public half, sakadmin logs in
 /// with its private half through an ssh-agent (`core::provision`)
 pub fn derive_key(name: &str, password: &str) -> Result<DerivedKey, String> {
     derive(name, password, "client-key", &format!("sak-{name}"))
@@ -136,18 +136,18 @@ pub fn derive_public_key(name: &str, password: &str) -> Result<String, String> {
     Ok(derive_key(name, password)?.public_key())
 }
 
-/// the host key of the server: cloud-init installs it, so sakadm verifies the first connection
+/// the host key of the server: cloud-init installs it, so sakadmin verifies the first connection
 pub fn derive_host_key(name: &str, password: &str) -> Result<DerivedKey, String> {
     derive(name, password, "host-key", &format!("sak-{name}-host"))
 }
 
 /// the label sak.pelle.io/password-hash on every resource of the deployment: 30 bytes of the
-/// master key as hex, short enough for one label value. sakadm checks a password against it
+/// master key as hex, short enough for one label value. sakadmin checks a password against it
 pub fn password_hash(name: &str, password: &str) -> Result<String, String> {
     Ok(hex(&expand::<30>(name, password, "password-hash")?))
 }
 
-/// the ed25519 key sakadm signs its requests to the admin api with (`config::signed_text`). The
+/// the ed25519 key sakadmin signs its requests to the admin api with (`config::signed_text`). The
 /// backend knows only its public half, so no request carries a secret. No Debug
 pub struct ApiKey(SigningKey);
 
@@ -170,7 +170,7 @@ pub fn api_key(name: &str, password: &str) -> Result<ApiKey, String> {
     )?)))
 }
 
-/// an age x25519 key: the server encrypts a backup to its `recipient`, only sakadm decrypts. No
+/// an age x25519 key: the server encrypts a backup to its `recipient`, only sakadmin decrypts. No
 /// Debug
 pub struct BackupKey(age::x25519::Identity);
 
@@ -198,7 +198,7 @@ pub fn backup_key(name: &str, password: &str) -> Result<BackupKey, String> {
         .map_err(|e| e.to_string())
 }
 
-/// the key of the settings sakadm keeps on this machine (`local`): a purpose of its own, so it
+/// the key of the settings sakadmin keeps on this machine (`local`): a purpose of its own, so it
 /// opens no backup and a backup key opens no settings
 pub fn local_settings_key(name: &str, password: &str) -> Result<BackupKey, String> {
     use std::str::FromStr;
@@ -577,7 +577,7 @@ mod tests {
         fn the_private_key_is_what_openssh_reads() {
             let key = derive_key("alpha", "a password of sixteen").unwrap();
             let private = key.private_key();
-            let dir = std::env::temp_dir().join(format!("sakadm-keys-{}", std::process::id()));
+            let dir = std::env::temp_dir().join(format!("sakadmin-keys-{}", std::process::id()));
             std::fs::create_dir_all(&dir).unwrap();
             let path = dir.join("id_ed25519");
             std::fs::write(&path, &private).unwrap();

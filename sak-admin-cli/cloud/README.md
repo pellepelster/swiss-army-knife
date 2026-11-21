@@ -33,7 +33,7 @@ registry.apply_all().await?;
 
 - `HCLOUD_TOKEN=... SSH_PUBLIC_KEY=... cargo run --example backend -- --apply` runs `examples/backend.rs`, a backend
   with all resources.
-- `mise run admin-cli:test:unit` runs the unit tests (with those of sakadm). `mise run admin-cli:test:e2e` runs the tests
+- `mise run admin-cli:test:unit` runs the unit tests (with those of sakadmin). `mise run admin-cli:test:e2e` runs the tests
   against the real api. They need `HCLOUD_TOKEN` (from pass when not set), and they label all they create with a test
   id and remove it at the end.
 

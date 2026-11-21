@@ -19,31 +19,31 @@ the tests elsewhere. Playwright downloads its chromium on the first run.
 
 ## Screenshots
 
-The screenshots of `docs/screenshots/` and the videos of `build/videos/`, in chromium. Only the video of the sakadm
-ui is committed (`docs/screenshots/sakadm-ui.mp4`), the docs show it.
+The screenshots of `docs/screenshots/` and the videos of `build/videos/`, in chromium. Only the video of the sakadmin
+ui is committed (`docs/screenshots/sakadmin-ui.mp4`), the docs show it.
 
 ```sh
 mise run local:run          # in one terminal
-mise run docs:screenshots   # in another: the apps, the sakadm ui and cli, the Android apps
-mise run docs:video         # the tours of the apps and of the sakadm ui, as .webm, .mp4 and .gif
+mise run docs:screenshots   # in another: the apps, the sakadmin ui and cli, the Android apps
+mise run docs:video         # the tours of the apps and of the sakadmin ui, as .webm, .mp4 and .gif
 ```
 
 - Each page of the apps is taken on a desktop (1280×800) and on a phone (390×844), without the browser around it,
   in the light and the dark theme. The run signs in with the local admin password (`SAK_LOCAL_ADMIN_PASSWORD_HASH`
   of `mise.toml`) and asks for two login links. It creates its own data; other data of the local environment can
   show.
-- The sakadm ui (`sak-admin-cli/ui`) runs without tauri and without a cloud project: Playwright serves its files, and a
+- The sakadmin ui (`sak-admin-cli/ui`) runs without tauri and without a cloud project: Playwright serves its files, and a
   fake `window.__TAURI__` answers its commands as for a create of `example1` on `krawallbu.de` in domain mode. A
   rust test writes these answers from the real types and texts (`core/deployments/window_fixtures.rs`,
   `mise run docs:window`). It is shown at its own size, 736×686.
 
 ## Integration tests
 
-Two deployments in the Hetzner Cloud project of `HCLOUD_TOKEN`, created with sakadm, and the apps in chromium
+Two deployments in the Hetzner Cloud project of `HCLOUD_TOKEN`, created with sakadmin, and the apps in chromium
 against them:
 
 ```sh
-mise run admin-cli:test:e2e   # builds sakadm, then runs the tests
+mise run admin-cli:test:e2e   # builds sakadmin, then runs the tests
 ```
 
 Before the tests, the task runs the tests of sak-cloud against the API of Hetzner, and, outside of CI, builds and
@@ -58,8 +58,8 @@ expensive, so all tests share two deployments (`util/TestDeployments.kt`):
 - `test-<id>-multi`: multi user, subdomain mode on `krawallbu.de`. It sends its login links through the SMTP of a
   Mailtrap sandbox, and the tests read them through the API of Mailtrap. Only synthetic addresses go there.
 
-The first test that needs them creates both at once, with `sakadm create`. When the run ends, also after a failure,
-both are destroyed with `sakadm destroy --delete-data`, and no resource of them may remain. Running one test class
+The first test that needs them creates both at once, with `sakadmin create`. When the run ends, also after a failure,
+both are destroyed with `sakadmin destroy --delete-data`, and no resource of them may remain. Running one test class
 creates both too.
 
 The tests run in this order:
@@ -67,9 +67,9 @@ The tests run in this order:
 1. `LoginTest`: the password on the single user deployment; the e-mailed link (once only) and the password on the
    multi user one.
 2. `NotesTest`: the same tests on both deployments; a note is created, kept and deleted.
-3. `BackupTest`: on both, a note, `sakadm backup`, the note deleted and another one created, `sakadm restore`: the
+3. `BackupTest`: on both, a note, `sakadmin backup`, the note deleted and another one created, `sakadmin restore`: the
    note of the backup is back, the later one is gone.
-4. `SakadmTest`: the rules of the sakadm cli, without a server of their own. A second domain deployment and the
+4. `SakadminTest`: the rules of the sakadmin cli, without a server of their own. A second domain deployment and the
    mixed DNS modes are refused, with their exit codes; an ssh key of someone else is neither deleted nor taken over;
    `config show` shows no secret; a deploy keeps the settings.
 5. `UserModeTest`: the single user deployment, the password login checked, is deployed again as multi user with an
@@ -79,7 +79,7 @@ The tests run in this order:
 Each step and each wait is a line of the output, with the time and the deployment.
 
 The run needs these variables, from pass when not set. Gradle reads them for `e2eIntegration`
-(`build.gradle.kts`), so a test also runs from IntelliJ when sakadm is built and the images are pushed:
+(`build.gradle.kts`), so a test also runs from IntelliJ when sakadmin is built and the images are pushed:
 
 | Variable | pass |
 |---|---|
@@ -94,7 +94,7 @@ The run needs these variables, from pass when not set. Gradle reads them for `e2
 - The browser reaches the new names of a deployment at the address of its server at once (`--host-resolver-rules`),
   whatever the DNS of the machine still remembers. The deployments get their certificates from the staging CA of
   Let's Encrypt (`--acme-ca staging`), which the browser does not check.
-- `SAK_E2E_SAKADM` selects another sakadm binary than the one of `cargo build`.
+- `SAK_E2E_SAKADM` selects another sakadmin binary than the one of `cargo build`.
 - `SAK_DOCKER_IMAGE_TAG` selects the tag of the images, `SAK_DOCKER_PLATFORMS` the platforms they are pushed for.
 - The servers are created in `hel1`, `SAK_E2E_LOCATION` selects another location (a server type can be sold out in
   one for a while).

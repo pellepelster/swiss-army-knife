@@ -1,0 +1,172 @@
+# the repositories of restic the instance keeps (docs/development/architecture/apps/BACKUP.md), the
+# same rules as in 0001-initial.yaml: created_at, updated_at, deleted_at and owner on every table,
+# no row is ever deleted for real, the partial unique indexes in plain sql for sqlite only. Their
+# content is on the data volume, below restic/<resource_id> (MODEL-8); no column holds the password of a repository
+# (BACKUP-3); the backups with the paths of one computer each (BACKUP-5, BACKUP-6)
+databaseChangeLog:
+  - changeSet:
+      id: 0003-restic
+      author: sak
+      changes:
+        # a repository (BACKUP-1) and its token, the only login of its REST backend (BACKUP-2)
+        - createTable:
+            tableName: restic_repositories
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              # the directory of the repository on the data volume (MODEL-8)
+              - column:
+                  name: resource_id
+                  type: char(12)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX restic_repositories_owner_name_key ON restic_repositories (owner, name) WHERE deleted_at IS NULL
+        # over the deleted rows too: a resource id is never given to another repository (MODEL-8)
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX restic_repositories_resource_id_key ON restic_repositories (resource_id)
+
+        # a backup (BACKUP-5): a repository of its owner and the paths of one computer, named by
+        # its host name; the paths in their order (BACKUP-6)
+        - createTable:
+            tableName: restic_backup_plans
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: int
+                  constraints:
+                    nullable: false
+                    foreignKeyName: restic_backup_plans_repository_id_fkey
+                    references: restic_repositories(id)
+              - column:
+                  name: host
+                  type: varchar(253)
+                  constraints:
+                    nullable: false
+              # how many last snapshots a run keeps, none keeps them all (BACKUP-8)
+              - column:
+                  name: keep_last
+                  type: int
+              # how many daily snapshots a run keeps, none keeps them all (BACKUP-8)
+              - column:
+                  name: keep_daily
+                  type: int
+              # how many weekly snapshots a run keeps, none keeps them all (BACKUP-8)
+              - column:
+                  name: keep_weekly
+                  type: int
+              # how many monthly snapshots a run keeps, none keeps them all (BACKUP-8)
+              - column:
+                  name: keep_monthly
+                  type: int
+              # how many yearly snapshots a run keeps, none keeps them all (BACKUP-8)
+              - column:
+                  name: keep_yearly
+                  type: int
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE UNIQUE INDEX restic_backup_plans_owner_name_key ON restic_backup_plans (owner, name) WHERE deleted_at IS NULL
+        - createTable:
+            tableName: restic_backup_plan_paths
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: plan_id
+                  type: int
+                  constraints:
+                    nullable: false
+                    foreignKeyName: restic_backup_plan_paths_plan_id_fkey
+                    references: restic_backup_plans(id)
+              - column:
+                  name: owner
+                  type: varchar(254)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: path
+                  type: varchar(4096)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: position
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp
+              - column:
+                  name: deleted_at
+                  type: timestamp
+        - sql:
+            dbms: sqlite
+            sql: CREATE INDEX restic_backup_plan_paths_plan_id_idx ON restic_backup_plan_paths (plan_id) WHERE deleted_at IS NULL

@@ -1,5 +1,5 @@
 //! the backups of a deployment. `sak-backend backup` on the server writes all data as one tar
-//! stream, compressed with zstd and encrypted with age to the recipient of the backup key; sakadm
+//! stream, compressed with zstd and encrypted with age to the recipient of the backup key; sakadmin
 //! stores the bytes as they come in `~/.sak/<name>/backups/<name>-<UTC time>.age.sak` and decrypts
 //! them once to check them. A restore decrypts a backup and streams it, still compressed, into
 //! `sak-backend restore`, which checks it before it replaces the data. The plain data is never on
@@ -183,7 +183,8 @@ mod tests {
     }
 
     fn temp_dir(test: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("sakadm-backup-{test}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("sakadmin-backup-{test}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir

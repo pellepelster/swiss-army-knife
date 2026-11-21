@@ -1,4 +1,4 @@
-//! the settings a deployment runs with, as a redeploy and `sakadm config show` take them. sakadm
+//! the settings a deployment runs with, as a redeploy and `sakadmin config show` take them. sakadmin
 //! reads them from the backend with a request signed with the api key (`keys::api_key`); no request
 //! carries a secret. The signature covers method, host, path, time, nonce and body, so the backend
 //! refuses a request sent to a wrong host or sent again
@@ -66,7 +66,7 @@ fn pinned(
 /// the scheme of the `Authorization` header of a signed request
 pub const SIGNATURE_SCHEME: &str = "SAK-Ed25519";
 
-/// the text sakadm signs for a request to the admin api, one part on each line: format version,
+/// the text sakadmin signs for a request to the admin api, one part on each line: format version,
 /// method, host in lower case without port, path with query, unix seconds, nonce, sha-256 of the
 /// body as hex. The backend builds the same text with its own host
 pub fn signed_text(
@@ -110,7 +110,7 @@ fn authorization(key: &ApiKey, method: &str, url: &reqwest::Url) -> Result<Strin
 }
 
 /// where the certificates of a deployment come from: a public ca, or the staging ca of let's
-/// encrypt (a deployment of the tests), whose roots sakadm then trusts too
+/// encrypt (a deployment of the tests), whose roots sakadmin then trusts too
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Trust {
     Public,
@@ -124,7 +124,7 @@ const STAGING_ROOTS: [&str; 2] = [
     include_str!("../../certs/letsencrypt-stg-root-x2.pem"),
 ];
 
-/// whether sakadm refuses plain http; only the tests talk to their mock backend over http
+/// whether sakadmin refuses plain http; only the tests talk to their mock backend over http
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Transport {
     HttpsOnly,
@@ -227,7 +227,7 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
 /// With `Trust::LetsEncryptStaging` it also trusts the roots of the staging ca
 fn client_builder(transport: Transport, trust: Trust) -> Result<reqwest::ClientBuilder, String> {
     let mut builder = Client::builder()
-        .user_agent(concat!("sakadm/", env!("SAK_VERSION")))
+        .user_agent(concat!("sakadmin/", env!("SAK_VERSION")))
         .timeout(Duration::from_secs(30))
         .redirect(Policy::none())
         .https_only(transport == Transport::HttpsOnly);

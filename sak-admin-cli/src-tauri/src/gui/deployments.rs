@@ -6,7 +6,7 @@ use crate::core::deployments::{
     DeploymentDefaults, DeploymentEvent, DeploymentManager, DeploymentRequest, DeploymentResponse,
     Detected, Intent, LocationResponse, PlanResponse, RootDomainResponse, completed_with, defaults,
 };
-use crate::core::error::SakadmError;
+use crate::core::error::SakadminError;
 use crate::core::providers::{ProviderTokens, ProviderType};
 use crate::gui::state::{CheckedDeployment, LoadedSettings, RunningWork};
 use rust_i18n::t;
@@ -99,7 +99,7 @@ pub async fn plan_deployment(
     container: State<'_, ContainerRuntime>,
     loaded: State<'_, LoadedSettings>,
     deployment: DeploymentRequest,
-) -> Result<PlanResponse, SakadmError> {
+) -> Result<PlanResponse, SakadminError> {
     let tokens = tokens.tokens();
     let deployment = completed_config(&manager, tokens.clone(), &loaded, deployment).await?;
     manager.plan(tokens, &deployment, &container).await
@@ -112,7 +112,7 @@ async fn completed_config(
     tokens: Vec<(ProviderType, String)>,
     loaded: &LoadedSettings,
     deployment: DeploymentRequest,
-) -> Result<DeploymentRequest, SakadmError> {
+) -> Result<DeploymentRequest, SakadminError> {
     match deployment.intent {
         Intent::Deploy => {
             let detected = settings_of(
@@ -139,7 +139,7 @@ pub async fn deployment_settings(
     loaded: State<'_, LoadedSettings>,
     name: String,
     password: String,
-) -> Result<Detected, SakadmError> {
+) -> Result<Detected, SakadminError> {
     let detected = manager.detected(tokens.tokens(), &name, &password).await?;
     loaded.set(&name, detected.clone());
     Ok(detected)
@@ -152,7 +152,7 @@ async fn settings_of(
     loaded: &LoadedSettings,
     name: &str,
     password: &str,
-) -> Result<Detected, SakadmError> {
+) -> Result<Detected, SakadminError> {
     if let Some(detected) = loaded.get(name) {
         return Ok(detected);
     }
@@ -181,7 +181,7 @@ pub async fn check_deployment(
     name: String,
     password: String,
     location: Option<sak_cloud::hetzner::api::Location>,
-) -> Result<CheckResponse, SakadmError> {
+) -> Result<CheckResponse, SakadminError> {
     let number = checked.start();
     let location = location.unwrap_or_else(default_location);
     let detected = settings_of(&manager, tokens.tokens(), &loaded, &name, &password).await?;
@@ -234,7 +234,7 @@ pub async fn apply_checked(
     checked: State<'_, CheckedDeployment>,
     deploy: CheckedDeploy,
     on_event: Channel<DeploymentEvent>,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let CheckedDeploy { check, force } = deploy;
     let (deployment, seen) = checked
         .take(check)
@@ -253,7 +253,7 @@ pub async fn apply_checked(
         let prepared = manager.prepare(tokens.tokens(), &deployment).await?;
         let planned = manager.plan_prepared(prepared, &container).await?;
         if planned.plan.seen() != seen {
-            return Err(SakadmError::from(
+            return Err(SakadminError::from(
                 t!("ui.deployment.changed_since_check").to_string(),
             ));
         }
@@ -271,7 +271,7 @@ pub async fn apply_deployment(
     loaded: State<'_, LoadedSettings>,
     deployment: DeploymentRequest,
     on_event: Channel<DeploymentEvent>,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let deployment = completed_config(&manager, tokens.tokens(), &loaded, deployment).await?;
     apply(
         &manager,
@@ -292,7 +292,7 @@ async fn apply(
     running: &RunningWork,
     deployment: &DeploymentRequest,
     on_event: &Channel<DeploymentEvent>,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     // a progress event that cannot be sent is no reason to stop the apply
     let mut report = |event| {
         let _ = on_event.send(event);
@@ -358,7 +358,7 @@ mod tests {
         assert_eq!(default_location(), Location::nbg1);
         unsafe { std::env::set_var(LOCATION_VARIABLE, " hel1 ") };
         assert_eq!(default_location(), Location::hel1);
-        // a location sakadm does not offer counts as none
+        // a location sakadmin does not offer counts as none
         unsafe { std::env::set_var(LOCATION_VARIABLE, "unknown") };
         assert_eq!(default_location(), Location::nbg1);
     }

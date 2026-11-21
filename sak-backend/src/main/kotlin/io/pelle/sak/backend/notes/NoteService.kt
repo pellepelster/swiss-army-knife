@@ -4,12 +4,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.api.Language
+import io.pelle.sak.api.render
 import io.pelle.sak.api.Page
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.auth.LoginListener
-import io.pelle.sak.model.notes.DEFAULT_LIST
 import io.pelle.sak.model.notes.NoteRepository
 import io.pelle.sak.model.notes.NoteRow
 import java.time.Clock
@@ -109,11 +109,12 @@ class NoteService(
         repository.detachDeletedLabels()
     }
 
-    // the list of the notes of a user who has none (NOTES-1)
+    // the first list of a user who never had one, in the language of the sign-in, the one of all their
+    // notes (LIST-1, NOTES-1)
     override fun signedIn(
         owner: String,
         language: Language,
-    ) = repository.ensureList(owner, DEFAULT_LIST)
+    ) = repository.ensureList(owner, NotesTexts.FIRST_LIST.render(language))
 
     // the labels a note of the owner has, the ones to filter by
     fun usedLabels(owner: String): List<Label> = repository.usedLabels(owner)

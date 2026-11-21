@@ -59,6 +59,7 @@ discover:
   add: "Zur Liste hinzufügen"
   not_read: "Das Foto konnte nicht gelesen werden."
   not_all_added: "Nicht jeder Artikel konnte hinzugefügt werden."
+first_list: "Meine Einkäufe"
 category:
   fruit_vegetables: "Obst & Gemüse"
   bakery: "Backwaren"

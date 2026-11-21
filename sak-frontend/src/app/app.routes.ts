@@ -4,6 +4,7 @@ import { pageTitle } from './i18n/i18n';
 import { Home } from './home/home';
 import { hostingRoute } from './hosting/hosting.routes';
 import { redirectsRoute } from './redirects/redirects.routes';
+import { backupsRoute } from './backups/backups.routes';
 import { groceryDownloadRoute, groceryRoute } from './grocery/grocery.routes';
 import { todoDownloadRoute, todoRoute } from './todo/todo.routes';
 import { Login } from './login/login';
@@ -25,6 +26,7 @@ export const routes: Routes = [
   },
   hostingRoute,
   redirectsRoute,
+  backupsRoute,
   groceryDownloadRoute,
   todoDownloadRoute,
   // the android app of the notes to download, without a session; before the notes, whose login

@@ -54,8 +54,9 @@ mkdir -p /work/answer/api/v1 && echo '{}' > /work/answer/api/v1/info
 age-keygen -o /work/backup.key 2>/dev/null"
 
 echo "the data of alpha: a database in wal mode, files, the ingress, vector and two lines of logs"
-on_server "mkdir -p $data/backend/data/files $data/ingress/log $data/vector
+on_server "mkdir -p $data/backend/data/files $data/backend/data/restic/1 $data/ingress/log $data/vector
 echo provisioned > $data/backend/config.yaml
+echo repository-one > $data/backend/data/restic/1/config
 echo SAK_SECRET=1 > $data/backend/backend.env
 echo photo-one > $data/backend/data/files/1.jpg
 echo certificate > $data/ingress/cert.pem
@@ -86,6 +87,8 @@ for wanted in backend/data/sak.db backend/data/files/1.jpg ingress/cert.pem ingr
   grep -qx "$wanted" <<<"$listing" || fail "$wanted is not in the backup"
 done
 grep -q '^victorialogs/partitions/[0-9]\{8\}/datadb/' <<<"$listing" || fail "no day of victorialogs in the backup"
+# the repositories of restic are in no backup (BACKUP-4)
+! grep -q '^backend/data/restic' <<<"$listing" || fail "a repository of restic is in the backup"
 for unwanted in backend/config.yaml backend/backend.env backend/victorialogs-partition.key backend/data/sak.db-wal; do
   ! grep -qx "$unwanted" <<<"$listing" || fail "$unwanted is in the backup"
 done
@@ -126,6 +129,7 @@ on_server "[ ! -e /work/systemctl.log ]" || fail "the deployment was stopped for
 echo "changes after the backup, then the restore"
 on_server "runuser -u sak -- sqlite3 -cmd '.timeout 10000' $data/backend/data/sak.db 'INSERT INTO notes VALUES (\"after\")'
 rm $data/backend/data/files/1.jpg && echo photo-two > $data/backend/data/files/2.jpg
+mkdir -p $data/backend/data/restic/2 && echo repository-two > $data/backend/data/restic/2/config && chown -R sak:sak $data/backend/data/restic
 echo provisioned-again > $data/backend/config.yaml"
 docker stop "$name-logs" >/dev/null
 on_server "age -d -i /work/backup.key /work/backup.age | sak-backend restore 2> /work/restore.log" || {
@@ -138,6 +142,9 @@ echo "the data is that of the backup, the files of the provisioning are those of
 [ "$(on_server "sqlite3 $data/backend/data/sak.db 'SELECT text FROM notes ORDER BY rowid' | paste -sd,")" = "first,second" ] \
   || fail "the rows of the database"
 on_server "[ \"\$(cat $data/backend/data/files/1.jpg)\" = photo-one ] && [ ! -e $data/backend/data/files/2.jpg ]" || fail "the files"
+# the repositories of restic stay as the server has them, the one written after the backup too
+on_server "[ \"\$(cat $data/backend/data/restic/1/config)\" = repository-one ] && [ \"\$(cat $data/backend/data/restic/2/config)\" = repository-two ]" \
+  || fail "the repositories of restic"
 on_server "[ \"\$(cat $data/backend/config.yaml)\" = provisioned-again ]" || fail "the configuration of the provisioning"
 on_server "[ \"\$(stat -c %u:%g $data/backend/data/sak.db $data/ingress/cert.pem | sort -u)\" = 10000:10000 ]" || fail "the owner"
 on_server "[ ! -e $data/backend/data/sak.db-shm ] && [ ! -e /work/storage/data/.replaced-alpha ] && [ ! -e /work/storage/data/.restore-alpha ]" \
@@ -241,5 +248,22 @@ on_server "[ \"\$(cat /work/systemctl.log)\" = \"\$(printf '%s\\n' 'restart cron
 
 echo "an unknown command says how to use it"
 on_server "set +e; usage=\$(sak-backend nothing 2>&1 >/dev/null); [ \$? = 1 ] && grep -q 'usage: sak-backend backup' <<<\"\$usage\"" || fail "the usage"
+
+echo "a restore that fails while it replaces the data keeps the repositories of restic"
+# the last test: the data from before stays in .replaced-alpha afterwards. A mv that fails for the
+# ingress, after the repositories were set aside (BACKUP-4)
+on_server "real=\$(command -v mv) && printf '#!/bin/sh\nfor last; do :; done\ncase \"\$last\" in */ingress) exit 1 ;; esac\nexec %s \"\$@\"\n' \"\$real\" > /usr/local/bin/mv && chmod +x /usr/local/bin/mv"
+on_server "! sak-backend restore < /work/full.tar.zst 2> /work/failed.log" || {
+  on_server "rm -f /usr/local/bin/mv"
+  fail "a restore with a failing mv ended well"
+}
+on_server "rm -f /usr/local/bin/mv"
+on_server "for home in $data/backend/data /work/storage/data/.replaced-alpha/backend/data; do
+  [ \"\$(cat \$home/restic/1/config 2>/dev/null)\" = repository-one ] && [ \"\$(cat \$home/restic/2/config 2>/dev/null)\" = repository-two ] && exit 0
+done; exit 1" || {
+  on_server "cat /work/failed.log" >&2
+  fail "the repositories of restic are gone after a restore that failed"
+}
+on_server "[ ! -e $data/backend/restic-kept ] && [ ! -e /work/storage/data/.restore-alpha ]" || fail "what the failed restore left"
 
 echo "all tests passed"

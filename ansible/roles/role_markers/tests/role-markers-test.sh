@@ -34,7 +34,7 @@ echo "the markers of the next run take their place"
 markers '{"common": "def"}'
 on_server "[ \"\$(cat /var/lib/sak/roles/common)\" = def ]" || fail "a marker was not written again"
 
-echo "what sakadm reads"
+echo "what sakadmin reads"
 read_command='for f in /var/lib/sak/roles/*; do [ -f "$f" ] && echo "${f##*/} $(cat "$f")"; done; exit 0'
 [ "$(on_server "$read_command" | sort)" = "$(printf 'backend 0123\ncommon def')" ] || fail "the read of the markers"
 on_server "rm -rf /var/lib/sak/roles"

@@ -13,7 +13,7 @@ val PLURAL_FORMS = setOf("zero", "one", "two", "few", "many", "other")
 // the platforms that read the texts of an app, each its own part of the section of the app
 val PLATFORMS = listOf("backend", "web", "android")
 
-// the parts of the section of a program (sakadm, sak-backup): both, the command line, the window
+// the parts of the section of a program (sakadmin, sakbackup): both, the command line, the window
 val ADMIN_CLI_PARTS = listOf("common", "cli", "ui")
 
 // a program of its own, a command line and a window on one core: its binary and the locales/ of its
@@ -26,8 +26,8 @@ data class Program(
 // the programs by their sections, which have the parts of ADMIN_CLI_PARTS
 val PROGRAMS: Map<String, Program> =
     linkedMapOf(
-        "admin_cli" to Program("sakadm", "sak-admin-cli/src-tauri/locales"),
-        "sak_backup" to Program("sak-backup", "sak-backup/src-tauri/locales"),
+        "admin_cli" to Program("sakadmin", "sak-admin-cli/src-tauri/locales"),
+        "sak_backup" to Program("sakbackup", "sak-backup/src-tauri/locales"),
         "desktop_shared" to Program("sak-desktop-shared", "sak-desktop-shared/locales"),
     )
 
@@ -104,7 +104,7 @@ class Texts private constructor(
     // the texts of no app for all platforms and for one, e.g. common and web
     fun platform(name: String): Group = root.group(name) ?: Group.EMPTY
 
-    // the sections of the apps, e.g. notes, without the programs (sakadm, sak-backup)
+    // the sections of the apps, e.g. notes, without the programs (sakadmin, sakbackup)
     val apps: Map<String, Group>
         get() = root.children.filterKeys { it !in TOP_LEVEL && it !in PROGRAMS }.mapValues { it.value as Group }
 

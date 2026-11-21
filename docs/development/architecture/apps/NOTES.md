@@ -16,8 +16,7 @@ and add it to the note.
 ## General
 
 - `NOTES-1` **Lists.** The notes are a list-based app (refer to [List-based apps](INDEX.md#list-based-apps)). The lists
-  are prepared but not exposed to the user: when a user signs in without one, the app makes the private list
-  "Default" for them, which holds all their notes.
+  are prepared but not exposed to the user: their first list (`LIST-1`), "My Notes", holds all their notes.
 
 ## Data
 

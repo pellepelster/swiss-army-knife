@@ -50,6 +50,17 @@ interface BinaryStorage {
 
     fun list(prefix: BlobPath): List<BlobListEntry>
 
+    // every blob below the prefix, relative to it, in no order and without keeping them: for a listing
+    // too large to hold, e.g. the packs of a repository of restic
+    fun forEach(
+        prefix: BlobPath,
+        visit: (BlobListEntry) -> Unit,
+    )
+
+    // the names of the blobs and directories right below the path, sorted, without walking deeper;
+    // none when there is nothing at the path. The staged writes are left out
+    fun children(path: BlobPath): List<String>
+
     // counted without listing every blob, blobs that disappear while counting are left out
     fun usage(prefix: BlobPath): BlobUsage
 

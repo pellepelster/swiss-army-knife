@@ -1,11 +1,11 @@
 //! the command of the maintenance view: the status, the update, the restart of the services or the
-//! reboot of the server of a deployment, as `sakadm maintenance` has them (`maintenance::perform`).
+//! reboot of the server of a deployment, as `sakadmin maintenance` has them (`maintenance::perform`).
 //! Each line of the server goes to the view while it runs, the answer comes as lines. It cannot be
-//! cancelled, each command on the server has its timeout; while it runs, sakadm is not restarted
+//! cancelled, each command on the server has its timeout; while it runs, sakadmin is not restarted
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::DeploymentManager;
-use crate::core::error::SakadmError;
+use crate::core::error::SakadminError;
 use crate::core::maintenance::{self, Line};
 use crate::core::providers::ProviderTokens;
 use crate::gui::state::RunningWork;
@@ -40,7 +40,7 @@ pub async fn run_maintenance(
     running: State<'_, RunningWork>,
     request: MaintenanceRequest,
     on_line: Channel<String>,
-) -> Result<Vec<Line>, SakadmError> {
+) -> Result<Vec<Line>, SakadminError> {
     let name = request.name.trim();
     let action = match request.action {
         Action::Status => maintenance::Action::Status,

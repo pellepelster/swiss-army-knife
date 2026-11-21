@@ -8,7 +8,7 @@ import io.pelle.sak.e2e.util.Deployment
 import io.pelle.sak.e2e.util.LOCATION
 import io.pelle.sak.e2e.util.STAGING_CA
 import io.pelle.sak.e2e.util.SUBDOMAIN_ZONE
-import io.pelle.sak.e2e.util.Sakadm
+import io.pelle.sak.e2e.util.Sakadmin
 import io.pelle.sak.e2e.util.TestDeployments
 import io.pelle.sak.e2e.util.TestEnvironment
 import io.pelle.sak.e2e.util.UserMode
@@ -21,19 +21,19 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.extension.ExtendWith
 
-// the exit codes of sakadm (sak-admin-cli/src-tauri/src/core/error.rs)
+// the exit codes of sakadmin (sak-admin-cli/src-tauri/src/core/error.rs)
 private const val EXIT_OK = 0
 private const val EXIT_DOMAIN_TAKEN = 3
 private const val EXIT_MIXED_DNS_MODES = 4
 private const val EXIT_NOT_OWNED = 5
 
-// the rules of the command line of sakadm, on the shared deployments: what it refuses stops before
+// the rules of the command line of sakadmin, on the shared deployments: what it refuses stops before
 // anything is created, so none of these tests creates a server of its own
 @Tag("integration")
 @Order(4)
 @ExtendWith(TestDeployments::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class SakadmTest {
+class SakadminTest {
     private lateinit var environment: TestEnvironment
 
     @BeforeAll
@@ -42,24 +42,24 @@ class SakadmTest {
     }
 
     private fun create(
-        sakadm: Sakadm,
+        sakadmin: Sakadmin,
         name: String,
         dnsMode: String,
         rootDomain: String,
     ): Int =
-        sakadm.run("create", name, "--user-mode", "single", "--dns-mode", dnsMode, "--root-domain", rootDomain, "--location", LOCATION, *STAGING_CA)
+        sakadmin.run("create", name, "--user-mode", "single", "--dns-mode", dnsMode, "--root-domain", rootDomain, "--location", LOCATION, *STAGING_CA)
 
     @Test
     fun `a root domain has one domain deployment or only subdomain deployments`() {
         environment.single.requireCreated()
         environment.multi.requireCreated()
         val refused = testName()
-        val sakadm = environment.single.sakadm
+        val sakadmin = environment.single.sakadmin
         step("$DOMAIN_ZONE has the domain deployment ${environment.single.name}: a second one and a subdomain one are refused")
-        create(sakadm, refused, "domain", DOMAIN_ZONE) shouldBe EXIT_DOMAIN_TAKEN
-        create(sakadm, refused, "subdomain", DOMAIN_ZONE) shouldBe EXIT_MIXED_DNS_MODES
+        create(sakadmin, refused, "domain", DOMAIN_ZONE) shouldBe EXIT_DOMAIN_TAKEN
+        create(sakadmin, refused, "subdomain", DOMAIN_ZONE) shouldBe EXIT_MIXED_DNS_MODES
         step("$SUBDOMAIN_ZONE has the subdomain deployment ${environment.multi.name}: a domain one is refused")
-        create(sakadm, refused, "domain", SUBDOMAIN_ZONE) shouldBe EXIT_MIXED_DNS_MODES
+        create(sakadmin, refused, "domain", SUBDOMAIN_ZONE) shouldBe EXIT_MIXED_DNS_MODES
         environment.project.resources { it == refused }.shouldBeEmpty()
     }
 
@@ -71,13 +71,13 @@ class SakadmTest {
         step("creating an ssh key $keyName without labels, as a user of the project would")
         environment.project.createForeignSshKey(keyName)
         try {
-            val sakadm = environment.single.sakadm
+            val sakadmin = environment.single.sakadmin
             // a destroy finds the key by its name, but it has neither the name label nor the
             // password hash of the deployment
-            sakadm.run("destroy", name, "--delete-data", "--yes") shouldBe EXIT_NOT_OWNED
+            sakadmin.run("destroy", name, "--delete-data", "--yes") shouldBe EXIT_NOT_OWNED
             environment.project.sshKeyExists(keyName) shouldBe true
             // a create stops at the plan, before anything is created
-            create(sakadm, name, "subdomain", SUBDOMAIN_ZONE) shouldBe EXIT_NOT_OWNED
+            create(sakadmin, name, "subdomain", SUBDOMAIN_ZONE) shouldBe EXIT_NOT_OWNED
             environment.project.sshKeyExists(keyName) shouldBe true
             environment.project.resources { it == name }.shouldBeEmpty()
         } finally {
@@ -85,11 +85,11 @@ class SakadmTest {
         }
     }
 
-    // `config show` once it succeeds: sakadm asks the api through the dns of this machine, which can
+    // `config show` once it succeeds: sakadmin asks the api through the dns of this machine, which can
     // remember an older address of a new name for some minutes. The lines it printed
     private fun configShow(deployment: Deployment): List<String> {
         repeat(30) { attempt ->
-            val (exit, lines) = deployment.sakadm.output("config", "show", deployment.name)
+            val (exit, lines) = deployment.sakadmin.output("config", "show", deployment.name)
             if (exit == EXIT_OK) return lines
             step("config show ended with $exit, trying again in 10 s (${attempt + 1} of 30)", deployment)
             Thread.sleep(10_000)
@@ -123,7 +123,7 @@ class SakadmTest {
         val single = environment.single
         single.requireCreated()
         step("deploying again without --dns-mode, --root-domain and --user-mode, the playbook runs", single)
-        val (exit, lines) = single.sakadm.output("deploy", single.name)
+        val (exit, lines) = single.sakadmin.output("deploy", single.name)
         exit shouldBe EXIT_OK
         // the command line always forces the playbook, task by task
         lines.any { it.contains("[ok] ") || it.contains("[changed] ") } shouldBe true

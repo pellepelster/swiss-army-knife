@@ -24,7 +24,7 @@ pub const LABEL_NAMESPACE: &str = "sak.pelle.io";
 /// the name of the deployment, on every cloud resource of it
 pub const NAME_LABEL: &str = "sak.pelle.io/name";
 
-/// the hash of the password of a deployment, on every resource of it; sakadm checks a password
+/// the hash of the password of a deployment, on every resource of it; sakadmin checks a password
 /// against it before it changes a deployment
 pub const PASSWORD_HASH_LABEL: &str = "sak.pelle.io/password-hash";
 
@@ -37,11 +37,11 @@ pub const SSH_KEYS_LABEL: &str = "sak.pelle.io/ssh-keys";
 /// the hash of the user data (cloud-init) that a server was created with
 pub const USER_DATA_LABEL: &str = "sak.pelle.io/user-data";
 
-/// on the ssh key that sakadm creates and deletes to check a token; the next check removes a key a
+/// on the ssh key that sakadmin creates and deletes to check a token; the next check removes a key a
 /// check left
 pub const TOKEN_CHECK_LABEL: &str = "sak.pelle.io/token-check";
 
-/// whether the provisioners or sakadm keep the label on a resource in addition to the declared
+/// whether the provisioners or sakadmin keep the label on a resource in addition to the declared
 /// labels, chunks included
 pub fn is_managed_label(key: &str) -> bool {
     key.starts_with(SSH_KEYS_LABEL) || key.starts_with(USER_DATA_LABEL)
@@ -50,7 +50,7 @@ pub fn is_managed_label(key: &str) -> bool {
 /// the label diff without the managed and the info labels. The kinds of labels:
 ///
 /// - identity: the name and the password hash, checked by every lookup, compared; a label of none
-///   of these kinds, e.g. a setting an older sakadm wrote, is a change that deletes it
+///   of these kinds, e.g. a setting an older sakadmin wrote, is a change that deletes it
 /// - managed (`is_managed_label`): the hashes of the ssh keys and the user data, never compared
 /// - info (`Labeled::info`): the version, written with the other labels, never compared
 pub(crate) fn hetzner_label_diff(resource: &impl Labeled, runtime: &impl Labeled) -> Vec<DiffItem> {
@@ -98,7 +98,7 @@ mod label_kind_tests {
             ("sak.pelle.io/user-data_0", "abc"),
         ]);
         assert_eq!(hetzner_label_diff(&resource, &same), vec![]);
-        // no version yet: a resource of a sakadm before the label
+        // no version yet: a resource of a sakadmin before the label
         let before = live(&[(NAME_LABEL, "alpha"), (PASSWORD_HASH_LABEL, "hash")]);
         assert_eq!(hetzner_label_diff(&resource, &before), vec![]);
         // an identity label is compared
@@ -110,7 +110,7 @@ mod label_kind_tests {
                     .of_label()
             ]
         );
-        // a setting an older sakadm wrote as a label is deleted
+        // a setting an older sakadmin wrote as a label is deleted
         let older = live(&[
             (NAME_LABEL, "alpha"),
             (PASSWORD_HASH_LABEL, "hash"),

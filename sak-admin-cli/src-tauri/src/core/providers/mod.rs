@@ -1,4 +1,4 @@
-//! the providers sakadm creates resources at, each with the api token it is used with
+//! the providers sakadmin creates resources at, each with the api token it is used with
 
 pub mod hetzner;
 
@@ -77,7 +77,7 @@ impl fmt::Debug for ProviderToken {
     }
 }
 
-/// the valid tokens, held in memory as long as sakadm runs; they never go back to the ui,
+/// the valid tokens, held in memory as long as sakadmin runs; they never go back to the ui,
 /// only masked
 #[derive(Debug, Default)]
 pub struct ProviderTokens(Mutex<Vec<ProviderToken>>);

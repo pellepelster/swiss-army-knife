@@ -1,5 +1,5 @@
 //! `sak-backend` on the server of a deployment, the script of the role backend: its commands and
-//! what its exit codes mean, in one place for the backup, the restore and the maintenance. sakadm
+//! what its exit codes mean, in one place for the backup, the restore and the maintenance. sakadmin
 //! calls it through ssh (`ssh::run_streaming`); each line it writes to its standard error goes to
 //! the caller while it runs, its standard output carries the data of a backup or a json answer
 

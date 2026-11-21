@@ -1,4 +1,4 @@
-//! the async code the blocking code of sakadm waits for: the checks, the provisioning and the
+//! the async code the blocking code of sakadmin waits for: the checks, the provisioning and the
 //! command line run on threads that may block, the requests of the providers are async
 
 /// runs the future to its end on the runtime of this thread, else on a runtime of its own (the

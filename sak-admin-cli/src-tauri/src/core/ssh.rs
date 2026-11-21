@@ -1,7 +1,7 @@
 //! an ssh session as root on the server of a deployment, in a container of its own of the image of
 //! the tools. The private client key is never written and is in no environment: it goes to an
 //! ssh-agent in the container through the stdin of `ssh-add`; the session is a second `exec`, so it
-//! can have the terminal of sakadm. The host key derived from the password is the only known host,
+//! can have the terminal of sakadmin. The host key derived from the password is the only known host,
 //! so the server is verified, not trusted on first use. The container goes afterwards, also on a
 //! termination (`provision::stop_runs`) and when its `Sessions` are stopped. `run_streaming` runs
 //! a command with a stream instead of the terminal (backup, restore)
@@ -227,7 +227,11 @@ struct SessionContainer {
 
 impl SessionContainer {
     fn start(runtime: &str) -> Result<Self, String> {
-        let name = format!("sakadm-ssh-{}-{}", std::process::id(), random_hex::<16>()?);
+        let name = format!(
+            "sakadmin-ssh-{}-{}",
+            std::process::id(),
+            random_hex::<16>()?
+        );
         let sessions = track_session(runtime, &name);
         let container = SessionContainer {
             runtime: runtime.to_string(),
@@ -294,8 +298,8 @@ impl Drop for SessionContainer {
     }
 }
 
-/// the terminal sakadm runs in, also when its own input and output are pipes (a mise task, the dev
-/// runner of the window); none in a script and off unix, where the session takes the input of sakadm
+/// the terminal sakadmin runs in, also when its own input and output are pipes (a mise task, the dev
+/// runner of the window); none in a script and off unix, where the session takes the input of sakadmin
 fn controlling_terminal() -> Option<std::fs::File> {
     if cfg!(unix) {
         std::fs::OpenOptions::new()
@@ -308,8 +312,8 @@ fn controlling_terminal() -> Option<std::fs::File> {
     }
 }
 
-/// a session as root on the server in the terminal sakadm runs in, or `command` run on the server
-/// with the input and output of sakadm; the exit code of ssh
+/// a session as root on the server in the terminal sakadmin runs in, or `command` run on the server
+/// with the input and output of sakadmin; the exit code of ssh
 pub fn open_session(runtime: &str, target: &SshTarget, command: &[String]) -> Result<i32, String> {
     use std::io::IsTerminal;
     let container = SessionContainer::start(runtime)?;
@@ -330,7 +334,7 @@ pub fn open_session(runtime: &str, target: &SshTarget, command: &[String]) -> Re
         terminal,
         command,
     ));
-    // the session reads from and writes to the terminal itself, not to what sakadm was given
+    // the session reads from and writes to the terminal itself, not to what sakadmin was given
     if let Some(tty) = tty {
         let clone = |file: &std::fs::File| file.try_clone().map_err(|error| error.to_string());
         ssh.stdin(clone(&tty)?).stdout(clone(&tty)?).stderr(tty);
@@ -349,7 +353,7 @@ pub enum Stream<'a> {
 /// `command` on the server, without a terminal, its data through `stream`, each stderr line to
 /// `on_line`; answers the exit code of ssh. ssh joins the words of `command` with spaces into one
 /// shell line and quotes nothing: each word must need no quoting, or the whole command be one shell
-/// line. A stream that fails on the side of sakadm (a full disk, a backup that does not decrypt) is
+/// line. A stream that fails on the side of sakadmin (a full disk, a backup that does not decrypt) is
 /// the error, whatever the command answered
 pub fn run_streaming(
     runtime: &str,
@@ -418,7 +422,7 @@ pub(crate) mod tests {
     /// registers a session on this thread as `SessionContainer::start` does, without its
     /// container; its name
     pub(crate) fn start_session(runtime: &str) -> String {
-        let name = format!("sakadm-ssh-test-{}", random_hex::<8>().unwrap());
+        let name = format!("sakadmin-ssh-test-{}", random_hex::<8>().unwrap());
         track_session(runtime, &name);
         name
     }
@@ -489,27 +493,31 @@ pub(crate) mod tests {
         let sessions = Sessions::default();
         // a session of another command, and one outside any
         let other = Sessions::default();
-        other.run(|| track_session("true", "sakadm-ssh-other"));
-        assert!(track_session("true", "sakadm-ssh-outside").is_none());
+        other.run(|| track_session("true", "sakadmin-ssh-other"));
+        assert!(track_session("true", "sakadmin-ssh-outside").is_none());
         let mine = std::thread::scope(|scope| {
             scope
-                .spawn(|| sessions.run(|| track_session("true", "sakadm-ssh-mine")))
+                .spawn(|| sessions.run(|| track_session("true", "sakadmin-ssh-mine")))
                 .join()
                 .unwrap()
         });
         assert!(mine.is_some());
         // the thread forgets the sessions once the command is done
-        assert!(track_session("true", "sakadm-ssh-after").is_none());
+        assert!(track_session("true", "sakadmin-ssh-after").is_none());
 
         sessions.stop();
 
-        assert!(stopped("sakadm-ssh-mine"));
-        for name in ["sakadm-ssh-other", "sakadm-ssh-outside", "sakadm-ssh-after"] {
+        assert!(stopped("sakadmin-ssh-mine"));
+        for name in [
+            "sakadmin-ssh-other",
+            "sakadmin-ssh-outside",
+            "sakadmin-ssh-after",
+        ] {
             assert!(!stopped(name), "{name}");
         }
         // a session that starts after the stop is stopped at once
-        sessions.run(|| track_session("true", "sakadm-ssh-late"));
-        assert!(stopped("sakadm-ssh-late"));
+        sessions.run(|| track_session("true", "sakadmin-ssh-late"));
+        assert!(stopped("sakadmin-ssh-late"));
     }
 
     /// the integration tests (`mise run admin-cli:test:integration`), with docker and the image of the

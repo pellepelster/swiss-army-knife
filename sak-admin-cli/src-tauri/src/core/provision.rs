@@ -4,7 +4,7 @@
 //! The private client key is never written: it goes through the standard input to an ssh-agent
 //! in the container. The other files of a run go into a directory with a random name that only the
 //! user can read, mounted read-only. It goes when the run ends, is interrupted or the window
-//! closes; the next run removes one that a killed sakadm left
+//! closes; the next run removes one that a killed sakadmin left
 
 use crate::core::container::{self, ContainerRuntime};
 use crate::core::events::{AnsibleEvent, EVENTS_PATH, EventServer, task_name};
@@ -29,7 +29,7 @@ pub struct ProvisionRun {
     pub name: String,
     pub dns_mode: sak_cloud::hetzner::deployment::DnsMode,
     pub root_domain: String,
-    /// `sak_api_public_key`: the public half of the api key sakadm signs with, 32 bytes as base64
+    /// `sak_api_public_key`: the public half of the api key sakadmin signs with, 32 bytes as base64
     pub api_public_key: String,
     /// the public ipv4
     pub host: String,
@@ -85,7 +85,7 @@ impl ProvisionRun {
     }
 
     /// the inventory: the host, the variables, the fingerprints the last role writes as markers,
-    /// and the images by the digests sakadm verified (`pinned`, `core::images`). Every value is
+    /// and the images by the digests sakadmin verified (`pinned`, `core::images`). Every value is
     /// quoted as json, which yaml reads as a string. The images are no input of the fingerprints:
     /// the plan names them by their tags, without asking the registry
     fn inventory(&self, pinned: &[(&'static str, String)]) -> String {
@@ -553,8 +553,8 @@ impl Drop for RunDir {
     }
 }
 
-/// the start of the name of a run directory; the process id of its sakadm follows
-const RUN_PREFIX: &str = "sakadm-run-";
+/// the start of the name of a run directory; the process id of its sakadmin follows
+const RUN_PREFIX: &str = "sakadmin-run-";
 
 /// stops the containers of the runs and removes their directories, for when no `Drop` runs any
 /// more (a signal, a cancel, the window closes). A container not there yet is removed once it
@@ -648,7 +648,7 @@ pub fn stop_runs_on_signal() {
     });
 }
 
-/// removes the run directories that a killed sakadm left: the process id in their name names no
+/// removes the run directories that a killed sakadmin left: the process id in their name names no
 /// live process. Only on unix; elsewhere every process counts as alive
 fn remove_left_behind(base: &Path) {
     let Ok(entries) = std::fs::read_dir(base) else {
@@ -916,36 +916,36 @@ pub(crate) mod tests {
     #[test]
     fn a_run_stopped_before_its_container_is_there_is_marked_until_it_is_gone() {
         let dir = RunDir::create("true").unwrap();
-        track_container("true", "sakadm-ssh-test");
+        track_container("true", "sakadmin-ssh-test");
         assert!(!stopped(&dir.container));
         // what registered but has no container yet: the stop marks it
         stop_runs();
         assert!(stopped(&dir.container));
-        assert!(stopped("sakadm-ssh-test"));
+        assert!(stopped("sakadmin-ssh-test"));
         // a run that starts afterwards is not stopped
         let next = RunDir::create("true").unwrap();
         assert!(!stopped(&next.container));
         let container = dir.container.clone();
         drop(dir);
-        untrack_container("sakadm-ssh-test");
+        untrack_container("sakadmin-ssh-test");
         assert!(!stopped(&container));
-        assert!(!stopped("sakadm-ssh-test"));
+        assert!(!stopped("sakadmin-ssh-test"));
     }
 
     #[test]
     fn a_container_stopped_on_its_own_leaves_the_other_runs_going() {
         let dir = RunDir::create("true").unwrap();
-        track_container("true", "sakadm-ssh-one");
-        track_container("true", "sakadm-ssh-other");
+        track_container("true", "sakadmin-ssh-one");
+        track_container("true", "sakadmin-ssh-other");
 
-        stop_container("true", "sakadm-ssh-one");
+        stop_container("true", "sakadmin-ssh-one");
 
-        assert!(stopped("sakadm-ssh-one"));
-        assert!(!stopped("sakadm-ssh-other"));
+        assert!(stopped("sakadmin-ssh-one"));
+        assert!(!stopped("sakadmin-ssh-other"));
         assert!(!stopped(&dir.container));
         assert!(dir.path.exists());
-        untrack_container("sakadm-ssh-one");
-        untrack_container("sakadm-ssh-other");
+        untrack_container("sakadmin-ssh-one");
+        untrack_container("sakadmin-ssh-other");
     }
 
     #[cfg(unix)]
@@ -1003,7 +1003,7 @@ pub(crate) mod tests {
     #[test]
     fn a_run_dir_is_never_created_where_something_is() {
         let base = std::env::temp_dir().join(format!(
-            "sakadm-test-{}",
+            "sakadmin-test-{}",
             crate::core::encoding::random_hex::<16>().unwrap()
         ));
         std::fs::create_dir(&base).unwrap();
@@ -1022,9 +1022,9 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn a_run_dir_a_killed_sakadm_left_behind_goes_with_the_next_run() {
+    fn a_run_dir_a_killed_sakadmin_left_behind_goes_with_the_next_run() {
         let base = std::env::temp_dir().join(format!(
-            "sakadm-test-{}",
+            "sakadmin-test-{}",
             crate::core::encoding::random_hex::<16>().unwrap()
         ));
         std::fs::create_dir(&base).unwrap();

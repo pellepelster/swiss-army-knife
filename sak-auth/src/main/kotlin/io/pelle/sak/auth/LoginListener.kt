@@ -8,7 +8,7 @@ import kotlinx.coroutines.withContext
 
 private val logger = KotlinLogging.logger {}
 
-// called for each sign-in that issued a session, before the token is answered (not for sakadm);
+// called for each sign-in that issued a session, before the token is answered (not for sakadmin);
 // prepares the data of the owner (MODEL-5), e.g. the hidden list of the notes (NOTES-1), so it must
 // be idempotent. language is the one of the request, for data named in it
 fun interface LoginListener {

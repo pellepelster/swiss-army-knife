@@ -8,7 +8,7 @@ import com.microsoft.playwright.options.AriaRole
 // sign in by e-mail (the admin also with the password)
 enum class UserMode { SINGLE, MULTI }
 
-// a deployment the tests share (TestDeployments): what it is, how sakadm manages it, where its
+// a deployment the tests share (TestDeployments): what it is, how sakadmin manages it, where its
 // frontend is. Its server answers under its names at `ipv4`, the browser of the tests asks it there
 // directly (IntegrationBrowser)
 class Deployment(
@@ -18,9 +18,9 @@ class Deployment(
     val rootDomain: String,
     val password: String,
     val adminEmail: String,
-    val sakadm: Sakadm,
+    val sakadmin: Sakadmin,
 ) {
-    /** the exit code of `sakadm create`; the tests of a deployment that was not created fail */
+    /** the exit code of `sakadmin create`; the tests of a deployment that was not created fail */
     var created: Int = -1
 
     /** the public ipv4 of its server, once it is created */
@@ -34,7 +34,7 @@ class Deployment(
     override fun toString(): String = userMode.name.lowercase()
 
     fun requireCreated() {
-        check(created == 0) { "the $this deployment $name was not created (sakadm create ended with $created)" }
+        check(created == 0) { "the $this deployment $name was not created (sakadmin create ended with $created)" }
     }
 
     /** signs the admin in with the password and waits for the apps */

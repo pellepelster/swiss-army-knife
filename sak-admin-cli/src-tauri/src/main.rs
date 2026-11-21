@@ -1,12 +1,12 @@
 // no console window next to the app in windows release builds; there the commands of cli/
-// print nothing. The feature `console` builds the console program of windows, sakadm-cli.exe,
+// print nothing. The feature `console` builds the console program of windows, sakadmin-cli.exe,
 // whose commands print to the terminal they run in (admin-cli:build:windows)
 #![cfg_attr(
     all(not(debug_assertions), not(feature = "console")),
     windows_subsystem = "windows"
 )]
 
-//! sakadm: the window (gui) or, with a command as the first argument, the command line
+//! sakadmin: the window (gui) or, with a command as the first argument, the command line
 //! (cli), both on the same core
 
 // the texts of locales/, generated from `admin_cli` of i18n/texts.yml; english where a language has none

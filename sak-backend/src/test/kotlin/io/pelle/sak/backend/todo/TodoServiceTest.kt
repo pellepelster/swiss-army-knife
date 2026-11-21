@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import io.pelle.sak.api.Language
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -44,6 +45,21 @@ class TodoServiceTest {
         user: String,
         id: Int,
     ) = (service.setDone(user, id, done = true) as TodoItemResult.Saved).item
+
+    @Test
+    fun `a user who never had a list gets a private first list in their language at the sign-in, once (LIST-1)`() {
+        service.signedIn(PELLE, Language.DE)
+        service.signedIn(PELLE, Language.EN)
+        service.lists(PELLE).map { it.name to it.shared } shouldBe listOf("Meine Todos" to false)
+
+        // the shared lists of others do not count, a deleted list does not come back
+        list(OTHER, "Team", shared = true)
+        service.signedIn("third@example.org", Language.EN)
+        service.lists("third@example.org").map { it.name } shouldBe listOf("My Todos", "Team")
+        service.deleteList(PELLE, service.lists(PELLE).single { it.owner == PELLE }.id) shouldBe ListDelete.Deleted
+        service.signedIn(PELLE, Language.EN)
+        service.lists(PELLE).filter { it.owner == PELLE } shouldBe emptyList()
+    }
 
     @Test
     fun `a task is trimmed, in the order they were added, done it keeps its place until a purge`() {

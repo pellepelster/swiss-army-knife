@@ -55,6 +55,7 @@ describe('Home', () => {
       ['Notes', '/notes'],
       ['Grocery', '/grocery'],
       ['Todo', '/todo'],
+      ['Backups', '/backups'],
       ['Static hosting', '/static-hosting'],
       ['Redirects', '/redirects'],
     ]);
@@ -139,6 +140,7 @@ describe('Home', () => {
       ['Notes', '/notes'],
       ['Grocery', '/grocery'],
       ['Todo', '/todo'],
+      ['Backups', '/backups'],
       ['Static hosting', null],
       ['Redirects', null],
     ]);

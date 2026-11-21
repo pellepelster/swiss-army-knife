@@ -1,16 +1,16 @@
-# sak-backup
+# sakbackup
 
 A proposal: the backups of a deployment with [restic](https://restic.net), defined in one YAML file on the server.
-sak-backup reads it, runs restic for each backup on its schedule (systemd timers) and keeps the snapshots as the
+sakbackup reads it, runs restic for each backup on its schedule (systemd timers) and keeps the snapshots as the
 retention says. [`backup.example.yaml`](backup.example.yaml) is a complete example.
 
-It does not replace `sakadm backup` (`SAKADM-8`), the one file sakadm pulls through ssh. It adds backups the server
+It does not replace `sakadmin backup` (`SAKADM-8`), the one file sakadmin pulls through ssh. It adds backups the server
 makes on its own, to repositories the user chooses, without a machine of the user.
 
 ## The window
 
-`sak-backup` is a window for now (`src-tauri/`, `ui/`). It signs in at a SAK instance through the browser
-and shows the backups, the repositories and the snapshots on the left; they are empty for now. `mise run backup:run`
+`sakbackup` is a window for now (`src-tauri/`, `ui/`). It signs in at a SAK instance through the browser
+and shows the backup plans, the repositories and the snapshots on the left; they are empty for now. `mise run backup:run`
 runs it. The architecture is in [apps/BACKUP.md](../docs/development/architecture/apps/BACKUP.md).
 
 ## The file
@@ -36,7 +36,7 @@ A secret is never a value in the file, only where to read it:
 | Form             | Meaning                                                    |
 |------------------|------------------------------------------------------------|
 | `{ file: path }` | the content of the file, without the trailing newline      |
-| `{ env: NAME }`  | the environment variable of sak-backup                     |
+| `{ env: NAME }`  | the environment variable of sakbackup                     |
 
 A secret file must belong to root and be readable by root only, else the run fails before restic starts.
 
@@ -50,7 +50,7 @@ A secret file must belong to root and be readable by root only, else the run fai
 | `options`  | no       | a map of extended options                                                       | `-o key=value`                 |
 | `limits`   | no       | `upload`, `download` as a rate, e.g. `20MiB/s`                                  | `--limit-upload/-download` KiB |
 
-sak-backup initializes a repository that does not exist yet (`restic init`) on the first backup to it; an existing
+sakbackup initializes a repository that does not exist yet (`restic init`) on the first backup to it; an existing
 repository whose password does not match fails the run, it is never initialized again.
 
 ### Backup
@@ -99,16 +99,16 @@ Commands are argv lists, never a shell string. They get `SAK_BACKUP_NAME` (the n
 ## Restore
 
 The file defines backups only. A restore reads the same file for the repositories and their secrets:
-`sak-backup snapshots <backup>` lists the snapshots of a backup in each repository,
-`sak-backup restore <backup> <repository> [snapshot]` restores one (the newest without a snapshot) into a staging
-directory, and `sak-backend restore` takes the data from there as it does for a backup of sakadm: it checks the
+`sakbackup snapshots <backup>` lists the snapshots of a backup in each repository,
+`sakbackup restore <backup> <repository> [snapshot]` restores one (the newest without a snapshot) into a staging
+directory, and `sak-backend restore` takes the data from there as it does for a backup of sakadmin: it checks the
 database and the version, stops the deployment, replaces the data and starts it again.
 
 ## Open questions
 
 - `sak-backend stage` and `unstage` do not exist yet: the copy `sak-backend backup` makes before it builds its archive,
   split off, so both backups share it.
-- Who writes the file: ansible from settings of the deployment (then sakadm needs a place for the repositories and
+- Who writes the file: ansible from settings of the deployment (then sakadmin needs a place for the repositories and
   their secrets), or the user on the server.
 - Whether the repository password is derived from the password of the deployment like the other keys
   (`SAKADM-3`), so a lost server does not lose the way to the backups.

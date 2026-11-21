@@ -29,7 +29,7 @@ class NoteRepositoryTest {
 
     // the list of the owner, the one they get when they sign in
     private fun list(owner: String): Int {
-        repository.ensureList(owner, DEFAULT_LIST)
+        repository.ensureList(owner, FIRST_LIST)
         return repository.ownList(owner)!!
     }
 
@@ -212,8 +212,8 @@ class NoteRepositoryTest {
     @Test
     fun `a user without a list gets one, private and only once, a user with a list gets none`() {
         repository.ownList("pelle@pelle.io") shouldBe null
-        repository.ensureList("pelle@pelle.io", DEFAULT_LIST)
-        repository.ensureList("pelle@pelle.io", DEFAULT_LIST)
+        repository.ensureList("pelle@pelle.io", FIRST_LIST)
+        repository.ensureList("pelle@pelle.io", FIRST_LIST)
         val first = repository.ownList("pelle@pelle.io")!!
         database.dsl
             .insertInto(NOTE_LISTS)
@@ -222,7 +222,7 @@ class NoteRepositoryTest {
             .set(NOTE_LISTS.SHARED, false)
             .set(NOTE_LISTS.CREATED_AT, now)
             .execute()
-        repository.ensureList("other@example.org", DEFAULT_LIST)
+        repository.ensureList("other@example.org", FIRST_LIST)
 
         repository.insert("pelle@pelle.io", first, "milk", "yellow", emptySet(), emptyList()).listId shouldBe first
         database.dsl
@@ -230,7 +230,16 @@ class NoteRepositoryTest {
             .from(NOTE_LISTS)
             .orderBy(NOTE_LISTS.ID)
             .fetch { listOf(it.value1(), it.value2(), it.value3()) } shouldBe
-            listOf(listOf("pelle@pelle.io", DEFAULT_LIST, false), listOf("other@example.org", "Ideas", false))
+            listOf(listOf("pelle@pelle.io", FIRST_LIST, false), listOf("other@example.org", "Ideas", false))
+    }
+
+    @Test
+    fun `a user whose list was deleted gets no new one (LIST-1)`() {
+        repository.ensureList("pelle@pelle.io", FIRST_LIST)
+        database.dsl.update(NOTE_LISTS).set(NOTE_LISTS.DELETED_AT, now).execute()
+        repository.ensureList("pelle@pelle.io", FIRST_LIST)
+
+        repository.ownList("pelle@pelle.io") shouldBe null
     }
 
     @Test
@@ -240,7 +249,7 @@ class NoteRepositoryTest {
             database.dsl
                 .insertInto(NOTE_LISTS)
                 .set(NOTE_LISTS.OWNER, "pelle@pelle.io")
-                .set(NOTE_LISTS.NAME, DEFAULT_LIST)
+                .set(NOTE_LISTS.NAME, FIRST_LIST)
                 .set(NOTE_LISTS.SHARED, false)
                 .set(NOTE_LISTS.CREATED_AT, now)
                 .execute()
@@ -249,3 +258,5 @@ class NoteRepositoryTest {
         insertDefault() shouldBe 1
     }
 }
+
+private const val FIRST_LIST = "My Notes"

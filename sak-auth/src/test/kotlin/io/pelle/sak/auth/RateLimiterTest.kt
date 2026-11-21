@@ -24,6 +24,20 @@ class RateLimiterTest {
 
     // a host has a /64 of IPv6 addresses, it counts as one client
     @Test
+    fun `exhausted tells a key used up, without counting an event`() {
+        val clock = MutableClock()
+        val limiter = RateLimiter(2, Duration.ofHours(1), clock)
+        limiter.exhausted("a") shouldBe false
+        limiter.tryAcquire("a") shouldBe true
+        limiter.exhausted("a") shouldBe false
+        limiter.tryAcquire("a") shouldBe true
+        limiter.exhausted("a") shouldBe true
+        limiter.exhausted("b") shouldBe false
+        clock.advance(Duration.ofHours(2))
+        limiter.exhausted("a") shouldBe false
+    }
+
+    @Test
     fun `counts an IPv6 client by its network of 64 bits, an IPv4 client by its address`() {
         clientNetwork("2001:db8:1:2:aaaa:bbbb:cccc:dddd") shouldBe "2001:db8:1:2::/64"
         clientNetwork("2001:db8:1:2::1") shouldBe "2001:db8:1:2::/64"

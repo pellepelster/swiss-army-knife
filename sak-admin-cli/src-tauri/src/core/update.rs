@@ -1,8 +1,8 @@
-//! the update of sakadm to the newest release on github. Only on request: github sees the address
+//! the update of sakadmin to the newest release on github. Only on request: github sees the address
 //! of the machine (architecture/SYSTEM.md, "Privacy"), so the ui names it (`RECEIVER`) before it
 //! asks. The zip is checked against the sha-256 of the release and its cosign signature by the
 //! release workflow at the tag (`signer`), offline against the trusted root of sigstore built into
-//! sakadm, so no host but github sees the update. A build that is no release (`latest`) asks
+//! sakadmin, so no host but github sees the update. A build that is no release (`latest`) asks
 //! nothing
 
 use crate::core::VERSION;
@@ -43,12 +43,12 @@ fn platform() -> String {
     }
 }
 
-/// the binaries in the zip, the update replaces all: on windows the window (sakadm.exe, without a
-/// console) and the command line (sakadm-cli.exe, the feature `console`)
+/// the binaries in the zip, the update replaces all: on windows the window (sakadmin.exe, without a
+/// console) and the command line (sakadmin-cli.exe, the feature `console`)
 #[cfg(windows)]
-const BINARIES: &[&str] = &["sakadm.exe", "sakadm-cli.exe"];
+const BINARIES: &[&str] = &["sakadmin.exe", "sakadmin-cli.exe"];
 #[cfg(not(windows))]
-const BINARIES: &[&str] = &["sakadm"];
+const BINARIES: &[&str] = &["sakadmin"];
 
 /// the binary of the zip that runs: by the name of this program, the first when it was renamed
 fn running() -> &'static str {
@@ -133,7 +133,7 @@ pub async fn check() -> Result<Status, String> {
     Updater::github().check().await
 }
 
-/// replaces this sakadm with the newest release when it is newer; it runs from the next start
+/// replaces this sakadmin with the newest release when it is newer; it runs from the next start
 pub async fn install() -> Result<Status, String> {
     Updater::github()
         .install(&|binary| self_replace::self_replace(binary))
@@ -315,7 +315,7 @@ fn status(current: &Version, newest: &Version) -> Status {
 /// sends the download of an asset
 fn client(https_only: bool) -> Result<Client, String> {
     Client::builder()
-        .user_agent(concat!("sakadm/", env!("SAK_VERSION")))
+        .user_agent(concat!("sakadmin/", env!("SAK_VERSION")))
         .timeout(Duration::from_secs(300))
         .redirect(Policy::custom(follow_to_github))
         .https_only(https_only)
@@ -378,7 +378,7 @@ fn verify_signature(
 }
 
 /// the certificate for `identity` of `issuer`, the signature and the entry in the transparency
-/// log, all against the trusted root of sigstore built into sakadm
+/// log, all against the trusted root of sigstore built into sakadmin
 fn verify_signed_by(
     zip: &[u8],
     bundle: &[u8],
@@ -427,7 +427,7 @@ fn write_and_replace(
     replace: &(dyn Fn(&Path) -> std::io::Result<()> + Sync),
 ) -> Result<(), String> {
     let path = std::env::temp_dir().join(format!(
-        "sakadm-update-{}",
+        "sakadmin-update-{}",
         crate::core::encoding::random_hex::<16>()?
     ));
     let result = (|| {
@@ -614,7 +614,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_update_replaces_the_binary_with_the_one_of_the_zip() {
-        let zip = zip_of(BINARIES[0], b"the new sakadm");
+        let zip = zip_of(BINARIES[0], b"the new sakadmin");
         let checksum = sha256_of(&zip);
         let server = github("v0.2.0", zip, &checksum).await;
         let replaced = Mutex::new(Vec::new());
@@ -628,11 +628,14 @@ mod tests {
                 newest: "0.2.0".into()
             })
         );
-        assert_eq!(*replaced.lock().unwrap(), vec![b"the new sakadm".to_vec()]);
+        assert_eq!(
+            *replaced.lock().unwrap(),
+            vec![b"the new sakadmin".to_vec()]
+        );
     }
 
     #[tokio::test]
-    async fn an_up_to_date_sakadm_downloads_nothing() {
+    async fn an_up_to_date_sakadmin_downloads_nothing() {
         let server = github("v0.1.1", Vec::new(), "").await;
         let replaced = Mutex::new(Vec::new());
         let status = updater(&server, "0.1.1")
@@ -651,7 +654,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_wrong_checksum_or_a_zip_without_the_binary_replaces_nothing() {
-        let wrong = zip_of(BINARIES[0], b"the new sakadm");
+        let wrong = zip_of(BINARIES[0], b"the new sakadmin");
         let without = zip_of("README", b"no binary");
         for (zip, checksum) in [
             (wrong.clone(), sha256_of(b"something else")),
@@ -669,7 +672,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_zip_without_the_signature_of_the_release_workflow_replaces_nothing() {
-        let zip = zip_of(BINARIES[0], b"the new sakadm");
+        let zip = zip_of(BINARIES[0], b"the new sakadmin");
         let checksum = sha256_of(&zip);
         let server = github_signed("v0.2.0", zip, &checksum, b"signed by someone else").await;
         let replaced = Mutex::new(Vec::new());
@@ -740,9 +743,9 @@ mod tests {
     }
 
     /// the release verifies what it signed with cosign against this file (`mise run admin-cli:release`,
-    /// `image:sign`), so a root of sigstore that cosign knows and sakadm does not fails there
+    /// `image:sign`), so a root of sigstore that cosign knows and sakadmin does not fails there
     #[test]
-    fn the_trusted_root_of_the_repository_is_the_one_sakadm_embeds() {
+    fn the_trusted_root_of_the_repository_is_the_one_sakadmin_embeds() {
         assert_eq!(
             include_str!("../../trusted_root.json"),
             sigstore_verify::trust_root::SIGSTORE_PRODUCTION_TRUSTED_ROOT,
@@ -817,11 +820,11 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             error,
-            "https://example.org/sak-admin-cli.zip is no address of github, sakadm downloads from github only."
+            "https://example.org/sak-admin-cli.zip is no address of github, sakadmin downloads from github only."
         );
         assert_eq!(
             to_github("https://github.com.example.org/x"),
-            Err("https://github.com.example.org/x is no address of github, sakadm downloads from github only.".into())
+            Err("https://github.com.example.org/x is no address of github, sakadmin downloads from github only.".into())
         );
         assert_eq!(to_github("https://objects.githubusercontent.com/x"), Ok(()));
         assert_eq!(to_github(API), Ok(()));

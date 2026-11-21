@@ -4,7 +4,7 @@ import com.microsoft.playwright.Page
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.AriaRole
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.e2e.util.Sakadm
+import io.pelle.sak.e2e.util.Sakadmin
 import io.pelle.sak.e2e.util.TestDeployments
 import io.pelle.sak.e2e.util.TestEnvironment
 import io.pelle.sak.e2e.util.step
@@ -47,8 +47,8 @@ class UserModeTest {
 
         step("deploying again as multi user, the admin $adminEmail, the mail server of the sandbox", single)
         // the user and the password at the mail server, never arguments
-        val sakadm = Sakadm(environment.token, single.password, environment.smtpEnvironment, prefix = "[${single.name}] ")
-        sakadm.run(
+        val sakadmin = Sakadmin(environment.token, single.password, environment.smtpEnvironment, prefix = "[${single.name}] ")
+        sakadmin.run(
             "deploy",
             single.name,
             "--user-mode",

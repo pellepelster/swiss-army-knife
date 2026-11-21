@@ -370,7 +370,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description A signed request of sakadm, which has no session to connect */
+        /** @description A signed request of sakadmin, which has no session to connect */
         403: {
           headers: {
             [name: string]: unknown;
@@ -3893,6 +3893,382 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/restic/plans': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The backup plans of restic
+     * @description The backup plans of the signed in user, of every computer, by name.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Where the page starts in the whole list, 0 by default */
+          offset?: number;
+          /** @description How many items the page has at most, 50 by default and 100 at most */
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description A page of the backup plans */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: components['schemas']['ResticBackupPlanResponse'][];
+              pagination: components['schemas']['PaginationResponse'];
+            };
+          };
+        };
+        /** @description An invalid page */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /**
+     * Create a backup plan of restic
+     * @description A repository of the user and the absolute paths of one computer, named by its host name.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ResticBackupPlanRequest'];
+        };
+      };
+      responses: {
+        /** @description The new backup plan */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticBackupPlanResponse'];
+          };
+        };
+        /** @description An invalid name, host or path, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user has a backup plan of the name */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The repository is none of the user */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/restic/plans/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** A backup plan of restic */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the backup plan */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The backup plan */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticBackupPlanResponse'];
+          };
+        };
+        /** @description The user has no such backup plan */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    /**
+     * Change a backup plan of restic
+     * @description Replaces all values of a backup plan of the user, its paths as a whole.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the backup plan */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ResticBackupPlanRequest'];
+        };
+      };
+      responses: {
+        /** @description The changed backup plan */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticBackupPlanResponse'];
+          };
+        };
+        /** @description An invalid name, host or path, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user has no such backup plan */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user has another backup plan of the name */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The repository is none of the user */
+        422: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/restic/repositories': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The repositories of restic
+     * @description The repositories of the signed in user, by name, with the bytes they take, without their tokens.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /** @description Where the page starts in the whole list, 0 by default */
+          offset?: number;
+          /** @description How many items the page has at most, 50 by default and 100 at most */
+          limit?: number;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description A page of the repositories */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': {
+              items: components['schemas']['ResticRepositoryResponse'][];
+              pagination: components['schemas']['PaginationResponse'];
+            };
+          };
+        };
+        /** @description An invalid page */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    /**
+     * Create a repository of restic
+     * @description A repository the instance keeps and serves with the REST protocol of restic, with a new token as its only login. restic initializes it (restic init) with a password the instance never gets.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['ResticRepositoryRequest'];
+        };
+      };
+      responses: {
+        /** @description The new repository */
+        201: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticRepositoryResponse'];
+          };
+        };
+        /** @description An invalid name, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user has a repository of the name */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/restic/repositories/{id}/token': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The token of a repository of restic
+     * @description The only login of the REST backend of the repository: the password of the user named like its id.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the repository */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The token */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ResticTokenResponse'];
+          };
+        };
+        /** @description The user has no such repository */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/users': {
     parameters: {
       query?: never;
@@ -4571,7 +4947,7 @@ export interface paths {
     };
     /**
      * The settings of the deployment
-     * @description The name, the dns mode, the root domain, the user mode, the admin, the mail server with its password and the acme ca the deployment runs with, so sakadm can deploy it again with them. Only for a request signed by sakadm, no session.
+     * @description The name, the dns mode, the root domain, the user mode, the admin, the mail server with its password and the acme ca the deployment runs with, so sakadmin can deploy it again with them. Only for a request signed by sakadmin, no session.
      */
     get: {
       parameters: {
@@ -4996,6 +5372,49 @@ export interface components {
     /** TodoDoneRequest */
     TodoDoneRequest: {
       done: boolean;
+    };
+    /** ResticBackupPlanResponse */
+    ResticBackupPlanResponse: {
+      id: number;
+      name: string;
+      repositoryId: number;
+      host: string;
+      paths: string[];
+      createdAt: string;
+      updatedAt?: string | null;
+      keepLast?: number | null;
+      keepDaily?: number | null;
+      keepWeekly?: number | null;
+      keepMonthly?: number | null;
+      keepYearly?: number | null;
+    };
+    /** ResticBackupPlanRequest */
+    ResticBackupPlanRequest: {
+      name: string;
+      repositoryId: number;
+      host: string;
+      paths: string[];
+      keepLast?: number | null;
+      keepDaily?: number | null;
+      keepWeekly?: number | null;
+      keepMonthly?: number | null;
+      keepYearly?: number | null;
+    };
+    /** ResticRepositoryResponse */
+    ResticRepositoryResponse: {
+      id: number;
+      name: string;
+      url: string;
+      size: number;
+      createdAt: string;
+    };
+    /** ResticRepositoryRequest */
+    ResticRepositoryRequest: {
+      name: string;
+    };
+    /** ResticTokenResponse */
+    ResticTokenResponse: {
+      token: string;
     };
     /** UserResponse */
     UserResponse: {

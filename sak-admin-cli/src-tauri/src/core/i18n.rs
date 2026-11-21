@@ -1,7 +1,7 @@
 use rust_i18n::t;
 use std::sync::OnceLock;
 
-/// which of the two sakadm is: the command line or the window. A text of core that tells the user
+/// which of the two sakadmin is: the command line or the window. A text of core that tells the user
 /// what to do next says it the way of the one that runs (`hint`)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Frontend {
@@ -11,7 +11,7 @@ pub enum Frontend {
 
 static FRONTEND: OnceLock<Frontend> = OnceLock::new();
 
-/// sets the frontend, once, when sakadm starts; without, the command line
+/// sets the frontend, once, when sakadmin starts; without, the command line
 pub fn set_frontend(frontend: Frontend) {
     let _ = FRONTEND.set(frontend);
 }
@@ -49,64 +49,18 @@ pub fn hint(hint: Hint) -> String {
 
 /// sets the language of the texts: the one of the system when there are texts for it, else english
 pub fn init() {
-    rust_i18n::set_locale(&select_locale(sys_locale::get_locale()));
-}
-
-fn select_locale(system: Option<String>) -> String {
-    sak_desktop_shared::i18n::select_locale(system, &rust_i18n::available_locales!())
+    sak_desktop_shared::i18n::init_locale(&rust_i18n::available_locales!());
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use rust_i18n::t;
-    use std::collections::BTreeSet;
 
-    fn keys(locale: &str) -> BTreeSet<String> {
-        crate::_rust_i18n_backend()
-            .messages_for_locale(locale)
-            .unwrap_or_default()
-            .into_iter()
-            .map(|(key, _)| key.to_string())
-            .collect()
-    }
+    sak_desktop_shared::locale_tests!();
 
-    #[test]
-    fn every_locale_has_the_texts_of_english() {
-        let english = keys("en");
-        assert!(!english.is_empty());
-        for locale in rust_i18n::available_locales!() {
-            assert_eq!(keys(&locale), english, "the texts of {locale}");
-        }
-    }
-
-    /// a text of another language fills the same values as the english one, no more and no less
-    #[test]
-    fn every_text_has_the_placeholders_of_english() {
-        let placeholders = |text: &str| -> BTreeSet<String> {
-            text.split("%{")
-                .skip(1)
-                .filter_map(|rest| rest.split_once('}').map(|(name, _)| name.to_string()))
-                .collect()
-        };
-        let texts = |locale: &str| -> std::collections::BTreeMap<String, String> {
-            crate::_rust_i18n_backend()
-                .messages_for_locale(locale)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|(key, text)| (key.to_string(), text.to_string()))
-                .collect()
-        };
-        let english = texts("en");
-        for locale in rust_i18n::available_locales!() {
-            for (key, text) in texts(&locale) {
-                assert_eq!(
-                    placeholders(&text),
-                    placeholders(&english[&key]),
-                    "{key} in {locale}"
-                );
-            }
-        }
+    fn keys(locale: &str) -> std::collections::BTreeSet<String> {
+        sak_desktop_shared::i18n::keys(crate::_rust_i18n_backend(), locale)
     }
 
     #[test]
@@ -140,19 +94,6 @@ mod tests {
         }
         // the command line names its argument, before a frontend is set
         assert!(hint(Hint::UserMode).contains("--user-mode"));
-    }
-
-    #[test]
-    fn the_language_of_the_system_is_selected() {
-        assert_eq!(select_locale(Some("de-DE".to_string())), "de");
-        assert_eq!(select_locale(Some("de_AT.UTF-8".to_string())), "de");
-        assert_eq!(select_locale(Some("en-US".to_string())), "en");
-    }
-
-    #[test]
-    fn english_is_selected_without_texts_for_the_system() {
-        assert_eq!(select_locale(Some("fr-FR".to_string())), "en");
-        assert_eq!(select_locale(None), "en");
     }
 
     #[test]

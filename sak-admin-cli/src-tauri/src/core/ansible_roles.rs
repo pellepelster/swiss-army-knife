@@ -3,7 +3,7 @@
 //! reads the markers of the roles (`core::roles`): a server that changes in this run, a server
 //! without markers and a role whose marker is not its fingerprint need a run. Its apply runs the
 //! playbook in the image of the tools (`core::provision`). Nothing to destroy: the markers go with
-//! the server. sakadm declares it, sak-cloud does not know ansible
+//! the server. sakadmin declares it, sak-cloud does not know ansible
 
 use crate::core::container::ContainerRuntime;
 use crate::core::deployments::DeploymentEvent;

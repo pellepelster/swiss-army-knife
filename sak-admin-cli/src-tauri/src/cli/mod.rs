@@ -1,4 +1,4 @@
-//! The command line of sakadm. A command as the first argument (`args::Command`, `sakadm --help`)
+//! The command line of sakadmin. A command as the first argument (`args::Command`, `sakadmin --help`)
 //! runs without a window, on the same core and texts as the window. This module only parses the
 //! arguments and prints. The Hetzner token comes from HCLOUD_TOKEN or is typed
 //! (`--hcloud-token`). The name and the location of a deployment come from the argument or from
@@ -25,7 +25,7 @@ use crate::core::deployments::{
     SMTP_PASSWORD_VARIABLE, SMTP_PORT_VARIABLE, SMTP_STARTTLS_VARIABLE, SMTP_USERNAME_VARIABLE,
     Smtp, TaskOutcome, USER_MODE_VARIABLE, UserMode, Working, key, parse_flag,
 };
-use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, SakadmError};
+use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, SakadminError};
 use crate::core::providers::ProviderType;
 use crate::core::update::{self, RECEIVER, Status};
 use anstyle::{AnsiColor, Style};
@@ -44,16 +44,8 @@ use std::collections::HashMap;
 use std::fmt::Display;
 use std::io::IsTerminal;
 
-/// whether the arguments ask for the command line: a word (a command, a mistyped one too, which
-/// clap answers with its usage error), help or the version as the first argument. Nothing, or
-/// another flag (what a desktop passes, e.g. `-psn_…` on macOS), opens the window
-pub fn is_command_line(args: &[String]) -> bool {
-    match args.first().map(String::as_str) {
-        Some("--help" | "-h" | "--version" | "-V") => true,
-        Some(first) => !first.starts_with('-'),
-        None => false,
-    }
-}
+// whether the arguments ask for the command line, as for every desktop app
+pub use sak_desktop_shared::cli::is_command_line;
 
 /// runs the command and gives the exit code of the process
 pub fn run(command: Command) -> i32 {
@@ -66,10 +58,10 @@ pub fn run(command: Command) -> i32 {
         Command::Mail(MailCommand::Test(args)) => tauri::async_runtime::block_on(mail_test(args)),
         Command::Project(command) => {
             // `ssh` passes on the exit code of the command on the server, so a failure of
-            // sakadm itself is 255, as ssh has it, and never one of the codes of the table
+            // sakadmin itself is 255, as ssh has it, and never one of the codes of the table
             let remote = matches!(command, ProjectCommand::Ssh { .. });
             tauri::async_runtime::block_on(execute(command)).map_err(|error| match remote {
-                true => SakadmError::new(error.message, crate::core::ssh::SSH_FAILED),
+                true => SakadminError::new(error.message, crate::core::ssh::SSH_FAILED),
                 false => error,
             })
         }
@@ -83,9 +75,9 @@ pub fn run(command: Command) -> i32 {
     }
 }
 
-/// compares sakadm with the newest release on github.com and, unless `check`, installs a newer one.
+/// compares sakadmin with the newest release on github.com and, unless `check`, installs a newer one.
 /// With `check` a newer release ends with `EXIT_UPDATE_AVAILABLE`
-async fn update(check: bool) -> Result<i32, SakadmError> {
+async fn update(check: bool) -> Result<i32, SakadminError> {
     if !update::is_release() {
         log(Level::Info, Status::NoRelease.message());
         return Ok(EXIT_OK);
@@ -159,7 +151,7 @@ async fn check(provider: &HetznerToken) -> Result<ContainerRuntime, String> {
 }
 
 /// the command; its exit code is `EXIT_OK`, or for `ssh` the one of the command on the server
-async fn execute(command: ProjectCommand) -> Result<i32, SakadmError> {
+async fn execute(command: ProjectCommand) -> Result<i32, SakadminError> {
     let manager = DeploymentManager;
     let needs = command.needs();
     // asked before the checks, because they take some time

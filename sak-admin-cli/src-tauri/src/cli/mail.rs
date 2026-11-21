@@ -1,4 +1,4 @@
-//! `sakadm mail test`: a test e-mail with the mail server of a deployment, or with one given only
+//! `sakadmin mail test`: a test e-mail with the mail server of a deployment, or with one given only
 //! by its flags before a create, the same one the window sends (`core::smtp`)
 
 use super::*;
@@ -7,7 +7,7 @@ use crate::core::smtp::{TestMail, send_test};
 
 /// sends the test e-mail; a deployment gives its mail server, its sender and its root domain, the
 /// flags change what they name
-pub(super) async fn mail_test(args: MailTestArgs) -> Result<i32, SakadmError> {
+pub(super) async fn mail_test(args: MailTestArgs) -> Result<i32, SakadminError> {
     let smtp_password = smtp_password(args.smtp.smtp_password, smtp_password_variable())?;
     let detected = match &args.name {
         Some(name) => {
@@ -64,7 +64,7 @@ pub(super) fn mail_server(
     args: &MailTestArgs,
     detected: Option<&DetectedSmtp>,
     smtp_password: &str,
-) -> Result<Smtp, SakadmError> {
+) -> Result<Smtp, SakadminError> {
     let flags = &args.smtp;
     let base = match (&flags.smtp_host, detected) {
         (Some(host), _) => Smtp {
@@ -88,7 +88,7 @@ pub(super) fn mail_server(
                 Some(name) => t!("cli.mail.no_smtp", name = name),
                 None => t!("cli.mail.no_host"),
             };
-            return Err(SakadmError::new(key, EXIT_USAGE));
+            return Err(SakadminError::new(key, EXIT_USAGE));
         }
     };
     Ok(Smtp {

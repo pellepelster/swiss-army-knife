@@ -1,7 +1,7 @@
 ---
-# the server of a deployment as sakadm creates it: reached as soon as it accepts ssh, then the
+# the server of a deployment as sakadmin creates it: reached as soon as it accepts ssh, then the
 # base setup, the data volume and the backend (sak-backend, caddy, the logs) with the
-# configuration and backend.env sakadm hands over. The markers of the roles go first and come
+# configuration and backend.env sakadmin hands over. The markers of the roles go first and come
 # back last (role_markers), so only a run that succeeded leaves them
 - name: Provision the server of a deployment
   hosts: all

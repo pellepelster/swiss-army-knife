@@ -3,7 +3,7 @@
 //! answers as json on stdout; each line of its stderr goes to the caller while it runs
 
 use crate::core::deployments::DeploymentManager;
-use crate::core::error::SakadmError;
+use crate::core::error::SakadminError;
 use crate::core::providers::ProviderType;
 use crate::core::sak_backend;
 use crate::core::ssh::{Sessions, SshTarget};
@@ -245,7 +245,7 @@ pub async fn perform(
     password: &str,
     action: Action,
     on_line: impl FnMut(String) + Send + Clone + 'static,
-) -> Result<Answer, SakadmError> {
+) -> Result<Answer, SakadminError> {
     let target = Arc::new(manager.ssh_target(tokens.clone(), name, password).await?);
     let runtime = container
         .get()
@@ -309,7 +309,7 @@ async fn restart(
     runtime: &'static str,
     target: Arc<SshTarget>,
     mut on_server: impl FnMut(String) + Send + 'static,
-) -> Result<Answer, SakadmError> {
+) -> Result<Answer, SakadminError> {
     Ok(Answer::RestartServices(
         limited(RESTART_TIMEOUT, move || {
             restart_services(runtime, &target, &mut on_server)
@@ -331,7 +331,7 @@ async fn reboot_and_wait(
     if_pending: bool,
     wait: bool,
     on_line: impl FnMut(String) + Send + Clone + 'static,
-) -> Result<Answer, SakadmError> {
+) -> Result<Answer, SakadminError> {
     let mut on_server = on_line.clone();
     let reboot = limited(REBOOT_TIMEOUT, move || {
         reboot(runtime, &target, if_pending, &mut on_server)
@@ -509,7 +509,7 @@ async fn wait_after_reboot(
     name: &str,
     password: &str,
     on_line: &mut (dyn FnMut(String) + Send),
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let endpoint = manager.public_endpoint(tokens, name, password).await?;
     // the server goes down some seconds after the answer; before that it answers no request,
     // the ingress stopped first
@@ -743,7 +743,7 @@ mod tests {
     async fn a_timeout_stops_the_session_of_its_command_not_another_run() {
         use crate::core::provision::{stopped, track_container};
         // a provisioning at the same time
-        track_container("true", "sakadm-run-other");
+        track_container("true", "sakadmin-run-other");
         let (started, session) = std::sync::mpsc::channel();
 
         let late = limited(Duration::from_millis(50), move || {
@@ -758,6 +758,6 @@ mod tests {
         assert!(late.is_err());
         let session = session.recv().unwrap();
         assert!(stopped(&session));
-        assert!(!stopped("sakadm-run-other"));
+        assert!(!stopped("sakadmin-run-other"));
     }
 }

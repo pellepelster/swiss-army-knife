@@ -48,7 +48,7 @@ pub fn acme_directory(ca: AcmeCa) -> Option<&'static str> {
     }
 }
 
-/// the roots sakadm trusts when it talks to a deployment with certificates of `ca`
+/// the roots sakadmin trusts when it talks to a deployment with certificates of `ca`
 pub fn acme_trust(ca: AcmeCa) -> crate::core::config::Trust {
     match ca {
         AcmeCa::Production => crate::core::config::Trust::Public,
@@ -78,7 +78,7 @@ pub struct Smtp {
     #[serde(default = "default_starttls")]
     pub starttls: bool,
     /// the sender of the mails, empty for noreply@<root domain> (`sender`); none in the settings
-    /// an older sakadm kept
+    /// an older sakadmin kept
     #[serde(default)]
     pub from: String,
 }
@@ -295,10 +295,10 @@ pub struct DeploymentRequest {
 /// a name trimmed: 1 to MAX_NAME_LEN lower case letters, digits and dashes, so hetzner and dns
 /// take it with the prefix and suffix of the cloud names. The only check of a name; a wrong name is
 /// a usage error (`EXIT_USAGE`)
-pub fn checked_name(name: &str) -> Result<&str, SakadmError> {
+pub fn checked_name(name: &str) -> Result<&str, SakadminError> {
     let name = name.trim();
     check_name(name).map_err(|_| {
-        SakadmError::new(
+        SakadminError::new(
             t!("common.deployments.invalid_name", max = MAX_NAME_LEN),
             EXIT_USAGE,
         )

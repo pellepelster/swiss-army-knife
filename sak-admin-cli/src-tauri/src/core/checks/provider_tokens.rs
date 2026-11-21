@@ -3,7 +3,7 @@ use crate::core::providers::ProviderType;
 use crate::core::runtime::block_on;
 use rust_i18n::t;
 
-/// the provider tokens given to sakadm, each validated and given back, named by where it came
+/// the provider tokens given to sakadmin, each validated and given back, named by where it came
 /// from: for the window the variables that are set (e.g. HCLOUD_TOKEN), for the command line
 /// HCLOUD_TOKEN or the terminal
 pub struct ProviderTokensCheck {

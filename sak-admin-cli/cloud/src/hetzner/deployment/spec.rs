@@ -16,7 +16,7 @@ use crate::hetzner::volume::HetznerVolume;
 use crate::hetzner::{NAME_LABEL, PASSWORD_HASH_LABEL, USER_DATA_LABEL, VERSION_LABEL};
 use crate::providers::hetzner::HetznerProviderRuntime;
 
-/// the cloud-init of a new spec; sakadm replaces it with the cloud-init that installs the host key
+/// the cloud-init of a new spec; sakadmin replaces it with the cloud-init that installs the host key
 pub const USER_DATA: &str = "#cloud-config\npackage_update: true\n";
 
 /// the prefix of the cloud name of every resource of a deployment, `sak-<name>`
@@ -61,7 +61,7 @@ pub enum DataVolume {
     Delete,
 }
 
-/// the resources of a deployment as sakadm creates them: an ssh key, a data volume, the primary
+/// the resources of a deployment as sakadmin creates them: an ssh key, a data volume, the primary
 /// ips, a firewall, the server and its dns records, each with the name label
 #[derive(Clone, Debug)]
 pub struct DeploymentSpec {
@@ -84,7 +84,7 @@ pub struct DeploymentSpec {
     /// an info label on every resource, the version of sak that creates or deploys it; none for a
     /// destroy
     pub version: Option<String>,
-    /// a label and identity on every resource; sakadm checks a password against it
+    /// a label and identity on every resource; sakadmin checks a password against it
     pub password_hash: Option<String>,
     /// on every resource, with the name label
     pub labels: Labels,
@@ -159,7 +159,7 @@ impl DeploymentSpec {
     }
 
     /// `labels()` and the password hash. The settings of the deployment are no labels: the backend
-    /// answers them, sakadm keeps them in `~/.sak/<name>/config.json`, the dns records tell the
+    /// answers them, sakadmin keeps them in `~/.sak/<name>/config.json`, the dns records tell the
     /// root domain and the dns mode. The firewall selects its servers by `labels()` alone
     fn resource_labels(&self) -> Labels {
         let mut labels = self.labels();

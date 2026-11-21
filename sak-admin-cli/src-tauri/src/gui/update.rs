@@ -1,5 +1,5 @@
-//! the commands of the footer about the version of sakadm and its update. The footer asks github
-//! only when the user clicks, its button names github first; after an update it restarts sakadm
+//! the commands of the footer about the version of sakadmin and its update. The footer asks github
+//! only when the user clicks, its button names github first; after an update it restarts sakadmin
 //! with the new version
 
 use crate::core::update::{self, RECEIVER, Status};
@@ -16,7 +16,7 @@ pub struct VersionResponse {
 }
 
 /// what a check or an install found: the message to show, the newer version when there is one,
-/// and whether an install replaced sakadm, so a restart starts the new version
+/// and whether an install replaced sakadmin, so a restart starts the new version
 #[derive(Serialize)]
 pub struct UpdateResponse {
     message: String,
@@ -46,7 +46,7 @@ pub async fn check_update() -> Result<UpdateResponse, String> {
     })
 }
 
-/// the new version runs from the next start of sakadm
+/// the new version runs from the next start of sakadmin
 #[tauri::command]
 pub async fn install_update() -> Result<UpdateResponse, String> {
     let status = update::install().await?;
@@ -61,7 +61,7 @@ pub async fn install_update() -> Result<UpdateResponse, String> {
     })
 }
 
-/// starts sakadm again, the binary it was started from, which an install replaced. Refused while a
+/// starts sakadmin again, the binary it was started from, which an install replaced. Refused while a
 /// deployment is changed, a restart would stop it halfway; a provisioning left is stopped first
 #[tauri::command]
 pub fn restart(app: AppHandle, running: State<'_, RunningWork>) -> Result<(), String> {

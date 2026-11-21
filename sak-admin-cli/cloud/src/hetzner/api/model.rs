@@ -16,7 +16,7 @@ pub enum Location {
     ash,
     hil,
     sin,
-    /// one this sakadm does not know yet: read, never compared and never asked for
+    /// one this sakadmin does not know yet: read, never compared and never asked for
     #[serde(other)]
     unknown,
 }
@@ -57,7 +57,7 @@ pub enum ServerType {
     ccx43,
     ccx53,
     ccx63,
-    /// one this sakadm does not know yet (a type Hetzner added or retired): read, never compared
+    /// one this sakadmin does not know yet (a type Hetzner added or retired): read, never compared
     /// and never asked for
     #[serde(other)]
     unknown,

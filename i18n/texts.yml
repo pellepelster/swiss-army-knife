@@ -1,14 +1,14 @@
 # every text a user reads, in every language: the source of the texts of the backend, the web
-# apps, the android apps and sakadm. `mise run i18n:generate` writes them into the files each of them
+# apps, the android apps and sakadmin. `mise run i18n:generate` writes them into the files each of them
 # reads (sak-i18n), the generated files are committed and a test fails when they are not up to date.
 #
 # A section is either for every app, or the one of an app with its texts by platform:
 #   common, backend, web, android    texts of no app: for backend, web and android, or for one
 #   <app>.common                     texts of the app on every platform it has a part for
 #   <app>.backend, .web, .android    texts of the app on one platform
-#   admin_cli.common, .cli, .ui      sakadm, a program of its own: both, the command line, the
+#   admin_cli.common, .cli, .ui      sakadmin, a program of its own: both, the command line, the
 #                                    window; it reads all three, as common.*, cli.* and ui.*
-#   sak_backup.common, .cli, .ui     sak-backup, a program of its own like sakadm
+#   sak_backup.common, .cli, .ui     sakbackup, a program of its own like sakadmin
 #   desktop_shared.common, .cli, .ui what the desktop programs share (sak-desktop-shared), e.g.
 #                                    the sign-in; each reads it next to its own section
 # A platform reads common and its own part merged, the platform drops out of the key: notes.backend
@@ -17,7 +17,7 @@
 # A text has every language, `{ en: "…", de: "…" }`, with the same %{name} placeholders; a text
 # that is the same in every language, a name, is a plain string. A plural (android only) has the
 # forms of the language, `en: { one: "%{count} item", other: "%{count} items" }`. German uses "du"
-# in sakadm and no form of address elsewhere, the words are the ones of the glossary.
+# in sakadmin and no form of address elsewhere, the words are the ones of the glossary.
 
 common:
   login:
@@ -64,6 +64,25 @@ backend:
     unavailable:
       en: "This is not available right now, please try again later."
       de: "Das ist gerade nicht verfügbar, bitte versuche es später erneut."
+  restic:
+    invalid_name:
+      en: "A name has lower case letters, digits and -, at most 63, and starts and ends with a letter or a digit."
+      de: "Ein Name hat Kleinbuchstaben, Ziffern und -, höchstens 63, und beginnt und endet mit einem Buchstaben oder einer Ziffer."
+    repository_exists: { en: "You have a repository of this name.", de: "Du hast ein Repository dieses Namens." }
+    invalid_host:
+      en: "A host name has letters, digits, '.', '-' and '_', at most 253."
+      de: "Ein Hostname hat Buchstaben, Ziffern, '.', '-' und '_', höchstens 253."
+    no_paths: { en: "A backup has at least one path.", de: "Ein Backup hat mindestens einen Pfad." }
+    too_many_paths: { en: "A backup has at most %{max} paths.", de: "Ein Backup hat höchstens %{max} Pfade." }
+    double_path: { en: "A path is in the backup twice.", de: "Ein Pfad ist zweimal im Backup." }
+    invalid_path:
+      en: "%{path} is no absolute path like /home/anna/Documents."
+      de: "%{path} ist kein absoluter Pfad wie /home/anna/Documents."
+    unknown_repository: { en: "You have no such repository.", de: "Du hast kein solches Repository." }
+    plan_exists: { en: "You have a backup plan of this name.", de: "Du hast einen Backup-Plan dieses Namens." }
+    invalid_keep:
+      en: "A number of snapshots to keep is from 1 to %{max}, or empty to keep them all."
+      de: "Eine Anzahl zu behaltender Snapshots liegt zwischen 1 und %{max}, oder bleibt leer, um alle zu behalten."
   auth:
     invalid_email: { en: "No valid e-mail address.", de: "Keine gültige E-Mail-Adresse." }
     invalid_nonce:
@@ -271,6 +290,8 @@ web:
     static_hosting_description: { en: "Websites from S3 buckets", de: "Websites aus S3-Buckets" }
     redirects: { en: "Redirects", de: "Weiterleitungen" }
     redirects_description: { en: "Domains that lead elsewhere", de: "Domains, die woanders hinführen" }
+    backups: { en: "Backups", de: "Backups" }
+    backups_description: { en: "Repositories of restic and their sizes", de: "Repositorys von restic und ihre Größe" }
   home:
     title: { en: "Apps", de: "Apps" }
     install_label: { en: "Install the notes as an app", de: "Die Notizen als App installieren" }
@@ -813,8 +834,8 @@ admin_cli:
         en: "The user mode, the admin and the mail server of %{name} could not be read from its backend: %{error}"
         de: "Der Benutzermodus, der Admin und der Mailserver von %{name} konnten nicht aus seinem Backend gelesen werden: %{error}"
       unknown_location:
-        en: "%{name} is in a location this sakadm does not know. Update sakadm (sakadm update) to deploy it."
-        de: "%{name} ist an einem Standort, den dieses sakadm nicht kennt. Aktualisiere sakadm (sakadm update), um sie auszurollen."
+        en: "%{name} is in a location this sakadmin does not know. Update sakadmin (sakadmin update) to deploy it."
+        de: "%{name} ist an einem Standort, den dieses sakadmin nicht kennt. Aktualisiere sakadmin (sakadmin update), um sie auszurollen."
       not_compared:
         en: "%{name} could not be compared with what a deploy declares: %{error}"
         de: "%{name} konnte nicht mit dem verglichen werden, was ein Ausrollen anlegt: %{error}"
@@ -854,8 +875,8 @@ admin_cli:
         de: "Die SAK-Instanz antwortet nicht innerhalb von %{seconds} Sekunden unter %{url}, zuletzt: %{error}. Neue DNS-Einträge und das TLS-Zertifikat brauchen manchmal eine Weile: versuche es später mit einem erneuten Ausrollen, von der SAK-Instanz geht nichts verloren."
       no_smtp: { en: "No mail server", de: "Kein Mailserver" }
       not_https:
-        en: "The api %{url} is no https address, sakadm asks the api over https only."
-        de: "Die API %{url} ist keine https-Adresse, sakadm fragt die API nur über https."
+        en: "The api %{url} is no https address, sakadmin asks the api over https only."
+        de: "Die API %{url} ist keine https-Adresse, sakadmin fragt die API nur über https."
     smtp:
       sent:
         en: "The mail server %{host} took the test e-mail to %{to}. If it does not arrive, look in the spam folder."
@@ -894,8 +915,8 @@ admin_cli:
       has_changes: { en: "has changes", de: "hat Änderungen" }
     plan:
       left_out:
-        en: "a second one of the SAK instance, sakadm leaves it as it is; delete it if it is not needed"
-        de: "ein zweites der SAK-Instanz, sakadm lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
+        en: "a second one of the SAK instance, sakadmin leaves it as it is; delete it if it is not needed"
+        de: "ein zweites der SAK-Instanz, sakadmin lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
       intro: { en: "Create the SAK instance", de: "Erstelle die SAK-Instanz" }
       intro_deploy:
         en: "Redeploy the SAK instance"
@@ -936,11 +957,11 @@ admin_cli:
         de: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
     images:
       not_signed:
-        en: "%{image} has no signature, sakadm does not pull it."
-        de: "%{image} hat keine Signatur, sakadm lädt es nicht."
+        en: "%{image} has no signature, sakadmin does not pull it."
+        de: "%{image} hat keine Signatur, sakadmin lädt es nicht."
       signature_invalid:
-        en: "%{image} is not signed by %{signer}, sakadm does not pull it: %{error}"
-        de: "%{image} ist nicht von %{signer} signiert, sakadm lädt es nicht: %{error}"
+        en: "%{image} is not signed by %{signer}, sakadmin does not pull it: %{error}"
+        de: "%{image} ist nicht von %{signer} signiert, sakadmin lädt es nicht: %{error}"
       failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
       unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
       unreadable:
@@ -948,8 +969,8 @@ admin_cli:
         de: "Die Antwort von %{url} konnte nicht gelesen werden: %{error}"
     maintenance:
       timeout:
-        en: "The server did not answer within %{minutes} minutes, sakadm stopped waiting. What the server started may still finish there."
-        de: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakadm wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
+        en: "The server did not answer within %{minutes} minutes, sakadmin stopped waiting. What the server started may still finish there."
+        de: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakadmin wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
       connecting:
         en: "Asking the server of %{name} at root@%{host}…"
         de: "Frage den Server von %{name} unter root@%{host}…"
@@ -983,29 +1004,29 @@ admin_cli:
         de: "Kein Dienst nutzt alte Bibliotheken, keiner wurde neu gestartet."
     update:
       checking:
-        en: "Asking %{receiver} for the newest release of sakadm…"
-        de: "Frage %{receiver} nach dem neuesten Release von sakadm…"
+        en: "Asking %{receiver} for the newest release of sakadmin…"
+        de: "Frage %{receiver} nach dem neuesten Release von sakadmin…"
       no_release:
-        en: "This sakadm (%{version}) is no release, there is no version to compare it with."
-        de: "Dieses sakadm (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
-      up_to_date: { en: "sakadm %{version} is up-to-date.", de: "sakadm %{version} ist aktuell." }
+        en: "This sakadmin (%{version}) is no release, there is no version to compare it with."
+        de: "Dieses sakadmin (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
+      up_to_date: { en: "sakadmin %{version} is up-to-date.", de: "sakadmin %{version} ist aktuell." }
       newer:
-        en: "sakadm %{newest} is available, this is %{current}."
-        de: "sakadm %{newest} ist verfügbar, dies ist %{current}."
+        en: "sakadmin %{newest} is available, this is %{current}."
+        de: "sakadmin %{newest} ist verfügbar, dies ist %{current}."
       installing:
-        en: "Downloading sakadm %{version} from %{receiver}…"
-        de: "Lade sakadm %{version} von %{receiver}…"
+        en: "Downloading sakadmin %{version} from %{receiver}…"
+        de: "Lade sakadmin %{version} von %{receiver}…"
       installed:
-        en: "sakadm is updated from %{current} to %{newest}. Start sakadm again to use it."
-        de: "sakadm ist von %{current} auf %{newest} aktualisiert. Starte sakadm erneut, um es zu verwenden."
+        en: "sakadmin is updated from %{current} to %{newest}. Start sakadmin again to use it."
+        de: "sakadmin ist von %{current} auf %{newest} aktualisiert. Starte sakadmin erneut, um es zu verwenden."
       unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
       failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
       not_https:
-        en: "%{url} is no https address, sakadm asks github over https only."
-        de: "%{url} ist keine https-Adresse, sakadm fragt github nur über https."
+        en: "%{url} is no https address, sakadmin asks github over https only."
+        de: "%{url} ist keine https-Adresse, sakadmin fragt github nur über https."
       not_github:
-        en: "%{url} is no address of github, sakadm downloads from github only."
-        de: "%{url} ist keine Adresse von github, sakadm lädt nur von github herunter."
+        en: "%{url} is no address of github, sakadmin downloads from github only."
+        de: "%{url} ist keine Adresse von github, sakadmin lädt nur von github herunter."
       unreadable:
         en: "The newest release on %{receiver} could not be read: %{error}"
         de: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
@@ -1020,8 +1041,8 @@ admin_cli:
         en: "%{name} has no %{binary}, nothing was changed."
         de: "%{name} enthält kein %{binary}, nichts wurde geändert."
       not_replaced:
-        en: "sakadm at %{path} could not be replaced: %{error}"
-        de: "sakadm unter %{path} konnte nicht ersetzt werden: %{error}"
+        en: "sakadmin at %{path} could not be replaced: %{error}"
+        de: "sakadmin unter %{path} konnte nicht ersetzt werden: %{error}"
   cli:
     mail:
       reading: { en: "Reading the mail server of %{name}…", de: "Lese den Mailserver von %{name}…" }
@@ -1108,11 +1129,11 @@ admin_cli:
     restore_no_terminal:
       en: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
       de: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
-    update_hint: { en: "Run sakadm update to install it.", de: "sakadm update installiert es." }
+    update_hint: { en: "Run sakadmin update to install it.", de: "sakadmin update installiert es." }
     maintenance:
       reboot_hint:
-        en: "A reboot is pending, run sakadm maintenance reboot %{name}."
-        de: "Ein Neustart steht an, führe sakadm maintenance reboot %{name} aus."
+        en: "A reboot is pending, run sakadmin maintenance reboot %{name}."
+        de: "Ein Neustart steht an, führe sakadmin maintenance reboot %{name} aus."
   ui:
     hint:
       user_mode: { en: "Choose it in the form.", de: "Wähle ihn im Formular." }
@@ -1124,22 +1145,22 @@ admin_cli:
         en: "Empty the e-mail address of the admin, or choose multiple users."
         de: "Leere die E-Mail-Adresse des Admins, oder wähle mehrere Benutzer."
       root_domain:
-        en: "The window cannot set it on an existing SAK instance: deploy it once with sakadm deploy --root-domain."
-        de: "Das Fenster kann sie bei einer bestehenden SAK-Instanz nicht setzen: rolle sie einmal mit sakadm deploy --root-domain aus."
+        en: "The window cannot set it on an existing SAK instance: deploy it once with sakadmin deploy --root-domain."
+        de: "Das Fenster kann sie bei einer bestehenden SAK-Instanz nicht setzen: rolle sie einmal mit sakadmin deploy --root-domain aus."
       smtp_password:
-        en: "The window cannot ask for it: deploy it once with sakadm deploy and SAK_SMTP_PASSWORD."
-        de: "Das Fenster kann nicht danach fragen: rolle sie einmal mit sakadm deploy und SAK_SMTP_PASSWORD aus."
+        en: "The window cannot ask for it: deploy it once with sakadmin deploy and SAK_SMTP_PASSWORD."
+        de: "Das Fenster kann nicht danach fragen: rolle sie einmal mit sakadmin deploy und SAK_SMTP_PASSWORD aus."
       smtp_from: { en: "Correct the sender address in the form.", de: "Korrigiere die Absenderadresse im Formular." }
     quit: { en: "Quit", de: "Beenden" }
     update:
-      version: { en: "sakadm %{version}", de: "sakadm %{version}" }
+      version: { en: "sakadmin %{version}", de: "sakadmin %{version}" }
       check: { en: "Check for updates", de: "Nach Updates suchen" }
       idle:
-        en: "Asks %{receiver} for the newest release of sakadm."
-        de: "Fragt %{receiver} nach dem neuesten Release von sakadm."
+        en: "Asks %{receiver} for the newest release of sakadmin."
+        de: "Fragt %{receiver} nach dem neuesten Release von sakadmin."
       install: { en: "Update to %{version}", de: "Auf %{version} aktualisieren" }
       restart: { en: "Restart", de: "Neu starten" }
-      restart_hint: { en: "Restart to use sakadm %{version}.", de: "Starte neu, um sakadm %{version} zu verwenden." }
+      restart_hint: { en: "Restart to use sakadmin %{version}.", de: "Starte neu, um sakadmin %{version} zu verwenden." }
       restart_while_running:
         en: "A SAK instance is being changed, restart when it is done."
         de: "Eine SAK-Instanz wird gerade geändert, starte neu, wenn das fertig ist."
@@ -1271,8 +1292,8 @@ admin_cli:
       smtp_test: { en: "Send test e-mail", de: "Test-E-Mail senden" }
       smtp_test_title: { en: "Send a test e-mail", de: "Test-E-Mail senden" }
       smtp_test_text:
-        en: "sakadm sends it with the mail server above from %{from}, as the SAK instance will send its login links."
-        de: "sakadm sendet sie mit dem Mailserver oben von %{from}, so wie die SAK-Instanz ihre Login-Links senden wird."
+        en: "sakadmin sends it with the mail server above from %{from}, as the SAK instance will send its login links."
+        de: "sakadmin sendet sie mit dem Mailserver oben von %{from}, so wie die SAK-Instanz ihre Login-Links senden wird."
       smtp_test_to: { en: "Send to", de: "Senden an" }
       smtp_test_send: { en: "Send", de: "Senden" }
       smtp_sending: { en: "Sending the test e-mail…", de: "Sende die Test-E-Mail…" }
@@ -1439,6 +1460,7 @@ grocery:
       not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
       not_all_added: { en: "Not every item could be added.", de: "Nicht jeder Artikel konnte hinzugefügt werden." }
   backend:
+    first_list: { en: "My Groceries", de: "Meine Einkäufe" }
     category:
       fruit_vegetables: { en: "Fruit & vegetables", de: "Obst & Gemüse" }
       bakery: { en: "Bakery", de: "Backwaren" }
@@ -1788,6 +1810,7 @@ hosting:
 
 notes:
   backend:
+    first_list: { en: "My Notes", de: "Meine Notizen" }
     text_too_long:
       en: "The text must have at most %{max} characters."
       de: "Der Text darf höchstens %{max} Zeichen haben."
@@ -1954,6 +1977,23 @@ notes:
       recording_not_loaded: { en: "The recording could not be loaded.", de: "Die Aufnahme konnte nicht geladen werden." }
       recording_not_played: { en: "The recording could not be played.", de: "Die Aufnahme konnte nicht abgespielt werden." }
       no_text_in_photo: { en: "There is no text in the photo.", de: "Im Foto ist kein Text." }
+backups:
+  web:
+    list:
+      intro: { en: "Your restic repositories.", de: "Deine restic-Repositorys." }
+      empty:
+        en: "No repositories yet. Create one in the app SAK Backup."
+        de: "Noch keine Repositorys. Erstelle eins in der App SAK Backup."
+      pages: { en: "Pages of the repositories", de: "Seiten der Repositorys" }
+      load_failed: { en: "The repositories could not be loaded.", de: "Die Repositorys konnten nicht geladen werden." }
+      total: { en: "%{size} on this page", de: "%{size} auf dieser Seite" }
+      created: { en: "Created %{date}", de: "Erstellt am %{date}" }
+      size: { en: "Size", de: "Größe" }
+      delete_unavailable:
+        en: "Deleting a repository is not possible yet."
+        de: "Ein Repository kann noch nicht gelöscht werden."
+      copy_url: { en: "Copy address", de: "Adresse kopieren" }
+
 redirects:
   backend:
     invalid_domains:
@@ -2145,6 +2185,7 @@ todo:
     error:
       list_not_created: { en: "The list could not be created.", de: "Die Liste konnte nicht erstellt werden." }
   backend:
+    first_list: { en: "My Todos", de: "Meine Todos" }
     invalid_icon: { en: "An icon must be one emoji.", de: "Ein Icon muss ein Emoji sein." }
     invalid_list_name:
       en: "A list name must have 1 to %{max} characters and no control characters."
@@ -2171,14 +2212,245 @@ sak_backup:
       de: "Melde dich im Browser bei deiner SAK-Instanz an, um ihre Backups zu verwalten."
     nav:
       label: { en: "Navigation", de: "Navigation" }
-      backups: { en: "Backups", de: "Backups" }
+      plans: { en: "Backup plans", de: "Backup-Pläne" }
       repositories: { en: "Repositories", de: "Repositorys" }
       snapshots: { en: "Snapshots", de: "Snapshots" }
       empty: { en: "Nothing here yet.", de: "Hier gibt es noch nichts." }
+    actions: { en: "Actions of %{name}", de: "Aktionen für %{name}" }
+    delete: { en: "Delete", de: "Löschen" }
+    cancel: { en: "Cancel", de: "Abbrechen" }
+    save: { en: "Save", de: "Speichern" }
+    saving: { en: "Saving…", de: "Speichere…" }
+    name: { en: "Name", de: "Name" }
+    name_hint: { en: "Lower case letters, digits and -, e.g. laptop", de: "Kleinbuchstaben, Ziffern und -, z. B. laptop" }
+    invalid_name:
+      en: "A name has lower case letters, digits and -, at most 63, and starts and ends with a letter or a digit."
+      de: "Ein Name hat Kleinbuchstaben, Ziffern und -, höchstens 63, und beginnt und endet mit einem Buchstaben oder einer Ziffer."
+    load_failed: { en: "Could not load: %{error}", de: "Konnte nicht geladen werden: %{error}" }
+    save_failed: { en: "Could not save: %{error}", de: "Konnte nicht gespeichert werden: %{error}" }
+    repositories:
+      create: { en: "Create repository", de: "Repository erstellen" }
+      loading: { en: "Loading the repositories…", de: "Lade die Repositorys…" }
+      empty:
+        en: "No repositories yet. Create one on this SAK instance to back up into it."
+        de: "Noch keine Repositorys. Erstelle eins auf dieser SAK-Instanz, um dorthin zu sichern."
+      created: { en: "Created %{date}", de: "Erstellt am %{date}" }
+      copy_url: { en: "Copy address", de: "Adresse kopieren" }
+      copied: { en: "The address of %{name} is copied.", de: "Die Adresse von %{name} ist kopiert." }
+      delete_unavailable:
+        en: "Deleting a repository is not possible yet."
+        de: "Ein Repository kann noch nicht gelöscht werden."
+      forget_password: { en: "Forget the password", de: "Passwort vergessen" }
+      forgot:
+        en: "The password of %{name} is forgotten on this computer."
+        de: "Das Passwort von %{name} ist auf diesem Computer vergessen."
+      none_kept:
+        en: "No password of this repository is remembered on this computer."
+        de: "Auf diesem Computer ist kein Passwort dieses Repositorys gemerkt."
+      create_hint:
+        en: "The repository is kept on this SAK instance. Its backups are encrypted on your computer, with a password the instance never gets."
+        de: "Das Repository wird auf dieser SAK-Instanz gespeichert. Seine Backups werden auf deinem Computer verschlüsselt, mit einem Passwort, das die Instanz nie bekommt."
+    plans:
+      create: { en: "Create backup plan", de: "Backup-Plan erstellen" }
+      edit: { en: "Edit backup plan", de: "Backup-Plan bearbeiten" }
+      open: { en: "Edit", de: "Bearbeiten" }
+      loading: { en: "Loading the backup plans…", de: "Lade die Backup-Pläne…" }
+      empty:
+        en: "No backup plans yet. Create one to choose what to back up and where to."
+        de: "Noch keine Backup-Pläne. Erstelle einen, um auszuwählen, was wohin gesichert wird."
+      no_repository: { en: "Create a repository first.", de: "Erstelle zuerst ein Repository." }
+      paths_count: { en: "%{count} paths", de: "%{count} Pfade" }
+      other_computer: { en: "Computer %{host}", de: "Computer %{host}" }
+      other_computer_hint:
+        en: "A backup plan of the computer %{host} is changed on that computer."
+        de: "Ein Backup-Plan des Computers %{host} wird auf diesem Computer geändert."
+      this_computer: { en: "Backs up this computer, %{host}.", de: "Sichert diesen Computer, %{host}." }
+      delete_unavailable:
+        en: "Deleting a backup plan is not possible yet."
+        de: "Ein Backup-Plan kann noch nicht gelöscht werden."
+      repository: { en: "Repository", de: "Repository" }
+      paths: { en: "What to back up", de: "Was gesichert wird" }
+      add_folder: { en: "Add folder", de: "Ordner hinzufügen" }
+      add_file: { en: "Add file", de: "Datei hinzufügen" }
+      no_paths: { en: "Add at least one folder or file.", de: "Füge mindestens einen Ordner oder eine Datei hinzu." }
+      keep: { en: "Keep snapshots", de: "Snapshots behalten" }
+      keep_last: { en: "The last", de: "Die letzten" }
+      keep_daily: { en: "Daily", de: "Täglich" }
+      keep_weekly: { en: "Weekly", de: "Wöchentlich" }
+      keep_monthly: { en: "Monthly", de: "Monatlich" }
+      keep_yearly: { en: "Yearly", de: "Jährlich" }
+      keep_hint:
+        en: "After each backup, the older snapshots of this plan are removed: of each day, week, month or year the newest stays, as many as given. Empty everywhere keeps them all."
+        de: "Nach jedem Backup werden die älteren Snapshots dieses Plans entfernt: Von jedem Tag, jeder Woche, jedem Monat oder Jahr bleibt der neueste, so viele wie angegeben. Überall leer behält alle."
+      invalid_keep: { en: "Each number is from 1 to 1000, or empty.", de: "Jede Zahl liegt zwischen 1 und 1000, oder bleibt leer." }
+      remove_path: { en: "Remove %{path}", de: "%{path} entfernen" }
+      run: { en: "Back up now", de: "Jetzt sichern" }
+      run_other_computer:
+        en: "A backup plan of the computer %{host} runs on that computer."
+        de: "Ein Backup-Plan des Computers %{host} läuft auf diesem Computer."
+      run_busy: { en: "Another backup or restore runs.", de: "Ein anderes Backup oder eine Wiederherstellung läuft." }
+      run_password: { en: "Password of the repository", de: "Passwort des Repositorys" }
+      run_password_repeat: { en: "Repeat the password", de: "Passwort wiederholen" }
+      run_password_hint:
+        en: "restic encrypts the backups with it on this computer; the SAK instance never gets it."
+        de: "restic verschlüsselt die Backups damit auf diesem Computer; die SAK-Instanz bekommt es nie."
+      run_init_hint:
+        en: "This is the first backup into %{repository}. Choose its password: nobody can restore a backup without it, and it can not be reset."
+        de: "Dies ist das erste Backup in %{repository}. Wähle sein Passwort: Ohne es kann niemand ein Backup wiederherstellen, und es kann nicht zurückgesetzt werden."
+      run_start: { en: "Back up", de: "Sichern" }
+      run_title: { en: "Backup of %{name} into %{repository}", de: "Backup von %{name} in %{repository}" }
+      run_show: { en: "Show the run", de: "Lauf zeigen" }
+      restore: { en: "Restore", de: "Wiederherstellen" }
+      restore_to: { en: "Restore to a folder…", de: "In einen Ordner wiederherstellen…" }
+      restore_confirm:
+        en: "The newest snapshot of %{name} is written back where its files were: changed files get their content of the snapshot, missing ones come back, files added since stay."
+        de: "Der neueste Snapshot von %{name} wird dorthin zurückgeschrieben, wo seine Dateien waren: Geänderte Dateien bekommen ihren Inhalt aus dem Snapshot, fehlende kommen zurück, seitdem hinzugefügte bleiben."
+      restore_other_computer:
+        en: "A backup plan of the computer %{host} is restored on that computer."
+        de: "Ein Backup-Plan des Computers %{host} wird dort wiederhergestellt."
+      restoring: { en: "Restoring %{name}…", de: "Stelle %{name} wieder her…" }
+      restored: { en: "Restored %{name} where its files were.", de: "%{name} wurde dort wiederhergestellt, wo seine Dateien waren." }
+      restored_to:
+        en: "Restored %{name} below %{target}, each file under its whole path."
+        de: "%{name} wurde unter %{target} wiederhergestellt, jede Datei unter ihrem ganzen Pfad."
+      restore_failed: { en: "The restore failed: %{error}", de: "Die Wiederherstellung ist fehlgeschlagen: %{error}" }
+      restore_title: { en: "Restore of %{name} from %{repository}", de: "Wiederherstellung von %{name} aus %{repository}" }
+      restore_skipped:
+        en: "%{count} files could not be written, the others are restored:"
+        de: "%{count} Dateien konnten nicht geschrieben werden, die anderen sind wiederhergestellt:"
+      no_snapshot: { en: "There is no snapshot to restore yet: back it up first.", de: "Es gibt noch keinen Snapshot zum Wiederherstellen: Sichere zuerst." }
+      run_cancel: { en: "Cancel", de: "Abbrechen" }
+      run_back: { en: "Back", de: "Zurück" }
+      run_initializing: { en: "Creating the repository…", de: "Erstelle das Repository…" }
+      run_starting: { en: "Starting restic…", de: "Starte restic…" }
+      run_progress:
+        en: "%{files} of %{total} files, %{done} of %{size}"
+        de: "%{files} von %{total} Dateien, %{done} von %{size}"
+      run_done:
+        en: "Backed up: %{new} new and %{changed} changed files, %{added} added."
+        de: "Gesichert: %{new} neue und %{changed} geänderte Dateien, %{added} hinzugefügt."
+      run_skipped: { en: "Skipped: %{message}", de: "Übersprungen: %{message}" }
+      run_expiring: { en: "Removing the snapshots the plan no longer keeps…", de: "Entferne die Snapshots, die der Plan nicht mehr behält…" }
+      run_removed: { en: "%{count} older snapshots were removed.", de: "%{count} ältere Snapshots wurden entfernt." }
+      run_expire_failed:
+        en: "The backup is done, but the older snapshots could not be removed: %{error}"
+        de: "Das Backup ist fertig, aber die älteren Snapshots konnten nicht entfernt werden: %{error}"
+      run_passwords_differ: { en: "The passwords are not the same.", de: "Die Passwörter sind nicht gleich." }
+      run_no_password: { en: "The password is needed.", de: "Das Passwort wird gebraucht." }
+      run_wrong_password:
+        en: "This is not the password of the repository."
+        de: "Das ist nicht das Passwort des Repositorys."
+      run_wrong_kept:
+        en: "The repository refused the remembered password. Give the password here; the remembered one stays until you forget it in the menu of the repository."
+        de: "Das Repository hat das gemerkte Passwort abgelehnt. Gib das Passwort hier an; das gemerkte bleibt, bis du es im Menü des Repositorys vergisst."
+      remember: { en: "Remember the password on this computer", de: "Passwort auf diesem Computer merken" }
+      remember_hint:
+        en: "It is kept in the keychain of this computer, and backups then run without asking. The SAK instance never gets it."
+        de: "Es wird im Schlüsselbund dieses Computers gespeichert, und Backups laufen dann ohne Nachfrage. Die SAK-Instanz bekommt es nie."
+      run_wrong_environment:
+        en: "SAK_BACKUP_REPO_PASSWORD is not the password of this repository. Give it here."
+        de: "SAK_BACKUP_REPO_PASSWORD ist nicht das Passwort dieses Repositorys. Gib es hier an."
+      run_no_restic:
+        en: "restic is not installed on this computer. Install it, e.g. with the package manager, and try again."
+        de: "restic ist auf diesem Computer nicht installiert. Installiere es, z. B. mit dem Paketmanager, und versuche es erneut."
+      run_cancelled: { en: "The backup was cancelled.", de: "Das Backup wurde abgebrochen." }
+      run_failed: { en: "The backup failed: %{error}", de: "Das Backup ist fehlgeschlagen: %{error}" }
+      run_init_environment_title: { en: "Create %{repository}?", de: "%{repository} erstellen?" }
+      run_init_environment:
+        en: "This is the first backup into %{repository}. It is created with the password of SAK_BACKUP_REPO_PASSWORD: nobody can restore a backup without it, and it can not be reset."
+        de: "Dies ist das erste Backup in %{repository}. Es wird mit dem Passwort aus SAK_BACKUP_REPO_PASSWORD erstellt: Ohne es kann niemand ein Backup wiederherstellen, und es kann nicht zurückgesetzt werden."
+      run_init_environment_action: { en: "Create and back up", de: "Erstellen und sichern" }
+      run_repository_missing:
+        en: "The SAK instance has no data of %{repository}, but its password is remembered on this computer, so it had backups. It is not created again. Check the SAK instance, or forget the password in the menu of the repository to start a new one."
+        de: "Die SAK-Instanz hat keine Daten von %{repository}, aber sein Passwort ist auf diesem Computer gemerkt, es hatte also Backups. Es wird nicht neu erstellt. Prüfe die SAK-Instanz, oder vergiss das Passwort im Menü des Repositorys, um ein neues zu beginnen."
+      run_empty:
+        en: "The snapshot has no file: is a disk not mounted? No older snapshot was removed."
+        de: "Der Snapshot hat keine Datei: Ist ein Laufwerk nicht eingehängt? Kein älterer Snapshot wurde entfernt."
+    snapshots:
+      intro:
+        en: "Listing the snapshots needs the password of the repository."
+        de: "Zum Auflisten der Snapshots wird das Passwort des Repositorys gebraucht."
+      intro_environment:
+        en: "Listed with the password of SAK_BACKUP_REPO_PASSWORD."
+        de: "Aufgelistet mit dem Passwort aus SAK_BACKUP_REPO_PASSWORD."
+      show: { en: "Show snapshots", de: "Snapshots anzeigen" }
+      loading: { en: "Reading the snapshots…", de: "Lese die Snapshots…" }
+      no_repository: { en: "No repositories yet.", de: "Noch keine Repositorys." }
+      not_initialized:
+        en: "No backup has gone into %{repository} yet."
+        de: "In %{repository} ist noch kein Backup gegangen."
+      empty: { en: "%{repository} has no snapshots.", de: "%{repository} hat keine Snapshots." }
+      count: { en: "%{count} snapshots in %{repository}, the newest first.", de: "%{count} Snapshots in %{repository}, die neuesten zuerst." }
+      this_computer: { en: "This computer", de: "Dieser Computer" }
+      copy_id: { en: "Copy ID", de: "ID kopieren" }
+      copied: { en: "The ID %{id} is copied.", de: "Die ID %{id} ist kopiert." }
+      delete_title: { en: "Delete the snapshot %{id}", de: "Snapshot %{id} löschen" }
+      delete_confirm:
+        en: "The snapshot of %{time} is deleted from %{repository}, and the data no other snapshot needs. It can not be restored afterwards."
+        de: "Der Snapshot vom %{time} wird aus %{repository} gelöscht, mit den Daten, die kein anderer Snapshot braucht. Er kann danach nicht mehr wiederhergestellt werden."
+      deleting: { en: "Deleting the snapshot %{id}…", de: "Lösche den Snapshot %{id}…" }
+      deleted: { en: "The snapshot %{id} is deleted.", de: "Der Snapshot %{id} ist gelöscht." }
+      delete_failed: { en: "The snapshot could not be deleted: %{error}", de: "Der Snapshot konnte nicht gelöscht werden: %{error}" }
+      unknown: { en: "The repository has no snapshot of this ID.", de: "Das Repository hat keinen Snapshot mit dieser ID." }
     menu:
       label: { en: "Menu of %{user}", de: "Menü von %{user}" }
       admin: { en: "Admin", de: "Admin" }
       sign_out: { en: "Sign out", de: "Abmelden" }
+
+  cli:
+    repository_created: { en: "Created the repository %{name}: %{url}", de: "Repository %{name} erstellt: %{url}" }
+    plan_created:
+      en: "Created the backup plan %{name} of %{host} into %{repository}."
+      de: "Backup-Plan %{name} von %{host} in %{repository} erstellt."
+    initializing: { en: "Initializing the repository…", de: "Initialisiere das Repository…" }
+    backed_up:
+      en: "Backed up: %{new} new and %{changed} changed files, %{added} bytes added, snapshot %{snapshot}."
+      de: "Gesichert: %{new} neue und %{changed} geänderte Dateien, %{added} Bytes hinzugefügt, Snapshot %{snapshot}."
+    restored: { en: "Restored the newest snapshot of %{plan} below %{target}.", de: "Neuesten Snapshot von %{plan} unter %{target} wiederhergestellt." }
+    snapshot_deleted: { en: "Deleted the snapshot %{id} of %{repository}.", de: "Snapshot %{id} von %{repository} gelöscht." }
+    plan_changed: { en: "Changed the backup plan %{name}.", de: "Backup-Plan %{name} geändert." }
+    no_keep:
+      en: "Give what the backup plan keeps: --keep-last, --keep-daily, --keep-weekly, --keep-monthly, --keep-yearly or --keep-all."
+      de: "Gib an, was der Backup-Plan behält: --keep-last, --keep-daily, --keep-weekly, --keep-monthly, --keep-yearly oder --keep-all."
+    expiring: { en: "Removing the snapshots the backup plan no longer keeps…", de: "Entferne die Snapshots, die der Backup-Plan nicht mehr behält…" }
+    removed: { en: "Removed %{count} older snapshots.", de: "%{count} ältere Snapshots entfernt." }
+    expire_failed:
+      en: "The backup is done, but the older snapshots could not be removed: %{error}"
+      de: "Das Backup ist fertig, aber die älteren Snapshots konnten nicht entfernt werden: %{error}"
+    unknown_snapshot: { en: "The repository has no snapshot of this id.", de: "Das Repository hat keinen Snapshot mit dieser ID." }
+    restored_partly:
+      en: "Restored the newest snapshot of %{plan} below %{target}, but %{count} files could not be written."
+      de: "Neuesten Snapshot von %{plan} unter %{target} wiederhergestellt, aber %{count} Dateien konnten nicht geschrieben werden."
+    skipped: { en: "Skipped: %{message}", de: "Übersprungen: %{message}" }
+    unknown_repository: { en: "You have no repository %{name}.", de: "Du hast kein Repository %{name}." }
+    unknown_plan: { en: "You have no backup plan %{name}.", de: "Du hast keinen Backup-Plan %{name}." }
+    not_signed_in:
+      en: "Not signed in: sign in with the window of sakbackup, or set SAK_BACKUP_ADDRESS and SAK_BACKUP_SESSION_TOKEN."
+      de: "Nicht angemeldet: Melde dich im Fenster von sakbackup an, oder setze SAK_BACKUP_ADDRESS und SAK_BACKUP_SESSION_TOKEN."
+    invalid_address: { en: "%{address} is no SAK address.", de: "%{address} ist keine SAK-Adresse." }
+    password_prompt: { en: "Password of the repository: ", de: "Passwort des Repositorys: " }
+    password_repeat: { en: "Repeat the password: ", de: "Passwort wiederholen: " }
+    passwords_differ: { en: "The passwords are not the same.", de: "Die Passwörter sind nicht gleich." }
+    no_password:
+      en: "The password of the repository is needed: set SAK_BACKUP_REPO_PASSWORD, or run on a terminal and type it."
+      de: "Das Passwort des Repositorys wird gebraucht: Setze SAK_BACKUP_REPO_PASSWORD, oder starte im Terminal und tippe es."
+    wrong_password: { en: "This is not the password of the repository.", de: "Das ist nicht das Passwort des Repositorys." }
+    no_restic:
+      en: "restic is not installed on this computer. Install it, e.g. with the package manager."
+      de: "restic ist auf diesem Computer nicht installiert. Installiere es, z. B. mit dem Paketmanager."
+    other_computer:
+      en: "This backup plan is one of the computer %{host}; it runs there."
+      de: "Dieser Backup-Plan gehört zum Computer %{host}; er läuft dort."
+    no_snapshot: { en: "The backup plan has no snapshot yet.", de: "Der Backup-Plan hat noch keinen Snapshot." }
+    needs_init_environment:
+      en: "The repository has no backup yet: give --init to create it with the password of SAK_BACKUP_REPO_PASSWORD."
+      de: "Das Repository hat noch kein Backup: Gib --init an, um es mit dem Passwort aus SAK_BACKUP_REPO_PASSWORD zu erstellen."
+    repository_missing:
+      en: "The SAK instance has no data of the repository, but its password is remembered on this computer, so it had backups. It is not created again: check the SAK instance."
+      de: "Die SAK-Instanz hat keine Daten des Repositorys, aber sein Passwort ist auf diesem Computer gemerkt, es hatte also Backups. Es wird nicht neu erstellt: Prüfe die SAK-Instanz."
+    empty:
+      en: "The snapshot %{snapshot} has no file: is a disk not mounted? No older snapshot was removed."
+      de: "Der Snapshot %{snapshot} hat keine Datei: Ist ein Laufwerk nicht eingehängt? Kein älterer Snapshot wurde entfernt."
 
 desktop_shared:
   ui:
@@ -2245,3 +2517,7 @@ desktop_shared:
         changed:
           en: "The SAK address names another API than at your last sign-in. Sign in again."
           de: "Die SAK-Adresse nennt eine andere API als bei deiner letzten Anmeldung. Melde dich erneut an."
+  # the texts of the command lines of the desktop apps
+  cli:
+    refused: { en: "The SAK instance refused it (%{status}).", de: "Die SAK-Instanz hat es abgelehnt (%{status})." }
+    failed: { en: "It failed: %{error}", de: "Es ist fehlgeschlagen: %{error}" }

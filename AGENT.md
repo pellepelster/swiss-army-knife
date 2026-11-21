@@ -33,7 +33,7 @@ Read this file first. It contains rules for the complete repository.
 - Run verification that can find regressions in the changed area.
 - Never log PII: no raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider
   subjects, tokens, passwords, auth codes, reset links, raw IPs of clients or users, or full query strings. The IP
-  addresses of the user's own servers (the server and the primary IPs of a deployment) are no PII: sakadm may show
+  addresses of the user's own servers (the server and the primary IPs of a deployment) are no PII: sakadmin may show
   and log them, e.g. in `list` and while it provisions a server.
 - Encrypt all data at rest: databases, files, volumes, backups and logs. Data that is not encrypted at rest is a
   defect; record it as a feature or an accepted risk until it is fixed.
@@ -45,7 +45,7 @@ Read this file first. It contains rules for the complete repository.
 
 ## UI/UX
 
-How the apps (frontend, sakadm ui, sakadm cli, Android Apps) look and behave for their users is in
+How the apps (frontend, sakadmin ui, sakadmin cli, Android Apps) look and behave for their users is in
 [docs/development/UI-UX.md](docs/development/UI-UX.md), follow it for every change of a ui.
 
 ## Architecture
@@ -54,7 +54,7 @@ How SAK is built is in three levels below `docs/development/architecture/`, each
 repeating them:
 
 1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the backend layers, the api
-   contract, the model, the external systems, the server of a deployment, sakadm, the cloud resources and their
+   contract, the model, the external systems, the server of a deployment, sakadmin, the cloud resources and their
    labels, privacy, security, the tests).
 2. [apps/INDEX.md](docs/development/architecture/apps/INDEX.md): what all apps share (the shared parts, the list-based
    apps, the frontend, privacy in the apps).
@@ -171,10 +171,10 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 
 - Every text a user reads goes into `i18n/texts.yml`, never into code or a generated file (`I18N-1` in SYSTEM.md);
   run `mise run i18n:generate` after a change of it.
-- `admin_cli.cli` texts only the sakadm cli shows, `admin_cli.ui` texts only the sakadm ui shows, `admin_cli.common` texts both show
+- `admin_cli.cli` texts only the sakadmin cli shows, `admin_cli.ui` texts only the sakadmin ui shows, `admin_cli.common` texts both show
   (the messages of core, the resource kinds and statuses, the actions of a plan), read as `cli.*`, `ui.*` and
   `common.*`. A text moves to `admin_cli.common` once both use it. `sak-admin-cli/src-tauri/locales/` is generated from it.
-- `sak_backup` has the same parts for sak-backup (`sak-backup/src-tauri/locales/`). `desktop_shared` has the texts of
+- `sak_backup` has the same parts for sakbackup (`sak-backup/src-tauri/locales/`). `desktop_shared` has the texts of
   `sak-desktop-shared` (e.g. the sign-in), which each desktop app shows next to its own; a key is in one of them only.
 
 ## Privacy in the code

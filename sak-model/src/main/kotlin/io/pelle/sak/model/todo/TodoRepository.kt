@@ -103,6 +103,12 @@ class TodoRepository(
         icon: String? = null,
     ): SakList? = lists.insert(owner, name, shared, icon)
 
+    // the first list of an owner who never had one (LIST-1), null when they had one
+    fun insertFirstList(
+        owner: String,
+        name: String,
+    ): SakList? = lists.insertFirst(owner, name)
+
     // a list the user sees, see ListTable.update
     fun updateList(
         user: String,

@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class AdminPasswordTest {
     @Test
-    fun `checks a password against the hash sakadm writes`() {
-        // the vector of sakadm (ADMIN_PASSWORD_VECTOR in sak-admin-cli/src-tauri/src/core/keys.rs)
+    fun `checks a password against the hash sakadmin writes`() {
+        // the vector of sakadmin (ADMIN_PASSWORD_VECTOR in sak-admin-cli/src-tauri/src/core/keys.rs)
         val password = AdminPassword(VECTOR)
 
         password.matches("a password of sixteen") shouldBe true
@@ -23,7 +23,7 @@ class AdminPasswordTest {
 
     @Test
     fun `takes the password however its umlauts were typed`() {
-        // the hash sakadm writes for the password as nfc
+        // the hash sakadmin writes for the password as nfc
         val password = AdminPassword(UMLAUT_VECTOR)
         password.matches("Gr\u00fc\u00dfe aus dem S\u00fcden, sechzehn") shouldBe true
         // u and the combining diaeresis, as macos may type it

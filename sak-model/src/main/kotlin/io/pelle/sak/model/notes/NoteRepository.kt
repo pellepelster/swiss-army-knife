@@ -14,9 +14,6 @@ import org.jooq.impl.DSL
 import java.time.Clock
 import java.time.Instant
 
-// the list a user gets when they sign in without a list of their own (NOTES-1); the lists are not
-// shown to the users yet, every note of a user goes to their list
-const val DEFAULT_LIST = "Default"
 
 // a note as it is stored, with the ids of its labels and the ids of its files (its photos and its
 // recordings) in their order
@@ -103,15 +100,16 @@ class NoteRepository(
             .limit(1)
             .fetchOne(NOTE_LISTS.ID)
 
-    // a private list for an owner without a list of their own (NOTES-1); a list made at the same
-    // time, e.g. by another sign-in, wins, the name is unique per owner
+    // the first list of an owner who never had a list of their own, deleted ones included (LIST-1,
+    // NOTES-1); a list made at the same time, e.g. by another sign-in, wins, the name is unique per
+    // owner
     fun ensureList(
         owner: String,
         name: String,
     ) {
         database.dsl.transaction { configuration ->
             val dsl = DSL.using(configuration)
-            if (dsl.fetchExists(NOTE_LISTS, NOTE_LISTS.OWNER.eq(owner), NOTE_LISTS.DELETED_AT.isNull)) return@transaction
+            if (dsl.fetchExists(NOTE_LISTS, NOTE_LISTS.OWNER.eq(owner))) return@transaction
             dsl
                 .insertInto(NOTE_LISTS)
                 .set(NOTE_LISTS.OWNER, owner)

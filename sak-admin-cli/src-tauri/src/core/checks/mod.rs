@@ -1,4 +1,4 @@
-//! the checks of what sakadm needs on its machine, run in order before the window or a command
+//! the checks of what sakadmin needs on its machine, run in order before the window or a command
 //! starts (the splash screen lists them, the command line logs them). A failing check ends both.
 //! They give back what they find: the container runtime and the valid provider tokens
 

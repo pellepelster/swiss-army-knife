@@ -14,7 +14,7 @@ use std::collections::HashMap;
 /// then on every run of the tools runs that digest (`image`)
 pub fn pull(runtime: &str, on_progress: &dyn Fn(f64, &str)) -> Result<(), String> {
     let verified = crate::core::images::reference(crate::core::images::TOOLS)?;
-    // a second pull in the same run of sakadm verified the same digest
+    // a second pull in the same run of sakadmin verified the same digest
     let _ = PINNED.set(verified);
     let (pulled, api_error) = if runtime == "docker" {
         match block_on(pull_with_api(on_progress)) {

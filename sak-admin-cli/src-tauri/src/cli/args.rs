@@ -14,14 +14,14 @@ pub(super) const EXIT_CODES: &str = "Exit codes:
      sak.pelle.io/name or the password hash of the SAK instance. Nothing of it was changed.
   6  The data volume or a primary IP would have to be replaced, which would delete its
      data or address. Nothing was changed.
-  7  update --check: a newer release of sakadm exists.
-ssh ends with the exit code of the command on the server; when sakadm or ssh itself fails, 255.";
+  7  update --check: a newer release of sakadmin exists.
+ssh ends with the exit code of the command on the server; when sakadmin or ssh itself fails, 255.";
 
 /// Swiss Army Knife: manage the SAK instances of a Hetzner Cloud project. Without a command the
 /// window opens.
 #[derive(Parser, Debug)]
 #[command(
-    name = "sakadm",
+    name = "sakadmin",
     version = crate::core::VERSION,
     disable_help_subcommand = true,
     after_help = EXIT_CODES
@@ -39,9 +39,9 @@ pub enum Command {
     /// Send e-mail with the mail server of a SAK instance
     #[command(subcommand)]
     Mail(MailCommand),
-    /// Update sakadm to the newest release from github.com
+    /// Update sakadmin to the newest release from github.com
     ///
-    /// Replaces sakadm only when the release is newer, after checking its sha-256.
+    /// Replaces sakadmin only when the release is newer, after checking its sha-256.
     #[command(after_help = EXIT_CODES)]
     Update {
         /// Only check for a newer release, exit code 7 when there is one
@@ -122,7 +122,7 @@ pub enum ProjectCommand {
         /// The name of the SAK instance
         #[arg(env = NAME_VARIABLE)]
         name: String,
-        /// The backup, a file that `sakadm backup` wrote
+        /// The backup, a file that `sakadmin backup` wrote
         file: std::path::PathBuf,
         /// Ask for the password, even when SAK_PASSWORD is set
         #[arg(long)]
@@ -423,7 +423,7 @@ pub struct DeploymentArgs {
     pub(super) smtp_from: Option<String>,
     /// The CA of the certificates: production or staging
     ///
-    /// staging is the staging CA of Let's Encrypt for test SAK instances, sakadm then trusts its
+    /// staging is the staging CA of Let's Encrypt for test SAK instances, sakadmin then trusts its
     /// roots. Default: production for a create, the SAK instance's own for a deploy.
     #[arg(long, value_parser = parse_acme_ca)]
     pub(super) acme_ca: Option<AcmeCa>,

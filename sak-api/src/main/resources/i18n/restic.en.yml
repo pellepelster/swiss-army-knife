@@ -1,0 +1,11 @@
+# the texts of the catalog restic in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+invalid_name: "A name has lower case letters, digits and -, at most 63, and starts and ends with a letter or a digit."
+repository_exists: "You have a repository of this name."
+invalid_host: "A host name has letters, digits, '.', '-' and '_', at most 253."
+no_paths: "A backup has at least one path."
+too_many_paths: "A backup has at most %{max} paths."
+double_path: "A path is in the backup twice."
+invalid_path: "%{path} is no absolute path like /home/anna/Documents."
+unknown_repository: "You have no such repository."
+plan_exists: "You have a backup plan of this name."
+invalid_keep: "A number of snapshots to keep is from 1 to %{max}, or empty to keep them all."

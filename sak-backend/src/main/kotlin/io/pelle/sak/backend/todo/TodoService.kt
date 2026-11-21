@@ -1,6 +1,9 @@
 package io.pelle.sak.backend.todo
 
 import io.pelle.sak.api.Catalog
+import io.pelle.sak.api.Language
+import io.pelle.sak.api.render
+import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.lists.ListChanges
 import io.pelle.sak.backend.lists.ListResult
@@ -48,7 +51,7 @@ sealed interface TodoItemResult {
 class TodoService(
     private val repository: TodoRepository,
     private val changes: ListChanges = ListChanges(),
-) {
+) : LoginListener {
     constructor(
         database: SakDatabase,
         clock: Clock = Clock.systemUTC(),
@@ -70,6 +73,14 @@ class TodoService(
         user: String,
         id: Int,
     ) = repository.item(user, id)
+
+    // the first list of a user who never had one, in the language of the sign-in (LIST-1)
+    override fun signedIn(
+        owner: String,
+        language: Language,
+    ) {
+        repository.insertFirstList(owner, TodoTexts.FIRST_LIST.render(language))
+    }
 
     // the icon is one emoji, empty or none for no icon
     fun createList(
@@ -186,6 +197,7 @@ class TodoService(
 // the texts of the todo lists (todo.backend and todo.common in i18n/texts.yml)
 object TodoTexts : Catalog("todo") {
     val INVALID_ICON = text("invalid_icon")
+    val FIRST_LIST = text("first_list")
     val INVALID_LIST_NAME = text("invalid_list_name")
     val INVALID_TITLE = text("invalid_title")
     val INVALID_DUE_DATE = text("invalid_due_date")

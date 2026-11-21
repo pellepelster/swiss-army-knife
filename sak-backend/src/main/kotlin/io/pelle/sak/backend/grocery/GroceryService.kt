@@ -6,6 +6,7 @@ import io.pelle.sak.api.TextKey
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.api.Language
 import io.pelle.sak.api.render
+import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.backend.isOneEmoji
 import io.pelle.sak.backend.lists.ListChanges
 import io.pelle.sak.backend.lists.ListResult
@@ -108,7 +109,7 @@ sealed interface GroceryItemResult {
 class GroceryService(
     private val repository: GroceryRepository,
     private val changes: ListChanges = ListChanges(),
-) {
+) : LoginListener {
     constructor(
         database: SakDatabase,
         clock: Clock = Clock.systemUTC(),
@@ -133,6 +134,15 @@ class GroceryService(
 
     // the icon is one emoji, empty or none for no icon; the list starts with the default categories
     // in the language (GROCERY-13)
+    // the first list of a user who never had one, with the categories a new list starts with, in the
+    // language of the sign-in (LIST-1, GROCERY-13)
+    override fun signedIn(
+        owner: String,
+        language: Language,
+    ) {
+        repository.insertFirstList(owner, GroceryTexts.FIRST_LIST.render(language), DefaultGroceryCategory.of(language))
+    }
+
     fun createList(
         user: String,
         name: String,
@@ -439,6 +449,7 @@ sealed interface GroceryPhotoResult {
 // the texts of the grocery lists (grocery.backend in i18n/texts.yml)
 object GroceryTexts : Catalog("grocery") {
     val NOT_A_PHOTO = text("not_a_photo")
+    val FIRST_LIST = text("first_list")
     val TOO_MANY_DISCOVERIES = text("too_many_discoveries")
     val DISCOVERY_FAILED = text("discovery_failed")
     val AI_LABEL = text("settings.ai.label")

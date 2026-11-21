@@ -4,7 +4,7 @@ plugins {
 }
 
 // the texts of every app in i18n/texts.yml, written into the files the backend, the web apps, the
-// android app and sakadm read (mise run i18n:generate); its test fails when they are not up to date
+// android app and sakadmin read (mise run i18n:generate); its test fails when they are not up to date
 dependencies {
     implementation(libs.snakeyaml)
 }

@@ -18,7 +18,7 @@ pub enum VolumeFormat {
 pub enum VolumeStatus {
     Available,
     Creating,
-    /// a status this sakadm does not know yet
+    /// a status this sakadmin does not know yet
     #[serde(other)]
     Unknown,
 }

@@ -3,7 +3,7 @@
 use super::*;
 
 /// the cloud-init of the server: it installs the derived host key, and no other, before sshd
-/// first starts, so sakadm verifies the first connection against it
+/// first starts, so sakadmin verifies the first connection against it
 pub fn user_data(host_key: &DerivedKey) -> String {
     let private = host_key
         .private_key()
@@ -97,7 +97,7 @@ pub(super) fn users(
     user_mode: Option<UserMode>,
     smtp: Option<&Smtp>,
     admin_email: Option<&str>,
-) -> Result<Users, SakadmError> {
+) -> Result<Users, SakadminError> {
     match user_mode {
         None => Err(t!(
             "common.deployments.no_user_mode",
@@ -151,7 +151,7 @@ pub(super) struct Provisioning {
     /// the root domain, a zone of the project the deployment can use in its dns mode
     pub(super) root_domain: String,
     pub(super) users: Users,
-    /// where the certificates come from; it sets what sakadm trusts when it waits for the api
+    /// where the certificates come from; it sets what sakadmin trusts when it waits for the api
     pub(super) acme_ca: AcmeCa,
     pub(super) client_key: DerivedKey,
     pub(super) host_key: DerivedKey,
@@ -258,13 +258,13 @@ pub(super) fn cloud_failure(
     key: &str,
     provider: ProviderType,
     error: sak_cloud::api::Error,
-) -> SakadmError {
+) -> SakadminError {
     match error {
-        sak_cloud::api::Error::NotOwned { .. } => SakadmError::new(
+        sak_cloud::api::Error::NotOwned { .. } => SakadminError::new(
             t!("common.deployments.not_owned", error = error.to_string()),
             EXIT_NOT_OWNED,
         ),
-        sak_cloud::api::Error::RecreateRefused { .. } => SakadmError::new(
+        sak_cloud::api::Error::RecreateRefused { .. } => SakadminError::new(
             t!(
                 "common.deployments.recreate_refused",
                 error = error.to_string()
@@ -322,7 +322,7 @@ impl DeploymentManager {
         location: Location,
         detected: &Detected,
         container: &ContainerRuntime,
-    ) -> Result<(DeploymentRequest, PlanResponse), SakadmError> {
+    ) -> Result<(DeploymentRequest, PlanResponse), SakadminError> {
         let deployment = completed_with(
             DeploymentRequest::as_it_is(name, password, location),
             detected,
@@ -339,7 +339,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         deployment: DeploymentRequest,
         smtp_password: &str,
-    ) -> Result<DeploymentRequest, SakadmError> {
+    ) -> Result<DeploymentRequest, SakadminError> {
         if !incomplete(&deployment) {
             return Ok(deployment);
         }
@@ -354,7 +354,7 @@ impl DeploymentManager {
         &self,
         tokens: &[(ProviderType, String)],
         name: &str,
-    ) -> Result<DiscoveredDeployment, SakadmError> {
+    ) -> Result<DiscoveredDeployment, SakadminError> {
         let name = checked_name(name)?;
         let Some((provider, token)) = tokens
             .iter()
@@ -382,7 +382,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<Detected, SakadmError> {
+    ) -> Result<Detected, SakadminError> {
         let deployment = self.find(&tokens, name).await?;
         verify_password(&deployment, &deployment.name, password)?;
         Ok(match deployment_settings_of(&deployment, password).await {
@@ -403,7 +403,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<(), SakadmError> {
+    ) -> Result<(), SakadminError> {
         let deployment = self.find(&tokens, name).await?;
         Ok(verify_password(&deployment, &deployment.name, password)?)
     }
@@ -414,7 +414,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<crate::core::ssh::SshTarget, SakadmError> {
+    ) -> Result<crate::core::ssh::SshTarget, SakadminError> {
         let deployment = self.find(&tokens, name).await?;
         let name = deployment.name.as_str();
         verify_password(&deployment, name, password)?;
@@ -442,7 +442,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         name: &str,
         password: &str,
-    ) -> Result<Endpoint, SakadmError> {
+    ) -> Result<Endpoint, SakadminError> {
         let deployment = self.find(&tokens, name).await?;
         Ok(endpoint(&deployment, password)?)
     }
@@ -477,7 +477,7 @@ impl DeploymentManager {
         &self,
         tokens: Vec<(ProviderType, String)>,
         deployment: &DeploymentRequest,
-    ) -> Result<Prepared, SakadmError> {
+    ) -> Result<Prepared, SakadminError> {
         let name = checked_request(deployment)?;
         let (password, intent) = (deployment.password.as_str(), deployment.intent);
         let (provider, api) = hetzner_api(tokens)?;
@@ -522,7 +522,7 @@ impl DeploymentManager {
         let runtime = HetznerProviderRuntime::from_api(api);
         let purpose = purpose.then(|users| {
             let domains: Vec<RootDomain> = listings.iter().map(RootDomain::of).collect();
-            Ok::<_, SakadmError>(Settings {
+            Ok::<_, SakadminError>(Settings {
                 users,
                 root_domain: check_root_domain(&domains, root_domain.as_deref(), name, dns_mode)?,
             })
@@ -542,7 +542,7 @@ impl DeploymentManager {
         }
         // not for a destroy: the argon2id of the admin password is slow
         let purpose = purpose.then(|settings| {
-            Ok::<_, SakadmError>(Provisioning {
+            Ok::<_, SakadminError>(Provisioning {
                 root_domain: settings.root_domain,
                 users: settings.users,
                 acme_ca,
@@ -571,7 +571,7 @@ impl DeploymentManager {
         tokens: Vec<(ProviderType, String)>,
         deployment: &DeploymentRequest,
         container: &ContainerRuntime,
-    ) -> Result<PlanResponse, SakadmError> {
+    ) -> Result<PlanResponse, SakadminError> {
         let prepared = self.prepare(tokens, deployment).await?;
         Ok(self.plan_prepared(prepared, container).await?.plan)
     }
@@ -581,7 +581,7 @@ impl DeploymentManager {
         &self,
         prepared: Prepared,
         container: &ContainerRuntime,
-    ) -> Result<Planned, SakadmError> {
+    ) -> Result<Planned, SakadminError> {
         let intent = prepared.purpose.intent();
         let delete_data = matches!(prepared.purpose, Purpose::Destroy { delete_data: true });
         let force = prepared
@@ -617,8 +617,8 @@ impl DeploymentManager {
                         None if provisioning => PlannedKind::Provisioning,
                         // the registry is built here, of the kinds above only
                         None => {
-                            return Err(SakadmError::from(format!(
-                                "{} is of no kind sakadm knows",
+                            return Err(SakadminError::from(format!(
+                                "{} is of no kind sakadmin knows",
                                 diff.resource.log_text
                             )));
                         }
@@ -678,7 +678,7 @@ impl DeploymentManager {
                         changes: vec![t!("common.plan.left_out").to_string()],
                     })
                 }))
-                .collect::<Result<Vec<_>, SakadmError>>()?,
+                .collect::<Result<Vec<_>, SakadminError>>()?,
         };
         Ok(Planned {
             plan,
@@ -698,7 +698,7 @@ impl DeploymentManager {
         deployment: &DeploymentRequest,
         container: &ContainerRuntime,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
-    ) -> Result<(), SakadmError> {
+    ) -> Result<(), SakadminError> {
         let prepared = self.prepare(tokens, deployment).await?;
         self.apply_prepared(prepared, None, container, on_event)
             .await
@@ -710,7 +710,7 @@ impl DeploymentManager {
         planned: Planned,
         container: &ContainerRuntime,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
-    ) -> Result<(), SakadmError> {
+    ) -> Result<(), SakadminError> {
         let Planned {
             prepared, diffs, ..
         } = planned;
@@ -725,7 +725,7 @@ impl DeploymentManager {
         planned: Option<Vec<ResourceDiff>>,
         container: &ContainerRuntime,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
-    ) -> Result<(), SakadmError> {
+    ) -> Result<(), SakadminError> {
         let provisioning = match &prepared.purpose {
             Purpose::Create { provisioning } | Purpose::Deploy { provisioning } => provisioning,
             Purpose::Destroy { delete_data } => {
@@ -767,7 +767,7 @@ impl DeploymentManager {
         prepared: &Prepared,
         data_volume: DataVolume,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
-    ) -> Result<(), SakadmError> {
+    ) -> Result<(), SakadminError> {
         let destroy_failed = |error| {
             cloud_failure(
                 "common.deployments.destroy_failed",
@@ -810,7 +810,7 @@ impl DeploymentManager {
         planned: Option<Vec<ResourceDiff>>,
         container: &ContainerRuntime,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
-    ) -> Result<bool, SakadmError> {
+    ) -> Result<bool, SakadminError> {
         // the channel closes when the registry and its report are gone
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel::<DeploymentEvent>();
         let registry = prepared.registry(|run, force| AnsibleRolesProvisioner {
@@ -870,7 +870,7 @@ impl DeploymentManager {
         prepared: &Prepared,
         provisioning: &Provisioning,
         on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
-    ) -> Result<(), SakadmError> {
+    ) -> Result<(), SakadminError> {
         let server = prepared
             .runtime
             .api
@@ -940,7 +940,7 @@ impl DeploymentManager {
 
 /// the checks that need nothing of the project: the name, the location and the password. Gives
 /// the name, trimmed
-fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakadmError> {
+fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakadminError> {
     let DeploymentRequest {
         name,
         password,
@@ -952,7 +952,7 @@ fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakadmError> 
     let name = checked_name(name)?;
     // a location Hetzner added after this release can be read, but nothing is created in it
     if *location == Location::unknown && *intent != Intent::Destroy {
-        return Err(SakadmError::new(
+        return Err(SakadminError::new(
             t!("common.deployments.unknown_location", name = name),
             crate::core::error::EXIT_USAGE,
         ));
@@ -984,7 +984,7 @@ fn checked_request(deployment: &DeploymentRequest) -> Result<&str, SakadmError> 
 /// the api of the first hetzner project of `tokens`
 fn hetzner_api(
     tokens: Vec<(ProviderType, String)>,
-) -> Result<(ProviderType, Arc<HetznerApi>), SakadmError> {
+) -> Result<(ProviderType, Arc<HetznerApi>), SakadminError> {
     let Some((provider, token)) = tokens
         .into_iter()
         .find(|(provider, _)| *provider == ProviderType::Hetzner)
@@ -1037,7 +1037,7 @@ pub(super) fn local_settings(name: &str, password: &str) -> Option<LocalSettings
 /// them; a deploy is completed before (`completed`)
 fn users_and_acme_ca(
     deployment: &DeploymentRequest,
-) -> Result<(Purpose<Users>, AcmeCa), SakadmError> {
+) -> Result<(Purpose<Users>, AcmeCa), SakadminError> {
     let user_mode = deployment.user_mode;
     let acme_ca = deployment.acme_ca.unwrap_or_default();
     let users = || {
@@ -1072,7 +1072,7 @@ fn location_of(
     existing: Option<DiscoveredDeployment>,
     given: Location,
     records: &[DeploymentRecord],
-) -> Result<Location, SakadmError> {
+) -> Result<Location, SakadminError> {
     match (intent, existing) {
         (Intent::Create, Some(_)) => Err(t!("common.deployments.name_taken", name = name)
             .to_string()
@@ -1136,7 +1136,7 @@ fn laid_out(
     dns_mode: DnsMode,
     settings: Option<&Settings>,
     acme_ca: AcmeCa,
-) -> Result<(DeploymentSpec, Keys), SakadmError> {
+) -> Result<(DeploymentSpec, Keys), SakadminError> {
     let client_key = crate::core::keys::derive_key(name, password)?;
     let host_key = crate::core::keys::derive_host_key(name, password)?;
     let public_key = client_key.public_key();
@@ -1167,12 +1167,12 @@ fn laid_out(
 fn check_records_in_the_way(
     listings: &[HetznerDnsZoneListing],
     spec: &DeploymentSpec,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let in_the_way = foreign_records(listings, spec);
     if in_the_way.is_empty() {
         return Ok(());
     }
-    Err(SakadmError::new(
+    Err(SakadminError::new(
         t!(
             "common.deployments.not_owned",
             error = t!(
@@ -1198,7 +1198,7 @@ pub fn completed_with(
     deployment: DeploymentRequest,
     detected: &Detected,
     smtp_password: &str,
-) -> Result<DeploymentRequest, SakadmError> {
+) -> Result<DeploymentRequest, SakadminError> {
     if !incomplete(&deployment) {
         return Ok(deployment);
     }

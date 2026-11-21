@@ -1,9 +1,9 @@
-//! the images of SAK on ghcr.io and their cosign signatures: the tools and the canary sakadm runs,
+//! the images of SAK on ghcr.io and their cosign signatures: the tools and the canary sakadmin runs,
 //! the backend and the ingress the server runs. Each is pulled by the digest of its tag after the
 //! signature of that digest is verified: signed keyless by the workflow at the tag of the release
 //! (`<version>`, `<version>-rc`) or at main (`latest`) (`mise run image:sign`). The sigstore bundle
 //! is next to the digest in the registry (cosign 3: an index tagged `sha256-<hex>`, ghcr.io has no
-//! referrers api), checked offline against the trusted root built into sakadm, as in `update.rs`.
+//! referrers api), checked offline against the trusted root built into sakadmin, as in `update.rs`.
 //! A tag no workflow pushes (set with SAK_DOCKER_IMAGE_TAG) has no signer: pulled by tag, unchecked
 
 use crate::core::config::with_causes;
@@ -32,7 +32,7 @@ const MANIFESTS: &str = "application/vnd.oci.image.index.v1+json, \
      application/vnd.oci.image.manifest.v1+json, \
      application/vnd.docker.distribution.manifest.v2+json";
 
-/// the tools of sakadm (sak-admin-cli/Dockerfile)
+/// the tools of sakadmin (sak-admin-cli/Dockerfile)
 pub const TOOLS: &str = "sak-admin-cli-tools";
 /// the small image that proves a container runtime (sak-admin-cli/canary)
 pub const CANARY: &str = "sak-admin-cli-docker-canary";
@@ -58,9 +58,9 @@ fn signer(tag: &str) -> Option<String> {
         .then(|| format!("{SIGNER_WORKFLOW}@refs/tags/v{version}"))
 }
 
-/// the image `name` of the tag of sakadm (`core::image_tag`) as it is pulled and run:
+/// the image `name` of the tag of sakadmin (`core::image_tag`) as it is pulled and run:
 /// `ghcr.io/pellepelster/<name>@sha256:…` after its signature is verified, by tag for a tag without
-/// a signer. Verified once per image and run of sakadm
+/// a signer. Verified once per image and run of sakadmin
 pub fn reference(name: &str) -> Result<String, String> {
     static VERIFIED: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
     let tag = crate::core::image_tag();
@@ -335,7 +335,7 @@ fn is_sha256(digest: &str) -> bool {
 /// where ghcr.io sends a blob
 fn client(https_only: bool) -> Result<Client, String> {
     Client::builder()
-        .user_agent(concat!("sakadm/", env!("SAK_VERSION")))
+        .user_agent(concat!("sakadmin/", env!("SAK_VERSION")))
         .timeout(Duration::from_secs(60))
         .redirect(Policy::custom(follow_to_github))
         .https_only(https_only)
@@ -358,7 +358,7 @@ fn follow_to_github(attempt: Attempt) -> reqwest::redirect::Action {
 
 /// the bundle signs the image `digest` (an in-toto statement whose subject is the digest) with a
 /// certificate of sigstore for `identity` of `issuer`, logged in the transparency log; all against
-/// the trusted root of sigstore built into sakadm
+/// the trusted root of sigstore built into sakadmin
 fn verify_signed_by(
     digest: &str,
     bundle: &[u8],
@@ -538,7 +538,7 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             error,
-            "ghcr.io/pellepelster/sak-backend:1.2.3 has no signature, sakadm does not pull it."
+            "ghcr.io/pellepelster/sak-backend:1.2.3 has no signature, sakadmin does not pull it."
         );
         let broken = registry(Some(b"not a bundle")).await;
         assert!(

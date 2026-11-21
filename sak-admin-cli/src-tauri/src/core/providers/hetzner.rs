@@ -1,5 +1,5 @@
 //! the check of a hetzner token, through the client of sak-cloud (`HetznerApi`), the one client of
-//! the hetzner api sakadm has
+//! the hetzner api sakadmin has
 
 use crate::core::encoding::{random, random_hex};
 use ed25519_dalek::SigningKey;
@@ -13,7 +13,7 @@ use sak_cloud::hetzner::api::{ApiError, ErrorCode, HetznerApi, ListQuery};
 /// it at once. Its label `sak.pelle.io/token-check` lets the next check find and remove a key a
 /// failed delete left behind
 pub async fn validate(api: &HetznerApi) -> Result<(), String> {
-    let name = format!("sakadm-token-check-{}", random_hex::<8>()?);
+    let name = format!("sakadmin-token-check-{}", random_hex::<8>()?);
     let created = api
         .ssh_keys()
         .create(&SshKeyCreate {
@@ -79,7 +79,7 @@ fn message(error: &ApiError) -> String {
 // a fresh key every time, its private half is thrown away
 fn public_key() -> Result<String, String> {
     let key = SigningKey::from_bytes(&random::<32>()?).verifying_key();
-    Ok(crate::core::keys::encode_public_key(&key, "sakadm"))
+    Ok(crate::core::keys::encode_public_key(&key, "sakadmin"))
 }
 
 #[cfg(test)]
@@ -99,7 +99,7 @@ mod tests {
         let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap_or_default();
         body["name"]
             .as_str()
-            .is_some_and(|name| name.starts_with("sakadm-token-check-"))
+            .is_some_and(|name| name.starts_with("sakadmin-token-check-"))
             && body["public_key"]
                 .as_str()
                 .is_some_and(|key| key.starts_with("ssh-ed25519 "))
@@ -130,7 +130,7 @@ mod tests {
 
     fn created() -> ResponseTemplate {
         ResponseTemplate::new(201).set_body_json(json!({ "ssh_key": {
-            "id": 42, "name": "sakadm-token-check-x", "fingerprint": "aa", "public_key": "ssh-ed25519 AAAA", "labels": {}
+            "id": 42, "name": "sakadmin-token-check-x", "fingerprint": "aa", "public_key": "ssh-ed25519 AAAA", "labels": {}
         } }))
     }
 
@@ -156,7 +156,7 @@ mod tests {
             ))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "ssh_keys": [{
-                    "id": 41, "name": "sakadm-token-check-old", "fingerprint": "bb",
+                    "id": 41, "name": "sakadmin-token-check-old", "fingerprint": "bb",
                     "public_key": "ssh-ed25519 BBBB", "labels": { TOKEN_CHECK_LABEL: "true" }
                 }],
                 "meta": { "pagination": { "page": 1, "per_page": 50, "previous_page": null, "next_page": null, "last_page": 1, "total_entries": 1 } }
@@ -206,7 +206,7 @@ mod tests {
     async fn the_ssh_key_left_behind_is_named() {
         let (_server, api) = api(created(), error(500, "server_error", "server error")).await;
         let error = validate(&api).await.unwrap_err();
-        assert!(error.contains("sakadm-token-check-"), "{error}");
+        assert!(error.contains("sakadmin-token-check-"), "{error}");
         assert!(error.ends_with("server error"), "{error}");
     }
 

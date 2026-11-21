@@ -11,7 +11,7 @@ pub struct HetznerDnsZoneProvisioner {
     api: Arc<HetznerApi>,
 }
 
-/// a zone with its rrsets: sakadm finds in it the domains it can use, the deployments that use
+/// a zone with its rrsets: sakadmin finds in it the domains it can use, the deployments that use
 /// them and the records of a deployment
 #[derive(Clone, Debug)]
 pub struct HetznerDnsZoneListing {

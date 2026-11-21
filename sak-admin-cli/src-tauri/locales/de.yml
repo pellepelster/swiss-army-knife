@@ -1,4 +1,4 @@
-# the texts of sakadm in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+# the texts of sakadmin in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 common:
   backup:
     no_home: "Das Home-Verzeichnis des Benutzers ist nicht bekannt."
@@ -109,7 +109,7 @@ common:
       changed: "hat Änderungen"
       unknown: "unbekannt"
     settings_unread: "Der Benutzermodus, der Admin und der Mailserver von %{name} konnten nicht aus seinem Backend gelesen werden: %{error}"
-    unknown_location: "%{name} ist an einem Standort, den dieses sakadm nicht kennt. Aktualisiere sakadm (sakadm update), um sie auszurollen."
+    unknown_location: "%{name} ist an einem Standort, den dieses sakadmin nicht kennt. Aktualisiere sakadmin (sakadmin update), um sie auszurollen."
     not_compared: "%{name} konnte nicht mit dem verglichen werden, was ein Ausrollen anlegt: %{error}"
     empty: "Keine SAK-Instanz gefunden. Erstelle eine mit dem Knopf oben."
   config:
@@ -124,7 +124,7 @@ common:
     shown_none: "Nichts nennt die Einstellungen von %{name}; die SAK-Instanz hat nicht geantwortet: %{error}"
     api_not_answering: "Die SAK-Instanz antwortet nicht innerhalb von %{seconds} Sekunden unter %{url}, zuletzt: %{error}. Neue DNS-Einträge und das TLS-Zertifikat brauchen manchmal eine Weile: versuche es später mit einem erneuten Ausrollen, von der SAK-Instanz geht nichts verloren."
     no_smtp: "Kein Mailserver"
-    not_https: "Die API %{url} ist keine https-Adresse, sakadm fragt die API nur über https."
+    not_https: "Die API %{url} ist keine https-Adresse, sakadmin fragt die API nur über https."
   smtp:
     sent: "Der Mailserver %{host} hat die Test-E-Mail an %{to} angenommen. Kommt sie nicht an, sieh im Spam-Ordner nach."
     invalid_to: "%{to} ist keine E-Mail-Adresse."
@@ -144,7 +144,7 @@ common:
     missing: "fehlt"
     has_changes: "hat Änderungen"
   plan:
-    left_out: "ein zweites der SAK-Instanz, sakadm lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
+    left_out: "ein zweites der SAK-Instanz, sakadmin lässt es, wie es ist; lösche es, wenn es nicht gebraucht wird"
     intro: "Erstelle die SAK-Instanz"
     intro_deploy: "Rolle die SAK-Instanz erneut aus"
     intro_destroy: "Zerstöre die SAK-Instanz"
@@ -174,13 +174,13 @@ common:
     failed: "Der Server ist fehlgeschlagen: %{error}"
     unreadable: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
   images:
-    not_signed: "%{image} hat keine Signatur, sakadm lädt es nicht."
-    signature_invalid: "%{image} ist nicht von %{signer} signiert, sakadm lädt es nicht: %{error}"
+    not_signed: "%{image} hat keine Signatur, sakadmin lädt es nicht."
+    signature_invalid: "%{image} ist nicht von %{signer} signiert, sakadmin lädt es nicht: %{error}"
     failed: "%{url} hat %{status} geantwortet."
     unreachable: "%{url} ist nicht erreichbar: %{error}"
     unreadable: "Die Antwort von %{url} konnte nicht gelesen werden: %{error}"
   maintenance:
-    timeout: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakadm wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
+    timeout: "Der Server hat nicht innerhalb von %{minutes} Minuten geantwortet, sakadmin wartet nicht mehr. Was der Server begonnen hat, kann dort noch zu Ende laufen."
     connecting: "Frage den Server von %{name} unter root@%{host}…"
     pending: "Ein Neustart von %{name} steht an: %{reasons}."
     not_pending: "Kein Neustart von %{name} steht an."
@@ -199,22 +199,22 @@ common:
     restart_skipped: "Nicht neu gestartet, nur ein Neustart des Servers erneuert sie: %{services}"
     no_restart: "Kein Dienst nutzt alte Bibliotheken, keiner wurde neu gestartet."
   update:
-    checking: "Frage %{receiver} nach dem neuesten Release von sakadm…"
-    no_release: "Dieses sakadm (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
-    up_to_date: "sakadm %{version} ist aktuell."
-    newer: "sakadm %{newest} ist verfügbar, dies ist %{current}."
-    installing: "Lade sakadm %{version} von %{receiver}…"
-    installed: "sakadm ist von %{current} auf %{newest} aktualisiert. Starte sakadm erneut, um es zu verwenden."
+    checking: "Frage %{receiver} nach dem neuesten Release von sakadmin…"
+    no_release: "Dieses sakadmin (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
+    up_to_date: "sakadmin %{version} ist aktuell."
+    newer: "sakadmin %{newest} ist verfügbar, dies ist %{current}."
+    installing: "Lade sakadmin %{version} von %{receiver}…"
+    installed: "sakadmin ist von %{current} auf %{newest} aktualisiert. Starte sakadmin erneut, um es zu verwenden."
     unreachable: "%{url} ist nicht erreichbar: %{error}"
     failed: "%{url} hat %{status} geantwortet."
-    not_https: "%{url} ist keine https-Adresse, sakadm fragt github nur über https."
-    not_github: "%{url} ist keine Adresse von github, sakadm lädt nur von github herunter."
+    not_https: "%{url} ist keine https-Adresse, sakadmin fragt github nur über https."
+    not_github: "%{url} ist keine Adresse von github, sakadmin lädt nur von github herunter."
     unreadable: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
     no_asset: "Das Release %{version} hat kein %{name}."
     checksum_mismatch: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
     signature_invalid: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
     no_binary: "%{name} enthält kein %{binary}, nichts wurde geändert."
-    not_replaced: "sakadm unter %{path} konnte nicht ersetzt werden: %{error}"
+    not_replaced: "sakadmin unter %{path} konnte nicht ersetzt werden: %{error}"
 cli:
   mail:
     reading: "Lese den Mailserver von %{name}…"
@@ -259,26 +259,26 @@ cli:
   plan_no_terminal: "Kein Terminal, um einen Plan zu bestätigen, der löscht oder neu anlegt: gib --yes an, um ihn auf %{name} anzuwenden."
   restore_confirm: "Die Daten von %{name} werden durch die Sicherung %{path} ersetzt. Gib den Namen ein, um fortzufahren: "
   restore_no_terminal: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
-  update_hint: "sakadm update installiert es."
+  update_hint: "sakadmin update installiert es."
   maintenance:
-    reboot_hint: "Ein Neustart steht an, führe sakadm maintenance reboot %{name} aus."
+    reboot_hint: "Ein Neustart steht an, führe sakadmin maintenance reboot %{name} aus."
 ui:
   hint:
     user_mode: "Wähle ihn im Formular."
     smtp_host: "Trage den Mailserver im Formular ein."
     admin_email: "Korrigiere die E-Mail-Adresse des Admins im Formular, oder leere sie."
     admin_email_single: "Leere die E-Mail-Adresse des Admins, oder wähle mehrere Benutzer."
-    root_domain: "Das Fenster kann sie bei einer bestehenden SAK-Instanz nicht setzen: rolle sie einmal mit sakadm deploy --root-domain aus."
-    smtp_password: "Das Fenster kann nicht danach fragen: rolle sie einmal mit sakadm deploy und SAK_SMTP_PASSWORD aus."
+    root_domain: "Das Fenster kann sie bei einer bestehenden SAK-Instanz nicht setzen: rolle sie einmal mit sakadmin deploy --root-domain aus."
+    smtp_password: "Das Fenster kann nicht danach fragen: rolle sie einmal mit sakadmin deploy und SAK_SMTP_PASSWORD aus."
     smtp_from: "Korrigiere die Absenderadresse im Formular."
   quit: "Beenden"
   update:
-    version: "sakadm %{version}"
+    version: "sakadmin %{version}"
     check: "Nach Updates suchen"
-    idle: "Fragt %{receiver} nach dem neuesten Release von sakadm."
+    idle: "Fragt %{receiver} nach dem neuesten Release von sakadmin."
     install: "Auf %{version} aktualisieren"
     restart: "Neu starten"
-    restart_hint: "Starte neu, um sakadm %{version} zu verwenden."
+    restart_hint: "Starte neu, um sakadmin %{version} zu verwenden."
     restart_while_running: "Eine SAK-Instanz wird gerade geändert, starte neu, wenn das fertig ist."
   providers:
     title: "Provider-Tokens"
@@ -367,7 +367,7 @@ ui:
     smtp: "Mailserver (SMTP)"
     smtp_test: "Test-E-Mail senden"
     smtp_test_title: "Test-E-Mail senden"
-    smtp_test_text: "sakadm sendet sie mit dem Mailserver oben von %{from}, so wie die SAK-Instanz ihre Login-Links senden wird."
+    smtp_test_text: "sakadmin sendet sie mit dem Mailserver oben von %{from}, so wie die SAK-Instanz ihre Login-Links senden wird."
     smtp_test_to: "Senden an"
     smtp_test_send: "Senden"
     smtp_sending: "Sende die Test-E-Mail…"

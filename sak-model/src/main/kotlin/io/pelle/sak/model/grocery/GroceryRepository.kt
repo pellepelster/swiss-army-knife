@@ -165,6 +165,14 @@ class GroceryRepository(
         categories: List<GroceryCategoryValues> = emptyList(),
     ): SakList? = lists.insert(owner, name, shared, icon) { dsl, id, now -> insertCategories(dsl, owner, id, categories, now) }
 
+    // the first list of an owner who never had one (LIST-1), with the categories in their order; null
+    // when they had one
+    fun insertFirstList(
+        owner: String,
+        name: String,
+        categories: List<GroceryCategoryValues>,
+    ): SakList? = lists.insertFirst(owner, name) { dsl, id, now -> insertCategories(dsl, owner, id, categories, now) }
+
     // a list the user sees, see ListTable.update
     fun updateList(
         user: String,

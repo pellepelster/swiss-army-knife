@@ -1,6 +1,6 @@
 #!/bin/sh
 # runs in the image of the tools (mise run tools:image:test): a playbook of one task with the
-# callback pelle_io.sak.http_notify, posting to a stub that stands for the endpoint of sakadm; the
+# callback pelle_io.sak.http_notify, posting to a stub that stands for the endpoint of sakadmin; the
 # event of the task has to arrive with the token of the run
 set -e
 printf token > /tmp/token

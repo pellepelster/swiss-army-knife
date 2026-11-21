@@ -2,7 +2,7 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import java.time.Duration
 
 // end to end tests: the local tests, the apps in a browser against the local environment
-// (e2eLocal, `mise run frontend:test:local`), and the integration tests, the command line of sakadm
+// (e2eLocal, `mise run frontend:test:local`), and the integration tests, the command line of sakadmin
 // against a real Hetzner Cloud project (e2eIntegration, `mise run admin-cli:test:e2e`). Neither
 // runs with `gradle test` or `gradle build`, both need more than the build has
 plugins {
@@ -45,28 +45,28 @@ fun e2e(
 
 e2e("e2eLocal", "local", "Runs the local tests: the apps against the environment of mise run local:run")
 
-// the sakadm ui from its files and the fixtures of `cargo test window_fixtures -- --ignored`
+// the sakadmin ui from its files and the fixtures of `cargo test window_fixtures -- --ignored`
 fun Test.window() {
     systemProperty("sak.e2e.window.ui", rootDir.resolve("sak-admin-cli/ui").path)
     systemProperty("sak.e2e.window.fixtures", rootDir.resolve("build/ui-fixtures/window.json").path)
 }
 
-e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/: the apps against the environment of mise run local:run, the sakadm ui") {
+e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/: the apps against the environment of mise run local:run, the sakadmin ui") {
     systemProperty("sak.e2e.screenshots", rootDir.resolve("docs/screenshots").path)
     // the help of the command line (CliScreenshotTest): the binary of `cargo build`, the fonts of the theme
-    systemProperty("sak.e2e.sakadm", rootDir.resolve("sak-admin-cli/src-tauri/target/debug/sakadm").path)
+    systemProperty("sak.e2e.sakadmin", rootDir.resolve("sak-admin-cli/src-tauri/target/debug/sakadmin").path)
     systemProperty("sak.e2e.theme", rootDir.resolve("sak-theme").path)
     window()
 }
 
-e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against the environment of mise run local:run, the sakadm ui") {
+e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against the environment of mise run local:run, the sakadmin ui") {
     systemProperty("sak.e2e.videos", rootDir.resolve("build/videos").path)
     window()
 }
 
-e2e("e2eIntegration", "integration", "Runs the integration tests: two deployments created with sakadm in the Hetzner Cloud project of HCLOUD_TOKEN, the apps in a browser against them") {
+e2e("e2eIntegration", "integration", "Runs the integration tests: two deployments created with sakadmin in the Hetzner Cloud project of HCLOUD_TOKEN, the apps in a browser against them") {
     // the binary of `cargo build` in sak-admin-cli/src-tauri, SAK_E2E_SAKADM points elsewhere
-    systemProperty("sak.e2e.sakadm", rootDir.resolve("sak-admin-cli/src-tauri/target/debug/sakadm").path)
+    systemProperty("sak.e2e.sakadmin", rootDir.resolve("sak-admin-cli/src-tauri/target/debug/sakadmin").path)
     // the classes in the order of their @Order: the logins, the apps, the restores, the command line, the change of the user mode
     systemProperty("junit.jupiter.testclass.order.default", "org.junit.jupiter.api.ClassOrderer\$OrderAnnotation")
     // two servers created at once, the tests, then both destroyed

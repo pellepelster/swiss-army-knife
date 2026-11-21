@@ -9,13 +9,13 @@ use super::*;
 pub(super) fn hcloud_token(
     ask: bool,
     from_env: Option<String>,
-) -> Result<HetznerToken, SakadmError> {
+) -> Result<HetznerToken, SakadminError> {
     // a token copied with a line break or a space around it is the token
     if !ask && let Some(token) = from_env.filter(|token| !token.trim().is_empty()) {
         return Ok(HetznerToken(token.trim().to_string()));
     }
     if !std::io::stdin().is_terminal() {
-        return Err(SakadmError::new(t!("cli.no_hcloud_token"), EXIT_USAGE));
+        return Err(SakadminError::new(t!("cli.no_hcloud_token"), EXIT_USAGE));
     }
     rpassword::prompt_password(t!("cli.hcloud_token_prompt").as_ref())
         .map(|token| HetznerToken(token.trim().to_string()))
@@ -35,12 +35,12 @@ pub(super) fn password(
     ask: bool,
     typed: Typed,
     from_env: Option<String>,
-) -> Result<(String, String), SakadmError> {
+) -> Result<(String, String), SakadminError> {
     if !ask && let Some(password) = from_env.filter(|password| !password.is_empty()) {
         return Ok((password.clone(), password));
     }
     if !std::io::stdin().is_terminal() {
-        return Err(SakadmError::new(t!("cli.no_password"), EXIT_USAGE));
+        return Err(SakadminError::new(t!("cli.no_password"), EXIT_USAGE));
     }
     let prompt = |prompt: std::borrow::Cow<'_, str>| {
         rpassword::prompt_password(prompt.as_ref()).map_err(|error| error.to_string())
@@ -55,12 +55,12 @@ pub(super) fn password(
 
 /// the password at the mail server: SAK_SMTP_PASSWORD unless `ask`, else typed; empty when the
 /// variable is not set
-pub(super) fn smtp_password(ask: bool, from_env: Option<String>) -> Result<String, SakadmError> {
+pub(super) fn smtp_password(ask: bool, from_env: Option<String>) -> Result<String, SakadminError> {
     if !ask {
         return Ok(from_env.unwrap_or_default());
     }
     if !std::io::stdin().is_terminal() {
-        return Err(SakadmError::new(t!("cli.no_smtp_password"), EXIT_USAGE));
+        return Err(SakadminError::new(t!("cli.no_smtp_password"), EXIT_USAGE));
     }
     rpassword::prompt_password(t!("cli.smtp_password_prompt").as_ref())
         .map_err(|error| error.to_string().into())
@@ -76,10 +76,10 @@ pub(super) fn password_variable() -> Option<String> {
 
 /// the name of the deployment typed on the terminal after `prompt`; anything else changes nothing.
 /// Without a terminal the error `no_terminal`, a usage error: a script gives --yes
-fn confirm(name: &str, prompt: &str, no_terminal: String) -> Result<(), SakadmError> {
+fn confirm(name: &str, prompt: &str, no_terminal: String) -> Result<(), SakadminError> {
     use std::io::Write;
     if !std::io::stdin().is_terminal() {
-        return Err(SakadmError::new(no_terminal, EXIT_USAGE));
+        return Err(SakadminError::new(no_terminal, EXIT_USAGE));
     }
     eprint!("{prompt}");
     std::io::stderr()
@@ -97,7 +97,7 @@ fn confirm(name: &str, prompt: &str, no_terminal: String) -> Result<(), SakadmEr
 }
 
 /// the restore of the backup `file` over the data of the deployment `name`, confirmed
-pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), SakadmError> {
+pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), SakadminError> {
     confirm(
         name,
         &t!("cli.restore_confirm", name = name, path = file.display()),
@@ -106,7 +106,7 @@ pub(super) fn confirm_restore(name: &str, file: &std::path::Path) -> Result<(), 
 }
 
 /// a plan of `name` that deletes or replaces resources, confirmed
-pub(super) fn confirm_plan(name: &str) -> Result<(), SakadmError> {
+pub(super) fn confirm_plan(name: &str) -> Result<(), SakadminError> {
     confirm(
         name,
         &t!("cli.plan_confirm", name = name),

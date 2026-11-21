@@ -1,6 +1,8 @@
 # the texts of sak-desktop-shared in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 common:
 cli:
+  refused: "Die SAK-Instanz hat es abgelehnt (%{status})."
+  failed: "Es ist fehlgeschlagen: %{error}"
 ui:
   login:
     address: "SAK-Adresse"

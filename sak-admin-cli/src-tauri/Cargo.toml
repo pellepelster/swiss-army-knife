@@ -1,5 +1,5 @@
 [package]
-name = "sakadm"
+name = "sakadmin"
 version = "0.1.0"
 description = "The Swiss Army Knife desktop app"
 edition = "2024"
@@ -11,7 +11,7 @@ sha2 = "0.11.0"
 tauri-build = { version = "2.7.4", features = [] }
 
 [features]
-# the console program of windows (sakadm-cli.exe): the same sakadm, but a console program, so its
+# the console program of windows (sakadmin-cli.exe): the same sakadmin, but a console program, so its
 # commands print to the terminal; elsewhere it changes nothing
 console = []
 
@@ -19,7 +19,6 @@ console = []
 tauri = { version = "2.12.5", features = [] }
 serde = { version = "1", features = ["derive"] }
 rust-i18n = "4.2.4"
-sys-locale = "0.3.2"
 reqwest = { version = "0.13.5", features = ["json"] }
 serde_json = "1"
 ed25519-dalek = "3.0.0"

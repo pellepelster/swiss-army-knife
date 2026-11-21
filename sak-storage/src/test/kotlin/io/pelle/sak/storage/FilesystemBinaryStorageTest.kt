@@ -207,6 +207,19 @@ class FilesystemBinaryStorageTest {
     }
 
     @Test
+    fun `the children of a path are the blobs and directories right below it, without the staged writes`() {
+        write("1", "p", "a", "z")
+        write("2", "p", "b")
+        write("3", "q")
+        Files.writeString(Files.createDirectories(root.resolve(BlobPath.STAGING_DIRECTORY)).resolve("running"), "xx")
+
+        storage.children(path()) shouldBe listOf("p", "q")
+        storage.children(path("p")) shouldBe listOf("a", "b")
+        storage.children(path("q")) shouldBe emptyList()
+        storage.children(path("none")) shouldBe emptyList()
+    }
+
+    @Test
     fun `the root lists and counts no staged write, a tree of it keeps the root and the staged writes`() {
         write("a", "p", "a")
         val staged = Files.writeString(Files.createDirectories(root.resolve(BlobPath.STAGING_DIRECTORY)).resolve("running"), "xx")

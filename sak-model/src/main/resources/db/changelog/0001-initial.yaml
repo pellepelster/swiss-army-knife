@@ -4,7 +4,7 @@
 # sqlite only: jooq generates its classes in h2, which knows no partial indexes.
 # Every table has created_at, updated_at (null until changed) and deleted_at (null until deleted);
 # no row is deleted for real. Every table has owner (MODEL-5, SchemaTest): the e-mail address of a
-# user, admin for the password login and sakadm, or system for what the backend creates.
+# user, admin for the password login and sakadmin, or system for what the backend creates.
 databaseChangeLog:
   - changeSet:
       id: 0001-initial

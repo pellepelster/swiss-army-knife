@@ -4966,6 +4966,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.1",
+ "sys-locale",
  "tauri",
  "tauri-plugin-opener",
  "tiny_http",
@@ -4974,7 +4975,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sakadm"
+name = "sakadmin"
 version = "0.1.0"
 dependencies = [
  "age",
@@ -5005,7 +5006,6 @@ dependencies = [
  "serde_json",
  "sha2 0.11.1",
  "sigstore-verify",
- "sys-locale",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",

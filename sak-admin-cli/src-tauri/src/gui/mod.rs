@@ -12,11 +12,11 @@ pub mod update;
 use crate::core::deployments::DeploymentManager;
 use crate::core::providers::ProviderTokens;
 
-/// the entry of sakadm in the desktop of linux
+/// the entry of sakadmin in the desktop of linux
 #[cfg(target_os = "linux")]
 const DESKTOP_ENTRY: sak_desktop_shared::desktop::DesktopEntry =
     sak_desktop_shared::desktop::DesktopEntry {
-        app_id: "sakadm",
+        app_id: "sakadmin",
         name: "Swiss Army Knife",
         comment: "Create, update and back up your Swiss Army Knife",
         icon: include_bytes!("../../../../sak-theme/images/tauri/icon.png"),
@@ -66,7 +66,7 @@ pub fn run() {
             update::restart
         ])
         .build(tauri::generate_context!())
-        .expect("sakadm failed to start")
+        .expect("sakadmin failed to start")
         .run(|_, event| {
             if let tauri::RunEvent::Exit = event {
                 crate::core::provision::stop_runs();

@@ -1,4 +1,4 @@
-// the footer of the window: the version of sakadm and one button for the steps of an update: check,
+// the footer of the window: the version of sakadmin and one button for the steps of an update: check,
 // install, restart. Only a click asks the receiver, the line names it first
 import { setFailure, setStatus, text } from './shared/views.js';
 
@@ -50,7 +50,7 @@ async function install() {
   }
 }
 
-// gone on success, the new sakadm starts; refused while a deployment is changed
+// gone on success, the new sakadmin starts; refused while a deployment is changed
 async function restart() {
   try {
     await invoke('restart');

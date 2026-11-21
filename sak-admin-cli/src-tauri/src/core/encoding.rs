@@ -1,4 +1,4 @@
-//! hex and random bytes, the one place sakadm makes them, and text of the server made safe to print
+//! hex and random bytes, the one place sakadmin makes them, and text of the server made safe to print
 
 /// the bytes as lower case hex, two digits each
 pub fn hex(bytes: &[u8]) -> String {
@@ -17,7 +17,7 @@ pub fn random_hex<const N: usize>() -> Result<String, String> {
     Ok(hex(&random::<N>()?))
 }
 
-/// a line of the server or of ansible as sakadm prints it: every control character but a tab becomes
+/// a line of the server or of ansible as sakadmin prints it: every control character but a tab becomes
 /// U+FFFD, so a server that is taken over can not send escape sequences to the terminal
 pub fn printable(line: &str) -> String {
     line.chars()

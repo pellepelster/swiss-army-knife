@@ -2,17 +2,17 @@
 # {{ ansible_managed }}
 #
 # sak-backend <command>: the maintenance of the deployment {{ sak_name }} on its server, run by
-# sakadm through ssh as root. Messages go to standard error, each line starting with
+# sakadmin through ssh as root. Messages go to standard error, each line starting with
 # "sak-backend: ". The commands that change something take one lock, so only one of them runs.
 # Exit codes: 0 done, 1 failed or wrong arguments, 2 another command holds the lock
 #
 #   backup <age recipient>  the data below {{ sak_data_dir }} as one tar stream, compressed with
 #                           zstd and encrypted with age to <recipient> (the public half of the
-#                           backup key sakadm derives), on standard output. Nothing stops: the
+#                           backup key sakadmin derives), on standard output. Nothing stops: the
 #                           database is copied with VACUUM INTO, victorialogs with its own
 #                           snapshots, the files as hard links of one moment
 #   restore                 replaces the data with the backup on standard input, decrypted by
-#                           sakadm and still compressed with zstd. The archive is extracted and
+#                           sakadmin and still compressed with zstd. The archive is extracted and
 #                           checked first (its deployment, a version not newer than the one of the
 #                           server, the database); until then nothing changes. The files of the
 #                           provisioning stay
@@ -315,6 +315,8 @@ backup() {
   install -d -m 0750 -o root -g {{ backend_group }} "$staging/backend"
   cp -al {{ backend_data_path | quote }} "$staging/backend/data"
   rm -f "$staging/backend/data/sak.db" "$staging/backend/data/sak.db-wal" "$staging/backend/data/sak.db-shm"
+  # the repositories of restic are backups themselves, a backup leaves them out (BACKUP-4)
+  rm -rf "$staging/backend/data/restic"
   mv "$staging/database/sak.db" "$staging/backend/data/sak.db"
   rmdir "$staging/database"
   for entry in "$data"/* "$data"/.[!.]*; do
@@ -367,14 +369,35 @@ restore() {
 
   lock
 
+  # where the repositories of restic of the server wait while the data is replaced: next to the
+  # data, on its volume, and never below a path this script removes (BACKUP-4); they are in no
+  # backup, so nothing else has them
+  kept="$data/backend/restic-kept"
+
   # what a restore that did not end left behind is the data from before it, never removed here
   if [ -e "$replaced" ]; then
     step "$replaced is left from a restore that did not end; move its data back or remove it first"
     exit 1
   fi
+  if [ -e "$kept" ]; then
+    step "$kept is left from a restore that did not end: the repositories of restic; move it to $data/backend/data/restic first"
+    exit 1
+  fi
 
   stopped=false
   cleanup() {
+    # a restore that ends early: the repositories go back to the data of the backend, the one in
+    # place or, when that was moved away already, the one from before the restore
+    if [ -e "$kept" ]; then
+      for home in "$data/backend/data" "$replaced/backend/data"; do
+        if [ -d "$home" ] && [ ! -e "$home/restic" ] && mv "$kept" "$home/restic"; then
+          break
+        fi
+      done
+      if [ -e "$kept" ]; then
+        step "the repositories of restic are in $kept; move it to $data/backend/data/restic"
+      fi
+    fi
     rm -rf "$staging"
     if [ "$stopped" = true ]; then
       systemctl start "${units[@]}" || true
@@ -462,6 +485,13 @@ EOF
   systemctl stop "${units[@]}"
 
   step "replacing the data"
+  # the repositories of restic are in no backup (BACKUP-4): the ones of the server stay. They wait
+  # in $kept, which nothing here removes, and go into the restored data; cleanup puts them back
+  # when the restore ends before that
+  rm -rf "$staging/backend/data/restic"
+  if [ -e "$data/backend/data/restic" ]; then
+    mv "$data/backend/data/restic" "$kept"
+  fi
   install -d -m 0700 -o root -g root "$replaced" "$replaced/backend"
   for entry in "${entries[@]}"; do
     if [ -e "$data/$entry" ]; then
@@ -469,6 +499,9 @@ EOF
     fi
     mv "$staging/$entry" "$data/$entry"
   done
+  if [ -e "$kept" ]; then
+    mv "$kept" "$data/backend/data/restic"
+  fi
 
   step "starting the deployment"
   systemctl start "${units[@]}"

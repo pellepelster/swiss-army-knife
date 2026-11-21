@@ -36,6 +36,7 @@ priority:
   high: "High priority"
   normal: "Normal priority"
   low: "Low priority"
+first_list: "My Todos"
 invalid_icon: "An icon must be one emoji."
 invalid_list_name: "A list name must have 1 to %{max} characters and no control characters."
 invalid_title: "A task must have 1 to %{max} characters and no control characters."

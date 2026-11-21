@@ -291,7 +291,7 @@ impl Provisioner<HetznerServer> for HetznerServerProvisioner {
             );
         }
 
-        // a location, type or image this sakadm does not know is no reason to recreate the server;
+        // a location, type or image this sakadmin does not know is no reason to recreate the server;
         // Hetzner forgets the image of a server once the image is deleted
         if resource.location != runtime.location && runtime.location != Location::unknown {
             changes.push(DiffItem::recreate(

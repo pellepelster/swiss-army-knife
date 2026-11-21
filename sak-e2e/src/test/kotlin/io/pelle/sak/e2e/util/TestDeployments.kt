@@ -41,8 +41,8 @@ private fun requiredEnv(name: String): String = System.getenv(name)?.takeIf { it
 /**
  * the two deployments every integration test shares, because a server takes minutes and costs
  * money: one single user in domain mode, one multi user in subdomain mode that sends its login
- * links to a mailtrap sandbox. Created once for the whole run, in parallel, with sakadm only;
- * destroyed with sakadm when the run ends, also after a failure. What an earlier run left goes first
+ * links to a mailtrap sandbox. Created once for the whole run, in parallel, with sakadmin only;
+ * destroyed with sakadmin when the run ends, also after a failure. What an earlier run left goes first
  */
 class TestEnvironment : AutoCloseable {
     val token = requiredEnv("HCLOUD_TOKEN")
@@ -51,7 +51,7 @@ class TestEnvironment : AutoCloseable {
     val smtpHost = requiredEnv("SAK_E2E_SMTP_HOST")
     val smtpPort = requiredEnv("SAK_E2E_SMTP_PORT")
     // the tag of the images the deployments run, when the run sets one: e.g. <version>-rc, the
-    // images of a release before it is released; else the version of sakadm
+    // images of a release before it is released; else the version of sakadmin
     private val imageTag = listOfNotNull(System.getenv("SAK_DOCKER_IMAGE_TAG")?.takeIf { it.isNotBlank() }?.let { "SAK_DOCKER_IMAGE_TAG" to it }).toMap()
     val smtpEnvironment =
         imageTag + mapOf("SAK_SMTP_USERNAME" to requiredEnv("SAK_E2E_SMTP_USERNAME"), "SAK_SMTP_PASSWORD" to requiredEnv("SAK_E2E_SMTP_PASSWORD"))
@@ -62,7 +62,7 @@ class TestEnvironment : AutoCloseable {
 
     val single: Deployment =
         password().let { password ->
-            Deployment("$base-single", UserMode.SINGLE, "domain", DOMAIN_ZONE, password, "", Sakadm(token, password, imageTag, prefix = "[$base-single] "))
+            Deployment("$base-single", UserMode.SINGLE, "domain", DOMAIN_ZONE, password, "", Sakadmin(token, password, imageTag, prefix = "[$base-single] "))
         }
 
     // the admin is a synthetic address, the sandbox receives everything sent to it
@@ -75,7 +75,7 @@ class TestEnvironment : AutoCloseable {
                 SUBDOMAIN_ZONE,
                 password,
                 "$base@example.org",
-                Sakadm(token, password, smtpEnvironment, prefix = "[$base-multi] "),
+                Sakadmin(token, password, smtpEnvironment, prefix = "[$base-multi] "),
             )
         }
 
@@ -122,7 +122,7 @@ class TestEnvironment : AutoCloseable {
             .map { deployment ->
                 thread(name = deployment.name) {
                     deployment.created =
-                        deployment.sakadm.run(
+                        deployment.sakadmin.run(
                             "create",
                             deployment.name,
                             *users.getValue(deployment),
@@ -134,7 +134,7 @@ class TestEnvironment : AutoCloseable {
                             LOCATION,
                             *STAGING_CA,
                         )
-                    step("sakadm create ended with ${deployment.created}", deployment)
+                    step("sakadmin create ended with ${deployment.created}", deployment)
                 }
             }.forEach { it.join() }
         for (deployment in deployments.filter { it.created == 0 }) {
@@ -165,8 +165,8 @@ class TestEnvironment : AutoCloseable {
         val failures = mutableListOf<String>()
         for (deployment in deployments) {
             step("destroying the deployment and its data", deployment)
-            val exit = deployment.sakadm.run("destroy", deployment.name, "--delete-data", "--yes")
-            if (exit != 0) failures += "sakadm destroy ${deployment.name} ended with $exit"
+            val exit = deployment.sakadmin.run("destroy", deployment.name, "--delete-data", "--yes")
+            if (exit != 0) failures += "sakadmin destroy ${deployment.name} ended with $exit"
             // its backups and the local copy of its settings
             File(System.getProperty("user.home"), ".sak/${deployment.name}").deleteRecursively()
         }

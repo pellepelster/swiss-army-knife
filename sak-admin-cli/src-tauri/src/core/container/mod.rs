@@ -10,7 +10,7 @@ use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-// tried in this order; sakadm uses the first one that works
+// tried in this order; sakadmin uses the first one that works
 pub const RUNTIMES: &[&str] = &["docker", "podman"];
 // a small image that shows that a runtime pulls and runs images (canary/Dockerfile), run by its
 // verified digest (`core::images`); fully qualified, without a tty podman refuses a short name
@@ -18,7 +18,7 @@ fn canary_image() -> Result<String, String> {
     crate::core::images::reference(crate::core::images::CANARY)
 }
 const CANARY_ANSWER: &str = "sak-admin-cli-docker-canary";
-// the image of the tools (Dockerfile) of the tag of sakadm (`core::image_tag`), pulled on every
+// the image of the tools (Dockerfile) of the tag of sakadmin (`core::image_tag`), pulled on every
 // start: by tag before the pull, by the digest the pull verified (`PINNED`) after it
 pub fn image() -> &'static str {
     static TAGGED: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
@@ -205,17 +205,17 @@ mod tests {
 
     #[test]
     fn without_a_runtime_the_check_explains_what_is_needed() {
-        let error = find(&["sakadm-no-such-docker", "sakadm-no-such-podman"]).unwrap_err();
+        let error = find(&["sakadmin-no-such-docker", "sakadmin-no-such-podman"]).unwrap_err();
         assert!(
             error.starts_with("Swiss Army Knife needs docker or podman"),
             "{error}"
         );
         assert!(
-            error.contains("sakadm-no-such-docker does not work"),
+            error.contains("sakadmin-no-such-docker does not work"),
             "{error}"
         );
         assert!(
-            error.contains("sakadm-no-such-podman does not work"),
+            error.contains("sakadmin-no-such-podman does not work"),
             "{error}"
         );
     }
@@ -261,7 +261,7 @@ mod tests {
         #[test]
         fn the_next_runtime_is_tried_when_one_is_missing() {
             assert!(installed("docker"), "the integration tests need docker");
-            let (runtime, _) = find(&["sakadm-no-such-runtime", "docker"]).unwrap();
+            let (runtime, _) = find(&["sakadmin-no-such-runtime", "docker"]).unwrap();
             assert_eq!(runtime, "docker");
         }
     }

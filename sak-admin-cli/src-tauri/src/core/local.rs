@@ -1,4 +1,4 @@
-//! what sakadm keeps of a deployment on this machine, all below `~/.sak/<name>/`, only for the
+//! what sakadmin keeps of a deployment on this machine, all below `~/.sak/<name>/`, only for the
 //! user: the settings of its last create or deploy (`config.json`) and its backups (`backups/`).
 //! The settings are encrypted with age to a key derived from the password of the deployment, so
 //! only that password reads them, on whatever machine; they hold the password of the mail server
@@ -11,7 +11,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-/// `~/.sak/<name>`, where sakadm keeps what it knows of the deployment
+/// `~/.sak/<name>`, where sakadmin keeps what it knows of the deployment
 pub fn directory(name: &str) -> Result<PathBuf, String> {
     let home = std::env::home_dir().ok_or_else(|| t!("common.backup.no_home").to_string())?;
     Ok(home.join(".sak").join(name))

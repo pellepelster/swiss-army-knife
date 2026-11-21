@@ -9,13 +9,13 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
-// the page of the sakadm ui (sak-admin-cli/ui) and the answers of rust for it, the fixtures that
+// the page of the sakadmin ui (sak-admin-cli/ui) and the answers of rust for it, the fixtures that
 // `cargo test window_fixtures -- --ignored` writes (core/deployments/window_fixtures.rs)
 private val UI: Path = Paths.get(System.getProperty("sak.e2e.window.ui") ?: "../sak-admin-cli/ui").toAbsolutePath().normalize()
 private val FIXTURES: Path = Paths.get(System.getProperty("sak.e2e.window.fixtures") ?: "../build/ui-fixtures/window.json")
 
 // where the page is served from, no server listens there
-private const val ORIGIN = "http://sakadm.test"
+private const val ORIGIN = "http://sakadmin.test"
 
 // the size of the window (sak-admin-cli/src-tauri/tauri.conf.json)
 const val WINDOW_WIDTH = 736

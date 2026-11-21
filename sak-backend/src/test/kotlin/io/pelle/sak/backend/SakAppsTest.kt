@@ -194,6 +194,18 @@ class SakAppsTest {
     ) = request(port, "POST", path, sessionToken, json.toByteArray(), answer = HttpResponse.BodyHandlers.ofString())
 
     // the id of a new grocery list of the user
+    // deletes the first list the sign-in made (LIST-1), the only one of the user
+    private fun deleteFirstList(
+        port: Int,
+        session: String,
+        app: String,
+        name: String,
+    ) {
+        val first = get(port, "/api/v1/$app/lists", session).json().getValue("items").jsonArray.single().jsonObject
+        first.string("name") shouldBe name
+        delete(port, "/api/v1/$app/lists/${first.string("id")}", session).statusCode() shouldBe 204
+    }
+
     private fun createList(
         port: Int,
         sessionToken: String,
@@ -201,7 +213,7 @@ class SakAppsTest {
         shared: Boolean = false,
     ) = post(port, "/api/v1/grocery/lists", """{"name":"$name","shared":$shared}""", sessionToken).json().string("id")
 
-    // a request signed like sakadm signs it, for the path as caddy hands it on (below /api)
+    // a request signed like sakadmin signs it, for the path as caddy hands it on (below /api)
     private fun signed(
         port: Int,
         path: String,
@@ -352,6 +364,8 @@ class SakAppsTest {
             // sak.<base_domain> and api.<base_domain> are the controller's own
             post(port, "/api/v1/static-hosting", """{"name":"api"}""", session).statusCode() shouldBe 400
             post(port, "/api/v1/static-hosting", """{"name":"sak"}""", session).statusCode() shouldBe 400
+            // the REST backend of restic is below /restic of the api host (SERVER-7)
+            post(port, "/api/v1/static-hosting", """{"name":"restic"}""", session).statusCode() shouldBe 400
 
             // neither the list nor the bucket carry its keys
             val list = get(port, "/api/v1/static-hosting", session).body()
@@ -618,7 +632,8 @@ class SakAppsTest {
             add(admin, shared, " milk ").string("photoId") shouldBe photo
             val latest = add(anna, shared, "Milk").also { it.string("photoId") shouldBe photo }.string("id")
             val own = createList(port, anna)
-            lists(anna).map { it.string("id") }.toSet() shouldBe setOf(shared, own)
+            // besides anna's first list (LIST-1)
+            lists(anna).filter { it.string("name") != "My Groceries" }.map { it.string("id") }.toSet() shouldBe setOf(shared, own)
             add(anna, own, "Milk").getValue("photoId") shouldBe JsonNull
 
             // taken away from an item, the next item of the name takes what the latest one has (GROCERY-12)
@@ -654,9 +669,120 @@ class SakAppsTest {
     }
 
     @Test
+    fun `keeps repositories of restic for each user, their token only on its own`() {
+        withServer { port ->
+            val admin = signIn(port)
+            val second = signIn(port, email = "second@example.org", mails = 2)
+            get(port, "/api/v1/restic/repositories").statusCode() shouldBe 401
+            // the sign-in made the first repository (BACKUP-7)
+            fun repositories(session: String) = get(port, "/api/v1/restic/repositories", session).json().getValue("items").jsonArray.map { it.jsonObject }
+            repositories(admin).map { it.string("name") } shouldBe listOf("my-backups")
+            val id =
+                post(port, "/api/v1/restic/repositories", """{"name":"laptop"}""", admin).let {
+                    it.statusCode() shouldBe 201
+                    it.body() shouldNotContain "token"
+                    it.json().string("url") shouldMatch Regex("rest:https://api\\.[^/]+/restic/\\d+/")
+                    it.json().string("id")
+                }
+            post(port, "/api/v1/restic/repositories", """{"name":"laptop"}""", admin).statusCode() shouldBe 409
+            post(port, "/api/v1/restic/repositories", """{"name":"Laptop!"}""", admin).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "restic.invalid_name"
+            }
+            // the same name for another user, each sees their own only
+            post(port, "/api/v1/restic/repositories", """{"name":"laptop"}""", second).statusCode() shouldBe 201
+            repositories(admin).map { it.string("name") }.toSet() shouldBe setOf("laptop", "my-backups")
+            repositories(second).map { it.string("id") } shouldNotContain id
+            get(port, "/api/v1/restic/repositories/$id/token", admin).let {
+                it.statusCode() shouldBe 200
+                it.headers().firstValue("Cache-Control").get() shouldBe "no-store"
+                it.json().string("token").length shouldBe 43
+            }
+            get(port, "/api/v1/restic/repositories/$id/token", second).statusCode() shouldBe 404
+
+            // the size of a repository is what its files take
+            repositories(admin).single { it.string("id") == id }.string("size") shouldBe "0"
+            val token = get(port, "/api/v1/restic/repositories/$id/token", admin).json().string("token")
+            val login = "Basic " + java.util.Base64.getEncoder().encodeToString("$id:$token".toByteArray())
+            request(port, "POST", "/restic/$id/config", body = "twelve bytes".toByteArray(), answer = HttpResponse.BodyHandlers.ofString(), authorization = login)
+                .statusCode() shouldBe 200
+            repositories(admin).single { it.string("id") == id }.string("size") shouldBe "12"
+
+            // the backup plans into them, of the paths of one computer (BACKUP-5, BACKUP-6)
+            get(port, "/api/v1/restic/plans").statusCode() shouldBe 401
+            val plan =
+                post(port, "/api/v1/restic/plans", """{"name":"documents","repositoryId":$id,"host":"annas-laptop","paths":["/home/anna/Documents"]}""", admin)
+                    .let {
+                        it.statusCode() shouldBe 201
+                        it.json().string("host") shouldBe "annas-laptop"
+                        it.json().getValue("paths").jsonArray.map { path -> path.jsonPrimitive.content } shouldBe listOf("/home/anna/Documents")
+                        it.json().string("id")
+                    }
+            post(port, "/api/v1/restic/plans", """{"name":"documents","repositoryId":$id,"host":"h","paths":["/a"]}""", admin).statusCode() shouldBe 409
+            post(port, "/api/v1/restic/plans", """{"name":"x","repositoryId":$id,"host":"h","paths":["relative"]}""", admin).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "restic.invalid_path"
+            }
+            post(port, "/api/v1/restic/plans", """{"name":"x","repositoryId":$id,"host":"h","paths":[]}""", admin).body() shouldContain "restic.no_paths"
+            // a repository of another user is none of the user
+            post(port, "/api/v1/restic/plans", """{"name":"x","repositoryId":$id,"host":"h","paths":["/a"]}""", second).statusCode() shouldBe 422
+            put(port, "/api/v1/restic/plans/$plan", """{"name":"papers","repositoryId":$id,"host":"annas-laptop","paths":["/b","/c"],"keepDaily":7}""", admin)
+                .json()
+                .let {
+                    it.string("name") shouldBe "papers"
+                    // what a run keeps (BACKUP-8)
+                    it.string("keepDaily") shouldBe "7"
+                    (it["keepLast"] ?: JsonNull) shouldBe JsonNull
+                    it.getValue("paths").jsonArray.map { path -> path.jsonPrimitive.content } shouldBe listOf("/b", "/c")
+                    it.containsKey("updatedAt") shouldBe true
+                }
+            get(port, "/api/v1/restic/plans/$plan", admin).json().string("name") shouldBe "papers"
+            get(port, "/api/v1/restic/plans/$plan", second).statusCode() shouldBe 404
+            get(port, "/api/v1/restic/plans", second).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
+            // a change by another user, to a name taken, to a repository of another user
+            val secondsRepository = repositories(second).single { it.string("name") == "laptop" }.string("id")
+            put(port, "/api/v1/restic/plans/$plan", """{"name":"papers","repositoryId":$secondsRepository,"host":"h","paths":["/a"]}""", second).statusCode() shouldBe 404
+            post(port, "/api/v1/restic/plans", """{"name":"music","repositoryId":$id,"host":"h","paths":["/a"]}""", admin).statusCode() shouldBe 201
+            put(port, "/api/v1/restic/plans/$plan", """{"name":"music","repositoryId":$id,"host":"h","paths":["/a"]}""", admin).statusCode() shouldBe 409
+            put(port, "/api/v1/restic/plans/$plan", """{"name":"papers","repositoryId":$secondsRepository,"host":"h","paths":["/a"]}""", admin).statusCode() shouldBe 422
+            // the pages of the list, by name
+            post(port, "/api/v1/restic/plans", """{"name":"zebra","repositoryId":$id,"host":"h","paths":["/a"]}""", admin).statusCode() shouldBe 201
+            fun page(query: String) = get(port, "/api/v1/restic/plans?$query", admin).json()
+            page("limit=2").let {
+                it.getValue("items").jsonArray.map { item -> item.jsonObject.string("name") } shouldBe listOf("music", "papers")
+                it.getValue("pagination").jsonObject.string("total") shouldBe "3"
+            }
+            page("limit=2&offset=2").getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("zebra")
+            get(port, "/api/v1/restic/plans?limit=0", admin).statusCode() shouldBe 400
+        }
+    }
+
+    @Test
+    fun `a removed user reaches no repository of restic, their files stay (BK-8)`() {
+        withServer { port ->
+            val admin = signIn(port)
+            post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
+            val anna = signIn(port, email = "anna@example.org", mails = 2)
+            val repository = get(port, "/api/v1/restic/repositories", anna).json().getValue("items").jsonArray.single().jsonObject.string("id")
+            val token = get(port, "/api/v1/restic/repositories/$repository/token", anna).json().string("token")
+            val login = "Basic " + java.util.Base64.getEncoder().encodeToString("$repository:$token".toByteArray())
+            fun config() = request(port, "GET", "/restic/$repository/config", answer = HttpResponse.BodyHandlers.ofString(), authorization = login)
+            request(port, "POST", "/restic/$repository/config", body = "a config".toByteArray(), answer = HttpResponse.BodyHandlers.ofString(), authorization = login)
+                .statusCode() shouldBe 200
+            config().statusCode() shouldBe 200
+
+            val annaId = get(port, "/api/v1/users", admin).json().getValue("items").jsonArray.map { it.jsonObject }.single { it.string("email") == "anna@example.org" }.string("id")
+            delete(port, "/api/v1/users/$annaId", admin).statusCode() shouldBe 204
+            config().statusCode() shouldBe 401
+        }
+    }
+
+    @Test
     fun `keeps todo lists and their tasks, a done one until the list is purged, changes stream as server-sent events`() {
         withServer { port ->
             val session = signIn(port)
+            // the sign-in made the first list (LIST-1); deleted, it does not come back
+            deleteFirstList(port, session, "todo", "My Todos")
             get(port, "/api/v1/todo/lists", session).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
             get(port, "/api/v1/todo/changes").statusCode() shouldBe 401
             val listId = post(port, "/api/v1/todo/lists", """{"name":"Home"}""", session).let {
@@ -746,8 +872,10 @@ class SakAppsTest {
     @Test
     fun `keeps grocery lists, their items by category and suggestions of what was added before`() {
         withServer { port ->
-            // the sign-in makes no list, the user creates the first one
+            // the sign-in made the first list (LIST-1); deleted, it does not come back and the user
+            // creates one
             val session = signIn(port)
+            deleteFirstList(port, session, "grocery", "My Groceries")
             get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
             createList(port, session)
             val listId =
@@ -1383,6 +1511,10 @@ class SakAppsTest {
                     "/api/v1/todo/items/{id}/due-date",
                     "/api/v1/todo/lists/{id}/purge",
                     "/api/v1/todo/changes",
+                    "/api/v1/restic/repositories",
+                    "/api/v1/restic/repositories/{id}/token",
+                    "/api/v1/restic/plans",
+                    "/api/v1/restic/plans/{id}",
                     "/api/v1/files",
                     "/api/v1/files/{id}",
                     "/api/v1/files/{id}/thumbnail",
@@ -1390,7 +1522,7 @@ class SakAppsTest {
                     "/api/v1/health",
                 )
             // the routes behind the login require the session token or a signed request of
-            // sakadm, the login itself does not
+            // sakadmin, the login itself does not
             val me = paths.getValue("/api/v1/auth/who-am-i").jsonObject.getValue("get").jsonObject
             me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"), setOf("api-signature"))
             paths.getValue("/api/v1/auth/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
@@ -1535,7 +1667,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `sakadm reads the settings of the deployment to deploy it again, no session does`() {
+    fun `sakadmin reads the settings of the deployment to deploy it again, no session does`() {
         withServer { port ->
             get(port, "/api/v1/deployment").statusCode() shouldBe 401
             get(port, "/api/v1/deployment", signIn(port)).statusCode() shouldBe 401
@@ -1693,7 +1825,7 @@ class SakAppsTest {
             val smtp = answer.json().getValue("smtp").jsonObject
             smtp.getValue("passwordSet").jsonPrimitive.content shouldBe "true"
             smtp.string("password") shouldBe "the-smtp-password"
-            // the sender of the login mails, sakadm takes it over as well
+            // the sender of the login mails, sakadmin takes it over as well
             smtp.string("from") shouldBe "login@example.org"
             // only for admins
             get(port, "/api/v1/deployment").statusCode() shouldBe 401
@@ -1702,14 +1834,14 @@ class SakAppsTest {
 
     @Test
     fun `a signed request works without any admin address`() {
-        // single user: no list of allowed addresses, sakadm is let in all the same
+        // single user: no list of allowed addresses, sakadmin is let in all the same
         withServer(config(smtp = false, admins = false)) { port ->
             signed(port, "/api/v1/deployment").statusCode() shouldBe 200
         }
     }
 
     @Test
-    fun `sakadm signs in as itself and acts as the admin`() {
+    fun `sakadmin signs in as itself and acts as the admin`() {
         withServer { port ->
             val session = signIn(port)
             post(port, "/api/v1/notes", """{"text":"of the admin","color":"yellow","labels":[]}""", session).statusCode() shouldBe 201
@@ -1717,7 +1849,7 @@ class SakAppsTest {
             // its data is the admin's
             signed(port, "/api/v1/notes").body() shouldContain "of the admin"
             signed(port, "/api/v1/auth/who-am-i").json().let {
-                it.string("username") shouldBe "sakadm"
+                it.string("username") shouldBe "sakadmin"
                 it.getValue("roles").jsonArray.map { role -> role.jsonPrimitive.content } shouldBe listOf("admin")
             }
         }
@@ -1742,12 +1874,12 @@ class SakAppsTest {
     }
 
     @Test
-    fun `a session token naming sakadm or admin gets no role of them`() {
+    fun `a session token naming sakadmin or admin gets no role of them`() {
         val config = config()
         withServer(config) { port ->
             // signed with the key of the server, the subjects of the token and of the password login
             val tokens = TokenService(SigningKey.fromPem(signingKey(config)!!), FRONTEND_URL)
-            for (subject in listOf("sakadm", "admin")) {
+            for (subject in listOf("sakadmin", "admin")) {
                 val forged = tokens.issueSessionToken(subject, setOf(Role.ADMIN)).token
                 get(port, "/api/v1/notes", forged).statusCode() shouldBe 401
             }
@@ -1755,7 +1887,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `a signed request of sakadm reaches the api like an admin session, once, for its host and path`() {
+    fun `a signed request of sakadmin reaches the api like an admin session, once, for its host and path`() {
         withServer { port ->
             signed(port, "/api/v1/deployment").statusCode() shouldBe 200
             signed(port, "/api/v1/notes").statusCode() shouldBe 200
@@ -1774,7 +1906,7 @@ class SakAppsTest {
             signed(port, "/api/v1/deployment", authorization = signature("GET", "/v1/deployment", timestamp = old)).statusCode() shouldBe 401
             val other = KeyPairGenerator.getInstance("Ed25519").generateKeyPair().private
             signed(port, "/api/v1/deployment", authorization = signature("GET", "/v1/deployment", key = other)).statusCode() shouldBe 401
-            // a signed request carries no body, sakadm only reads
+            // a signed request carries no body, sakadmin only reads
             signed(port, "/api/v1/notes", method = "POST", json = """{"text":"x","color":"yellow","labels":[]}""")
                 .statusCode() shouldBe 401
         }
@@ -1798,8 +1930,8 @@ class SakAppsTest {
         withServer(single) { port ->
             val session = passwordLogin(port).json().string("sessionToken")
             post(port, "/api/v1/static-hosting", """{"name":"by-password"}""", session).statusCode() shouldBe 201
-            // the password login makes the list of the notes too, no grocery list
-            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray shouldBe JsonArray(emptyList())
+            // the password login makes the first lists too (LIST-1)
+            get(port, "/api/v1/grocery/lists", session).json().getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("My Groceries")
             post(port, "/api/v1/notes", """{"text":"by password"}""", session).statusCode() shouldBe 201
         }
         buckets(single).byName("by-mail")!!.owner shouldBe "admin@example.org"
@@ -1918,18 +2050,18 @@ class SakAppsTest {
     }
 
     companion object {
-        // the hash of the admin password `a password of sixteen`, the vector of sakadm
+        // the hash of the admin password `a password of sixteen`, the vector of sakadmin
         // (ADMIN_PASSWORD_VECTOR in sak-admin-cli/src-tauri/src/core/keys.rs)
         private const val ADMIN_PASSWORD_HASH =
             "\$argon2id\$v=19\$m=65536,t=3,p=1\$al/AGZtQJD5CTnS21yvIXg\$L7n0a0d/Gu4awCZm7tuz99SWhVvUedmj0UABpTBu6l4"
         private const val ADMIN_PASSWORD = "a password of sixteen"
 
         // the api key of the tests, its public half in the configuration; that the backend checks
-        // what sakadm signs is ApiSignatureTest, with the vectors of sakadm
+        // what sakadmin signs is ApiSignatureTest, with the vectors of sakadmin
         private val API_KEYS = KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
         private val API_PUBLIC_KEY = Base64.getEncoder().encodeToString(API_KEYS.public.encoded.takeLast(32).toByteArray())
 
-        // the authorization header sakadm sends for a request to api.example.org
+        // the authorization header sakadmin sends for a request to api.example.org
         private fun signature(
             method: String,
             path: String,

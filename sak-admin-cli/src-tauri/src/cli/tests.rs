@@ -5,7 +5,7 @@ use crate::core::error::{
 };
 
 fn parse(words: &[&str]) -> Result<Cli, clap::Error> {
-    Cli::try_parse_from(std::iter::once("sakadm").chain(words.iter().copied()))
+    Cli::try_parse_from(std::iter::once("sakadmin").chain(words.iter().copied()))
 }
 
 /// the command on a project the arguments ask for; none for nothing or `update`

@@ -34,19 +34,17 @@ class FileServiceTest {
 
     private val service by lazy { FileService(database, dir, clock, maxSize = 1024) }
 
-    // where the storage keeps a content on disk, the layout of the deployments that are there
-    private fun stored(sha256: String, suffix: String = "") = dir.resolve(sha256.take(2)).resolve(sha256 + suffix)
-
-    private fun stored(file: StoredFile) = stored(file.sha256)
+    // where the storage keeps a file on disk: below its resource id (MODEL-8)
+    private fun stored(file: StoredFile, name: String = "content") = dir.resolve(file.resourceId.value).resolve(name)
 
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     @Test
-    fun `stores a file with its type, size and uploader, its content under its sha-256`() {
+    fun `stores a file with its type, size and uploader, its content below its resource id`() {
         val content = Media.JPEG + "a photo".toByteArray()
 
         val file = service.store(content.inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>().file
-        file shouldBe StoredFile(file.id, sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), null)
+        file shouldBe StoredFile(file.id, file.resourceId, sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), null)
         Files.readAllBytes(stored(file)) shouldBe content
         service.content(file)!!.let { it.size shouldBe content.size.toLong(); it.open().use { stream -> stream.readAllBytes() } shouldBe content }
         service.byId("pelle@pelle.io", file.id) shouldBe file
@@ -57,7 +55,7 @@ class FileServiceTest {
     }
 
     @Test
-    fun `every upload is a file of its own, the same content is stored once`() {
+    fun `every upload is a file of its own, also of the same content`() {
         val content = Media.PNG + "same".toByteArray()
         val first = (service.store(content.inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
         val second = (service.store(content.inputStream(), "other@example.org") as StoreFileResult.Stored).file
@@ -67,8 +65,11 @@ class FileServiceTest {
         second.id shouldNotBe first.id
         second.owner shouldBe "other@example.org"
         second.sha256 shouldBe first.sha256
-        // the upload of the second went, nothing but the content and the empty staging directory stay
-        Files.list(dir).use { it.toList() }.map { it.fileName.toString() }.toSet() shouldBe setOf(first.sha256.take(2), BlobPath.STAGING_DIRECTORY)
+        second.resourceId shouldNotBe first.resourceId
+        Files.readAllBytes(stored(second)) shouldBe content
+        // the uploads went, nothing but the two files and the empty staging directory stay
+        Files.list(dir).use { it.toList() }.map { it.fileName.toString() }.toSet() shouldBe
+            setOf(first.resourceId.value, second.resourceId.value, BlobPath.STAGING_DIRECTORY)
         Files.list(dir.resolve(BlobPath.STAGING_DIRECTORY)).use { it.count() } shouldBe 0
     }
 
@@ -96,7 +97,7 @@ class FileServiceTest {
     fun `makes a thumbnail of an image when it is first asked for and keeps it`() {
         val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
 
-        val thumbnail = stored(file.sha256, ".thumbnail.jpg")
+        val thumbnail = stored(file, "thumbnail-480.jpg")
         service(maxSize = 10_000_000).thumbnail(file)!!.open().use { ImageIO.read(it) }.let {
             it.width shouldBe 480
             it.height shouldBe 319
@@ -136,7 +137,7 @@ class FileServiceTest {
         try {
             val thumbnails = (1..16).map { pool.submit<Long?> { start.await(); service.thumbnail(file)?.size } }
             start.countDown()
-            thumbnails.map { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.toSet() shouldBe setOf(Files.size(stored(file.sha256, ".thumbnail.jpg")))
+            thumbnails.map { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.toSet() shouldBe setOf(Files.size(stored(file, "thumbnail-480.jpg")))
         } finally {
             pool.shutdownNow()
         }

@@ -23,7 +23,7 @@ pub mod smtp;
 pub mod ssh;
 pub mod update;
 
-/// the version of SAK this sakadm is (`VERSION` of the build, `build.rs`), the tag of the images
+/// the version of SAK this sakadmin is (`VERSION` of the build, `build.rs`), the tag of the images
 /// it pulls and deploys; `latest` for a build that is no release
 pub const VERSION: &str = env!("SAK_VERSION");
 
@@ -31,7 +31,7 @@ pub const VERSION: &str = env!("SAK_VERSION");
 /// the images of a release before it is released
 pub const IMAGE_TAG_VARIABLE: &str = "SAK_DOCKER_IMAGE_TAG";
 
-/// the tag of the images sakadm runs and the server pulls: `SAK_DOCKER_IMAGE_TAG` when it is set,
+/// the tag of the images sakadmin runs and the server pulls: `SAK_DOCKER_IMAGE_TAG` when it is set,
 /// else the version
 pub fn image_tag() -> &'static str {
     static TAG: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {

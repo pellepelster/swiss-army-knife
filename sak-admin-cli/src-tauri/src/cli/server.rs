@@ -12,7 +12,7 @@ async fn session(
     runtime: &ContainerRuntime,
     name: &str,
     password: &str,
-) -> Result<(String, crate::core::ssh::SshTarget, &'static str), SakadmError> {
+) -> Result<(String, crate::core::ssh::SshTarget, &'static str), SakadminError> {
     let name = name.trim().to_string();
     let target = manager
         .ssh_target(provider.tokens(), &name, password)
@@ -24,7 +24,7 @@ async fn session(
 }
 
 /// a session on the server, or its command; its exit code, the one of the command on the server,
-/// is the exit code of sakadm
+/// is the exit code of sakadmin
 pub(super) async fn ssh(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -32,7 +32,7 @@ pub(super) async fn ssh(
     name: &str,
     password: &str,
     command: &[String],
-) -> Result<i32, SakadmError> {
+) -> Result<i32, SakadminError> {
     let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     log(
         Level::Info,
@@ -63,7 +63,7 @@ pub(super) async fn maintenance(
     runtime: &ContainerRuntime,
     command: &MaintenanceCommand,
     password: &str,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     use crate::core::maintenance::{self, Action};
     let args = command.args();
     let name = args.name.trim();
@@ -145,7 +145,7 @@ pub(super) async fn backup(
     runtime: &ContainerRuntime,
     name: &str,
     password: &str,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     let key = crate::core::keys::backup_key(&name, password)?;
     let directory = crate::core::backup::directory(&name)?;
@@ -187,7 +187,7 @@ pub(super) async fn restore(
     password: &str,
     file: &std::path::Path,
     yes: bool,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
     let key = crate::core::keys::backup_key(&name, password)?;
     if !yes {
@@ -224,7 +224,7 @@ pub(super) async fn show_config(
     provider: &HetznerToken,
     name: &str,
     password: &str,
-) -> Result<(), SakadmError> {
+) -> Result<(), SakadminError> {
     let detected = manager.detected(provider.tokens(), name, password).await?;
     for line in shown_lines(name, &detected) {
         log(Level::Info, line);

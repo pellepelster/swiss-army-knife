@@ -41,6 +41,7 @@ export type User = Schemas['UserResponse'];
 // redirects
 export type RedirectTarget = Schemas['RedirectTarget'];
 export type Redirect = Schemas['RedirectResponse'];
+export type ResticRepository = Schemas['ResticRepositoryResponse'];
 
 // static hosting
 export type Bucket = Schemas['BucketResponse'];

@@ -17,7 +17,7 @@ pub enum SettingsSource {
 /// what a create or deploy keeps on this machine (`local`), encrypted for the password, for the
 /// config form when the deployment does not answer. No Debug: it holds the smtp password.
 ///
-/// An older or newer sakadm may have written it, so every field is read on its own: a missing or
+/// An older or newer sakadmin may have written it, so every field is read on its own: a missing or
 /// unknown value is none, an unknown field is ignored
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,7 +36,7 @@ pub struct LocalSettings {
     pub smtp: Option<Smtp>,
     #[serde(default, deserialize_with = "lenient")]
     pub acme_ca: Option<AcmeCa>,
-    /// of the sakadm that wrote them
+    /// of the sakadmin that wrote them
     #[serde(default, deserialize_with = "lenient")]
     pub version: Option<String>,
     /// when the create or deploy that kept them started, rfc 3339
@@ -173,7 +173,7 @@ pub(super) fn completed_from(
     deployment: DeploymentRequest,
     detected: &Detected,
     smtp_password: &str,
-) -> Result<DeploymentRequest, SakadmError> {
+) -> Result<DeploymentRequest, SakadminError> {
     let deployment = complete(deployment, detected, smtp_password)?;
     let lacking = match deployment.user_mode {
         None => true,
@@ -198,7 +198,7 @@ pub(super) fn complete(
     mut deployment: DeploymentRequest,
     detected: &Detected,
     smtp_password: &str,
-) -> Result<DeploymentRequest, SakadmError> {
+) -> Result<DeploymentRequest, SakadminError> {
     if deployment.dns_mode.is_none() {
         deployment.dns_mode = detected.dns_mode;
     }
@@ -223,7 +223,7 @@ pub(super) fn complete(
         let password = match (smtp_password, &smtp.password) {
             ("", Some(running)) => running.clone(),
             ("", None) if smtp.password_set => {
-                return Err(SakadmError::new(
+                return Err(SakadminError::new(
                     t!(
                         "common.deployments.smtp_password_needed",
                         hint = crate::core::i18n::hint(crate::core::i18n::Hint::SmtpPassword)

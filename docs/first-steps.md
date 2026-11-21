@@ -1,12 +1,12 @@
 ---
 title: "First Steps"
-description: "Choose the DNS mode and the user mode, then create your first SAK instance for a single user with the sakadm UI."
+description: "Choose the DNS mode and the user mode, then create your first SAK instance for a single user with the sakadmin UI."
 weight: 6
 ---
 
 # First steps
 
-After you [install sakadm](installation.md), choose the DNS mode and the user mode, then create your first SAK
+After you [install sakadmin](installation.md), choose the DNS mode and the user mode, then create your first SAK
 instance for a single user.
 
 ## The DNS mode
@@ -37,32 +37,32 @@ Start with **Single user** if you use SAK alone or want to try it.
 
 You need:
 
-- sakadm and Docker or Podman ([Installation](installation.md));
+- sakadmin and Docker or Podman ([Installation](installation.md));
 - the API token of your Hetzner Cloud project, with read and write access;
 - the DNS zone of your root domain in the same project.
 
-1. **Start sakadm.** It finds Docker or Podman and downloads the image of its tools. The first time, this takes a few
+1. **Start sakadmin.** It finds Docker or Podman and downloads the image of its tools. The first time, this takes a few
    minutes.
 
-   ![sakadm finds the container runtime and downloads its tools](screenshots/sakadm-ui-checks.png)
+   ![sakadmin finds the container runtime and downloads its tools](screenshots/sakadmin-ui-checks.png)
 
 2. **Add the API token.** Click **Add token**, select **Hetzner Cloud**, paste the token and click **Add token**.
-   sakadm checks the token by creating and deleting an SSH key in the project. It keeps the token only while it runs.
+   sakadmin checks the token by creating and deleting an SSH key in the project. It keeps the token only while it runs.
 
-   ![The API token of Hetzner Cloud](screenshots/sakadm-ui-token.png)
+   ![The API token of Hetzner Cloud](screenshots/sakadmin-ui-token.png)
 
 3. **Go on.** The token is in the list **Provider tokens**. Click **Next**.
 
-   ![The provider tokens with the token of Hetzner Cloud](screenshots/sakadm-ui-providers-token.png)
+   ![The provider tokens with the token of Hetzner Cloud](screenshots/sakadmin-ui-providers-token.png)
 
 4. **Start the creation.** The list **SAK instances** is empty. Click **Create SAK instance**.
 
-   ![No SAK instance yet](screenshots/sakadm-ui-deployments-empty.png)
+   ![No SAK instance yet](screenshots/sakadmin-ui-deployments-empty.png)
 
 5. **Fill in the form.**
    - **Name:** lower case letters, digits and dashes, for example `family`. In the DNS mode **Subdomain**, it is part
      of the SAK address.
-   - **Password** and **Repeat the password:** at least 16 characters. You sign in to the apps with it, and sakadm
+   - **Password** and **Repeat the password:** at least 16 characters. You sign in to the apps with it, and sakadmin
      needs it with the name to manage the SAK instance. Keep it safe: nobody can recover a lost password, and the
      backups need it too.
    - **Location:** where the server is.
@@ -70,33 +70,33 @@ You need:
    - **DNS mode:** **Subdomain** ([the DNS mode](#the-dns-mode)).
    - **User mode:** **Single user**. Leave **Admin e-mail address (optional)** empty.
 
-   ![The form of a new SAK instance: name, password, location and root domain](screenshots/sakadm-ui-create.png)
+   ![The form of a new SAK instance: name, password, location and root domain](screenshots/sakadmin-ui-create.png)
 
-   ![The form of a new SAK instance: the DNS mode Subdomain and a single user](screenshots/sakadm-ui-create-users.png)
+   ![The form of a new SAK instance: the DNS mode Subdomain and a single user](screenshots/sakadmin-ui-create-users.png)
 
    Then click **Plan**.
 
-6. **Read the plan.** It shows each resource that sakadm creates: the SSH key, the data volume, the addresses, the
+6. **Read the plan.** It shows each resource that sakadmin creates: the SSH key, the data volume, the addresses, the
    firewall, the server, the DNS records and the provisioning of the server. Nothing has changed yet. Click **Create
    SAK instance**.
 
-   ![The plan of a new SAK instance](screenshots/sakadm-ui-plan.png)
+   ![The plan of a new SAK instance](screenshots/sakadmin-ui-plan.png)
 
-7. **Wait.** sakadm creates the resources and sets up the server, in a few minutes.
+7. **Wait.** sakadmin creates the resources and sets up the server, in a few minutes.
 
-   ![sakadm creates the SAK instance](screenshots/sakadm-ui-provisioning.png)
+   ![sakadmin creates the SAK instance](screenshots/sakadmin-ui-provisioning.png)
 
 8. **Done.** When all resources are created, click **Done**. The page of the SAK instance shows its configuration and
    resources.
 
-   ![The SAK instance is created](screenshots/sakadm-ui-done.png)
+   ![The SAK instance is created](screenshots/sakadmin-ui-done.png)
 
 9. **Sign in.** Open the SAK address in a browser, for example `https://sak.family.example.org`, enter the password
    in **Admin password** and click **Sign in**.
 
    ![Sign in with the password](screenshots/web-login-password-desktop.png)
 
-Your SAK instance now runs on its own. You need sakadm again only to change, update, back up or maintain it.
+Your SAK instance now runs on its own. You need sakadmin again only to change, update, back up or maintain it.
 
 Next: read [what the apps can do](features.md), or install the apps on your phone:
 [the web apps](apps/android/web-apps.md) or [the native Android apps](apps/android/native-apps.md).

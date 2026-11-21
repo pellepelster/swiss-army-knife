@@ -1,5 +1,5 @@
 [package]
-name = "sak-backup"
+name = "sakbackup"
 version = "0.1.0"
 description = "The backups of a SAK instance"
 edition = "2024"
@@ -12,10 +12,25 @@ tauri-build = { version = "2.7.4", features = [] }
 [dependencies]
 tauri = { version = "2.12.5", features = [] }
 tauri-plugin-opener = "2.7.2"
+# the dialog of the system that picks the paths of a backup, opened from rust only (restic.rs)
+tauri-plugin-dialog = "2.8.4"
+serde_json = "1"
+# the method of a call of the api, the client is the one of sak-desktop-shared
+reqwest = { version = "0.13.5", default-features = false }
+# the address of the REST backend of a repository (run.rs)
+url = "2.5.8"
+# the name of the file of the paths of a run
+getrandom = "0.4.3"
+# the order of the snapshots, by the instants of their times (snapshots.rs)
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+# the host name a backup belongs to (BACKUP-5)
+gethostname = "1.1.0"
+# the command line (cli.rs): its arguments, and the password of a repository typed without echo
+clap = { version = "4", features = ["derive", "env"] }
+rpassword = "7.4.0"
 serde = { version = "1", features = ["derive"] }
 rust-i18n = "4.2.4"
-sys-locale = "0.3.2"
-# the sign-in through the browser, the texts and the desktop entry, shared with sakadm
+# the sign-in through the browser, the texts and the desktop entry, shared with sakadmin
 sak-desktop-shared = { path = "../../sak-desktop-shared" }
 
 [dev-dependencies]

@@ -59,6 +59,7 @@ discover:
   add: "Add to the list"
   not_read: "The photo could not be read."
   not_all_added: "Not every item could be added."
+first_list: "My Groceries"
 category:
   fruit_vegetables: "Fruit & vegetables"
   bakery: "Bakery"
