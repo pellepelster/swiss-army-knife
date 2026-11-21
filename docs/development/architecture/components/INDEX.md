@@ -1,16 +1,16 @@
 ---
-title: "Architecture of the Apps"
-linkTitle: "Apps"
-description: "What all apps of SAK share: the shared parts, the rules of list-based apps, the frontend and privacy."
+title: "Architecture of the Components"
+linkTitle: "Components"
+description: "What all components of SAK share: the shared parts, the rules of list-based apps and the frontend."
 weight: 20
 ---
 
-# Architecture of the Apps
+# Architecture of the Components
 
-What all apps of the backend share. It adds to [SYSTEM.md](../SYSTEM.md) and never repeats it; each app adds to this
-document in its own one.
+What all components of SAK share: the apps of the backend and the parts next to them, the health and the backups. It
+adds to [SYSTEM.md](../SYSTEM.md) and never repeats it; each component adds to this document in its own one.
 
-## The apps
+## The components
 
 | App            | Document                     | Backend                                  | Frontend     | Tables                                               | Settings |
 |----------------|------------------------------|------------------------------------------|--------------|------------------------------------------------------|----------|

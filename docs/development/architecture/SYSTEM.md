@@ -8,17 +8,17 @@ weight: 10
 # System Architecture
 
 How Swiss Army Knife (SAK) is built as a whole: its parts, how they connect, and the decisions that shape them. This
-is the first of three levels: what all apps share is in [the architecture of the apps](apps/INDEX.md), each app in its
-own document next to it. How to write the code is in [AGENT.md](../../../AGENT.md), how the apps look and behave in
+is the first of three levels: what all components share is in [the architecture of the components](components/INDEX.md), each
+component in its own document next to it. How to write the code is in [AGENT.md](../../../AGENT.md), how the apps look and behave in
 [UI-UX.md](../UI-UX.md), the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose in
 and [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md).
 
-A lower level adds to the levels above and never repeats them; a rule two apps need moves up to [the architecture of
-the apps](apps/INDEX.md). Every change keeps to its level and to the levels above; a change that has to break a rule
+A lower level adds to the levels above and never repeats them; a rule two components need moves up to [the architecture
+of the components](components/INDEX.md). Every change keeps to its level and to the levels above; a change that has to break a rule
 changes its document in the same commit and says why.
 
-Every rule has an id: the prefix of its chapter and a number, e.g. `MODEL-1`; the rules of an app have the name of the
-app as their prefix, e.g. `NOTES-1`. An id never changes and is never used again, also when its rule goes; a new rule
+Every rule has an id: the prefix of its chapter and a number, e.g. `MODEL-1`; the rules of a component have the name of the
+component as their prefix, e.g. `NOTES-1`. An id never changes and is never used again, also when its rule goes; a new rule
 gets the next number of its chapter. Code, documents and reviews refer to a rule by its id.
 
 ## Overview
@@ -65,8 +65,8 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 ### Apps
 
-The backend serves apps to its users, for example static hosting and notes. How they are built is in
-[the architecture of the apps](apps/INDEX.md).
+The backend serves apps to its users, for example static hosting and notes. How they and the other components are built is in
+[the architecture of the components](components/INDEX.md).
 
 ## Backend layers
 

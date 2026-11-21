@@ -1,7 +1,7 @@
 # Android apps
 
 The android apps of SAK, one gradle build with a module for each app on top of `core`. What all apps share is in
-[apps/INDEX.md](../docs/development/architecture/apps/INDEX.md) and the system architecture; the look is in
+[components/INDEX.md](../docs/development/architecture/components/INDEX.md) and the system architecture; the look is in
 [UI-UX.md](../docs/development/UI-UX.md), "All apps" and "Android app" (`ANDROID-*`). Each app's `AGENTS.md` links
 its own architecture document.
 

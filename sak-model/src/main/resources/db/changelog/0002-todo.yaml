@@ -1,4 +1,4 @@
-# the tables of the todo app (docs/development/architecture/apps/TODO.md), the same rules as in
+# the tables of the todo app (docs/development/architecture/components/TODO.md), the same rules as in
 # 0001-initial.yaml: created_at, updated_at, deleted_at and owner on every table, no row is ever
 # deleted for real, the partial unique indexes in plain sql for sqlite only
 databaseChangeLog:

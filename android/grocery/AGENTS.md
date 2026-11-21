@@ -1,6 +1,6 @@
 # Grocery Android app
 
-How this app is built is in [GROCERY.md](../../docs/development/architecture/apps/GROCERY.md); what all android apps
+How this app is built is in [GROCERY.md](../../docs/development/architecture/components/GROCERY.md); what all android apps
 share is in [../AGENTS.md](../AGENTS.md). Every change here keeps to them; a change that breaks a rule of the app
 changes GROCERY.md in the same commit.
 

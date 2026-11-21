@@ -1,6 +1,6 @@
 # Notes Android app
 
-How this app is built is in [NOTES.md](../../docs/development/architecture/apps/NOTES.md); what all android apps
+How this app is built is in [NOTES.md](../../docs/development/architecture/components/NOTES.md); what all android apps
 share is in [../AGENTS.md](../AGENTS.md). Every change here keeps to them; a change that breaks a rule of the app
 changes NOTES.md in the same commit.
 

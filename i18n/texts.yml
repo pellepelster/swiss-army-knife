@@ -532,7 +532,7 @@ android:
       en: "You are signed in to %{address} as %{user}. The QR code signs you in again, as the user who shows it."
       de: "Du bist bei %{address} als %{user} angemeldet. Der QR-Code meldet dich neu an, als der Benutzer, der ihn zeigt."
     stay: { en: "Stay signed in", de: "Angemeldet bleiben" }
-  # the lists of the list-based apps (grocery, todo): the home, the settings of a list (apps/INDEX.md)
+  # the lists of the list-based apps (grocery, todo): the home, the settings of a list (components/INDEX.md)
   no_lists:
     en: "You have no list yet, create one with the plus at the top."
     de: "Du hast noch keine Liste, erstelle oben mit dem Plus eine."

@@ -1,4 +1,4 @@
-# the repositories of restic the instance keeps (docs/development/architecture/apps/BACKUP.md), the
+# the repositories of restic the instance keeps (docs/development/architecture/components/BACKUP.md), the
 # same rules as in 0001-initial.yaml: created_at, updated_at, deleted_at and owner on every table,
 # no row is ever deleted for real, the partial unique indexes in plain sql for sqlite only. Their
 # content is on the data volume, below restic/<resource_id> (MODEL-8); no column holds the password of a repository

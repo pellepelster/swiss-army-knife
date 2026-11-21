@@ -6,7 +6,7 @@ weight: 10
 
 # Static Hosting
 
-Adds to [the architecture of the apps](INDEX.md) and [SYSTEM.md](../SYSTEM.md).
+Adds to [the architecture of the components](INDEX.md) and [SYSTEM.md](../SYSTEM.md).
 
 ## Purpose
 

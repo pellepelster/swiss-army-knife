@@ -11,7 +11,7 @@ makes on its own, to repositories the user chooses, without a machine of the use
 
 `sakbackup` is a window for now (`src-tauri/`, `ui/`). It signs in at a SAK instance through the browser
 and shows the backup plans, the repositories and the snapshots on the left; they are empty for now. `mise run backup:run`
-runs it. The architecture is in [apps/BACKUP.md](../docs/development/architecture/apps/BACKUP.md).
+runs it. The architecture is in [components/BACKUP.md](../docs/development/architecture/components/BACKUP.md).
 
 ## The file
 

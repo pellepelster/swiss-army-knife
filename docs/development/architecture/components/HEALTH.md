@@ -6,7 +6,7 @@ weight: 40
 
 # Health
 
-A maintenance page, no app (refer to [the architecture of the apps](INDEX.md#the-apps)). Adds to it and to
+A maintenance page, no app (refer to [the architecture of the components](INDEX.md#the-components)). Adds to it and to
 [SYSTEM.md](../SYSTEM.md).
 
 ## Purpose

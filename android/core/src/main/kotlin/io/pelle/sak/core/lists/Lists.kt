@@ -3,7 +3,7 @@ package io.pelle.sak.core.lists
 import io.pelle.sak.core.UiText
 
 // what the list-based apps (grocery, todo) share: the lists on the home and the settings of a list
-// (apps/INDEX.md)
+// (components/INDEX.md)
 
 // a list on the home, as the app has it from the backend: its name, its emoji or none, whether all
 // users see it, whether it is the user's own (LIST-2) and how many of its entries are open

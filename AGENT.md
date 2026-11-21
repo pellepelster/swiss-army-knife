@@ -56,13 +56,13 @@ repeating them:
 1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the backend layers, the api
    contract, the model, the external systems, the server of a deployment, sakadmin, the cloud resources and their
    labels, privacy, security, the tests).
-2. [apps/INDEX.md](docs/development/architecture/apps/INDEX.md): what all apps share (the shared parts, the list-based
-   apps, the frontend, privacy in the apps).
-3. `apps/<APP>.md`: each app, e.g. [NOTES.md](docs/development/architecture/apps/NOTES.md); the `AGENTS.md` of an
-   app's directory links its document.
+2. [components/INDEX.md](docs/development/architecture/components/INDEX.md): what all components share (the shared parts, the
+   list-based apps, the frontend).
+3. `components/<COMPONENT>.md`: each component, e.g. [NOTES.md](docs/development/architecture/components/NOTES.md); the
+   `AGENTS.md` of a component's directory links its document.
 
 Every change keeps to its level and to the levels above; a change that has to break a rule changes its document in
-the same commit and says why. A rule two apps need moves up to apps/INDEX.md. A new rule needs the explicit consent
+the same commit and says why. A rule two components need moves up to components/INDEX.md. A new rule needs the explicit consent
 of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 (refer to SYSTEM.md); refer to a rule by its id.
 

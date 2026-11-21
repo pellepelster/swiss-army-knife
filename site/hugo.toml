@@ -20,12 +20,12 @@ target = 'content'
 [[module.mounts]]
 source = '../docs'
 target = 'content'
-files = ['! development/architecture/apps/INDEX.md', '! apps/android/INDEX.md', '! screenshots/**', '! development/design/**']
+files = ['! development/architecture/components/INDEX.md', '! apps/android/INDEX.md', '! screenshots/**', '! development/design/**']
 
-# the architecture of all apps is the page of the section of the apps
+# the architecture of all components is the page of the section of the components
 [[module.mounts]]
-source = '../docs/development/architecture/apps/INDEX.md'
-target = 'content/development/architecture/apps/_index.md'
+source = '../docs/development/architecture/components/INDEX.md'
+target = 'content/development/architecture/components/_index.md'
 
 # the two ways to the android apps are the page of the section of the android apps
 [[module.mounts]]

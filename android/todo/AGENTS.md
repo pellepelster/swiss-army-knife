@@ -1,6 +1,6 @@
 # Todo Android app
 
-How this app is built is in [TODO.md](../../docs/development/architecture/apps/TODO.md); what all android apps
+How this app is built is in [TODO.md](../../docs/development/architecture/components/TODO.md); what all android apps
 share is in [../AGENTS.md](../AGENTS.md). Every change here keeps to them; a change that breaks a rule of the app
 changes TODO.md in the same commit.
 
