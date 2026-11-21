@@ -1,5 +1,8 @@
 package io.pelle.sak.core.ui
 
+import android.content.Context
+import android.view.MotionEvent
+import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
@@ -176,7 +179,7 @@ fun UndoBar(
 }
 
 // the emoji picker of the system in a sheet from the bottom, opened in full; at most 400 dp high and
-// never higher than most of the screen, so it fits in landscape too (it scrolls itself)
+// never higher than most of the screen, so it fits in landscape too (it scrolls itself, PickerFrame)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EmojiSheet(
@@ -186,9 +189,23 @@ fun EmojiSheet(
     val screen = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         AndroidView(
-            factory = { context -> EmojiPickerView(context).apply { setOnEmojiPickedListener { onPick(it.emoji) } } },
+            factory = { context ->
+                PickerFrame(context).apply {
+                    addView(EmojiPickerView(context).apply { setOnEmojiPickedListener { onPick(it.emoji) } })
+                }
+            },
             modifier = Modifier.fillMaxWidth().height(minOf(400.dp, screen * 0.6f)).testTag("emoji-picker"),
         )
+    }
+}
+
+// keeps the drags that start on the picker for the picker: a sheet takes every vertical drag of a view
+// inside it before the view sees it, so the picker would never scroll. What the picker does not scroll
+// (a drag down at its top) still reaches the sheet as a nested scroll and closes it
+private class PickerFrame(context: Context) : FrameLayout(context) {
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) parent?.requestDisallowInterceptTouchEvent(true)
+        return super.dispatchTouchEvent(event)
     }
 }
 
