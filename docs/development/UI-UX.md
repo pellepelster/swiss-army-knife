@@ -35,8 +35,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   user made does one of two things:
   - `UX-4.1` **Confirm first.** It asks for confirmation and says what goes. Cancel is the safe default.
   - `UX-4.2` **Undo afterwards.** It takes effect in the ui at once; a toast centered at the bottom offers to undo it
-    for 2 seconds, unless the rule of the app gives another time (e.g. `GROCERY-3`). The backend learns it only when
-    the time is up.
+    for a short time. The backend learns it only when the time is up.
 
 - `UX-5` **Dates and times** are shown in the locale of the user, never in a fixed format.
 - `UX-6` **Fields are checked when they lose focus.** A field is checked when the user leaves it, not while typing. The

@@ -12,18 +12,19 @@ adds to [SYSTEM.md](../SYSTEM.md) and never repeats it; each component adds to t
 
 ## The components
 
-| App            | Document                     | Backend                                  | Frontend     | Tables                                               | Settings |
-|----------------|------------------------------|------------------------------------------|--------------|------------------------------------------------------|----------|
-| Static hosting | [HOSTING.md](HOSTING.md)     | `io.pelle.sak.backend.hosting`, `sak-s3` | `hosting/`   | `s3_buckets`, `s3_buckets_domains`                                         | none     |
-| Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `redirects/` | `redirects`                                                                | none     |
-| Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                       | `notes`  |
-| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                     | none     |
-| Todo           | [TODO.md](TODO.md)           | `io.pelle.sak.backend.todo`              | `todo/`      | `todo_lists`, `todo_items`                                                 | none     |
+| Component      | Document                     | Backend                                  | Frontend     | Tables                                                                   |
+|----------------|------------------------------|------------------------------------------|--------------|--------------------------------------------------------------------------|
+| Static hosting | [HOSTING.md](HOSTING.md)     | `io.pelle.sak.backend.hosting`, `sak-s3` | `hosting/`   | `s3_buckets`, `s3_buckets_domains`                                       |
+| Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `redirects/` | `redirects`                                                              |
+| Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                     |
+| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                   |
+| Todo           | [TODO.md](TODO.md)           | `io.pelle.sak.backend.todo`              | `todo/`      | `todo_lists`, `todo_items`                                               |
+| Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`, `sak-dns` | `health/`    | none                                                                     |
+| Backup         | [BACKUP.md](BACKUP.md)       | `io.pelle.sak.backend.restic`            | `backups/`   | `restic_repositories`, `restic_backup_plans`, `restic_backup_plan_paths` |
 
-The login, the settings, the labels and the file storage are no apps; all apps share them (refer to
-[Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`FRONTEND-1`), whose rules are
-in [HEALTH.md](HEALTH.md). The backups have a part in the backend, the repositories of restic, and a desktop app,
-sakbackup, which runs restic; their architecture is in [BACKUP.md](BACKUP.md).
+The first five are the apps. The login, the settings, the labels and the file storage are no apps; all apps share
+them (refer to [Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`FRONTEND-1`).
+The backups have a part in the backend, the repositories of restic, and a desktop app, sakbackup, which runs restic.
 
 ## Shared parts
 
@@ -45,8 +46,8 @@ are such apps.
   always names its list; no request makes a list on the side.
 - `LIST-2` **Shared lists.** A list has a shared flag; a shared list is shared with all other users, who can add items
   to it and delete items from it, and change its icon and its categories. Only its owner renames, shares or unshares
-  it and deletes it. Unlike `MODEL-5`, where a row belongs to its owner, every user can delete an item of a shared
-  list, also one another user created.
+  it and deletes it. The owner of an item is who added it (`MODEL-5`), but the access follows the list (`MODEL-6`): every user can
+  delete an item of a shared list, also one another user created.
 - `LIST-3` **The lists first.** A list-based app, in the web ui and on Android, opens on the overview of all lists of
   the user: their own lists and the shared lists of the others. From there the user opens a list; a list has a back
   action that leads to the overview. An Android app remembers the list that was open when it was left and opens it

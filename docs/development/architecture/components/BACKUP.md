@@ -44,8 +44,8 @@ signed in user, their own only.
 
 | Part                  | Where                       | What                                                                       |
 |-----------------------|-----------------------------|----------------------------------------------------------------------------|
-| sakbackup            | `sak-backup/src-tauri`      | The window: tauri, its commands, its texts (`sak_backup` of texts.yml)     |
-| The pages             | `sak-backup/ui`             | The navigation on the left, the menu of the user at the top right          |
+| sakbackup            | `sak-backup/src-tauri`      | The window (tauri, its commands), the command line and the core they share (`DESK-2`); its texts are `sak_backup` of texts.yml |
+| The pages             | `sak-backup/ui`             | The navigation on the left, the menu of the user at its bottom             |
 | sak-desktop-shared    | `sak-desktop-shared`        | What the desktop apps share (`DESK-1` in SYSTEM.md)                        |
 | The page of the login | `sak-frontend`, `connect/`  | `/connect-desktop`, where the user confirms the connection of the app      |
 | The repositories      | `io.pelle.sak.backend.restic`, `sak-model` (`restic/`) | Their api, their REST backend, their table        |

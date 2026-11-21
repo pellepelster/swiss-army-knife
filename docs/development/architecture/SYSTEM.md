@@ -48,6 +48,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `android/core` | What every Android app shares: the deployment, the sign-in, the session, the api client, the update check, the theme (Kotlin, Jetpack Compose). `android/` is a gradle build of its own. |
 | `android/grocery` | The Android app of the grocery lists, on top of `android/core`. |
 | `android/notes` | The Android app of the notes, on top of `android/core`. |
+| `android/todo` | The Android app of the todo lists, on top of `android/core`. |
 | `sak-model` | The database: schema (Liquibase changelog), entities and their repositories (jOOQ on SQLite). |
 | `sak-api` | What every part of the api shares: the error answer, pagination, health. |
 | `sak-auth` | The e-mail login, the session tokens, the signed requests of sakadmin, the roles. |
@@ -60,6 +61,9 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `sak-openrouter` | The client of the AI provider (OpenRouter): it reads the text in images and writes down recordings (text discovery). |
 | `sak-theme` | The look: design tokens and Bootstrap mapped onto them, used by all uis. |
 | `sak-admin-cli` | sakadmin: the sakadmin ui (Tauri) and the sakadmin cli in one binary, and `sak-cloud`, the library that declares the cloud resources. |
+| `sak-backup` | sakbackup: the desktop app of the backups, a window (Tauri) and a command line in one binary; it runs restic. |
+| `sak-desktop-shared` | What the desktop apps share (`DESK-1`). |
+| `sak-i18n` | Writes the texts of `i18n/texts.yml` into the files each part reads (`I18N-1`). |
 | `ansible` | The collection `pelle_io.sak` that provisions the server. |
 | `sak-e2e` | The end-to-end tests: the apps in a browser, and sakadmin against a real cloud project. |
 
@@ -231,12 +235,13 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 ## Texts
 
-- `I18N-1` **One file of texts.** Every text a user reads, in the backend, the web apps, the android app and sakadmin,
-  is in `i18n/texts.yml` at the root of the repository, in every language, and only there: no text is written into
-  code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`) writes what each part
+- `I18N-1` **One file of texts.** Every text a user reads, in the backend, the web apps, the android apps and the
+  desktop apps, is in `i18n/texts.yml` at the root of the repository, in every language, and only there: no text is
+  written into code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`) writes what each part
   reads from it; the generated files are committed, never edited, and a test fails when they are not up to date. A
   text of an app is in its section (`<app>.common`, `.backend`, `.web`, `.android`), one of no app in `common`,
-  `backend`, `web` or `android`, one of sakadmin in `admin_cli`; a text two parts show alike moves to their `common`.
+  `backend`, `web` or `android`, one of sakadmin in `admin_cli`, one of sakbackup in `sak_backup`, one both desktop apps show in `desktop_shared`; a
+  text two parts show alike moves to their `common`.
 
 ## Privacy
 

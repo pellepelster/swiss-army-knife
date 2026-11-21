@@ -1,6 +1,6 @@
 // The screens of the sakadmin ui (sak-admin-cli/ui) as redesigned, and the buttons that lead from one
 // to the next. A relation is labeled with its button, or with what leads there without a button.
-// Open it with `npx likec4 start docs/design/ui`.
+// Open it with `npx likec4 start docs/development/design/ui`.
 
 specification {
   element screen {

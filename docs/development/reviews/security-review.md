@@ -41,7 +41,8 @@ person in a browser. Nothing found gives a session to somebody who is not on the
 - **Sql and LogsQL.** Only the jOOQ DSL, no sql built from strings, no `ORDER BY` from a request; the search of the
   access logs is escaped, quoted and takes no control characters.
 - **Files.** The type of a file comes from its first bytes, never from the client, and is jpeg, png, gif, webp or
-  wav: no html and no svg can be stored. The paths of the blobs come from a hash or a UUID.
+  wav: no html and no svg can be stored. The paths of the blobs come from a resource id (`MODEL-8`) or a UUID, never
+  from a name the client gives.
 - **Tokens.** ES256 with a key made on the server, the issuer and the use of a token checked, so a login token is
   no session; the roles are checked again with every request, a deleted user is refused at once. No cookies, so no
   CSRF; CORS allows the origins of the web app only.
