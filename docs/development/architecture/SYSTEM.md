@@ -175,8 +175,6 @@ The backend serves apps to its users, for example static hosting and notes. How 
 - `SAKADM-10` **Updates on request.** sakadmin looks for a newer release on GitHub and replaces itself only when the user
   asks (sakadmin cli, or the footer of the sakadmin ui). Before that, it checks the download against the checksum and the
   cosign signature of the release workflow at the release tag, offline against the sigstore root built into sakadmin.
-- `SAKADM-11` **Done when it answers.** A create or deploy ends when `api.<base domain>` answers through the ingress
-  with its certificate, as users reach it. If it does not answer within some minutes, the run fails with the cause.
 - `SAKADM-12` **Signed images.** The workflow signs each image it pushes with cosign, keyless, as the workflow at its
   ref (a tag for `<version>` and `<version>-rc`, main for `latest`). sakadmin verifies the signature of each image
   digest offline, against the sigstore root built into sakadmin, before it runs the image (canary, tools) or gives it
