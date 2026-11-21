@@ -146,8 +146,6 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 ## sakadmin
 
-- `SAKADM-1` **One core, two faces.** The core (start checks, deployments and plans, provisioning, keys, providers)
-  knows neither the sakadmin ui nor the sakadmin cli. Both are thin layers on it.
 - `SAKADM-2` **Local state is encrypted.** sakadmin keeps only two things of a deployment in `~/.sak/<name>/`, readable by
   the user only: the settings of the last create or deploy (`config.json`, encrypted with age to a key derived from
   the password) and the backups (`backups/`, `SAKADM-8`). The files of a run are deleted when the run ends. All else
@@ -200,6 +198,12 @@ The backend serves apps to its users, for example static hosting and notes. How 
     - `desktop`: the desktop entry of linux.
     - `ui/`: the views and the view of the sign-in. `mise run desktop:ui` copies them to `ui/shared/` of each app,
       next to the theme in `ui/theme/`.
+- `DESK-2` **One core, two faces.** A desktop app with a window and a command line (sakadmin, sakbackup) does all its
+  work in its core (`src/core`): for sakadmin the start checks, deployments and plans, provisioning, keys and
+  providers, for sakbackup the repositories, plans, runs, snapshots and restores. The core knows neither the window
+  (`src/gui`) nor the command line (`src/cli`). Both are thin layers on it: they take the input, call the core and
+  show what it answers, and neither does work the other can't do through the core. What the apps share with each
+  other is in `sak-desktop-shared` (`DESK-1`).
 
 ## Cloud resources
 
