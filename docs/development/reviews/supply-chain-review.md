@@ -48,14 +48,6 @@ today.
 Fix: attest each zip in the job that builds it (`actions/attest-build-provenance`), and sign or check the
 attestation in the job `release`.
 
-### `SC-5` The server checks no signature of an image
-
-sakadmin verifies the images and hands the server their digests, so the server pulls exactly what sakadmin verified. The
-server itself checks nothing: podman reads only the older signatures of cosign, not the bundles of cosign 3. Accepted
-in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md); tracked in
-[issue #145](https://github.com/pellepelster/swiss-army-knife/issues/145), which is open; nothing to do here until
-podman reads the bundles.
-
 ## Could fix
 
 ### `SC-6` `latest` can be set back to an older image of main
@@ -75,8 +67,3 @@ signed digest of `sak-backend:1.2.3`, and sakadmin would accept it. It fails rat
 the workflow can make a signed image), but it would fail in a confusing place.
 
 Fix: sign with an annotation of the name (`cosign sign -a image=<name>`) and check it in sakadmin.
-
-### `SC-8` A tag set with `SAK_DOCKER_IMAGE_TAG` that no workflow pushes is pulled unchecked
-
-`latest-rc`, a commit or any other tag has no signer, so sakadmin pulls it by its tag (`SAKADM-12`). Meant for the
-images a developer pushes; whoever can set the variable on the machine could also replace sakadmin.

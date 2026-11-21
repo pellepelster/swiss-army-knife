@@ -59,7 +59,8 @@ transaction, an index would only make the rule explicit.
 
 A file that is uploaded and never shown by a note or an item stays for ever: there is no delete and no sweep. Since
 the files have their resource ids, every upload is a blob of its own, so the storage only grows. `NOTES-2` covers the
-files a note no longer shows, not the ones never shown.
+files a note no longer shows, not the ones never shown. That a user has no quota is `SEC-29` of
+[the review of the security](security-review.md).
 
 ### `DM-7` The column `files.sha256` is left for the migration only
 

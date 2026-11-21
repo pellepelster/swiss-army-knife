@@ -76,7 +76,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
 
 - `LAYER-1` **Routes → services → repositories.** All business logic is in a service of its entity, next to the routes
   that use it. A service uses only other services and its own repository. A repository is used only by its service;
-  routes use services, never repositories. Only the repository touches the database (`MODEL-2`).
+  routes use services, never repositories.
 
 ## API
 
@@ -140,7 +140,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   the buckets and the redirects.
 - `SERVER-5` The hosts depend on the **dns mode**: the frontend is at
   `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>` or its own domains. The
-  base domain is the root domain (`domain`) or `<name>.<root domain>` (`subdomain`).
+  base domain follows the dns mode ([GLOSSARY.md](../GLOSSARY.md)).
 - `SERVER-6` The **SAK address** tells where its api is: `GET <SAK address>/.well-known/sak.json` answers
   `{"api": "https://api.<base domain>/v1"}`, without a session. A client that knows only the SAK address, the Android
   apps, finds the api there. At any other address than `sak.<base domain>` (the dev server of `local:run`, the
@@ -156,7 +156,6 @@ The backend serves apps to its users, for example static hosting and notes. How 
   is derived from the name and the password, or read from the deployment: a deploy takes its settings from the running
   deployment, else from `config.json`, else from the DNS records. So two machines with the same password manage the
   same deployment.
-- `SAKADM-3` **Derived keys.** The keys of a deployment are derived from its password ([Security](#security)).
 - `SAKADM-4` **Plan, then apply.** `sak-cloud` declares the resources, compares them with the provider and applies
   them in the order of their dependencies. A plan stops before any change when a resource belongs to someone else or
   must be replaced but must stay. Only the server and its ssh key may be replaced.
@@ -204,8 +203,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   work in its core (`src/core`): for sakadmin the start checks, deployments and plans, provisioning, keys and
   providers, for sakbackup the repositories, plans, runs, snapshots and restores. The core knows neither the window
   (`src/gui`) nor the command line (`src/cli`). Both are thin layers on it: they take the input, call the core and
-  show what it answers, and neither does work the other can't do through the core. What the apps share with each
-  other is in `sak-desktop-shared` (`DESK-1`).
+  show what it answers, and neither does work the other can't do through the core.
 
 ## Cloud resources
 
@@ -223,8 +221,7 @@ The backend serves apps to its users, for example static hosting and notes. How 
   checks them: a resource of the declared name without them belongs to someone else, and nothing changes or deletes
   it. A destroy deletes only resources with both labels; a resource without the password hash label is never deleted.
 - `CLOUD-6` **Kinds of labels.** The plan compares the identity labels. It never compares the labels that sakadmin
-  keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version). A label that
-  sakadmin did not declare is a change (`CLOUD-9`).
+  keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version).
 - `CLOUD-7` **Own prefix.** The labels SAK declares are under `sak.pelle.io/`.
 - `CLOUD-8` **What stays.** A deploy never replaces the data volume or the primary IPs, and a destroy keeps the
   data volume unless the user asks to delete it.

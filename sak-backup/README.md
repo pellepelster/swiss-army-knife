@@ -111,4 +111,4 @@ database and the version, stops the deployment, replaces the data and starts it 
 - Who writes the file: ansible from settings of the deployment (then sakadmin needs a place for the repositories and
   their secrets), or the user on the server.
 - Whether the repository password is derived from the password of the deployment like the other keys
-  (`SAKADM-3`), so a lost server does not lose the way to the backups.
+  (`SECURITY-1`), so a lost server does not lose the way to the backups.

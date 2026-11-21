@@ -185,10 +185,6 @@ answer of another shape (`jsonObject`, `jsonPrimitive` throw).
 
 Fix: `max_tokens`, a largest length of the stored text, the answer read through a largest size.
 
-### `SEC-22` What is used once is forgotten with a restart
-
-Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/155).
-
 ### Small items
 
 - `SEC-23` A streamed upload (`STREAMING-…`) is not bound to its signature: the signatures of the chunks and the
@@ -208,8 +204,9 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
   every sign-in with a request of `/start`. On linux the app takes only connections of its own user
   (`peer_user`, from `/proc/net/tcp`), so this is closed there. To close it elsewhere the app would keep listening
   after the sign-in for a time and sign out when a second `/start` comes. sakbackup is built for linux only so far.
-- `SEC-29` A file of the file storage has no delete and a user no quota: a user fills the data volume in steps of
-  10 MiB. The change streams (`…/changes`) have no largest number for a user and stay open when the session ends.
+- `SEC-29` A user has no quota in the file storage and its files have no delete (`DM-6` of
+  [the review of the data model](data-model-review.md)): a user fills the data volume in steps of 10 MiB. The change
+  streams (`…/changes`) have no largest number for a user and stay open when the session ends.
 
 ## Not checked
 

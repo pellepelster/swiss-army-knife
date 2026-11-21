@@ -10,9 +10,7 @@ How the apps look and behave for the people who use them: the web app, the sakad
 is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code does it in
 [AGENT.md](../../AGENT.md).
 
-Every rule has an id: the prefix of its chapter and a number, e.g. `UX-1`; a part of a rule adds a number, e.g.
-`UX-4.1`. An id never changes and is never used again, also when its rule goes; a new rule gets the next number of
-its chapter. Code, documents and reviews refer to a rule by its id.
+The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule adds a number, e.g. `UX-4.1`.
 
 ## All apps
 
@@ -105,21 +103,17 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   replaces one, sakadmin asks for a confirmation before it applies: the sakadmin ui in a dialog, the sakadmin cli by
   having the name of the deployment typed. `--yes` skips it in the sakadmin cli; without a terminal and without `--yes`
   the command stops with a usage error and changes nothing.
-- `CTL-2` **No surprise by default.** A deploy keeps the settings of the deployment (e.g. DNS mode, root domain) unless
+- `CTL-2` **No surprise by default.** A deploy keeps the settings of the deployment (e.g. DNS mode, root domain, location) unless
   they are given; a default never changes a running deployment.
 - `CTL-3` **Feature parity.** The sakadmin ui and the sakadmin cli can do the same: what one does, the other
   does too.
 
 ## sakadmin ui
 
-- `UI-8` **Plan before change.** Create, deploy and destroy show a plan first: what will be created, changed,
-  replaced or deleted. The plan of a deploy is the check on the page of the deployment. Only the apply changes
-  something, and it shows each resource as it goes, with the output of the provisioning below.
-- `UI-9` **A deploy keeps what holds data.** A deploy may replace the server. The data volume and the addresses
-  always stay; a change that would need them replaced stops the plan before anything changes. A deploy happens where
-  the deployment is, never at a default location.
-- `UI-10` **A destroy says what goes.** It asks only for the password. It keeps the data volume, unless the user
-  ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
+- `UI-8` **Plan before change.** The plan (`CTL-1`) of a deploy is the check on the page of the deployment. Only the
+  apply changes something, and it shows each resource as it goes, with the output of the provisioning below.
+- `UI-10` **A destroy says what goes.** It asks only for the password. The data volume stays (`CLOUD-8`) unless the
+  user ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
 - `UI-11` **One line per event:** date, level, message, nothing indented. On a terminal the level is colored (info
   green, warning yellow, error red); a warning deserves a second look, e.g. a change the plan found or a resource a
   destroy deletes.
@@ -129,8 +123,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 - `CLI-1` **A secret is never an argument**, it would show in the list of processes. Every secret comes from its
   environment variable or is typed on the terminal without echo; its flag (e.g. `--password`) asks even when the
   variable is set. The password of a new deployment is typed twice.
-- `CLI-2` **Test deployments.** `--acme-ca staging` takes the certificates from the staging ca of Let's Encrypt, without
-  the limits of production; the deployment keeps it and sakadmin trusts its roots. The integration tests use it.
+- `CLI-2` **Test deployments.** `--acme-ca staging` makes a test deployment (`SAKADM-7`). The integration tests use it.
 - `CLI-4` **ssh, in the sakadmin cli only.** `sakadmin ssh <name> [-- <command>]` opens a root session or runs a command,
   from the image of the tools: the key derived from the password lives only in an ssh-agent of the container, the
   server is checked against its derived host key.

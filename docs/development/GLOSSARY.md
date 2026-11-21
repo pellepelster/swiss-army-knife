@@ -24,9 +24,7 @@ user interface. Use the same term for the same thing every time.
   backend). The verb stays: the command `sakadmin deploy`, **Deploy changes**, "a deploy" (German "ausrollen"). A term
   of another tool keeps its word, e.g. the "deployment target" of a static site generator.
 - **name**: The unique name of a SAK deployment. Each deployment has one name. Two
-  deployments cannot have the same name. Each cloud resource of a deployment has
-  the label `sak.pelle.io/name=<name>` (refer to "Cloud resources" in
-  [SYSTEM.md](architecture/SYSTEM.md)).
+  deployments cannot have the same name (its label: `CLOUD-1`).
 - **dns mode** (`dns_mode`): How SAK sets up DNS for a deployment. The mode `domain` manages `<root domain>` and
   `*.<root domain>`. The mode `subdomain` manages `<name>.<root domain>` and `*.<name>.<root domain>`. The
   default is `subdomain`.
@@ -35,8 +33,7 @@ user interface. Use the same term for the same thing every time.
   adds, sign in with a link by e-mail. The admin always signs in with the password, with an address (optional)
   also by e-mail.
 - **base domain**: The domain the hosts of a deployment are below: the root domain in dns mode
-  `domain`, `<name>.<root domain>` in dns mode `subdomain`. The frontend is at
-  `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>`.
+  `domain`, `<name>.<root domain>` in dns mode `subdomain` (the hosts below it: `SERVER-5`).
 - **SAK address**: The address where the index page of the apps is served, the one users open and sign in at:
   `https://sak.<base domain>`, for example `https://sak.pelle.io`; locally `http://localhost:4200`. Login links
   and the download links of the Android apps lead there. Use **SAK address** for it every time, not "frontend URL",
