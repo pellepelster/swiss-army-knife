@@ -9,11 +9,11 @@ weight: 8
 
 **Created:** 2026-11-12
 
-Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`), the routes and the data of the
-backend (`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and
-the ingress (`sak-s3`, `sak-storage`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
-(`android/`), sakadmin (`sak-admin-cli`) and the server it builds (`ansible/`). The question: what can somebody do who should
-not, from the internet without a session, as a user of a multi user deployment, with one key of a bucket, on the
+Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`), the routes and the data of the backend
+(`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and the
+ingress (`sak-s3`, `sak-storage`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
+(`android/`), sakadmin (`sak-admin-cli`) and the server it builds (`ansible/`). The question: what can somebody do who
+should not, from the internet without a session, as a user of a multi user deployment, with one key of a bucket, on the
 machine of the admin or in one container of the server.
 
 Not in scope: what [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md) accepts, unless the code is weaker than it says, and
@@ -24,11 +24,11 @@ estimate or on what caddy, podman or victorialogs do, it says so. The fixed find
 
 Nothing found lets somebody without a session read data, get a session or get a role.
 
-**Added 2026-11-20:** the sign-in of the desktop apps (the three commits after `fcfc50ca`): the connect token with
-a pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in
-through the browser, `instances.json`, the keychain) and the window of sakbackup. The question for it: what can
-another program or another user of the machine do, a link somebody sends, or a host on the way. Its findings are
-`SEC-36` and `SEC-38`; the others it had are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
+**Added 2026-11-20:** the sign-in of the desktop apps (the three commits after `fcfc50ca`): the connect token with a
+pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in through the
+browser, `instances.json`, the keychain) and the window of sakbackup. The question for it: what can another program or
+another user of the machine do, a link somebody sends, or a host on the way. Its findings are `SEC-36` and `SEC-38`; the
+others it had are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
 person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
 
 ## What is good
@@ -83,17 +83,17 @@ apps send it to `POST /api/v1/auth/login/password`. Whoever runs code in the bac
 to type it into a page that is not SAK (`SEC-8`), reads it with the next login. From the name and the password
 follow the ssh client key (root on the server, port 22 is open), the api key, the key of every backup, old ones
 included, and the key of the local settings. The purposes of the keys do not help, what they are all derived from is
-handed over. ACCEPTED-RISKS has only the guessing offline; the backup says the server never
-has the key that decrypts a backup.
+handed over. Accepted in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md) until it is fixed; the backup says the server
+never has the key that decrypts a backup.
 
 Fix: a password for the login of its own, derived by sakadmin with a purpose (`admin-login`) and shown by it, so the
 password of the deployment never leaves the machine of the admin; or a login where the server never sees the
-password (OPAQUE). Until then an entry in ACCEPTED-RISKS, and `SECURITY-1` says it (the rule changes
-only with the consent of the user).
+password (OPAQUE). Until then `SECURITY-1` says it (the rule changes only with the consent of the user).
 
 ### `SEC-4` A copied session renews itself without an end
 
-ACCEPTED-RISKS says a copied token stays valid for the time of a session. With the QR code it is longer:
+A copied token stays valid for the time of a session. With the QR code it is longer, which ACCEPTED-RISKS accepts
+until it is fixed:
 `POST /api/v1/auth/connect` with the copied session gives a connect token, `POST /api/v1/auth/login/connect` a new
 session of the full 30 days, of the same user, and so on, 10 an hour. The only checks are that it is no signed
 request and `codesPerUser`. The page that tells when an app used a code is the page that asked for it, so the user
@@ -102,7 +102,7 @@ database, which no route and no page does.
 
 Fix: a claim with the time of the login the user made (carried through every connect), and no session past a
 largest age from it; or one time for each user, "sessions from before are not valid", checked against `iat`, which
-also gives a sign out everywhere without a list of sessions. At least the entry in ACCEPTED-RISKS says it.
+also gives a sign out everywhere without a list of sessions.
 
 To decide: the largest age of a session (proposed: 90 days from the login the user made, carried through every
 connect), whether the sign out everywhere comes with it, and the change of `SECURITY-3` and of ACCEPTED-RISKS (a rule
@@ -146,10 +146,11 @@ server only the user mode and the mail server.
 
 ### `SEC-17` The password of the mail server read from the server reaches the web view of sakadmin
 
-`deployment_settings` answers `DetectedSmtp` with its password to the page. ACCEPTED-RISKS names only the passwords
-of the environment. The same things limit it: the policy of the web view, values written as text.
+`deployment_settings` answers `DetectedSmtp` with its password to the page. Accepted in ACCEPTED-RISKS until it
+is fixed, with the passwords of the environment. The same things limit it: the policy of the web view, values written
+as text.
 
-Fix: answer `passwordSet` only, the password stays in `LoadedSettings`; or the entry says it.
+Fix: answer `passwordSet` only, the password stays in `LoadedSettings`.
 
 ### `SEC-20` What OpenRouter answers has no largest size
 
@@ -194,9 +195,9 @@ Fix: `max_tokens`, a largest length of the stored text, the answer read through 
 - The Android apps beyond their requests, intents and temporary files, and the pages of the grocery and todo lists
   of the web app line by line (they were searched for sinks).
 - `prettier`, the tests and the e2e tests did not run for this review; it changes no code.
-- For the desktop sign-in (2026-11-20): the window was not driven by a person, and macOS and windows not at all:
-  what the Keychain and the Credential Manager give to other programs, and whether their openers show the url to
-  other users, is not checked. That linux refuses a connection of another user (`SEC-38`) rests on the tests of the parser and on the
+- For the desktop sign-in (2026-11-20): the window was not driven by a person, and macOS and windows not at all: what
+  the Keychain and the Credential Manager give to other programs, and whether their openers show the url to other users,
+  is not checked. That linux refuses a connection of another user (`SEC-38`) rests on the tests of the parser and on the
   sign-ins of the tests, which are of the same user; no second user tried it.
 - The new crates (`keyring` 4.2.0 with `zbus` for the Secret Service, in the lockfiles of all three desktop
   crates) were not read; that is for [the review of the supply chain](supply-chain-review.md).

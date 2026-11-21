@@ -1,14 +1,14 @@
 ---
 title: "UI and UX"
-description: "How the apps, the sakadmin ui and the sakadmin cli look and behave."
+description: "How the web app, the Android apps, the desktop apps, the sakadmin ui and the sakadmin cli look and behave."
 weight: 20
 ---
 
 # UI and UX
 
-How the apps look and behave for the people who use them: the web app, the sakadmin ui and the sakadmin cli. How the system
-is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code does it in
-[AGENT.md](../../AGENT.md).
+How the apps look and behave for the people who use them: the web app, the Android apps, the desktop apps, the
+sakadmin ui and the sakadmin cli. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code does
+it in [AGENT.md](../../AGENT.md).
 
 The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule adds a number, e.g. `UX-4.1`.
 
@@ -34,7 +34,6 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
   - `UX-4.1` **Confirm first.** It asks for confirmation and says what goes. Cancel is the safe default.
   - `UX-4.2` **Undo afterwards.** It takes effect in the ui at once; a toast centered at the bottom offers to undo it
     for a short time. The backend learns it only when the time is up.
-
 - `UX-5` **Dates and times** are shown in the locale of the user, never in a fixed format.
 - `UX-6` **Fields are checked when they lose focus.** A field is checked when the user leaves it, not while typing. The
   error is shown right under the field, in the danger color. While a field is invalid, the action that depends on it
@@ -61,8 +60,8 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
 - `UX-12` **A menu on each row.** Each row of a list has a menu behind a ⋮ button at its right end. Its last entry is
   Delete, red; it asks inline in the row, Keep is the safe default (`UX-4.1`). An entry that does not apply to the row
   is disabled, its tooltip says why (`UX-8`).
-- `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Sign out".
-  An app that can update itself (e.g. the Android apps, not the web app, which a browser updates) has "Check for updates"
+- `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Sign out". An
+  app that can update itself (e.g. the Android apps, not the web app, which a browser updates) has "Check for updates"
   in it too: the check loads a new version at once when there is one; otherwise a line under the header says what it
   found.
 - `UX-14` **The robot starts the AI features.** Each action that starts an AI feature has the robot icon of the theme
@@ -103,10 +102,13 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
   replaces one, sakadmin asks for a confirmation before it applies: the sakadmin ui in a dialog, the sakadmin cli by
   having the name of the deployment typed. `--yes` skips it in the sakadmin cli; without a terminal and without `--yes`
   the command stops with a usage error and changes nothing.
-- `CTL-2` **No surprise by default.** A deploy keeps the settings of the deployment (e.g. DNS mode, root domain, location) unless
-  they are given; a default never changes a running deployment.
+- `CTL-2` **No surprise by default.** A deploy keeps the settings of the deployment (e.g. DNS mode, root domain,
+  location) unless they are given; a default never changes a running deployment.
 - `CTL-3` **Feature parity.** The sakadmin ui and the sakadmin cli can do the same: what one does, the other
   does too.
+- `UI-11` **One line per event:** date, level, message, nothing indented. On a terminal the level is colored (info
+  green, warning yellow, error red); a warning deserves a second look, e.g. a change the plan found or a resource a
+  destroy deletes.
 
 ## sakadmin ui
 
@@ -114,9 +116,6 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
   apply changes something, and it shows each resource as it goes, with the output of the provisioning below.
 - `UI-10` **A destroy says what goes.** It asks only for the password. The data volume stays (`CLOUD-8`) unless the
   user ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
-- `UI-11` **One line per event:** date, level, message, nothing indented. On a terminal the level is colored (info
-  green, warning yellow, error red); a warning deserves a second look, e.g. a change the plan found or a resource a
-  destroy deletes.
 
 ## sakadmin cli
 
@@ -124,9 +123,9 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
   environment variable or is typed on the terminal without echo; its flag (e.g. `--password`) asks even when the
   variable is set. The password of a new deployment is typed twice.
 - `CLI-2` **Test deployments.** `--acme-ca staging` makes a test deployment (`SAKADM-7`). The integration tests use it.
-- `CLI-4` **ssh, in the sakadmin cli only.** `sakadmin ssh <name> [-- <command>]` opens a root session or runs a command,
-  from the image of the tools: the key derived from the password lives only in an ssh-agent of the container, the
-  server is checked against its derived host key.
+- `CLI-4` **ssh, in the sakadmin cli only.** `sakadmin ssh <name> [-- <command>]` opens a root session or runs a
+  command, from the image of the tools: the key derived from the password lives only in an ssh-agent of the container,
+  the server is checked against its derived host key.
 - `CLI-6` **Scriptable.** Every input is an argument or an environment variable, `--help` lists them all.
 - `CLI-8` **Exit codes tell what happened.** Success, failure, wrong arguments and each refusal a script may handle
   have a code of their own, listed by `--help`.

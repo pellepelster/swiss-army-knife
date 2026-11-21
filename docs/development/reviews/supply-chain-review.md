@@ -11,10 +11,11 @@ weight: 6
 
 **Checked again:** 2026-11-12, every finding listed is still open; the fixed ones are in the history of git.
 
-Scope: the signing of the zips of sakadmin and of the images with cosign (`mise run admin-cli:release`, `image:sign`), their
-verification in sakadmin (`sakadmin update`, `core/images.rs`, `SAKADM-12` in [SYSTEM.md](../architecture/SYSTEM.md)), the
-workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the repository on GitHub. The question: what
-could make a signature of the workflow certify something that was not built from this repository.
+Scope: the signing of the zips of sakadmin and of the images with cosign (`mise run admin-cli:release`, `image:sign`),
+their verification in sakadmin (`sakadmin update`, `core/images.rs`, `SAKADM-12` in
+[SYSTEM.md](../architecture/SYSTEM.md)), the workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the
+repository on GitHub. The question: what could make a signature of the workflow certify something that was not built
+from this repository.
 
 What is good: the signatures are keyless, there is no signing key that could leak; sakadmin checks them offline against
 the trusted root it embeds, for the exact identity of the workflow at the tag of the release; the server gets the

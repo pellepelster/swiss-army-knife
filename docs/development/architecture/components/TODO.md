@@ -11,7 +11,7 @@ Adds to [the architecture of the components](INDEX.md) and [SYSTEM.md](../SYSTEM
 ## Purpose
 
 An app to manage todo lists: tasks with a priority and a due date, done ones struck through until they are removed.
-It learns nothing.
+It learns nothing. It has an Android app of its own (`android/todo`), on top of `android/core`, next to the web app.
 
 ## General
 
@@ -25,8 +25,9 @@ It learns nothing.
   (the day of the device, again after midnight). The menu of a row (`UX-12`) adds a due date to a task without one and
   removes it from one with one.
 - `TODO-5` **Priority.** A task is of high, normal or low priority, normal unless chosen. A list shows its tasks by
-  priority, the high ones first, then in the order they were added; a high one shows an arrow up, a low one an arrow down
-  in a column of its own, so the titles of all rows align. The menu of a row changes the priority, of a done task too.
+  priority, the high ones first, then in the order they were added; a high one shows an arrow up, a low one an arrow
+  down in a column of its own, so the titles of all rows align. The menu of a row changes the priority, of a done task
+  too.
 - `TODO-6` **Purge.** A trash can in the toolbar of a list deletes its done tasks according to `UX-4.2`: they leave the
   list at once, undo brings them back. Only the done tasks the user saw go; a task done meanwhile, by them or another
   user, stays. A purged task is deleted (`MODEL-3`).

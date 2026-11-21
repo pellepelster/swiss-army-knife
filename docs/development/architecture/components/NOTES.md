@@ -23,6 +23,15 @@ and add it to the note.
 - `NOTES-2` **A file stays** in the storage when a note no longer shows it; other notes may show it.
 - `NOTES-3` **The text discovered** in a file is kept with the file; a file is sent to the AI once.
 
+## API
+
+- `NOTES-4` Create, change, read and delete a note; read the notes page by page, of a label or all; read the labels the
+  notes have (`GET /api/v1/notes/labels`), the only ones the apps filter by.
+- `NOTES-5` Discover the text in a photo or a recording of the user (`POST /api/v1/files/{id}/discover/text`). Every
+  user may ask whether it can be done now (`GET /api/v1/notes/settings`, `discoverText`): the AI turned on by an admin
+  and a provider set up; the switches themselves are settings of the admins, and the backend checks them on every
+  discovery.
+
 ## Android
 
 - `NOTES-6` **The Android app.** The notes have an Android app of their own (`android/notes`), on top of
@@ -36,12 +45,13 @@ and add it to the note.
   are left out and the app says so. Photos shared before the notes are loaded wait for them; without a session they
   are not kept, the sign-in asks to share them again after signing in.
 
-## API
+## Settings
 
-- `NOTES-4` Create, change, read and delete a note; read the notes page by page, of a label or all; read the labels the
-  notes have (`GET /api/v1/notes/labels`), the only ones the apps filter by.
-- `NOTES-5` Discover the text in a photo or a recording of the user (`POST /api/v1/files/{id}/discover/text`). Every
-  user may ask whether it can be done now (`GET /api/v1/notes/settings`, `discoverText`): the AI turned on by an admin
-  and a provider set up; the switches themselves are settings of the admins, and the backend checks them on every
-  discovery.
+- `ai` (scope `notes`): the AI features of the notes (`NOTES-5`), off by default; it needs the AI of the deployment
+  turned on (scope `ai`).
 
+## External systems
+
+- **OpenRouter**, only with the AI features turned on and only when the user starts a discovery (`NOTES-5`): the
+  photo or the recording goes to the model of the deployment, through providers that do not collect the data.
+  OpenRouter sees the file and the API key of the deployment, not whose it is.

@@ -9,8 +9,9 @@ weight: 15
 Known weaknesses kept on purpose. A change that touches one keeps the trade-off or revisits it here. How SAK is built
 is in [SYSTEM.md](architecture/SYSTEM.md).
 
-- **The database is not encrypted at rest.** The SQLite file on the data volume, secrets included, is plain.
-  Accepted until the whole file is encrypted.
+- **The database is not encrypted at rest.** The SQLite file on the data volume, secrets included, is plain: the
+  settings with the signing key of the login, the secret keys of the buckets, the tokens of the repositories of
+  restic and the paths of the backup plans. Accepted until the whole file is encrypted.
 
 - **The files are not encrypted at rest.** The files of the file storage, their thumbnails and the objects of the
   buckets are plain on the data volume. Accepted until
@@ -31,10 +32,11 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   events endpoint are plain files on the user's machine while the run lasts. Accepted: only the user can read the
   directory, it has a random name, lives for minutes, and a killed run's leftovers go on the next run.
 
-- **The password can be guessed offline.** Whoever reads the cloud project (the password hash label, the public keys)
-  or the server (the admin password hash) can test guesses without asking anybody. Accepted: every guess costs a
-  strong argon2id, and weak passwords are refused by a strength estimate. The salt is the deployment name, not unique
-  across users, because a salt to keep would break "no local state"; the cost per guess keeps tables out of reach.
+- **The password can be guessed offline.** Whoever reads the cloud project (the password hash label, the public keys) or
+  the server (the admin password hash) can test guesses without asking anybody. Accepted: every guess costs a strong
+  argon2id, and weak passwords are refused by a strength estimate. The salt is the deployment name, not unique across
+  users, because a salt to keep would be state on one machine, and two machines with the same password must manage the
+  same deployment (`SAKADM-2`); the cost per guess keeps tables out of reach.
 
 - **Label hashes are shortened.** A label value holds 63 characters, so hashes in labels keep 240 of their 256 bits;
   a collision would hide a change. Accepted: about one in 2^120, and one label per hash stays simple.
@@ -57,7 +59,8 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   Accepted: the global limit keeps the server from sending spam, and sessions last 30 days.
 
 - **The sakadmin UI gets passwords from the environment.** `SAK_PASSWORD` and `SAK_SMTP_PASSWORD` fill its password
-  fields, so they cross into the web view. Accepted: the web view loads only sakadmin's pages under a strict content
+  fields, so they cross into the web view; so does the password of the mail server that sakadmin reads from a running
+  deployment. Accepted: the web view loads only sakadmin's pages under a strict content
   security policy and writes values as text; the same process holds the secrets anyway.
 
 - **Two runs can hit one deployment at once.** Two sakadmin, on two machines or UI and command line, can deploy or
@@ -85,15 +88,26 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   two devices within milliseconds, and the user sees and fixes it at once.
 
 - **A session ends only when its token expires.** Signing out forgets the token on the device; the backend keeps no
-  session list, so a copied token stays valid for the session TTL. Accepted: the token stays on the device (encrypted
-  with the keystore on Android) and travels only over https; revoking would be the first session state in the
-  backend. Revisit when shared devices make theft likely.
+  session list, so a copied token stays valid for the session TTL, and a copied session can get itself a new one of the
+  full time through a connect token (`SECURITY-3`), without an end. Accepted until a session has a largest age from the
+  login of the user: the token stays on the device (encrypted with the keystore on Android) and travels only over https;
+  revoking would be the first session state in the backend. Revisit when shared devices make theft likely.
 
 - **An action waiting for its undo is lost when Android ends the app.** A grocery check or a todo purge waits for
   its undo in memory (`UX-4.2`). Accepted: at most one tap is lost, and the list shows it on the next start.
 
 - **Logs name a user by a short hash of the e-mail address.** Whoever guesses an address can confirm it. Accepted: the
   admin finds a user's lines with `sha256sum` alone.
+
+- **The password of the deployment is typed into the login.** The admin signs in to the web app and the Android apps
+  with the password of the deployment itself; the backend keeps only its hash (`SECURITY-1`), but whoever runs code
+  in the backend or in caddy reads the password with the next login, and with it derives every key of the
+  deployment. Accepted until the login has a password of its own or the server never sees it.
+
+- **The token of a repository of restic deletes all of it.** Whoever has the token, which is on the computer of the
+  user, can delete every file of the repository; the server keeps nothing of what was deleted. Accepted for now,
+  though the review rates it a must fix: deleting snapshots needs deletes. To revisit: the server keeps deleted
+  files for some days, and a token can be replaced.
 
 - **A photographed QR code signs in.** Whoever sees the code that connects an app signs in as its user (`SECURITY-3`).
   Accepted: it is valid for 2 minutes and once, shows only on request, and the page says when an app used it.

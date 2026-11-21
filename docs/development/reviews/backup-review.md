@@ -40,7 +40,7 @@ Malware there, or a leaked token, removes every backup; nothing on the server ke
 left for later when the REST backend was designed; deleting snapshots and the expiry (`BACKUP-8`) now need deletes.
 
 Fix, to decide: the server keeps deleted files for some days before it removes them (locks apart); and a token can be
-replaced. Until then the risk belongs in ACCEPTED-RISKS.md.
+replaced. Until then the risk is accepted in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md).
 
 ## Should fix
 
@@ -127,12 +127,6 @@ Fix: leave `restic` out when linking.
 - `restic snapshots --json` is read as a whole, also to look up one id, and rendered in one go
 - progress lines of restic may come 60 times a second (suspected): `RESTIC_PROGRESS_FPS`
 - the answers of the api are read without a limit of size
-
-### `BK-23` The token and the paths of a plan are plain in the database (read)
-
-The token must be readable (`GET …/token` hands it out), the secret keys of the buckets are stored the same way, and
-the paths of a plan are user data (`BACKUP-6`). Both fall under "the database is not encrypted at rest"; ACCEPTED-RISKS.md
-does not name them.
 
 ## Tests that are missing
 

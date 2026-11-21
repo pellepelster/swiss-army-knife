@@ -45,9 +45,9 @@ are such apps.
   owner of a list renames, shares and deletes it, the last one too; a deleted list does not come back. A new item
   always names its list; no request makes a list on the side.
 - `LIST-2` **Shared lists.** A list has a shared flag; a shared list is shared with all other users, who can add items
-  to it and delete items from it, and change its icon and its categories. Only its owner renames, shares or unshares
-  it and deletes it. The owner of an item is who added it (`MODEL-5`), but the access follows the list (`MODEL-6`): every user can
-  delete an item of a shared list, also one another user created.
+  to it and delete items from it, and change its icon and its categories. Only its owner renames, shares or unshares it
+  and deletes it. The owner of an item is who added it (`MODEL-5`), but the access follows the list (`MODEL-6`): every
+  user can delete an item of a shared list, also one another user created.
 - `LIST-3` **The lists first.** A list-based app, in the web app and on Android, opens on the overview of all lists of
   the user: their own lists and the shared lists of the others. From there the user opens a list; a list has a back
   action that leads to the overview. An Android app remembers the list that was open when it was left and opens it

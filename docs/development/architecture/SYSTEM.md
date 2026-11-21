@@ -7,19 +7,19 @@ weight: 10
 
 # System Architecture
 
-How Swiss Army Knife (SAK) is built as a whole: its parts, how they connect, and the decisions that shape them. This
-is the first of three levels: what all components share is in [the architecture of the components](components/INDEX.md), each
-component in its own document next to it. How to write the code is in [AGENT.md](../../../AGENT.md), how the apps look and behave in
-[UI-UX.md](../UI-UX.md), the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose in
-and [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md).
+How Swiss Army Knife (SAK) is built as a whole: its parts, how they connect, and the decisions that shape them. This is
+the first of three levels: what all components share is in [the architecture of the components](components/INDEX.md),
+each component in its own document next to it. How to write the code is in [AGENT.md](../../../AGENT.md), how the apps
+look and behave in [UI-UX.md](../UI-UX.md), the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose
+in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md).
 
 A lower level adds to the levels above and never repeats them; a rule two components need moves up to [the architecture
-of the components](components/INDEX.md). Every change keeps to its level and to the levels above; a change that has to break a rule
-changes its document in the same commit and says why.
+of the components](components/INDEX.md). Every change keeps to its level and to the levels above; a change that has to
+break a rule changes its document in the same commit and says why.
 
-Every rule has an id: the prefix of its chapter and a number, e.g. `MODEL-1`; the rules of a component have the name of the
-component as their prefix, e.g. `NOTES-1`. An id never changes and is never used again, also when its rule goes; a new rule
-gets the next number of its chapter. Code, documents and reviews refer to a rule by its id.
+Every rule has an id: the prefix of its chapter and a number, e.g. `MODEL-1`; the rules of a component have the name of
+the component as their prefix, e.g. `NOTES-1`. An id never changes and is never used again, also when its rule goes; a
+new rule gets the next number of its chapter. Code, documents and reviews refer to a rule by its id.
 
 ## Overview
 
@@ -30,7 +30,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 ```text
         user's machine                                    the server of a deployment (podman)
  ┌──────────────────────────┐                ┌───────────────────────────────────────────────────┐
- │ sakadmin (ui and cli)      │──hetzner api──▶│ caddy (sak-ingress)  :443                         │
+ │ sakadmin (ui and cli)    │──hetzner api──▶│ caddy (sak-ingress)  :443                         │
  │  ├ sak-cloud (resources) │                │   ├ sak.<base domain>  ─▶ backend: sak-frontend   │
  │  └ ansible in a container│──ssh──────────▶│   ├ api.<base domain>  ─▶ backend: api, S3 api    │
  └──────────────────────────┘                │   └ bucket domains     ─▶ the files of a bucket   │
@@ -112,7 +112,10 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   file storage, their thumbnails, the objects of the buckets) is written and read through `FilesystemBinaryStorage`
   (`sak-storage`); no other code writes binary data to disk. The one exception: caddy serves the objects of a bucket
   read only from their directory on disk, which `sak-s3` hands out (`objectsDirectory`).
-- `MODEL-8` **Data outside the database has a resource id.** A row whose data is kept outside the database (on the data volume) has a `resource_id`: 12 random characters `a-z0-9`, set once when the row is inserted, unique among all rows of its table, deleted rows included. The paths of that data are made only from the resource id, never from a name, an id of the database or the content.
+- `MODEL-8` **Data outside the database has a resource id.** A row whose data is kept outside the database (on the data
+  volume) has a `resource_id`: 12 random characters `a-z0-9`, set once when the row is inserted, unique among all rows
+  of its table, deleted rows included. The paths of that data are made only from the resource id, never from a name, an
+  id of the database or the content.
 
 ## External systems
 
@@ -145,12 +148,12 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 ## sakadmin
 
-- `SAKADM-2` **Local state is encrypted.** sakadmin keeps only two things of a deployment in `~/.sak/<name>/`, readable by
-  the user only: the settings of the last create or deploy (`config.json`, encrypted with age to a key derived from
-  the password) and the backups (`backups/`, `SAKADM-8`). The files of a run are deleted when the run ends. All else
-  is derived from the name and the password, or read from the deployment: a deploy takes its settings from the running
-  deployment, else from `config.json`, else from the DNS records. So two machines with the same password manage the
-  same deployment.
+- `SAKADM-2` **Local state is encrypted.** sakadmin keeps only two things of a deployment in `~/.sak/<name>/`, readable
+  by the user only: the settings of the last create or deploy (`config.json`, encrypted with age to a key derived from
+  the password) and the backups (`backups/`, `SAKADM-8`). The files of a run are deleted when the run ends. All else is
+  derived from the name and the password, or read from the deployment: a deploy takes its settings from the running
+  deployment, else from `config.json`, else from the DNS records. So two machines with the same password manage the same
+  deployment.
 - `SAKADM-4` **Plan, then apply.** `sak-cloud` declares the resources, compares them with the provider and applies
   them in the order of their dependencies. A plan stops before any change when a resource belongs to someone else or
   must be replaced but must stay. Only the server and its ssh key may be replaced.
@@ -170,9 +173,10 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   sakadmin state.
 - `SAKADM-9` **One version.** sakadmin, its tools image and the server images share the version of the release. A
   server runs the images of the sakadmin that deployed it. Tests can set another tag, e.g. `<version>-rc`.
-- `SAKADM-10` **Updates on request.** sakadmin looks for a newer release on GitHub and replaces itself only when the user
-  asks (sakadmin cli, or the footer of the sakadmin ui). Before that, it checks the download against the checksum and the
-  cosign signature of the release workflow at the release tag, offline against the sigstore root built into sakadmin.
+- `SAKADM-10` **Updates on request.** sakadmin looks for a newer release on GitHub and replaces itself only when the
+  user asks (sakadmin cli, or the footer of the sakadmin ui). Before that, it checks the download against the checksum
+  and the cosign signature of the release workflow at the release tag, offline against the sigstore root built into
+  sakadmin.
 - `SAKADM-12` **Signed images.** The workflow signs each image it pushes with cosign, keyless, as the workflow at its
   ref (a tag for `<version>` and `<version>-rc`, main for `latest`). sakadmin verifies the signature of each image
   digest offline, against the sigstore root built into sakadmin, before it runs the image (canary, tools) or gives it
@@ -220,20 +224,20 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 - `CLOUD-7` **Own prefix.** The labels SAK declares are under `sak.pelle.io/`.
 - `CLOUD-8` **What stays.** A deploy never replaces the data volume or the primary IPs, and a destroy keeps the
   data volume unless the user asks to delete it.
-- `CLOUD-9` **SAK owns all labels.** sakadmin owns every label of a resource of a deployment, not only the ones under its
-  prefix. The plan reports a label it did not declare as a change, and the next deploy removes it, because the
-  provider replaces the labels of a resource as a whole. A label added by hand, in the console or by another tool,
-  does not survive a deploy.
+- `CLOUD-9` **SAK owns all labels.** sakadmin owns every label of a resource of a deployment, not only the ones under
+  its prefix. The plan reports a label it did not declare as a change, and the next deploy removes it, because the
+  provider replaces the labels of a resource as a whole. A label added by hand, in the console or by another tool, does
+  not survive a deploy.
 
 ## Texts
 
 - `I18N-1` **One file of texts.** Every text a user reads, in the backend, the web apps, the android apps and the
   desktop apps, is in `i18n/texts.yml` at the root of the repository, in every language, and only there: no text is
-  written into code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`) writes what each part
-  reads from it; the generated files are committed, never edited, and a test fails when they are not up to date. A
-  text of an app is in its section (`<app>.common`, `.backend`, `.web`, `.android`), one of no app in `common`,
-  `backend`, `web` or `android`, one of sakadmin in `admin_cli`, one of sakbackup in `sak_backup`, one both desktop apps show in `desktop_shared`; a
-  text two parts show alike moves to their `common`.
+  written into code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`) writes what
+  each part reads from it; the generated files are committed, never edited, and a test fails when they are not up to
+  date. A text of an app is in its section (`<app>.common`, `.backend`, `.web`, `.android`), one of no app in `common`,
+  `backend`, `web` or `android`, one of sakadmin in `admin_cli`, one of sakbackup in `sak_backup`, one both desktop apps
+  show in `desktop_shared`; a text two parts show alike moves to their `common`.
 
 ## Privacy
 

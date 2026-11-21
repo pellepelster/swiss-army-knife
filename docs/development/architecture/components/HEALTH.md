@@ -1,7 +1,7 @@
 ---
 title: "Health"
 description: "The page that shows whether the domains of the buckets and the redirects point to the server."
-weight: 40
+weight: 47
 ---
 
 # Health
