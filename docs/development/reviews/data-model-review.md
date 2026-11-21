@@ -26,19 +26,6 @@ Only the open findings are listed.
 
 ## Should fix
 
-### `DM-1` The notes of another user in a shared list lose their photos, recordings and labels
-
-`NoteService.notes()` looks up the labels and the files of every note under the user who reads it
-(`labels.byIds(owner, …)`, `files.byIds(owner, …)`), and the routes of the files serve a file only to the user who
-uploaded it (`servedFiles` in `SakFiles.kt`). Who reads a note of another user in a shared list sees it without its
-photos, recordings and labels; who changes it gets `UNKNOWN_PHOTO`, as `check()` looks up the files under the user who
-changes it too. The grocery lists do it right: the photo of an item is joined through the visible item
-(`GroceryRepository`). It does not happen yet, the lists of the notes are not exposed (`NOTES-1`); it does as soon as
-they are.
-
-Fix: read the files and the labels of a note through the visibility of the note, as the grocery lists do, and serve
-a file to every user who sees a note or an item that shows it.
-
 ### `DM-2` A repository of restic and a backup plan can not be deleted
 
 Neither `ResticRepositoryRepository` nor `ResticBackupPlanRepository` has a delete, though `BACKUP-7` says "a deleted
@@ -81,6 +68,11 @@ the migration in a later release.
 
 ## Notes
 
+- `DM-1` is withdrawn: the notes are visible to their owner only, the lists of the notes are prepared but not exposed
+  (`NOTES-1`), every read and change of a note checks `notes.owner`. So the files and the labels of a note, looked up
+  under the user who reads it, are always its owner's. Lists of notes shared with others (`LIST-2`) would read the
+  notes through the visibility of their list, serve the files of a note through the note, as the grocery lists serve
+  the photo of an item, and need a decision on the labels of another user's note, which belong to that user.
 - `files.resource_id` is `NOT NULL DEFAULT ''`: sqlite adds a column that is not null only with a default. A row
   inserted without a resource id gets `''`, a second one fails on the unique index; `FileRepository` sets it on every
   insert.
