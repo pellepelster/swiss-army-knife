@@ -64,7 +64,3 @@ are such apps.
   [AGENT.md](../../../../AGENT.md).
 - `FRONTEND-2` **The tabs of a detail view are child routes**, for example the tabs of a bucket or the scopes of the
   settings.
-
-## Privacy in the apps
-
-- `APP-PRIVACY-2` The connections of each app and what they reveal are in its own document.
