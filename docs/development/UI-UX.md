@@ -6,7 +6,7 @@ weight: 20
 
 # UI and UX
 
-How the apps look and behave for the people who use them: the web ui, the sakadmin ui and the sakadmin cli. How the system
+How the apps look and behave for the people who use them: the web app, the sakadmin ui and the sakadmin cli. How the system
 is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code does it in
 [AGENT.md](../../AGENT.md).
 
@@ -64,7 +64,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   Delete, red; it asks inline in the row, Keep is the safe default (`UX-4.1`). An entry that does not apply to the row
   is disabled, its tooltip says why (`UX-8`).
 - `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Sign out".
-  An app that can update itself (e.g. the Android apps, not the web ui, which a browser updates) has "Check for updates"
+  An app that can update itself (e.g. the Android apps, not the web app, which a browser updates) has "Check for updates"
   in it too: the check loads a new version at once when there is one; otherwise a line under the header says what it
   found.
 - `UX-14` **The robot starts the AI features.** Each action that starts an AI feature has the robot icon of the theme
@@ -76,7 +76,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   that tab. Only a page that could not be loaded shows its error at the top, in the place of what it would show. The
   error of a field is the one of `UX-6`, right under the field.
 
-## Web ui
+## Web app
 
 - `WEB-1` **List, then detail.** Each kind of thing has a list that leads to a detail view. A list shows one page at a
   time and remembers its page in the address. Creating starts from the list; the actions on a thing are at the top right
@@ -140,8 +140,8 @@ its chapter. Code, documents and reviews refer to a rule by its id.
 
 ## Desktop apps
 
-- `DESKTOP-1` **A sign-in is remembered.** A desktop app that signs in at a SAK instance (sakbackup) remembers the
-  SAK address and the sign-in. At its next start it opens signed in, without the sign-in screen. When the instance
+- `DESKTOP-1` **A sign-in is remembered.** A desktop app that signs in at a deployment (sakbackup) remembers the
+  SAK address and the sign-in. At its next start it opens signed in, without the sign-in screen. When the deployment
   no longer accepts the sign-in, or does not answer, the app shows the sign-in screen with the SAK address filled
   in and says why. A sign-out forgets the sign-in and keeps the SAK address. On a computer without a keychain the
   app remembers the SAK address only.
@@ -149,7 +149,7 @@ its chapter. Code, documents and reviews refer to a rule by its id.
   for the SAK address and has one button. The button opens the browser of the user, where the user signs in as in
   the web app and confirms the connection of the app. The app and the page in the browser show the same code; the
   user confirms only when the codes are the same. The app waits for the browser for a limited time and has a button
-  to cancel. A sign-in that fails shows the cause on the sign-in screen. The app is signed in at one SAK instance
+  to cancel. A sign-in that fails shows the cause on the sign-in screen. The app is signed in at one deployment
   at a time. A release of the app connects with https only.
 - `DESKTOP-3` **The SAK addresses are remembered on the computer.** A desktop app remembers the SAK addresses of its
   successful sign-ins, on the computer of the user only, the last one first. The sign-in screen shows the last

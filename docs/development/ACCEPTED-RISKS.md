@@ -103,7 +103,7 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   token, the file and its directory are for the user only (`0600`, `0700`), and an encryption would need a key in
   the keychain of the system, which not every desktop has.
 
-- **A desktop app keeps its session token in the keychain.** sakbackup keeps the token of each SAK instance in the
+- **A desktop app keeps its session token in the keychain.** sakbackup keeps the token of each deployment in the
   keychain of the system, valid for up to 30 days. On linux an unlocked Secret Service hands it to every program of
   the user. Accepted: those programs can read the sessions of the browser of the user as well, the token is never in
-  a file, a sign-out deletes it, and an instance that refuses it deletes it at the next start.
+  a file, a sign-out deletes it, and a deployment that refuses it deletes it at the next start.

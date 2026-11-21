@@ -44,7 +44,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | Part | What it is |
 |---|---|
 | `sak-backend` | The server process: the api of the apps, the S3 api, the configuration of caddy, the health checks. It also serves `sak-frontend`. |
-| `sak-frontend` | The web ui of the apps (Angular, installable on a phone). |
+| `sak-frontend` | The web app (Angular, installable on a phone). |
 | `android/core` | What every Android app shares: the deployment, the sign-in, the session, the api client, the update check, the theme (Kotlin, Jetpack Compose). `android/` is a gradle build of its own. |
 | `android/grocery` | The Android app of the grocery lists, on top of `android/core`. |
 | `android/notes` | The Android app of the notes, on top of `android/core`. |

@@ -1,7 +1,7 @@
 ---
 title: "Review: backups with restic"
 linkTitle: "Backups"
-description: "The review of the backups with restic (the REST backend of the instance, the backup plans, sakbackup with its window and command line) for security, data safety, resource usage and test coverage."
+description: "The review of the backups with restic (the REST backend of the deployment, the backup plans, sakbackup with its window and command line) for security, data safety, resource usage and test coverage."
 weight: 10
 ---
 
@@ -12,7 +12,7 @@ weight: 10
 **Checked again:** 2026-11-21, after the fixes of `BK-1`, `BK-2`, `BK-3` and `BK-5`, which are in the history of git.
 
 Scope: the repositories of restic and their REST backend (`io.pelle.sak.backend.restic`, `sak-model` `restic/`, the
-route `/restic` of caddy), how a backup of the instance treats them (`sak-backend` of the role backend), the web app
+route `/restic` of caddy), how a backup of the deployment treats them (`sak-backend` of the role backend), the web app
 (`sak-frontend/src/app/backups/`), and sakbackup (`sak-backup/src-tauri`, `sak-backup/ui`) with what it uses of
 sak-desktop-shared. The questions: does anything leak or stay unencrypted; can data be lost; is everything streamed,
 with memory that does not grow with the data; what do the tests not cover.
@@ -104,7 +104,7 @@ restic sends a file again when the answer was lost and gets 403 for the file tha
 
 Fix: for a file named by its hash, 200 when the one there has the size.
 
-### `BK-21` A backup of the instance links every file of the repositories first (read)
+### `BK-21` A backup of the deployment links every file of the repositories first (read)
 
 `cp -al` of `backend/data` makes a hard link for each pack, then `rm -rf` removes them: no loss, but slow and many
 inodes.
@@ -145,5 +145,5 @@ By risk; each names what to assert and where.
    test needs a machine without it) (sakbackup e2e)
 4. `sak-backup/ui` has no automated test: the password dialogs of a run, a restore and the snapshots, the messages
    of a failure, the skipped files, the form of a plan, the confirmations
-5. the test of a restore of the instance that fails (`sak-backend-test.sh`) is written but was never run: docker
+5. the test of a restore of the deployment that fails (`sak-backend-test.sh`) is written but was never run: docker
    did not start containers on the machines it was tried on

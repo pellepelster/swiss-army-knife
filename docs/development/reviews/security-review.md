@@ -13,7 +13,7 @@ Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`)
 backend (`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and
 the ingress (`sak-s3`, `sak-storage`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
 (`android/`), sakadmin (`sak-admin-cli`) and the server it builds (`ansible/`). The question: what can somebody do who should
-not, from the internet without a session, as a user of a multi user instance, with one key of a bucket, on the
+not, from the internet without a session, as a user of a multi user deployment, with one key of a bucket, on the
 machine of the admin or in one container of the server.
 
 Not in scope: what [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md) accepts, unless the code is weaker than it says, and
@@ -149,7 +149,7 @@ that asked; or the page asks ("sign in as …?") when this browser did not ask o
 has a deployment stored, exchanges at once with whatever host the code names and stores it as its SAK. A host of an
 attacker accepts any token. What the user then adds goes there; or the host answers 401, the app shows its sign-in
 with the password field for that host, and a user who types the password of the admin has given away the password
-of the deployment (`SEC-3`). The same way a user of the instance signs a signed out phone into their own account
+of the deployment (`SEC-3`). The same way a user of the deployment signs a signed out phone into their own account
 with a code of their own.
 
 Fix: always name the host and ask before the exchange; when a deployment is stored and the code names another, the
@@ -204,7 +204,7 @@ Moved to GitHub: [#155](https://github.com/pellepelster/swiss-army-knife/issues/
 - `SEC-38` On macOS and windows every program of the machine can ask the page of a desktop sign-in on the loopback
   (`/start`), which gives the state out once; the port is found by trying the ports. Another user who asks before
   the browser of the user does, and whose callback also comes first, signs the app in as them: the browser shows a
-  failed connection, the menu of the app their name. It needs an account at the same instance. They can also end
+  failed connection, the menu of the app their name. It needs an account at the same deployment. They can also end
   every sign-in with a request of `/start`. On linux the app takes only connections of its own user
   (`peer_user`, from `/proc/net/tcp`), so this is closed there. To close it elsewhere the app would keep listening
   after the sign-in for a time and sign out when a second `/start` comes. sakbackup is built for linux only so far.

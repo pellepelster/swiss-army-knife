@@ -48,17 +48,17 @@ are such apps.
   to it and delete items from it, and change its icon and its categories. Only its owner renames, shares or unshares
   it and deletes it. The owner of an item is who added it (`MODEL-5`), but the access follows the list (`MODEL-6`): every user can
   delete an item of a shared list, also one another user created.
-- `LIST-3` **The lists first.** A list-based app, in the web ui and on Android, opens on the overview of all lists of
+- `LIST-3` **The lists first.** A list-based app, in the web app and on Android, opens on the overview of all lists of
   the user: their own lists and the shared lists of the others. From there the user opens a list; a list has a back
   action that leads to the overview. An Android app remembers the list that was open when it was left and opens it
   again; when the user went back to the overview, or the list is gone, it opens on the overview. A sign-out forgets
   the list.
 - `LIST-4` **Changes reach every client.** A change of a list or of its items, its deletion included, reaches every
-  open client of each user who sees the list, in the web ui and on Android alike: the backend sends a server-sent
+  open client of each user who sees the list, in the web app and on Android alike: the backend sends a server-sent
   event with the id of the list and nothing of its data, and the client loads the list again. A client listens only
   while it is in the foreground; when it comes back, it loads again what it shows, so it sees what changed meanwhile.
 
-## Web Frontend
+## Web app
 
 - `FRONTEND-1` **One page for each app**, listed on the start page; the maintenance pages (health, settings) are
   listed below them. The look is in [UI-UX.md](../../UI-UX.md), the rules of the code in

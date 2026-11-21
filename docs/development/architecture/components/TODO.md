@@ -15,7 +15,7 @@ It learns nothing.
 
 ## General
 
-- `TODO-1` **Lists.** Todo is a list based app (refer to [List-based apps](INDEX.md#list-based-apps)).
+- `TODO-1` **Lists.** Todo is a list-based app (refer to [List-based apps](INDEX.md#list-based-apps)).
 - `TODO-2` **Add a task.** A list has an input field at its top, with a due date and a priority next to it (`TODO-4`,
   `TODO-5`). The user types the title of a task there and adds it to the list; the field is empty again, the day and the
   priority go back to none and normal. Nothing is suggested.
@@ -27,7 +27,7 @@ It learns nothing.
 - `TODO-5` **Priority.** A task is of high, normal or low priority, normal unless chosen. A list shows its tasks by
   priority, the high ones first, then in the order they were added; a high one shows an arrow up, a low one an arrow down
   in a column of its own, so the titles of all rows align. The menu of a row changes the priority, of a done task too.
-- `TODO-6` **Purge.** A trash can in the toolbar of a list removes its done tasks according to `UX-4.2`: they leave the
+- `TODO-6` **Purge.** A trash can in the toolbar of a list deletes its done tasks according to `UX-4.2`: they leave the
   list at once, undo brings them back. Only the done tasks the user saw go; a task done meanwhile, by them or another
   user, stays. A purged task is deleted (`MODEL-3`).
 

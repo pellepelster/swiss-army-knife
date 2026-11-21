@@ -16,7 +16,7 @@ user interface. Use the same term for the same thing every time.
   listing in Google Play and the installed web app (`name` and `short_name` of `<app>.webmanifest`, which a test
   checks against `app_name` of `i18n/texts.yml`). They are the same in every language. Inside SAK, where the
   prefix is clear, the app has its short name of `app.*` in `i18n/texts.yml`: "Notes" ("Notizen"), "Grocery"
-  ("Einkaufslisten") and "Todo" ("Aufgaben"), for example in the list of the apps of the web frontend.
+  ("Einkaufslisten") and "Todo" ("Aufgaben"), for example in the list of the apps of the web app.
 - **deployment** and **SAK instance**: A SAK on its server, with its name, domains and data. Code and the
   documentation for developers (`docs/development/`) say **deployment**. Everything a person reads says **SAK
   instance** (German "SAK-Instanz"): the documentation for users (`README.md`, the other pages of `docs/`), the texts
@@ -51,9 +51,18 @@ user interface. Use the same term for the same thing every time.
   resources.
 - **setting scope**: Settings that belong together, for example **System**. A setting has one value in its scope.
   The settings page shows each scope as a tab and saves it on its own.
-- **backup**: One file with all data of a deployment (the database, the files, the buckets, the state of the
-  ingress and the logs), compressed and encrypted with the backup key. A **restore** replaces the data of the deployment of the same
-  name with the data of a backup.
+- **backup**: One file with the data of a deployment (the database, the files, the buckets, the state of the
+  ingress and the logs), without the repositories of restic (`BACKUP-4`), compressed and encrypted with the backup
+  key; sakadmin makes it. A **restore** replaces the data of the deployment of the same name with the data of a
+  backup.
+- **repository**: A repository of restic that a deployment keeps for a user (`BACKUP-1`); the backup plans of the
+  user back up into it.
+- **backup plan**: What restic backs up and where to: a repository, the paths of one computer and how long its
+  snapshots are kept (`BACKUP-5`, `BACKUP-8`). Use it every time for this, never "backup" alone, which is the file of
+  a deployment.
+- **snapshot**: What one run of a backup plan made in its repository; a restore of sakbackup takes a snapshot.
+- **web app**: What a user opens in the browser at the SAK address, also installed on a phone. Use it every time,
+  not "web ui" or "web frontend"; `sak-frontend` is its code.
 - **resource id**: 12 random characters (`a-z0-9`) that name the data of a row outside the database, e.g. the
   directory of a repository of restic (`MODEL-8`).
 - **resource status**: What a plan or the state of a deployment says of one of its resources, compared with what the
