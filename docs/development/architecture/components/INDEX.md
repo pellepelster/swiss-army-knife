@@ -41,7 +41,7 @@ An app whose items belong to lists of the user keeps to these rules; the notes, 
 are such apps.
 
 - `LIST-1` **A first list.** When a user signs in who never had a list of their own, each list-based app makes them a
-  private list named "My <entity>" in their language, e.g. "My Todos"; the shared lists of others do not count. The
+  private list named `My <entity>` in their language, e.g. "My Todos"; the shared lists of others do not count. The
   owner of a list renames, shares and deletes it, the last one too; a deleted list does not come back. A new item
   always names its list; no request makes a list on the side.
 - `LIST-2` **Shared lists.** A list has a shared flag; a shared list is shared with all other users, who can add items
