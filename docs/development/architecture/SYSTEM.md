@@ -244,8 +244,8 @@ The backend serves apps to its users, for example static hosting and notes. How 
   analytics or other third party. Everything is bundled or served by the backend. The content security policy allows
   only the page's own origin and `api.<base domain>`.
 - `PRIVACY-2` **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated,
-  and the user agrees before each transfer and knows where the data goes. No default activates such a connection. How
-  the apps activate a connection is in [the architecture of the apps](apps/INDEX.md#privacy-in-the-apps).
+  and the user agrees before each transfer and knows where the data goes. No default activates such a connection. The
+  connections of each app are in its own document ([the architecture of the apps](apps/INDEX.md#privacy-in-the-apps)).
 - `PRIVACY-3` **Exemption: the container registry.** sakadmin and the server pull the images of SAK from the GitHub
   container registry (ghcr.io) without asking: sakadmin the image of its tools and the canary on each start, the server
   the images of the backend and the ingress on each deploy. The registry then sees the IP address of the user's

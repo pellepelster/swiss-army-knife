@@ -67,7 +67,4 @@ are such apps.
 
 ## Privacy in the apps
 
-- `APP-PRIVACY-1` **Activation and consent first** (refer to [SYSTEM.md](../SYSTEM.md#privacy)). An app that sends
-  data to a third party needs a setting that turns it on, off by default, and, where the data comes from the user, the
-  user's consent before each transfer.
 - `APP-PRIVACY-2` The connections of each app and what they reveal are in its own document.
