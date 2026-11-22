@@ -1,5 +1,8 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.backend.restic.RESTIC_MAX_BODY_SIZE
+import io.pelle.sak.backend.hosting.S3_MAX_BODY_SIZE
+import io.pelle.sak.backend.hosting.S3_PATH_PREFIX
 import io.pelle.sak.s3.storage.S3Limits
 import java.time.Duration
 import io.pelle.sak.core.logCause
@@ -19,33 +22,9 @@ import io.pelle.sak.storage.FilesystemBinaryStorage
 import java.nio.file.Files
 import java.nio.file.Path
 
-const val S3_PATH_PREFIX = "/s3"
-
 // every host of the backend is https only, for a year
 private const val HSTS_HEADER = "Strict-Transport-Security"
 private const val HSTS_ONE_YEAR = "max-age=31536000"
-
-// the names no bucket may have: the REST backend of restic is below /restic of the api host (SERVER-7)
-val RESERVED_BUCKETS = setOf(RESTIC_PATH_PREFIX.removePrefix("/"))
-
-// the most caddy lets through to the REST backend of restic: its largest file, with room for the
-// headers
-const val RESTIC_MAX_BODY_SIZE = ResticStore.MAX_FILE_BYTES + 1024L * 1024
-
-// the binary storage of the buckets, s3DataDir
-fun bucketBlobs(config: SakConfig): BinaryStorage = FilesystemBinaryStorage(config.s3DataDir)
-
-// the buckets on their binary storage: resolver tells where each bucket is in it (its resource id), what
-// is below that only sak-s3 knows
-fun bucketStorage(
-    config: SakConfig,
-    storage: BinaryStorage,
-    resolver: S3BucketPathResolver,
-): BinaryStorageS3Backend = BinaryStorageS3Backend(storage, resolver, WriteGuard({ Files.getFileStore(config.s3DataDir).usableSpace }, config.minFreeBytes, S3Limits.MAX_OBJECT_BYTES))
-
-// the most caddy lets through to the s3 api: the largest object or part, with room for the
-// signatures of an aws-chunked body
-const val S3_MAX_BODY_SIZE = S3Limits.MAX_OBJECT_BYTES + 64L * 1024 * 1024
 
 // the domains the backend serves itself; no bucket and no redirect takes them
 fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)

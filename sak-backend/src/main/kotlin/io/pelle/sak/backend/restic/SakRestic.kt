@@ -56,6 +56,10 @@ private const val RESTIC_TAG = "restic"
 // where the REST backend of restic is, at api.<base domain> (SERVER-7) and below the backend
 const val RESTIC_PATH_PREFIX = "/restic"
 
+// the most caddy lets through to the REST backend of restic: its largest file, with room for the
+// headers
+const val RESTIC_MAX_BODY_SIZE = ResticStore.MAX_FILE_BYTES + 1024L * 1024
+
 // the answer of a listing in version 2 of the REST protocol: names with their sizes
 private val V2 = ContentType("application", "vnd.x.restic.rest.v2")
 

@@ -1,5 +1,9 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.backend.hosting.bucketBlobs
+import io.pelle.sak.backend.hosting.bucketStorage
+import io.pelle.sak.backend.hosting.RESERVED_BUCKETS
+import io.pelle.sak.backend.hosting.S3_PATH_PREFIX
 import io.pelle.sak.s3.storage.S3BucketStorage
 import io.pelle.sak.auth.Role
 import io.pelle.sak.backend.hosting.removeStaleUploads
@@ -130,16 +134,9 @@ class SakServices(
 // notes, the grocery and todo lists, the records of the files and the settings
 fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 
-// the content of the file storage, each file below its resource id (MODEL-8)
-fun filesDir(config: SakConfig) = config.dataDir.resolve("files")
-
-// the repositories of restic, each below its resource id (BACKUP-1, MODEL-8); a backup of the instance leaves them
-// out (BACKUP-4, sak-backend of the role backend)
-fun resticDir(config: SakConfig) = config.dataDir.resolve("restic")
-
 fun resticStore(config: SakConfig): ResticStore {
-    Files.createDirectories(resticDir(config))
-    return ResticStore(FilesystemBinaryStorage(resticDir(config)), WriteGuard({ Files.getFileStore(resticDir(config)).usableSpace }, config.minFreeBytes, ResticStore.MAX_FILE_BYTES))
+    Files.createDirectories(config.resticDir)
+    return ResticStore(FilesystemBinaryStorage(config.resticDir), WriteGuard({ Files.getFileStore(config.resticDir).usableSpace }, config.minFreeBytes, ResticStore.MAX_FILE_BYTES))
 }
 
 fun Application.sak(config: SakConfig): SakServices {
@@ -178,12 +175,12 @@ fun Application.sak(config: SakConfig): SakServices {
     val redirectService = RedirectService(database, bucketService, domains = domains)
     val labelService = LabelService(database)
     // the guard asks the volume of the directory, so it is there before the first upload
-    Files.createDirectories(filesDir(config))
+    Files.createDirectories(config.filesDir)
     val fileService =
         FileService(
             database,
-            filesDir(config),
-            guard = WriteGuard({ Files.getFileStore(filesDir(config)).usableSpace }, config.minFreeBytes, FileService.DEFAULT_MAX_SIZE),
+            config.filesDir,
+            guard = WriteGuard({ Files.getFileStore(config.filesDir).usableSpace }, config.minFreeBytes, FileService.DEFAULT_MAX_SIZE),
         )
     val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber, notesSettings::aiEnabled)
     val noteService = NoteService(database, labelService, fileService)

@@ -22,7 +22,7 @@ class RedirectRepository(
             .fetch()
             .map { it.toRedirect() }
 
-    fun byId(sourceDomain: String): Redirect? =
+    fun bySourceDomain(sourceDomain: String): Redirect? =
         database.dsl
             .selectFrom(REDIRECTS)
             .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain), REDIRECTS.DELETED_AT.isNull)

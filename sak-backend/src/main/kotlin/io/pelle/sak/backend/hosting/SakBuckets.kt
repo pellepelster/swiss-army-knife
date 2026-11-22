@@ -1,7 +1,6 @@
 package io.pelle.sak.backend.hosting
 
 import io.pelle.sak.core.logCause
-import io.pelle.sak.core.Catalog
 import io.pelle.sak.core.Text
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.Page
@@ -254,18 +253,6 @@ private suspend fun S3BucketService.statisticsResponse(bucket: String): BucketSt
         logger.warn(logCause(e)) { "could not count the objects of bucket '$bucket'" }
         BucketStatisticsResponse(computing = false, failed = true)
     }
-
-// the texts of the static hosting (hosting.backend in i18n/texts.yml)
-object HostingTexts : Catalog("hosting") {
-    val INVALID_NAME = text("invalid_name")
-    val NAME_TAKEN = text("name_taken")
-    val SUBDOMAIN_TAKEN = text("subdomain_taken")
-    val INVALID_DOMAIN = text("invalid_domain")
-    val DOMAIN_TAKEN = text("domain_taken")
-    val REDIRECTED = text("redirected")
-    val HEALTH_NAME = text("health.name")
-    val HEALTH_WHAT = text("health.what")
-}
 
 private fun io.ktor.openapi.Parameters.Builder.bucketName() =
     path("bucket") {

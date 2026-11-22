@@ -10,7 +10,6 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.core.Catalog
 import io.pelle.sak.core.Text
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
@@ -193,15 +192,3 @@ fun SiteMetrics.response() =
         totalBytes = totalBytes,
         userAgents = userAgents.map { UserAgentSeriesResponse(it.group.key, it.values) },
     )
-
-// the texts of the logs of the sites (backend.logs in i18n/texts.yml)
-object LogsTexts : Catalog("logs") {
-    val INVALID_RANGE = text("invalid_range")
-    val EMPTY_SEARCH = text("empty_search")
-    val LONG_SEARCH = text("long_search")
-    val CONTROL_SEARCH = text("control_search")
-    val MINUTES = text("range.minutes")
-    val HOUR = text("range.hour")
-    val HOURS = text("range.hours")
-    val DAYS = text("range.days")
-}

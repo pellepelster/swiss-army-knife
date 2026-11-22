@@ -90,9 +90,9 @@ class RedirectServiceTest {
 
         service.update("EXAMPLE.com", RedirectTarget.Bucket("site")).shouldBeInstanceOf<RedirectUpdateResult.Updated>().redirect shouldBe
             Redirect("example.com", RedirectTarget.Bucket("site"), clock.instant(), later.instant(), "admin@example.org")
-        service.byId("example.com") shouldBe Redirect("example.com", RedirectTarget.Bucket("site"), clock.instant(), later.instant(), "admin@example.org")
+        service.bySourceDomain("example.com") shouldBe Redirect("example.com", RedirectTarget.Bucket("site"), clock.instant(), later.instant(), "admin@example.org")
         service.update("example.com", RedirectTarget.Domain("Example.NET")).shouldBeInstanceOf<RedirectUpdateResult.Updated>()
-        service.byId("example.com")!!.target shouldBe RedirectTarget.Domain("example.net")
+        service.bySourceDomain("example.com")!!.target shouldBe RedirectTarget.Domain("example.net")
         changes.size shouldBe 2
 
         service.update("example.de", RedirectTarget.Domain("example.net")) shouldBe RedirectUpdateResult.NotFound
@@ -100,7 +100,7 @@ class RedirectServiceTest {
         service.update("example.com", RedirectTarget.Domain("no domain")) shouldBe RedirectUpdateResult.Invalid(listOf(ErrorMessage(RedirectsTexts.INVALID_TARGET)))
         service.update("example.com", RedirectTarget.Bucket("unknown")) shouldBe RedirectUpdateResult.UnknownBucket
         service.update("example.com", RedirectTarget.Bucket("private")) shouldBe RedirectUpdateResult.BucketNotServed
-        service.byId("example.com")!!.target shouldBe RedirectTarget.Domain("example.net")
+        service.bySourceDomain("example.com")!!.target shouldBe RedirectTarget.Domain("example.net")
         changes.size shouldBe 2
     }
 

@@ -10,8 +10,8 @@ weight: 12
 **Created:** 2026-11-22
 
 **Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-20`, `BA-22`, `BA-23` and `BA-26` to `BA-30`, which
-are in the history of git; `BA-21` lists what is left of it. Of `BA-22` one copy stays on purpose: the notes and the
-grocery lists each have a route `GET /settings` of their own, an app owns its settings endpoint.
+are in the history of git; `BA-21` and `BA-24` list what is left of them. Of `BA-22` one copy stays on purpose: the
+notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -48,21 +48,17 @@ Fix: when the notes get lists in their api, their lists go on `ListTable`.
 
 ## Could fix: inconsistencies
 
-### `BA-24` Where a thing lives and what it is called
+### `BA-24` One component has several names
 
-- The texts of an app are in its route file (hosting, redirects, files, notes, labels) or in its service file (todo,
-  groceries, restic, users, settings); the health of hosting so depends on a route file.
+- Static hosting is `/static-hosting`, the package `hosting`, the tag `s3` and `S3BucketService`; the redirects have
+  the tag and the model package `ingress`; `/deployment` has the package and the tag `config` and the only file
+  named `Sak…Routes.kt`. The tags stay on purpose: they are a part of the api document.
 - The entity of the notes is in the service file with a `NoteRow` in the model; the other apps keep theirs in
-  `sak-model`, some in a file of their own, most in the file of the repository.
-- One component has several names: `/static-hosting`, the package `hosting`, the tag `s3`, `S3BucketService`;
-  `/redirects` with the tag and the model package `ingress`; `/deployment` with the package and the tag `config` and
-  the only file named `Sak…Routes.kt`.
-- `backend/SakCaddy.kt` also holds the storage of the buckets and constants of the S3 api and of restic. One data
-  directory is a property of `SakConfig`, three are functions of `SakBackend.kt`.
+  `sak-model`. It goes with the lists of the notes (`BA-21`).
 - Methods: `byId`, `page`, `create` (notes, labels) and `item`, `items`, `addItem` (todo, groceries); `of(owner)`
-  and `all()`; `RedirectRepository.byId` takes a domain.
+  and `all()`.
 
-Fix: one file `<App>Texts.kt` for each app, the tags named like the paths, the directories in `SakConfig`.
+Fix: only with another reason to change that code; a new name of a package or a method touches every caller.
 
 ### `BA-25` The same change has different verbs and answers
 

@@ -2,7 +2,6 @@ package io.pelle.sak.backend.redirects
 
 import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.backend.DeleteResult
-import io.pelle.sak.core.Catalog
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.redirects.model.RedirectTargetRequest
@@ -110,7 +109,7 @@ fun Route.redirects(redirectService: RedirectService) {
     }
 
     get("/{source}") {
-        when (val redirect = withContext(Dispatchers.IO) { redirectService.byId(call.parameters["source"].orEmpty()) }) {
+        when (val redirect = withContext(Dispatchers.IO) { redirectService.bySourceDomain(call.parameters["source"].orEmpty()) }) {
             null -> call.respond(HttpStatusCode.NotFound)
             else -> call.respond(redirect.response())
         }
@@ -176,17 +175,6 @@ fun Route.redirects(redirectService: RedirectService) {
             errors(HttpStatusCode.NotFound, "The domain is not redirected")
         }
     }
-}
-
-// the texts of the redirects (redirects.backend in i18n/texts.yml)
-object RedirectsTexts : Catalog("redirects") {
-    val INVALID_DOMAINS = text("invalid_domains")
-    val EXISTS = text("exists")
-    val UNKNOWN_BUCKET = text("unknown_bucket")
-    val BUCKET_NOT_SERVED = text("bucket_not_served")
-    val INVALID_TARGET = text("invalid_target")
-    val HEALTH_NAME = text("health.name")
-    val HEALTH_WHAT = text("health.what")
 }
 
 private fun io.ktor.openapi.Parameters.Builder.sourceDomain() =

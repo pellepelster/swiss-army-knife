@@ -2,7 +2,6 @@ package io.pelle.sak.backend.labels
 
 import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.backend.DeleteResult
-import io.pelle.sak.core.Catalog
 import io.pelle.sak.core.Text
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.labels.model.LabelResponse
@@ -155,9 +154,3 @@ private fun Parameters.Builder.labelId() =
         required = true
         schema = jsonSchema<Int>()
     }
-
-// the texts of the labels (backend.labels in i18n/texts.yml)
-object LabelsTexts : Catalog("labels") {
-    val INVALID_NAME = text("invalid_name")
-    val EXISTS = text("exists")
-}

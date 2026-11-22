@@ -70,6 +70,13 @@ data class SakConfig(
 
     val s3DataDir: Path get() = dataDir.resolve("s3")
 
+    // the content of the file storage, each file below its resource id (MODEL-8)
+    val filesDir: Path get() = dataDir.resolve("files")
+
+    // the repositories of restic, each below its resource id (BACKUP-1, MODEL-8); a backup of the instance leaves them
+    // out (BACKUP-4, sak-backend of the role backend)
+    val resticDir: Path get() = dataDir.resolve("restic")
+
     // the domain the names of the deployment are below, by its dns mode: the root domain itself
     // (DOMAIN), or <name>.<root_domain> (SUBDOMAIN)
     val baseDomain: String get() =

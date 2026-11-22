@@ -71,7 +71,7 @@ class RedirectService(
         domains.register(this)
     }
 
-    override fun isRedirected(domain: String): Boolean = repository.byId(domain) != null
+    override fun isRedirected(domain: String): Boolean = repository.bySourceDomain(domain) != null
 
     override fun redirectsTo(bucket: String): List<String> = repository.sourcesTo(bucket)
 
@@ -83,7 +83,7 @@ class RedirectService(
 
     fun all(): List<Redirect> = repository.all()
 
-    fun byId(sourceDomain: String): Redirect? = repository.byId(sourceDomain.lowercase())
+    fun bySourceDomain(sourceDomain: String): Redirect? = repository.bySourceDomain(sourceDomain.lowercase())
 
     // the domain the redirect leads to, null for a bucket no longer served at a domain
     fun location(target: RedirectTarget): String? =
@@ -130,7 +130,7 @@ class RedirectService(
         target: RedirectTarget,
     ): RedirectUpdateResult {
         val source = sourceDomain.lowercase()
-        repository.byId(source) ?: return RedirectUpdateResult.NotFound
+        repository.bySourceDomain(source) ?: return RedirectUpdateResult.NotFound
         val normalized =
             when (val checked = check(source, target)) {
                 is CheckedTarget.Valid -> checked.target

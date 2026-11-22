@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.backend.hosting.S3_PATH_PREFIX
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith

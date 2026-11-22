@@ -9,7 +9,6 @@ import io.pelle.sak.core.Health
 import io.pelle.sak.core.HealthDetail
 import io.pelle.sak.core.HealthState
 import io.pelle.sak.core.HealthStatus
-import io.pelle.sak.core.Catalog
 import io.pelle.sak.core.Joined
 import io.pelle.sak.core.Text
 
@@ -90,20 +89,4 @@ private fun DnsAnswer.describe(): Text {
         addresses: List<String>,
     ) = if (addresses.isEmpty()) Text(DnsTexts.NO_RECORDS, "type" to type) else Text(DnsTexts.RECORDS, "type" to type, "addresses" to addresses.joinToString(" "))
     return Text(DnsTexts.ANSWER, "server" to server, "a" to records("A", ipv4), "aaaa" to records("AAAA", ipv6))
-}
-
-// the texts of the checks of the domains (backend.dns in i18n/texts.yml)
-object DnsTexts : Catalog("dns") {
-    val NOT_CHECKED = text("not_checked")
-    val NO_ADDRESSES = text("no_addresses")
-    val NO_DOMAINS = text("no_domains")
-    val WRONG_DOMAINS = text("wrong_domains")
-    val UNANSWERED_DOMAINS = text("unanswered_domains")
-    val RIGHT_DOMAINS = text("right_domains")
-    val ANSWERS = text("answers")
-    val NO_ANSWER = text("no_answer")
-    val NO_ANSWER_FROM = text("no_answer_from")
-    val ANSWER = text("answer")
-    val RECORDS = text("records")
-    val NO_RECORDS = text("no_records")
 }

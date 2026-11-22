@@ -60,7 +60,7 @@ class RedirectRepositoryTest {
 
         repository.delete("example.com") shouldNotBe null
         repository.delete("example.com") shouldBe null
-        repository.byId("example.com") shouldBe null
+        repository.bySourceDomain("example.com") shouldBe null
         repository.all() shouldBe emptyList()
         repository.update("example.com", RedirectTarget.Domain("example.org")) shouldBe null
 
