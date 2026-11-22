@@ -9,11 +9,13 @@ weight: 10
 
 **Created:** 2026-11-21
 
-**Checked again:** 2026-11-21, after the fixes of `BK-1`, `BK-2`, `BK-3` and `BK-5`, which are in the history of git.
+**Checked again:** 2026-11-22, every finding listed is still open; the fixed ones (`BK-1`, `BK-2`, `BK-3`, `BK-5`) are
+in the history of git. `BK-18` is withdrawn: `ResticStore.save` checks and moves under the lock of the repository, so
+the second of two writes of a config is refused.
 
 Scope: the repositories of restic and their REST backend (`io.pelle.sak.backend.restic`, `sak-model` `restic/`, the
 route `/restic` of caddy), how a backup of the deployment treats them (`sak-backend` of the role backend), the web app
-(`sak-frontend/src/app/backups/`), and sakbackup (`sak-backup/src-tauri`, `sak-backup/ui`) with what it uses of
+(`sak-frontend/projects/backups/`), and sakbackup (`sak-backup/src-tauri`, `sak-backup/ui`) with what it uses of
 sak-desktop-shared. The questions: does anything leak or stay unencrypted; can data be lost; is everything streamed,
 with memory that does not grow with the data; what do the tests not cover.
 
@@ -21,13 +23,13 @@ How sure a finding is: **reproduced** (run against restic 0.16.4 or read in the 
 **read** (traced in the code by a reviewer, not run), **suspected** (depends on how restic, caddy or the webview
 behave).
 
-What is good: a token is 256 random bits, compared in constant time, and the login must be the repository of the
-path, so a token never reaches another repository; the names of files are a fixed set of types and 64 hex digits, no
-path leaves a repository; an upload is streamed to a staged file with its sha-256 computed on the way, checked before
-it is renamed into place, and a failed one is removed; a download and its ranges are streamed; the token and the
-password reach restic in its environment only, never in arguments or the page; restic hides the token in what it
-prints; the page has no `innerHTML` and a strict CSP; a password is kept only after restic took it; the window asks
-before a restore in place and before a snapshot is deleted; `/restic` is behind TLS only.
+What is good: a token is 256 random bits, compared in constant time, and the login must be the repository of the path,
+so a token never reaches another repository; the names of files are a fixed set of types and 64 hex digits, no path
+leaves a repository; an upload is streamed to a staged file with its sha-256 computed on the way, the one of a file
+named by its hash checked before it is moved into place, and a failed one is removed; a download and its ranges are
+streamed; the token and the password reach restic in its environment only, never in arguments or the page; restic hides
+the token in what it prints; the page has no `innerHTML` and a strict CSP; a password is kept only after restic took it;
+the window asks before a restore in place and before a snapshot is deleted; `/restic` is behind TLS only.
 
 Only the open findings are listed.
 
@@ -81,19 +83,11 @@ one; the page shows 100 and "and n more".
 
 ## Could fix
 
-### `BK-18` Two writes of a config at once: the later one wins (read)
-
-`ResticStore.save` checks that the file is not there and then moves the staged file with `REPLACE_EXISTING`. For a
-file named by its hash that is harmless; two `restic init` at once leave a config the key of the other one does not
-open.
-
-Fix: a commit that never replaces (a hard link, then the staged file removed).
-
 ### `BK-19` Staged files a crash leaves are never removed (read)
 
-A file in `<id>/staging/` left between the write and the move stays and counts into the size; the storage cleans only
-its own `.tmp`. An upload is also staged twice (by the store and by the storage), with three to four directory
-syncs.
+A file in `<id>/staging/` left between the write and the move stays and takes its room on the volume, though the size
+of the repository leaves it out; the storage cleans only its own `.tmp`. An upload is also staged twice (by the store
+and by the storage), with three directory syncs.
 
 Fix: the store writes the target through the storage and fails the write on a wrong hash; stale staged files go at
 the start.
@@ -132,12 +126,10 @@ Fix: leave `restic` out when linking.
 
 By risk; each names what to assert and where.
 
-1. two `POST config` at once leave one config, which the key of the repository opens (backend, with `BK-18`)
+1. two `POST config` at once leave one config, the second one is refused (backend)
 2. a backup of a second computer during a prune ends with `restic check` fine; a refused lock shows as the expiry
    that failed, the snapshot stays reported (sakbackup e2e)
 3. the command line when it fails: an ambiguous snapshot, no restic (restic is also looked for in `/usr/bin`, so a
    test needs a machine without it) (sakbackup e2e)
 4. `sak-backup/ui` has no automated test: the password dialogs of a run, a restore and the snapshots, the messages
    of a failure, the skipped files, the form of a plan, the confirmations
-5. the test of a restore of the deployment that fails (`sak-backend-test.sh`) is written but was never run: docker
-   did not start containers on the machines it was tried on

@@ -54,7 +54,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `sak-auth` | The e-mail login, the session tokens, the signed requests of sakadmin, the roles. |
 | `sak-config` | The configuration of the backend and how it is read. |
 | `sak-storage` | Binary data on disk (`MODEL-7`): blobs at paths, each written at once; it knows nothing of what it keeps. |
-| `sak-s3` | The S3 api of the buckets: where a bucket is on disk, its objects kept as blobs in `sak-storage`. |
+| `sak-s3` | The S3 api of the buckets: its objects kept as blobs in `sak-storage`, below the path the backend gives each bucket. |
 | `sak-ingress` | The configuration model of caddy and the client of its admin api. |
 | `sak-logs` | The access logs and metrics of the sites, read from victorialogs. |
 | `sak-dns` | The check that the domains point to the server, asking name servers directly. |

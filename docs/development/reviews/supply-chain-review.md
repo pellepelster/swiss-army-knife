@@ -9,7 +9,7 @@ weight: 6
 
 **Created:** 2026-11-04
 
-**Checked again:** 2026-11-12, every finding listed is still open; the fixed ones are in the history of git.
+**Checked again:** 2026-11-22, every finding listed is still open; the fixed ones are in the history of git.
 
 Scope: the signing of the zips of sakadmin and of the images with cosign (`mise run admin-cli:release`, `image:sign`),
 their verification in sakadmin (`sakadmin update`, `core/images.rs`, `SAKADM-12` in
@@ -43,8 +43,8 @@ pull requests.
 
 The three zips are built on three runners, go through `upload-artifact` and `download-artifact`, and are signed in
 the job `release`. What changes a zip between the two, or runs in the job `release` before `cosign sign-blob`, gets
-a valid signature. With the actions pinned, that takes a job of the same run that writes artifacts, which none does
-today.
+a valid signature. With the actions pinned, that takes another job of the same run that writes artifacts named
+`sak-admin-cli-*`, which none does today.
 
 Fix: attest each zip in the job that builds it (`actions/attest-build-provenance`), and sign or check the
 attestation in the job `release`.

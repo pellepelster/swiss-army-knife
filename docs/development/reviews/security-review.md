@@ -9,6 +9,8 @@ weight: 8
 
 **Created:** 2026-11-12
 
+**Checked again:** 2026-11-22, every finding listed is still open; the fixed ones are in the history of git.
+
 Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`), the routes and the data of the backend
 (`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and the
 ingress (`sak-s3`, `sak-storage`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
@@ -58,9 +60,10 @@ person in a browser. Nothing found gives a session to somebody who is not on the
   host; the service worker caches no answer of the api; the content security policy allows scripts of the page only.
 - **The Android apps.** The session is encrypted with a key of the keystore (AES-GCM), no backup, no cleartext, the
   certificates checked by the platform, only the main activity exported, no WebView.
-- **sakadmin.** The keys are derived with a purpose each, the private ssh key goes to the agent through stdin only
-  (`SECURITY-2`), the host key is checked from the first connection on, the files of a run are in a directory only
-  the user reads, the web view loads its own pages only and has no plugin command.
+- **sakadmin.** The keys are derived with a purpose each, the private ssh key goes to the agent through stdin and is
+  written only by `sakadmin ssh-config`, to the directory the user names (`SECURITY-2`), the host key is checked from
+  the first connection on, the files of a run are in a directory only the user reads, the web view loads its own pages
+  only and has no plugin command.
 - **The sign-in of a desktop app.** The connect token is bound to the pkce challenge of the app: without the
   verifier it is a 401, a wrong verifier does not use it up, a token of a QR code is refused with a verifier and the
   other way round (`ConnectTest`). The page sends the browser to `127.0.0.1` only, with a port that is a number; it
@@ -69,9 +72,9 @@ person in a browser. Nothing found gives a session to somebody who is not on the
   is https unless the SAK address is on the loopback. The token is in no file, no log and no error text; the page
   of the app on the loopback escapes its texts and loads nothing. caddy writes no query, so the state is in no log
   of the server. The window has no plugin command, the browser opens only on an http or https url the app built.
-- **The server.** sshd takes keys only; the containers run as uid 10000, read only, without capabilities; the
-  backend, victorialogs and the admin api of caddy listen on loopback; the firewall of the cloud opens 22, 443 and
-  icmp.
+- **The server.** sshd takes keys only; the containers run as uid 10000, read only, without capabilities but the one of
+  the ingress to bind 80 and 443; the backend, victorialogs and the admin api of caddy listen on loopback; the firewall
+  of the cloud opens 22, 443 and icmp.
 
 ## Should fix
 
@@ -156,8 +159,7 @@ Fix: answer `passwordSet` only, the password stays in `LoadedSettings`.
 
 No request sets `max_tokens`, the answer is read whole (`BodyHandlers.ofString()`), and `FileTextService` stores the
 text as it comes; sqlite does not hold the `varchar(100000)` of the column. An image that makes the model write a
-lot costs money, 30 times an hour for each user. `OpenRouterSpeechTranscriber` answers 500 instead of 502 for an
-answer of another shape (`jsonObject`, `jsonPrimitive` throw).
+lot costs money, 30 times an hour for each user.
 
 Fix: `max_tokens`, a largest length of the stored text, the answer read through a largest size.
 
@@ -168,7 +170,7 @@ Fix: `max_tokens`, a largest length of the stored text, the answer read through 
   takes the headers, which means breaking TLS.
 - `SEC-24` sakadmin wipes less than `Cargo.toml` says: `expand` returns a plain array, the age keys as strings and
   the password in `DeploymentRequest` and in the JSON to the web view are not wiped. Memory of the process only.
-- `SEC-26` The host filters nothing that comes in: the table of nftables has the rule for the metadata service only,
+- `SEC-26` The host filters nothing that comes in: the table of nftables has rules for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
 - `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
   keychain, not wiped when it goes (as `SEC-24` for sakadmin); the state of a callback is compared with `!=`, not in
@@ -190,11 +192,12 @@ Fix: `max_tokens`, a largest length of the stored text, the answer read through 
   `X-Forwarded-For` that caddy sets, the headers it leaves out of its logs) is from their documentation.
 - That the XML reader of the S3 api takes no DTD and no outside entity is from what is known of Jackson 3, not from
   a test.
-- An image of 2048 × 2048 px with 16 bit and alpha decodes to about 33 MB, twice what the memory review counts; two
-  at once were not tried against the heap.
+- An image of 2048 × 2048 px with 16 bit and alpha decodes to about 33 MB, twice the 17 MB `FileService` counts for a
+  decoded photo; as many decodes as the server has processors run at once, which was not tried against the heap.
 - The Android apps beyond their requests, intents and temporary files, and the pages of the grocery and todo lists
   of the web app line by line (they were searched for sinks).
-- `prettier`, the tests and the e2e tests did not run for this review; it changes no code.
+- `prettier` did not run for this review, it changes no code; the tests and the e2e tests ran with the check of
+  2026-11-22.
 - For the desktop sign-in (2026-11-20): the window was not driven by a person, and macOS and windows not at all: what
   the Keychain and the Credential Manager give to other programs, and whether their openers show the url to other users,
   is not checked. That linux refuses a connection of another user (`SEC-38`) rests on the tests of the parser and on the

@@ -9,10 +9,10 @@ weight: 7
 
 **Created:** 2026-11-12
 
-**Checked again:** 2026-11-12, every finding listed is still open; the fixed ones are in the history of git.
+**Checked again:** 2026-11-22, every finding listed is still open; the fixed ones are in the history of git.
 
 Scope: the todo app as it was added (changeset `0002-todo`, `TodoRepository`, `TodoService`, the routes under
-`/api/v1/todo`, `sak-frontend/src/app/todo/`, `android/todo/`) and the code it has in common with the grocery lists
+`/api/v1/todo`, `sak-frontend/projects/todo/`, `android/todo/`) and the code it has in common with the grocery lists
 and the notes. The question: bugs, code that can be shared with the other list apps, simplifications, and the data
 model.
 
@@ -38,7 +38,7 @@ menu of a row, as the grocery lists have them.
 ### `TD-9` Not checked with this review
 
 - the date picker of the todo app in landscape was tested for a reachable OK button, nobody looked at a picture of it
-- the e2e tests in Hetzner Cloud (`mise run admin-cli:test:e2e`) did not run; the todo app does not change sakadmin
-- `prettier --check src e2e` still flags the generated catalogs (`src/app/i18n/catalog.<language>.ts`) and
-  `e2e/login.spec.ts`, `e2e/logs.spec.ts` and `e2e/swagger.spec.ts`; no task of mise and no script of `package.json`
-  runs prettier
+- `prettier --check src e2e projects` still flags the generated catalogs
+  (`projects/core/src/i18n/catalog.<language>.ts`), `src/icons/icons.css` and `e2e/apps.ts`, `e2e/login.spec.ts`,
+  `e2e/logs.spec.ts`, `e2e/static-hosting.spec.ts` and `e2e/swagger.spec.ts`; no task of mise and no script of
+  `package.json` runs prettier

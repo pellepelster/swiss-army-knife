@@ -18,18 +18,15 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   [issue #134](https://github.com/pellepelster/swiss-army-knife/issues/134) encrypts them in `sak-storage`
   (`MODEL-7`).
 
-- **The objects of the buckets from before the resource ids stay on the data volume a second time.** The first start
-  of the release that brought the resource ids of the buckets copies their objects from below `buckets/<name>` to
-  their resource id (`BucketLayoutMigration`, `MODEL-8`). The copy below the name is the way back right after the
-  update: the backend never changes or deletes it. An object a user deletes later is thus still there, and a backup
-  holds these buckets twice. Accepted: every start warns of the directories that are left, and an admin deletes
-  `buckets/` on the data volume by hand after the update.
+- **Data from before the resource ids needs v0.1.63.** Before v0.1.62 the files were kept below their sha-256, before
+  v0.1.63 the objects of the buckets below `buckets/<name>`. v0.1.63 moves the files and copies the buckets to their
+  resource ids (`MODEL-8`) when it starts; the releases after it no longer do, and nothing stops them from starting on
+  such data, which they then do not find. Accepted: an older SAK instance is updated to v0.1.63 first, and an older
+  backup is restored with v0.1.63, which is then updated.
 
-- **A backup during the move of the files to their resource ids can miss files.** The first start of the release
-  that brought the resource ids of the files moves their content from below its sha-256 (`FileLayoutMigration`).
-  A backup walks the files while the backend runs; one that walks them during the move can see the directory of a
-  file before its content arrived and the old one after it left. Accepted: the move takes seconds once, a backup
-  then is avoided, and every start warns of the files whose content is in neither place.
+- **The copy of the buckets that v0.1.63 left stays.** v0.1.63 kept the objects below `buckets/` on the data volume
+  as the way back, and no release deletes or reports them: an object a user deleted later is still there, and a
+  backup holds it. Accepted: an admin deletes `buckets/` below the data of the buckets by hand after the update.
 
 - **A provisioning run writes the mail server password to disk.** The environment of the backend and the token of the
   events endpoint are plain files on the user's machine while the run lasts. Accepted: only the user can read the
@@ -58,8 +55,9 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   once. Accepted: it is the request sakadmin meant to make, and the signature holds only for the backend's own host.
 
 - **The login links can be used up** ([#33](https://github.com/pellepelster/swiss-army-knife/issues/33)). At most 60
-  links an hour go out, and 5 an hour per address and client IP; 12 client IPs can block logins for an hour.
-  Accepted: the global limit keeps the server from sending spam, and sessions last 30 days.
+  links an hour go out, 5 an hour per address and client and 20 an hour per client, a client being an IPv4 address or
+  an IPv6 /64; a few clients can block logins for an hour. Accepted, the issue is closed as not planned: the global
+  limit keeps the server from sending spam, and sessions last 30 days.
 
 - **The sakadmin UI gets passwords from the environment.** `SAK_PASSWORD` and `SAK_SMTP_PASSWORD` fill its password
   fields, so they cross into the web view; so does the password of the mail server that sakadmin reads from a running
@@ -67,9 +65,9 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   security policy and writes values as text; the same process holds the secrets anyway.
 
 - **Two runs can hit one deployment at once.** Two sakadmin, on two machines or UI and command line, can deploy or
-  destroy at the same time; only the server's own commands (backup, restore, update, reboot) take a lock. Accepted:
-  a deployment has one user who starts runs by hand, every run plans first, and the next deploy repairs a half-done
-  run. A lock label would stay behind after a killed run.
+  destroy at the same time; only the server's own commands (backup, restore, update, restart of the services, reboot)
+  take a lock. Accepted: a deployment has one user who starts runs by hand, every run plans first, and the next deploy
+  repairs a half-done run. A lock label would stay behind after a killed run.
 
 - **The client key passes the container engine.** sakadmin hands the private ssh key to an agent in a container and
   to the provisioning container; there it never touches disk (only `sakadmin ssh-config` writes it, `SECURITY-2`), but
