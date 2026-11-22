@@ -251,7 +251,7 @@ class S3BucketService(
     // refused; its name stays taken and its objects stay in the storage until it is purged
     fun delete(name: String): BucketDeleteResult {
         domains.redirectsTo(name).takeIf { it.isNotEmpty() }?.let { return BucketDeleteResult.Redirected(it) }
-        if (!repository.delete(name)) return BucketDeleteResult.NotFound
+        repository.delete(name) ?: return BucketDeleteResult.NotFound
         changed()
         return BucketDeleteResult.Deleted
     }

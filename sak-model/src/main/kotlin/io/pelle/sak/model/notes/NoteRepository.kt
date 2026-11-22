@@ -248,12 +248,14 @@ class NoteRepository(
                     .toSet()
         }
 
-    // false when there was none; its links to its labels and files are deleted with it
+    // the note as it was, null when there was none; its links to its labels and files are deleted with it
     fun delete(
         owner: String,
         id: Int,
-    ): Boolean =
-        database.dsl.transactionResult { configuration ->
+    ): NoteRow? {
+        // the note as it was, with its labels and files: the delete takes their links
+        val note = byId(owner, id) ?: return null
+        return database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
             val deleted =
@@ -266,8 +268,9 @@ class NoteRepository(
                 deleteLabels(dsl, NOTES_LABELS.NOTE_ID.eq(id), now)
                 deleteFiles(dsl, NOTES_FILES.NOTE_ID.eq(id), now)
             }
-            deleted
+            note.takeIf { deleted }
         }
+    }
 
     // drops the label of the owner from every note of the owner
     internal override fun detach(

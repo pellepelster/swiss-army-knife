@@ -230,9 +230,11 @@ class S3BucketRepository(
             BucketKeyPairUpdateResult.AccessKeyTaken
         }
 
-    // the bucket and its domains stay as deleted, its name stays taken; false when there was none
-    fun delete(name: String): Boolean =
-        database.dsl.transactionResult { configuration ->
+    // the bucket and its domains stay as deleted, its name stays taken; null when there was none
+    fun delete(name: String): S3Bucket? {
+        // the bucket as it was, with its domains: the delete takes them
+        val bucket = byName(name) ?: return null
+        return database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
             val deleted =
@@ -248,8 +250,9 @@ class S3BucketRepository(
                     .where(S3_BUCKETS_DOMAINS.BUCKET_NAME.eq(name), S3_BUCKETS_DOMAINS.DELETED_AT.isNull)
                     .execute()
             }
-            deleted
+            bucket.takeIf { deleted }
         }
+    }
 
     private fun insertDomain(
         dsl: DSLContext,

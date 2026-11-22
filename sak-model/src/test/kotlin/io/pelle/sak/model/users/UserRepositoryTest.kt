@@ -1,6 +1,7 @@
 package io.pelle.sak.model.users
 
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.pelle.sak.model.SakDatabase
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -26,8 +27,8 @@ class UserRepositoryTest {
         repository.all().map { it.email } shouldBe listOf("anna@example.org", "bob@example.org")
         repository.byEmail("bob@example.org") shouldBe bob
 
-        repository.delete(anna.id) shouldBe true
-        repository.delete(anna.id) shouldBe false
+        repository.delete(anna.id) shouldNotBe null
+        repository.delete(anna.id) shouldBe null
         repository.byEmail("anna@example.org") shouldBe null
         // the address may be added again
         repository.insert("admin@example.org", "anna@example.org", null)!!.name shouldBe null

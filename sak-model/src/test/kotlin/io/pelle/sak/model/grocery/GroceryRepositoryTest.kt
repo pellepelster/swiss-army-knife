@@ -1,6 +1,7 @@
 package io.pelle.sak.model.grocery
 
 import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.pelle.sak.model.SakDatabase
@@ -195,9 +196,9 @@ class GroceryRepositoryTest {
         toBuy.photoFileId shouldBe photo
 
         // the item to buy stays, the bought ones go; the name comes back once it is bought again
-        repository.forget(OTHER, own, milk.id) shouldBe false
-        repository.forget(PELLE, own, milk.id) shouldBe true
-        repository.forget(PELLE, own, milk.id) shouldBe false
+        (repository.forget(OTHER, own, milk.id) ?: 0) shouldBe 0
+        (repository.forget(PELLE, own, milk.id) ?: 0) shouldBeGreaterThan 0
+        (repository.forget(PELLE, own, milk.id) ?: 0) shouldBe 0
         repository.items(PELLE, own)!!.map { it.id } shouldBe listOf(toBuy.id)
         repository.checkItem(PELLE, toBuy.id)
         repository.suggestions(PELLE, own, "", 0, 10)!!.single().let {
@@ -240,8 +241,8 @@ class GroceryRepositoryTest {
         repository.insertItem(PELLE, own, values("Milk"))
         repository.suggestions(PELLE, own, "", 0, 10)!!.map { it.name } shouldBe listOf("Bread")
 
-        repository.forget(PELLE, own, suggestions.first().id) shouldBe true
-        repository.forget(PELLE, own, suggestions.first().id) shouldBe false
+        (repository.forget(PELLE, own, suggestions.first().id) ?: 0) shouldBeGreaterThan 0
+        (repository.forget(PELLE, own, suggestions.first().id) ?: 0) shouldBe 0
         repository.suggestions(PELLE, own, "", 0, 10)!!.map { it.name } shouldBe listOf("Bread")
     }
 
@@ -258,8 +259,8 @@ class GroceryRepositoryTest {
         repository.suggestions(PELLE, party, "", 0, 10)!!.map { it.name } shouldBe listOf("Chips", "Milk")
         val chips = repository.suggestions(PELLE, party, "chips", 0, 10)!!.single()
         // forgotten on its own list only
-        repository.forget(PELLE, own, chips.id) shouldBe false
-        repository.forget(PELLE, party, chips.id) shouldBe true
+        (repository.forget(PELLE, own, chips.id) ?: 0) shouldBe 0
+        (repository.forget(PELLE, party, chips.id) ?: 0) shouldBeGreaterThan 0
     }
 
     @Test
@@ -291,9 +292,9 @@ class GroceryRepositoryTest {
         repository.updateList(PELLE, party, "Party", shared = false)
         repository.suggestions(OTHER, party, "", 0, 10) shouldBe null
         val dip = repository.suggestions(PELLE, party, "dip", 0, 10)!!.single()
-        repository.forget(OTHER, party, dip.id) shouldBe false
+        (repository.forget(OTHER, party, dip.id) ?: 0) shouldBe 0
         repository.updateList(PELLE, party, "Party", shared = true)
-        repository.forget(OTHER, party, dip.id) shouldBe true
+        (repository.forget(OTHER, party, dip.id) ?: 0) shouldBeGreaterThan 0
         repository.suggestions(PELLE, party, "", 0, 10)!!.map { it.name } shouldBe listOf("Chips")
 
         repository.deleteList(PELLE, party) shouldBe ListDeleteResult.Deleted
@@ -367,8 +368,8 @@ class GroceryRepositoryTest {
         repository.updateItem(OTHER, chips.id, values("Crisps", categoryId = snacks.id)).item!!.categoryId shouldBe snacks.id
 
         // deleted, it goes from its items and the suggestions of the list
-        repository.deleteCategory(OTHER, party, snacks.id) shouldBe true
-        repository.deleteCategory(PELLE, party, snacks.id) shouldBe false
+        repository.deleteCategory(OTHER, party, snacks.id) shouldNotBe null
+        repository.deleteCategory(PELLE, party, snacks.id) shouldBe null
         repository.item(PELLE, chips.id)!!.let {
             it.categoryId shouldBe null
             it.updatedAt shouldBe now

@@ -59,6 +59,15 @@ enum class DefaultGroceryCategory(
     }
 }
 
+sealed interface GroceryItemCheckResult {
+    data class Checked(
+        val item: GroceryItem,
+    ) : GroceryItemCheckResult
+
+    // the user sees no such item to buy
+    data object NotFound : GroceryItemCheckResult
+}
+
 sealed interface GroceryCategorySaveResult {
     data class Saved(
         val category: GroceryCategory,
@@ -257,7 +266,7 @@ class GroceryService(
         user: String,
         listId: Int,
         id: Int,
-    ): DeleteResult = DeleteResult.of(repository.deleteCategory(user, listId, id).also { if (it) changes.changed(listId) })
+    ): DeleteResult = DeleteResult.of(repository.deleteCategory(user, listId, id)?.also { changes.changed(listId) } != null)
 
     // the ids are all categories of a list the user sees, each once, in their new order
     fun orderCategories(
@@ -272,11 +281,11 @@ class GroceryService(
         }
 
     // bought (GROCERY-3), by any user who sees its list (LIST-2): it leaves the list and stays as its
-    // history (GROCERY-11); false when the user sees no such item to buy
+    // history (GROCERY-11)
     fun checkItem(
         user: String,
         id: Int,
-    ): Boolean = repository.checkItem(user, id)?.let(::changed) != null
+    ): GroceryItemCheckResult = repository.checkItem(user, id)?.let { GroceryItemCheckResult.Checked(changed(it)) } ?: GroceryItemCheckResult.NotFound
 
     // to buy or bought, gone for good, by any user who sees its list
     fun deleteItem(
@@ -334,7 +343,7 @@ class GroceryService(
         user: String,
         listId: Int,
         id: Int,
-    ): DeleteResult = DeleteResult.of(repository.forget(user, listId, id).also { if (it) changes.changed(listId) })
+    ): DeleteResult = DeleteResult.of(repository.forget(user, listId, id)?.takeIf { it > 0 }?.also { changes.changed(listId) } != null)
 
     private fun categoryResult(
         listId: Int,

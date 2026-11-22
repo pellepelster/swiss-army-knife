@@ -2,6 +2,7 @@ package io.pelle.sak.model.labels
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.references.LABELS
 import org.jooq.exception.DataAccessException
@@ -30,8 +31,8 @@ class LabelRepositoryTest {
     fun `deletes labels softly, the row stays and its name is free again`() {
         val home = repository.insert(OWNER, "home")!!
 
-        repository.delete(OWNER, home.id) shouldBe true
-        repository.delete(OWNER, home.id) shouldBe false
+        repository.delete(OWNER, home.id) shouldNotBe null
+        repository.delete(OWNER, home.id) shouldBe null
         repository.byId(OWNER, home.id) shouldBe null
         database.dsl.fetchCount(LABELS) shouldBe 1
         // deleting is no change, only deleted_at is set
@@ -71,7 +72,7 @@ class LabelRepositoryTest {
         repository.byIds(OTHER, listOf(home.id, others.id)) shouldBe listOf(others)
         repository.byNames(OTHER, listOf("home")) shouldBe listOf(others)
         repository.rename(OTHER, home.id, "house") shouldBe LabelNameUpdateResult.NotFound
-        repository.delete(OTHER, home.id) shouldBe false
+        repository.delete(OTHER, home.id) shouldBe null
         repository.byId(OWNER, home.id) shouldBe home
     }
 

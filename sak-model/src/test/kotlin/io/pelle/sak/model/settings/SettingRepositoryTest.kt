@@ -30,8 +30,8 @@ class SettingRepositoryTest {
         repository.insert("A_SETTING", "system", "other", owner = OWNER) shouldBe null
         repository.insert("A_SETTING", "admin@example.org", "other", owner = OWNER) shouldNotBe null
 
-        repository.delete("A_SETTING", "system") shouldBe true
-        repository.delete("A_SETTING", "system") shouldBe false
+        repository.delete("A_SETTING", "system") shouldNotBe null
+        repository.delete("A_SETTING", "system") shouldBe null
         repository.byNameAndScope("A_SETTING", "system") shouldBe null
         repository.byNameAndScope("A_SETTING", "admin@example.org")!!.value shouldBe "other"
         repository.insert("A_SETTING", "system", "again", owner = OWNER)!!.value shouldBe "again"

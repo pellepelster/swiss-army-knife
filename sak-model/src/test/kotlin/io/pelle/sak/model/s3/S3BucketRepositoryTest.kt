@@ -1,6 +1,7 @@
 package io.pelle.sak.model.s3
 
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
@@ -50,8 +51,8 @@ class S3BucketRepositoryTest {
     fun `a deleted bucket keeps its name taken and frees its domains`() {
         repository.insert("site", "AKIASITE", "SECRETAKIASITE", listOf("example.org"), owner = OWNER)
 
-        repository.delete("site") shouldBe true
-        repository.delete("site") shouldBe false
+        repository.delete("site") shouldNotBe null
+        repository.delete("site") shouldBe null
 
         repository.byName("site") shouldBe null
         repository.byAccessKeyId("AKIASITE") shouldBe null

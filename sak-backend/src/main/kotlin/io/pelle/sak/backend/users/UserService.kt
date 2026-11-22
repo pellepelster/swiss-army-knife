@@ -72,7 +72,7 @@ class UserService(
     }
 
     // false when there is no such user
-    fun delete(id: Int): DeleteResult = DeleteResult.of(repository.delete(id))
+    fun delete(id: Int): DeleteResult = DeleteResult.of(repository.delete(id) != null)
 
     // whether the address is an added user, the role user; asked on every request of a session
     fun isUser(email: String): Boolean = repository.byEmail(normalize(email)) != null

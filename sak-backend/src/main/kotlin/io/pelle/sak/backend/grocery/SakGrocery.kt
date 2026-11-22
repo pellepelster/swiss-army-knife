@@ -685,8 +685,10 @@ fun Route.grocery(
 
         post("/{id}/check") {
             val id = call.idParameter() ?: return@post
-            val checked = withContext(Dispatchers.IO) { groceryService.checkItem(call.owner, id) }
-            call.respond(if (checked) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+            when (withContext(Dispatchers.IO) { groceryService.checkItem(call.owner, id) }) {
+                is GroceryItemCheckResult.Checked -> call.respond(HttpStatusCode.NoContent)
+                GroceryItemCheckResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            }
         }.describe {
             tag(GROCERY_TAG)
             summary = "Check an item"

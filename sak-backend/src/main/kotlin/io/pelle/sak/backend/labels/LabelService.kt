@@ -107,7 +107,7 @@ class LabelService(
     fun delete(
         owner: String,
         id: Int,
-    ): DeleteResult = DeleteResult.of(repository.delete(owner, id, links))
+    ): DeleteResult = DeleteResult.of(repository.delete(owner, id, links) != null)
 
     // the names normalized by the caller; the missing labels are created; sorted by name
     fun resolve(

@@ -9,10 +9,9 @@ weight: 12
 
 **Created:** 2026-11-22
 
-**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-20`, `BA-22` and `BA-26` to `BA-30`,
-which are in the history of git; `BA-21` and `BA-23` list what is left of them. Of `BA-22` one copy stays on
-purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings
-endpoint.
+**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-20`, `BA-22`, `BA-23` and `BA-26` to `BA-30`, which
+are in the history of git; `BA-21` lists what is left of it. Of `BA-22` one copy stays on purpose: the notes and the
+grocery lists each have a route `GET /settings` of their own, an app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -49,16 +48,6 @@ stay two on purpose: the api of an app is its own.
 Fix: the lists of the notes on `ListTable`; one function for the first one of an owner.
 
 ## Could fix: inconsistencies
-
-### `BA-23` A repository answers an outcome in several shapes
-
-The services answer in one form now: a sealed result named `<Entity><Verb>Result`, a validation failure with its
-`ErrorMessage`s, one `DeleteResult` for every delete and purge. What is left is in the repositories: a failure is
-`null`, a sealed result or a `Boolean`, by the repository (`GroceryRepository.deleteItem` and `checkItem` answer a
-`Boolean`, `TodoRepository.deleteItem` the row, `NoteRepository.delete` a `Boolean`). `GroceryService.checkItem` passes
-its `Boolean` on.
-
-Fix: a repository answers the row for a change, a sealed result where there is more than one way to fail.
 
 ### `BA-24` Where a thing lives and what it is called
 

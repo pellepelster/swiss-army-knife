@@ -117,13 +117,13 @@ class LabelRepository(
             LabelNameUpdateResult.NameTaken
         }
 
-    // false when the owner had none. What links labels drops its links to it in the same transaction
+    // The label, null when the owner had none. What links labels drops its links to it in the same transaction
     // (SHARED-2), so no link to a deleted label stays
     fun delete(
         owner: String,
         id: Int,
         links: List<LabelLinks> = emptyList(),
-    ): Boolean {
+    ): Label? {
         val now = clock.instant()
         return database.dsl.transactionResult { configuration ->
             val dsl = configuration.dsl()
@@ -132,8 +132,10 @@ class LabelRepository(
                     .update(LABELS)
                     .set(LABELS.DELETED_AT, now)
                     .where(LABELS.OWNER.eq(owner), LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
-                    .execute() > 0
-            if (deleted) links.forEach { it.detach(dsl, owner, id, now) }
+                    .returning()
+                    .fetchOne()
+                    ?.toLabel()
+            if (deleted != null) links.forEach { it.detach(dsl, owner, id, now) }
             deleted
         }
     }

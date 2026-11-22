@@ -476,12 +476,12 @@ class GroceryRepository(
         }
 
     // the items of the list lose it, the checked ones too, so its suggestions do (GROCERY-13); it
-    // stays as deleted. False when the user sees no such list or it has no such category
+    // stays as deleted. The category, null when the user sees no such list or it has no such category
     fun deleteCategory(
         user: String,
         listId: Int,
         id: Int,
-    ): Boolean =
+    ): GroceryCategory? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
@@ -490,8 +490,10 @@ class GroceryRepository(
                     .update(GROCERY_CATEGORIES)
                     .set(GROCERY_CATEGORIES.DELETED_AT, now)
                     .where(visibleCategory(user, listId, id))
-                    .execute() > 0
-            if (deleted) {
+                    .returning()
+                    .fetchOne()
+                    ?.toCategory()
+            if (deleted != null) {
                 dsl
                     .update(GROCERY_ITEMS)
                     .setNull(GROCERY_ITEMS.CATEGORY_ID)
@@ -680,13 +682,13 @@ class GroceryRepository(
 
     // forgets the suggestion of the name of the item (GROCERY-11): the checked items of the name on
     // the list are deleted for good, an item to buy stays; adding the name again brings it back.
-    // Every user who sees the list forgets; false when the user does not see the list or it has no
-    // checked item of the name
+    // Every user who sees the list forgets. How many items went, null when the user does not see the
+    // list or the item
     fun forget(
         user: String,
         listId: Int,
         itemId: Int,
-    ): Boolean =
+    ): Int? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val key =
@@ -695,7 +697,7 @@ class GroceryRepository(
                     .from(GROCERY_ITEMS)
                     .where(GROCERY_ITEMS.ID.eq(itemId), GROCERY_ITEMS.LIST_ID.eq(listId), visibleItem(user))
                     .fetchOne()
-                    ?.value1() ?: return@transactionResult false
+                    ?.value1() ?: return@transactionResult null
             dsl
                 .update(GROCERY_ITEMS)
                 .set(GROCERY_ITEMS.DELETED_AT, clock.instant())
@@ -704,7 +706,7 @@ class GroceryRepository(
                     GROCERY_ITEMS.NAME_KEY.eq(key),
                     GROCERY_ITEMS.CHECKED_AT.isNotNull,
                     GROCERY_ITEMS.DELETED_AT.isNull,
-                ).execute() > 0
+                ).execute()
         }
 
     // the live lists the user sees: their own and the shared ones of the others (LIST-2)

@@ -196,7 +196,7 @@ class NoteService(
     fun delete(
         owner: String,
         id: Int,
-    ): DeleteResult = if (repository.delete(owner, id)) DeleteResult.Deleted else DeleteResult.NotFound
+    ): DeleteResult = DeleteResult.of(repository.delete(owner, id) != null)
 
     // what the repository made of the checked values: it checks again in its transaction that the list
     // and the files are the owner's (MODEL-6), and leaves out a label deleted since the check

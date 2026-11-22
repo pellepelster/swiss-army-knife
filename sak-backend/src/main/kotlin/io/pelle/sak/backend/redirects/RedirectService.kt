@@ -144,7 +144,7 @@ class RedirectService(
     }
 
     fun delete(sourceDomain: String): DeleteResult {
-        if (!repository.delete(sourceDomain.lowercase())) {
+        if (repository.delete(sourceDomain.lowercase()) == null) {
             return DeleteResult.NotFound
         }
         changed()

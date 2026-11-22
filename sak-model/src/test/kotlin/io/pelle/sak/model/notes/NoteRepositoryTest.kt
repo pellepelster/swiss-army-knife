@@ -3,6 +3,7 @@ package io.pelle.sak.model.notes
 import io.pelle.sak.model.jooq.tables.references.NOTE_LISTS
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.jooq.tables.references.NOTES
@@ -69,9 +70,9 @@ class NoteRepositoryTest {
     fun `deletes notes softly, of their owner only, the row stays`() {
         val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "milk", "yellow", emptySet(), emptyList()).note()
 
-        repository.delete("other@example.org", note.id) shouldBe false
-        repository.delete("pelle@pelle.io", note.id) shouldBe true
-        repository.delete("pelle@pelle.io", note.id) shouldBe false
+        repository.delete("other@example.org", note.id) shouldBe null
+        repository.delete("pelle@pelle.io", note.id) shouldNotBe null
+        repository.delete("pelle@pelle.io", note.id) shouldBe null
         repository.byId("pelle@pelle.io", note.id) shouldBe null
         database.dsl.fetchCount(NOTES) shouldBe 1
     }
@@ -111,7 +112,7 @@ class NoteRepositoryTest {
         val beach = file("beach")
         val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach)).note()
 
-        repository.delete("pelle@pelle.io", note.id) shouldBe true
+        repository.delete("pelle@pelle.io", note.id) shouldNotBe null
 
         links(note.id).single().deleted shouldBe true
     }
@@ -158,7 +159,7 @@ class NoteRepositoryTest {
         val kept = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "breakfast", "yellow", setOf(milk, eggs), emptyList()).note()
 
         repository.delete("pelle@pelle.io", deleted.id)
-        LabelRepository(database).delete("pelle@pelle.io", eggs, listOf(repository)) shouldBe true
+        LabelRepository(database).delete("pelle@pelle.io", eggs, listOf(repository)) shouldNotBe null
 
         labelLinks(deleted.id) shouldBe listOf(milk to true)
         labelLinks(kept.id) shouldBe listOf(milk to false, eggs to true)

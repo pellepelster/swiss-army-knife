@@ -2,6 +2,7 @@ package io.pelle.sak.model.ingress
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.references.REDIRECTS
@@ -57,8 +58,8 @@ class RedirectRepositoryTest {
         repository.insert("example.com", RedirectTarget.Domain("example.org"), owner = OWNER)!!.updatedAt shouldBe null
         repository.update("example.com", RedirectTarget.Domain("example.net"))!!.updatedAt shouldBe now
 
-        repository.delete("example.com") shouldBe true
-        repository.delete("example.com") shouldBe false
+        repository.delete("example.com") shouldNotBe null
+        repository.delete("example.com") shouldBe null
         repository.byId("example.com") shouldBe null
         repository.all() shouldBe emptyList()
         repository.update("example.com", RedirectTarget.Domain("example.org")) shouldBe null

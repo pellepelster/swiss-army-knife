@@ -140,7 +140,9 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   id of the database or the content.
 - `MODEL-9` **A repository takes values and answers rows.** No method that a service calls takes a time or an entity
   that was built outside the repository: an insert and an update take the values of the fields and answer the row as
-  it is stored. The service hands its clock to the repository it makes, so both use one clock (`MODEL-4`).
+  it is stored. A write that can fail in one way answers the row or nothing, a delete the row it deleted; a write
+  that can fail in more than one way answers a result that names each way. No write answers only yes or no. The
+  service hands its clock to the repository it makes, so both use one clock (`MODEL-4`).
 
 ## External systems
 

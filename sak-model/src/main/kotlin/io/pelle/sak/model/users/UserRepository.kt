@@ -61,13 +61,15 @@ class UserRepository(
             null
         }
 
-    // the row stays as deleted (MODEL-3); false when there is no such user
-    fun delete(id: Int): Boolean =
+    // the row stays as deleted (MODEL-3); the user, null when there is no such user
+    fun delete(id: Int): User? =
         database.dsl
             .update(USERS)
             .set(USERS.DELETED_AT, clock.instant())
             .where(USERS.ID.eq(id), USERS.DELETED_AT.isNull)
-            .execute() > 0
+            .returning()
+            .fetchOne()
+            ?.toUser()
 
     private fun UsersRecord.toUser() = User(id!!, owner!!, email!!, name, createdAt!!)
 }

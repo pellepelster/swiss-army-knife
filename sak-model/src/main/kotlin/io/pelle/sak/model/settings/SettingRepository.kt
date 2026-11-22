@@ -85,16 +85,18 @@ class SettingRepository(
             }
         }
 
-    // the setting stays as deleted; false when there was none
+    // the setting stays as deleted; the row, null when there was none
     fun delete(
         name: String,
         scope: String,
-    ): Boolean =
+    ): SettingRow? =
         database.dsl
             .update(SETTINGS)
             .set(SETTINGS.DELETED_AT, clock.instant())
             .where(SETTINGS.NAME.eq(name), SETTINGS.SCOPE.eq(scope), SETTINGS.DELETED_AT.isNull)
-            .execute() > 0
+            .returning()
+            .fetchOne()
+            ?.toRow()
 
     private fun SettingsRecord.toRow() =
         SettingRow(

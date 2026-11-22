@@ -91,13 +91,15 @@ class RedirectRepository(
             ?.toRedirect()
     }
 
-    // the redirect stays as deleted, its domain can be redirected again; false when there was none
-    fun delete(sourceDomain: String): Boolean =
+    // the redirect stays as deleted, its domain can be redirected again; null when there was none
+    fun delete(sourceDomain: String): Redirect? =
         database.dsl
             .update(REDIRECTS)
             .set(REDIRECTS.DELETED_AT, clock.instant())
             .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain), REDIRECTS.DELETED_AT.isNull)
-            .execute() > 0
+            .returning()
+            .fetchOne()
+            ?.toRedirect()
 
     private fun RedirectTarget.type() =
         when (this) {

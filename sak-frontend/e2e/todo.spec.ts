@@ -61,7 +61,8 @@ test('keeps a todo list, a done task in its place, purges the done ones', async 
   await page.getByRole('button', { name: 'Actions of Paint the gate' }).click();
   await page.getByRole('menuitem', { name: 'Delete' }).click();
   await page.getByLabel('Delete Paint the gate').getByRole('button', { name: 'Delete' }).click();
-  await expect(tasks.getByText('Paint the gate')).toBeHidden();
+  // the exact text: while the row goes, the question of the delete names the task too
+  await expect(tasks.getByText('Paint the gate', { exact: true })).toBeHidden();
   await page.reload();
   await expect(page.getByText('Paint the gate')).toBeHidden();
 
