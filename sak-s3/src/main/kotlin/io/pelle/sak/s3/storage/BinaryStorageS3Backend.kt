@@ -1,5 +1,6 @@
 package io.pelle.sak.s3.storage
 
+import java.time.Instant
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.storage.BlobPath
@@ -10,7 +11,6 @@ import java.io.SequenceInputStream
 import java.nio.file.Path
 import java.security.DigestInputStream
 import java.security.MessageDigest
-import java.util.Base64
 import java.util.Enumeration
 import java.util.UUID
 import tools.jackson.databind.ObjectMapper
@@ -25,7 +25,8 @@ class BinaryStorageS3Backend(
     private val resolver: S3BucketPathResolver,
     // the room a write may take
     private val guard: WriteGuard,
-) : S3StorageBackend {
+) : S3StorageBackend,
+    S3BucketStorage {
     private val mapper: ObjectMapper = jacksonObjectMapper()
 
     private data class MetaFile(
@@ -148,7 +149,7 @@ class BinaryStorageS3Backend(
             objects = objects,
             commonPrefixes = commonPrefixes.toList(),
             isTruncated = truncated,
-            nextContinuationToken = if (truncated) encodeToken(lastKey!!) else null,
+            nextContinuationToken = if (truncated) ContinuationToken.of(lastKey!!) else null,
         )
     }
 
@@ -319,7 +320,7 @@ class BinaryStorageS3Backend(
 
     // the objects of the bucket and their size, with the parts of the uploads not completed yet,
     // which take their room too; staged writes are not in it
-    fun usage(bucket: String): BlobUsage {
+    override fun usage(bucket: String): BlobUsage {
         val bucketPath = requireBucket(bucket)
         val objects = storage.usage(bucketPath.resolve(DATA))
         // the parts, not the metadata and the md5 of each
@@ -333,9 +334,9 @@ class BinaryStorageS3Backend(
 
     // removes the uploads of the bucket that were neither completed nor aborted and had no part or
     // start since before, so they do not keep their room; the number of uploads removed
-    fun removeStaleUploads(
+    override fun removeStaleUploads(
         bucket: String,
-        before: java.time.Instant,
+        before: Instant,
     ): Int {
         val uploads = requireBucket(bucket).resolve(UPLOADS)
         return storage
@@ -349,7 +350,7 @@ class BinaryStorageS3Backend(
 
     // the directory on disk the objects of the bucket are in, each at its key, for a reader that
     // serves them from there (caddy, the exception of MODEL-7)
-    fun objectsDirectory(bucket: String): Path = storage.directory(objectsPath(bucket))
+    override fun objectsDirectory(bucket: String): Path = storage.directory(objectsPath(bucket))
 
     private fun objectsPath(bucket: String): BlobPath = requireBucket(bucket).resolve(DATA)
 
@@ -441,14 +442,5 @@ class BinaryStorageS3Backend(
         private val NUL: Char = Char(0)
 
         private val UPLOAD_ID_REGEX = Regex("[a-f0-9-]{36}")
-
-        fun encodeToken(key: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(key.toByteArray())
-
-        fun decodeToken(token: String): String? =
-            try {
-                String(Base64.getUrlDecoder().decode(token))
-            } catch (_: IllegalArgumentException) {
-                null
-            }
     }
 }

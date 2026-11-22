@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.s3.storage.S3BucketStorage
 import io.pelle.sak.auth.Role
 import io.pelle.sak.backend.hosting.removeStaleUploads
 import io.pelle.sak.backend.hosting.STALE_UPLOAD_CHECK
@@ -47,7 +48,6 @@ import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.logs.AccessLogsManager
 import io.pelle.sak.s3.api.s3
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import java.nio.file.Files
 import kotlin.system.exitProcess
 import io.pelle.sak.api.installUnexpectedErrors
@@ -115,7 +115,7 @@ class SakServices(
     // victorialogs, the access logs of the buckets (EXT-1)
     val accessLogsManager: AccessLogsManager,
     // the objects of the buckets, and the directory caddy serves them from
-    val bucketStorage: BinaryStorageS3Backend,
+    val bucketStorage: S3BucketStorage,
     // where the backend runs what it does on its own
     val jobs: BackgroundJobs,
     // the roles of an address, asked with every request of a session; none without a login

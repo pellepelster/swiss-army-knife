@@ -1,7 +1,7 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.s3.storage.S3BucketStorage
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import java.time.Clock
 import java.time.Duration
 
@@ -17,7 +17,7 @@ val STALE_UPLOAD_CHECK: Duration = Duration.ofHours(1)
 // can not fill the data volume with parts it never completes; changed hears of each bucket that lost
 // some, their bytes leave its statistics. S3BucketService runs it
 internal fun removeStaleUploads(
-    storage: BinaryStorageS3Backend,
+    storage: S3BucketStorage,
     buckets: S3BucketService,
     clock: Clock = Clock.systemUTC(),
     changed: (bucket: String) -> Unit,

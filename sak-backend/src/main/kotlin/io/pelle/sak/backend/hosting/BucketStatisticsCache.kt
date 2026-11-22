@@ -1,11 +1,11 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.s3.storage.S3BucketStorage
 import io.pelle.sak.core.logCause
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Ticker
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Clock
@@ -25,7 +25,7 @@ data class BucketStatistics(
 // counting a bucket walks all of its objects, so the numbers are kept and recounted in the
 // background after a while, the old ones are served meanwhile; a write drops them
 class BucketStatisticsCache(
-    private val storage: BinaryStorageS3Backend,
+    private val storage: S3BucketStorage,
     clock: Clock = Clock.systemUTC(),
     ticker: Ticker = Ticker.systemTicker(),
     // where the counting runs, it is blocking io: the background jobs of the backend

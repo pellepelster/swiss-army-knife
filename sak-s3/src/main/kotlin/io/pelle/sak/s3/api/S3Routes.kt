@@ -1,5 +1,6 @@
 package io.pelle.sak.s3.api
 
+import io.pelle.sak.s3.storage.ContinuationToken
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -31,7 +32,6 @@ import io.pelle.sak.s3.auth.Sha256VerifyingInputStream
 import io.pelle.sak.s3.auth.SigV4Request
 import io.pelle.sak.s3.auth.SigV4Result
 import io.pelle.sak.s3.auth.SigV4Verifier
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.InvalidKeyException
 import io.pelle.sak.s3.storage.KeyTooLongException
 import io.pelle.sak.storage.EntityTooLargeException
@@ -227,7 +227,7 @@ private class S3Api(
 
             val effectiveStartAfter =
                 continuationToken?.let {
-                    BinaryStorageS3Backend.decodeToken(it) ?: throw S3Exception.invalidRequest("invalid continuation token")
+                    ContinuationToken.key(it) ?: throw S3Exception.invalidRequest("invalid continuation token")
                 } ?: startAfter
             val effectiveMaxKeys = (maxKeys ?: 1000).coerceIn(0, 1000)
 

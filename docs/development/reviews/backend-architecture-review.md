@@ -9,8 +9,8 @@ weight: 12
 
 **Created:** 2026-11-22
 
-**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-16`, `BA-18` to `BA-20`, `BA-22`, `BA-26`, `BA-27` to
-`BA-30`, which are in the history of git; `BA-21` and `BA-23` list what is left of them. Of `BA-22` one copy stays on
+**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-20`, `BA-22` and `BA-26` to `BA-30`,
+which are in the history of git; `BA-21` and `BA-23` list what is left of them. Of `BA-22` one copy stays on
 purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings
 endpoint.
 
@@ -34,17 +34,6 @@ delete, every time comes from the clock of the repository, no update sets an own
 every time goes through `apiTime()`, every create answers 201. Caddy, victorialogs and OpenRouter each have one
 manager (`EXT-1`). All binary data goes through `BinaryStorage`, and files, buckets and repositories of restic are
 found by their resource id only.
-
-## Could fix: modules
-
-### `BA-17` The backend needs the class behind the interface of the S3 storage
-
-`usage`, `removeStaleUploads` and `objectsDirectory` are on `BinaryStorageS3Backend` only, not on `S3StorageBackend`.
-The backend so holds the class (`backend/SakBackend.kt`, `BucketStatisticsCache`, `backend/SakCaddy.kt`) next to
-`InvalidatingS3StorageBackend`, which wraps the interface. The routes of `sak-s3` decode the token of a listing with
-a function of the class.
-
-Fix: a second small interface for the three functions.
 
 ## Could fix: duplications
 

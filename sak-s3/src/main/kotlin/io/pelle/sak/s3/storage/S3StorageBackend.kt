@@ -1,5 +1,8 @@
 package io.pelle.sak.s3.storage
 
+import java.util.Base64
+import java.nio.file.Path
+import io.pelle.sak.storage.model.BlobUsage
 import java.io.InputStream
 import java.time.Instant
 
@@ -79,6 +82,39 @@ object S3Limits {
 
     // the largest object made of parts
     const val MAX_MULTIPART_OBJECT_BYTES = 5L * 1024 * 1024 * 1024 * 1024
+}
+
+// what the keeper of the buckets needs of their storage beside the S3 api: the size of a bucket, the
+// uploads nobody finished, and the directory a web server serves a bucket from
+interface S3BucketStorage {
+    // the objects of the bucket and their size, with the parts of the uploads not completed yet,
+    // which take their room too
+    fun usage(bucket: String): BlobUsage
+
+    // removes the uploads of the bucket that were neither completed nor aborted and had no part or
+    // start since before; the number of uploads removed
+    fun removeStaleUploads(
+        bucket: String,
+        before: Instant,
+    ): Int
+
+    // the directory on disk the objects of the bucket are in, each at its key, for a reader that
+    // serves them from there (caddy, the exception of MODEL-7)
+    fun objectsDirectory(bucket: String): Path
+}
+
+// the token of a listing that goes on: the last key of the page before, so that it holds no state
+// of the storage
+object ContinuationToken {
+    fun of(key: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(key.toByteArray())
+
+    // null for what is no token
+    fun key(token: String): String? =
+        try {
+            String(Base64.getUrlDecoder().decode(token))
+        } catch (_: IllegalArgumentException) {
+            null
+        }
 }
 
 interface S3StorageBackend {

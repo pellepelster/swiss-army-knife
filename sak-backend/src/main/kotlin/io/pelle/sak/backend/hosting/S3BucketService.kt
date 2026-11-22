@@ -1,8 +1,8 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.s3.storage.S3BucketStorage
 import io.pelle.sak.model.s3.BucketKeyPairUpdateResult
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.backend.BackgroundJobs
 import io.pelle.sak.s3.storage.isValidBucketName
 import io.pelle.sak.backend.isFree
@@ -135,7 +135,7 @@ class S3BucketService(
     // keeps them
     fun start(
         jobs: BackgroundJobs,
-        objects: BinaryStorageS3Backend,
+        objects: S3BucketStorage,
     ) {
         statistics?.warm(all().map { it.name })
         jobs.every("remove the unfinished uploads of the buckets", STALE_UPLOAD_CHECK) {

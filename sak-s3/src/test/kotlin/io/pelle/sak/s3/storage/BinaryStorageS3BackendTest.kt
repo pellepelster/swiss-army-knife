@@ -287,11 +287,11 @@ class BinaryStorageS3BackendTest {
         page1.objects.map { it.key } shouldContainExactly listOf("a.txt", "b.txt")
         page1.isTruncated.shouldBeTrue()
 
-        val startAfter = BinaryStorageS3Backend.decodeToken(page1.nextContinuationToken.shouldNotBeNull())
+        val startAfter = ContinuationToken.key(page1.nextContinuationToken.shouldNotBeNull())
         val page2 = storage.listObjects("bucket1", null, null, startAfter, 2)
         page2.objects.map { it.key } shouldContainExactly listOf("c.txt", "d.txt")
 
-        val page3 = storage.listObjects("bucket1", null, null, BinaryStorageS3Backend.decodeToken(page2.nextContinuationToken!!), 2)
+        val page3 = storage.listObjects("bucket1", null, null, ContinuationToken.key(page2.nextContinuationToken!!), 2)
         page3.objects.map { it.key } shouldContainExactly listOf("e.txt")
         page3.isTruncated.shouldBeFalse()
         page3.nextContinuationToken.shouldBeNull()
