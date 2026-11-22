@@ -55,6 +55,39 @@ sealed interface ListUpdateResult {
     data object NotOwner : ListUpdateResult
 }
 
+// what the repository of every list-based app answers for its lists, so one code works on the lists
+// of each app; a new list is the app's own, an app adds what its lists start with
+interface ListRepository {
+    // the lists the user sees
+    fun lists(user: String): List<SakList>
+
+    // null when the user does not see the list
+    fun list(
+        user: String,
+        id: Int,
+    ): SakList?
+
+    // whether the user sees the list or saw it until it was deleted: whom a change of it reaches
+    // (LIST-4)
+    fun seesList(
+        user: String,
+        id: Int,
+    ): Boolean
+
+    fun updateList(
+        user: String,
+        id: Int,
+        name: String,
+        shared: Boolean,
+        icon: String? = null,
+    ): ListUpdateResult
+
+    fun deleteList(
+        user: String,
+        id: Int,
+    ): ListDeleteResult
+}
+
 // the lists of a list-based app, shared by every such app (LIST-1, LIST-2, MODEL-6): a user sees
 // their own lists and the shared ones of the others; only the owner renames, shares, unshares and
 // deletes a list. Reads live rows only. Internal: it is a part of the repositories, with jOOQ (MODEL-2)

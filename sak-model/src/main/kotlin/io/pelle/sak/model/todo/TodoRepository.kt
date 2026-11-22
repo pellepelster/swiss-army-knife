@@ -1,5 +1,6 @@
 package io.pelle.sak.model.todo
 
+import io.pelle.sak.model.lists.ListRepository
 import io.pelle.sak.model.changesTo
 import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
@@ -58,7 +59,7 @@ data class TodoItem(
 class TodoRepository(
     private val database: SakDatabase,
     private val clock: Clock = Clock.systemUTC(),
-) {
+): ListRepository {
     // the lists, with how many tasks are open on each
     private val lists =
         ListTable(
@@ -82,17 +83,17 @@ class TodoRepository(
         )
 
     // the lists of the user and the shared ones of the others, by name
-    fun lists(user: String): List<SakList> = lists.lists(user)
+    override fun lists(user: String): List<SakList> = lists.lists(user)
 
     // null when the user does not see the list
-    fun list(
+    override fun list(
         user: String,
         id: Int,
     ): SakList? = lists.list(user, id)
 
     // whether the user sees the list or saw it until it was deleted: whom a change of it reaches
     // (LIST-4)
-    fun seesList(
+    override fun seesList(
         user: String,
         id: Int,
     ): Boolean = lists.seesList(user, id)
@@ -112,16 +113,16 @@ class TodoRepository(
     ): SakList? = lists.insertFirst(owner, name)
 
     // a list the user sees, see ListTable.update
-    fun updateList(
+    override fun updateList(
         user: String,
         id: Int,
         name: String,
         shared: Boolean,
-        icon: String? = null,
+        icon: String?,
     ): ListUpdateResult = lists.update(user, id, name, shared, icon)
 
     // a list of the user's own, the last one too (LIST-1); it and its tasks stay as deleted
-    fun deleteList(
+    override fun deleteList(
         user: String,
         id: Int,
     ): ListDeleteResult =

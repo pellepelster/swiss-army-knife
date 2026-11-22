@@ -1,5 +1,6 @@
 package io.pelle.sak.model.grocery
 
+import io.pelle.sak.model.lists.ListRepository
 import io.pelle.sak.model.changesTo
 import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
@@ -131,7 +132,7 @@ sealed interface GroceryItemWriteResult {
 class GroceryRepository(
     private val database: SakDatabase,
     private val clock: Clock = Clock.systemUTC(),
-) {
+): ListRepository {
     // the lists, with how many items are to buy on each
     private val lists =
         ListTable(
@@ -155,17 +156,17 @@ class GroceryRepository(
         )
 
     // the lists of the user and the shared ones of the others, by name
-    fun lists(user: String): List<SakList> = lists.lists(user)
+    override fun lists(user: String): List<SakList> = lists.lists(user)
 
     // null when the user does not see the list
-    fun list(
+    override fun list(
         user: String,
         id: Int,
     ): SakList? = lists.list(user, id)
 
     // whether the user sees the list or saw it until it was deleted: whom a change of it reaches
     // (LIST-4)
-    fun seesList(
+    override fun seesList(
         user: String,
         id: Int,
     ): Boolean = lists.seesList(user, id)
@@ -188,17 +189,17 @@ class GroceryRepository(
     ): SakList? = lists.insertFirst(owner, name) { dsl, id, now -> insertCategories(dsl, owner, id, categories, now) }
 
     // a list the user sees, see ListTable.update
-    fun updateList(
+    override fun updateList(
         user: String,
         id: Int,
         name: String,
         shared: Boolean,
-        icon: String? = null,
+        icon: String?,
     ): ListUpdateResult = lists.update(user, id, name, shared, icon)
 
     // a list of the user's own, the last one too (LIST-1); it, its items and its categories stay as
     // deleted
-    fun deleteList(
+    override fun deleteList(
         user: String,
         id: Int,
     ): ListDeleteResult =
@@ -225,7 +226,7 @@ class GroceryRepository(
     ): List<GroceryItem>? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult null
+            if (!lists.sees(dsl, user, listId)) return@transactionResult null
             val toBuy = GROCERY_ITEMS.LIST_ID.eq(listId).and(GROCERY_ITEMS.DELETED_AT.isNull).and(GROCERY_ITEMS.CHECKED_AT.isNull)
             // the latest bought item of each name that is not to buy, so the history shows each name once (GROCERY-14)
             val bought =
@@ -287,7 +288,7 @@ class GroceryRepository(
     ): GroceryItemWriteResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult GroceryItemWriteResult.NotFound
+            if (!lists.sees(dsl, user, listId)) return@transactionResult GroceryItemWriteResult.NotFound
             if (unknownCategory(dsl, listId, values.categoryId)) return@transactionResult GroceryItemWriteResult.UnknownCategory
             val key = groceryNameKey(values.name)
             val latest =
@@ -387,7 +388,7 @@ class GroceryRepository(
     ): List<GroceryCategory>? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!sees(dsl, user, listId)) return@transactionResult null
+            if (!lists.sees(dsl, user, listId)) return@transactionResult null
             dsl
                 .selectFrom(GROCERY_CATEGORIES)
                 .where(GROCERY_CATEGORIES.LIST_ID.eq(listId), GROCERY_CATEGORIES.DELETED_AT.isNull)
@@ -405,7 +406,7 @@ class GroceryRepository(
         try {
             database.dsl.transactionResult { configuration ->
                 val dsl = DSL.using(configuration)
-                if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) {
+                if (!lists.sees(dsl, user, listId)) {
                     return@transactionResult GroceryCategoryWriteResult.NotFound
                 }
                 // one statement: the count and the place are checked where the row goes in, two
@@ -510,7 +511,7 @@ class GroceryRepository(
     ): GroceryCategoryReorderResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult GroceryCategoryReorderResult.NotFound
+            if (!lists.sees(dsl, user, listId)) return@transactionResult GroceryCategoryReorderResult.NotFound
             val live =
                 dsl
                     .select(GROCERY_CATEGORIES.ID)
@@ -616,7 +617,7 @@ class GroceryRepository(
     ): List<GrocerySuggestion>? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!sees(dsl, user, listId)) return@transactionResult null
+            if (!lists.sees(dsl, user, listId)) return@transactionResult null
             val (items, latest) = suggestionItems(listId, text)
             val id = items.field(GROCERY_ITEMS.ID)!!
             val createdAt = items.field(GROCERY_ITEMS.CREATED_AT)!!
@@ -644,17 +645,10 @@ class GroceryRepository(
     ): Long? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!sees(dsl, user, listId)) return@transactionResult null
+            if (!lists.sees(dsl, user, listId)) return@transactionResult null
             val (items, latest) = suggestionItems(listId, text)
             dsl.selectCount().from(items).where(latest).fetchOne(0, Long::class.java) ?: 0
         }
-
-    // in the transaction of the read that follows, so no change comes between them (MODEL-6)
-    private fun sees(
-        dsl: DSLContext,
-        user: String,
-        listId: Int,
-    ) = dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))
 
     // the items of the list whose name contains the text, the ones to buy left out, numbered latest
     // first within their name and counted by it; the condition keeps the latest of each name

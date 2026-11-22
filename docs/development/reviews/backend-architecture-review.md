@@ -10,9 +10,9 @@ weight: 12
 **Created:** 2026-11-22
 
 **Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-14`, `BA-16`, `BA-18` to `BA-20`, `BA-22`, `BA-26`,
-`BA-27` to `BA-30`, which are in the history of git; `BA-23` lists what is left of it. Of
-`BA-22` one copy stays on purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an
-app owns its settings endpoint.
+`BA-27` to `BA-30`, which are in the history of git; `BA-21` and `BA-23` list what is left of them. Of `BA-22` one
+copy stays on purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an app owns its
+settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -57,21 +57,16 @@ Fix: a second small interface for the three functions.
 
 ## Could fix: duplications
 
-### `BA-21` The lists of the todo app and of the groceries are copies
+### `BA-21` "The first one of an owner" is written three times
 
-- Routes: `GET/POST /lists` and `GET/PUT/DELETE /lists/{id}` with their descriptions, about 100 lines each
-  (`backend/todo/SakTodo.kt:62-163`, `backend/grocery/SakGrocery.kt:196-300`), and the request and response classes
-  of a list with the same fields.
-- Services: about 40 lines each (`TodoService.kt:61-113`, `GroceryService.kt:119-175`).
-- The check of a name is written four times, the one of an icon twice (`backend/lists/Lists.kt:81-89`,
-  `TodoService.kt:135-139`, `GroceryService.kt:358-366,386-390`).
-- `GroceryRepository` writes "the user sees the list" itself in six places; `ListTable.sees` has it, and
-  `TodoRepository` uses it.
-- "The first one of an owner" is written three times (`ListTable.insertFirst`, `NoteRepository.ensureList`,
-  `ResticRepositoryRepository.insertFirst`); the lists of the notes are the only ones not on `ListTable`.
+`ListTable.insertFirst`, `NoteRepository.ensureList` and `ResticRepositoryRepository.insertFirst` each write "the
+first one of an owner who never had one". The lists of the notes are the only lists not on `ListTable`.
 
-Fix: the routes of a list and one request and response class in `lists/`; the checks in `Lists.kt`; `lists.sees` in
-`GroceryRepository`.
+The other copies of the lists are gone: the todo lists and the grocery lists share the work on a list (`Lists`), the
+checks of a name and an icon, and the check of who sees a list. Their routes and their request and response classes
+stay two on purpose: the api of an app is its own.
+
+Fix: the lists of the notes on `ListTable`; one function for the first one of an owner.
 
 ## Could fix: inconsistencies
 

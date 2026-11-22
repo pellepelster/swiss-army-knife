@@ -1,5 +1,8 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.backend.lists.invalidIcon
+import io.pelle.sak.backend.lists.invalidName
+import io.pelle.sak.backend.lists.Lists
 import io.pelle.sak.backend.Checked
 import io.pelle.sak.backend.orElse
 import io.pelle.sak.backend.result
@@ -13,7 +16,6 @@ import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.core.Language
 import io.pelle.sak.core.render
 import io.pelle.sak.auth.LoginListener
-import io.pelle.sak.backend.isOneEmoji
 import io.pelle.sak.backend.lists.ListChanges
 import io.pelle.sak.backend.lists.ListSaveResult
 import io.pelle.sak.backend.lists.ListTexts
@@ -118,16 +120,19 @@ class GroceryService(
         clock: Clock = Clock.systemUTC(),
     ) : this(GroceryRepository(database, clock), files)
 
-    // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
-    fun changes(user: String): Flow<Int> = changes.of(user, repository::seesList)
+    // the lists, as every list-based app has them
+    private val lists = Lists(repository, GroceryTexts.LISTS, changes)
 
-    fun lists(user: String): List<SakList> = repository.lists(user)
+    // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
+    fun changes(user: String): Flow<Int> = lists.changes(user)
+
+    fun lists(user: String): List<SakList> = lists.lists(user)
 
     // a list the user sees, null when there is none
     fun list(
         user: String,
         id: Int,
-    ): SakList? = repository.list(user, id)
+    ): SakList? = lists.list(user, id)
 
     // an item of a list the user sees, null when there is none
     fun item(
@@ -152,11 +157,7 @@ class GroceryService(
         shared: Boolean,
         icon: String? = null,
         language: Language = Language.FALLBACK,
-    ): ListSaveResult {
-        val values = listValues(name, icon, GroceryTexts.LISTS).orElse { return ListSaveResult.Invalid(it) }
-        return repository.insertList(user, values.name, shared, values.icon, DefaultGroceryCategory.of(language))?.let { ListSaveResult.Saved(changed(it)) }
-            ?: ListSaveResult.Exists
-    }
+    ): ListSaveResult = lists.create(name, icon) { repository.insertList(user, it.name, shared, it.icon, DefaultGroceryCategory.of(language)) }
 
     fun updateList(
         user: String,
@@ -164,16 +165,13 @@ class GroceryService(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListSaveResult {
-        val values = listValues(name, icon, GroceryTexts.LISTS).orElse { return ListSaveResult.Invalid(it) }
-        return repository.updateList(user, id, values.name, shared, values.icon).also(changes::changed).result()
-    }
+    ): ListSaveResult = lists.update(user, id, name, shared, icon)
 
     // with its items, the last list of the user's own too (LIST-1)
     fun deleteList(
         user: String,
         id: Int,
-    ): DeleteResult = repository.deleteList(user, id).result().also { if (it == DeleteResult.Deleted) changes.changed(id) }
+    ): DeleteResult = lists.delete(user, id)
 
     // the items to buy of a list the user sees, with checked also the latest bought item of each name
     // not to buy (GROCERY-14); null for another list. By the order of their category (GROCERY-13),
@@ -358,17 +356,15 @@ class GroceryService(
         val emoji = icon?.trim()?.ifEmpty { null }
         val errors =
             listOfNotNull(
-                if (normalized.isEmpty() || normalized.length > MAX_CATEGORY_NAME_LENGTH || normalized.any { it.isISOControl() }) {
+                if (invalidName(normalized, MAX_CATEGORY_NAME_LENGTH)) {
                     ErrorMessage(GroceryTexts.INVALID_CATEGORY_NAME, "max" to MAX_CATEGORY_NAME_LENGTH)
                 } else {
                     null
                 },
-                emoji?.takeUnless(::isOneEmoji)?.let { ErrorMessage(GroceryTexts.INVALID_ICON) },
+                ErrorMessage(GroceryTexts.INVALID_ICON).takeIf { invalidIcon(emoji) },
             )
         return if (errors.isEmpty()) Checked.Valid(GroceryCategoryValues(normalized, emoji)) else Checked.Invalid(errors)
     }
-
-    private fun changed(list: SakList) = list.also { changes.changed(it.id) }
 
     private fun changed(item: GroceryItem) = item.also { changes.changed(it.listId) }
 
@@ -378,7 +374,7 @@ class GroceryService(
         val amount = input.amount?.stripTrailingZeros()
         val errors =
             listOfNotNull(
-                if (name.isEmpty() || name.length > MAX_ITEM_NAME_LENGTH || name.any { it.isISOControl() }) {
+                if (invalidName(name, MAX_ITEM_NAME_LENGTH)) {
                     ErrorMessage(GroceryTexts.INVALID_ITEM_NAME, "max" to MAX_ITEM_NAME_LENGTH)
                 } else {
                     null

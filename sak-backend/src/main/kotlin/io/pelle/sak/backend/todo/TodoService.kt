@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.todo
 
+import io.pelle.sak.backend.lists.invalidName
+import io.pelle.sak.backend.lists.Lists
 import io.pelle.sak.backend.orElse
 import io.pelle.sak.backend.result
 import io.pelle.sak.backend.DeleteResult
@@ -59,16 +61,19 @@ class TodoService(
         clock: Clock = Clock.systemUTC(),
     ) : this(TodoRepository(database, clock))
 
-    // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
-    fun changes(user: String): Flow<Int> = changes.of(user, repository::seesList)
+    // the lists, as every list-based app has them
+    private val lists = Lists(repository, TodoTexts.LISTS, changes)
 
-    fun lists(user: String): List<SakList> = repository.lists(user)
+    // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
+    fun changes(user: String): Flow<Int> = lists.changes(user)
+
+    fun lists(user: String): List<SakList> = lists.lists(user)
 
     // a list the user sees, null when there is none
     fun list(
         user: String,
         id: Int,
-    ): SakList? = repository.list(user, id)
+    ): SakList? = lists.list(user, id)
 
     // a task of a list the user sees, null when there is none
     fun item(
@@ -90,10 +95,7 @@ class TodoService(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListSaveResult {
-        val values = listValues(name, icon, TodoTexts.LISTS).orElse { return ListSaveResult.Invalid(it) }
-        return repository.insertList(user, values.name, shared, values.icon)?.let { ListSaveResult.Saved(changed(it)) } ?: ListSaveResult.Exists
-    }
+    ): ListSaveResult = lists.create(name, icon) { repository.insertList(user, it.name, shared, it.icon) }
 
     fun updateList(
         user: String,
@@ -101,16 +103,13 @@ class TodoService(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListSaveResult {
-        val values = listValues(name, icon, TodoTexts.LISTS).orElse { return ListSaveResult.Invalid(it) }
-        return repository.updateList(user, id, values.name, shared, values.icon).also(changes::changed).result()
-    }
+    ): ListSaveResult = lists.update(user, id, name, shared, icon)
 
     // with its tasks, the last list of the user's own too (LIST-1)
     fun deleteList(
         user: String,
         id: Int,
-    ): DeleteResult = repository.deleteList(user, id).result().also { if (it == DeleteResult.Deleted) changes.changed(id) }
+    ): DeleteResult = lists.delete(user, id)
 
     // the tasks of a list the user sees, done ones in their place, by priority (TODO-3, TODO-5); null
     // for another list
@@ -196,7 +195,7 @@ class TodoService(
 
     // a trimmed title: not empty, not too long, no control characters
     private fun titleError(title: String) =
-        if (title.isEmpty() || title.length > MAX_TITLE_LENGTH || title.any { it.isISOControl() }) {
+        if (invalidName(title, MAX_TITLE_LENGTH)) {
             ErrorMessage(TodoTexts.INVALID_TITLE, "max" to MAX_TITLE_LENGTH)
         } else {
             null
@@ -206,8 +205,6 @@ class TodoService(
     private fun day(text: String?): Result<LocalDate?> = text?.trim()?.ifEmpty { null }?.let { runCatching { LocalDate.parse(it) } } ?: Result.success(null)
 
     private fun saved(item: TodoItem?) = item?.let { TodoItemUpdateResult.Saved(changed(it)) } ?: TodoItemUpdateResult.NotFound
-
-    private fun changed(list: SakList) = list.also { changes.changed(it.id) }
 
     private fun changed(item: TodoItem) = item.also { changes.changed(it.listId) }
 

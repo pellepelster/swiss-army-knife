@@ -1,5 +1,9 @@
 package io.pelle.sak.backend.lists
 
+import io.pelle.sak.model.lists.ListRepository
+import io.pelle.sak.backend.result
+import io.pelle.sak.backend.orElse
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.backend.Checked
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -67,6 +71,16 @@ sealed interface ListSaveResult {
     data object NotOwner : ListSaveResult
 }
 
+// whether a trimmed name can not be stored: empty, longer than max, or with a control character. One
+// check for the names of the lists, the tasks, the items and the categories
+fun invalidName(
+    name: String,
+    max: Int,
+) = name.isEmpty() || name.length > max || name.any { it.isISOControl() }
+
+// whether an icon is given that is not one emoji; none is no icon
+fun invalidIcon(icon: String?) = icon != null && !isOneEmoji(icon)
+
 // the name and the icon of a list as they are stored: trimmed, an empty icon none
 data class ListValues(
     val name: String,
@@ -82,12 +96,8 @@ fun listValues(
     val values = ListValues(name.trim(), icon?.trim()?.ifEmpty { null })
     val errors =
         listOfNotNull(
-            if (values.name.isEmpty() || values.name.length > MAX_LIST_NAME_LENGTH || values.name.any { it.isISOControl() }) {
-                ErrorMessage(texts.invalidListName, "max" to MAX_LIST_NAME_LENGTH)
-            } else {
-                null
-            },
-            values.icon?.takeUnless(::isOneEmoji)?.let { ErrorMessage(texts.invalidIcon) },
+            ErrorMessage(texts.invalidListName, "max" to MAX_LIST_NAME_LENGTH).takeIf { invalidName(values.name, MAX_LIST_NAME_LENGTH) },
+            ErrorMessage(texts.invalidIcon).takeIf { invalidIcon(values.icon) },
         )
     return if (errors.isEmpty()) Checked.Valid(values) else Checked.Invalid(errors)
 }
@@ -99,6 +109,54 @@ fun ListUpdateResult.result(): ListSaveResult =
         ListUpdateResult.NameTaken -> ListSaveResult.Exists
         ListUpdateResult.NotOwner -> ListSaveResult.NotOwner
     }
+
+// the work on the lists of one list-based app, the same for every such app (LIST-1, LIST-2): the
+// values are checked, the repository answers, a change reaches who sees the list (LIST-4). The api of
+// each app stays its own
+class Lists(
+    private val repository: ListRepository,
+    private val texts: ListTexts,
+    private val changes: ListChanges,
+) {
+    // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
+    fun changes(user: String): Flow<Int> = changes.of(user, repository::seesList)
+
+    fun lists(user: String): List<SakList> = repository.lists(user)
+
+    // a list the user sees, null when there is none
+    fun list(
+        user: String,
+        id: Int,
+    ): SakList? = repository.list(user, id)
+
+    // the icon is one emoji, empty or none for no icon. insert is the insert of the app, which adds
+    // what its lists start with; it answers null when the owner has a list of the name
+    fun create(
+        name: String,
+        icon: String?,
+        insert: (ListValues) -> SakList?,
+    ): ListSaveResult {
+        val values = listValues(name, icon, texts).orElse { return ListSaveResult.Invalid(it) }
+        return insert(values)?.let { ListSaveResult.Saved(it.also { list -> changes.changed(list.id) }) } ?: ListSaveResult.Exists
+    }
+
+    fun update(
+        user: String,
+        id: Int,
+        name: String,
+        shared: Boolean,
+        icon: String?,
+    ): ListSaveResult {
+        val values = listValues(name, icon, texts).orElse { return ListSaveResult.Invalid(it) }
+        return repository.updateList(user, id, values.name, shared, values.icon).also(changes::changed).result()
+    }
+
+    // with what is on it, the last list of the user's own too (LIST-1)
+    fun delete(
+        user: String,
+        id: Int,
+    ): DeleteResult = repository.deleteList(user, id).result().also { if (it == DeleteResult.Deleted) changes.changed(id) }
+}
 
 // 201 for a new list
 suspend fun ApplicationCall.respondList(
