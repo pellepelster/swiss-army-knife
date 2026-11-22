@@ -36,16 +36,15 @@ found by their resource id only.
 
 ## Could fix: duplications
 
-### `BA-21` "The first one of an owner" is written three times
+### `BA-21` The lists of the notes are not on `ListTable`
 
-`ListTable.insertFirst`, `NoteRepository.ensureList` and `ResticRepositoryRepository.insertFirst` each write "the
-first one of an owner who never had one". The lists of the notes are the only lists not on `ListTable`.
+The todo lists and the grocery lists share the work on a list (`Lists`), the checks of a name and an icon, the check
+of who sees a list, and "the first one of an owner" (`firstOfOwner`, which the first repository of restic uses too).
+Their routes and their request and response classes stay two on purpose: the api of an app is its own. One copy is
+left: `NoteRepository` works on the table of the lists of the notes itself. The notes do not show their lists in the
+api (`NOTES-1`), so they would use nothing of `ListTable` but the first list.
 
-The other copies of the lists are gone: the todo lists and the grocery lists share the work on a list (`Lists`), the
-checks of a name and an icon, and the check of who sees a list. Their routes and their request and response classes
-stay two on purpose: the api of an app is its own.
-
-Fix: the lists of the notes on `ListTable`; one function for the first one of an owner.
+Fix: when the notes get lists in their api, their lists go on `ListTable`.
 
 ## Could fix: inconsistencies
 

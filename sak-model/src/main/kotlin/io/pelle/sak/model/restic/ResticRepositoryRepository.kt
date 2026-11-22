@@ -1,5 +1,6 @@
 package io.pelle.sak.model.restic
 
+import io.pelle.sak.model.firstOfOwner
 import io.pelle.sak.model.ResourceIds
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
@@ -97,16 +98,7 @@ class ResticRepositoryRepository(
         owner: String,
         name: String,
         token: String,
-    ): ResticRepository? =
-        try {
-            database.dsl.transactionResult { configuration ->
-                val dsl = DSL.using(configuration)
-                if (dsl.fetchExists(RESTIC_REPOSITORIES, RESTIC_REPOSITORIES.OWNER.eq(owner))) return@transactionResult null
-                insert(dsl, owner, name, token)
-            }
-        } catch (_: IntegrityConstraintViolationException) {
-            null
-        }
+    ): ResticRepository? = firstOfOwner(database, RESTIC_REPOSITORIES, RESTIC_REPOSITORIES.OWNER, owner) { dsl -> insert(dsl, owner, name, token) }
 
     // the unique index of the owner and the name decides, so a repository created at the same time
     // is told apart

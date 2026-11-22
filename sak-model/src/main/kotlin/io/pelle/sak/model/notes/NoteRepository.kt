@@ -1,5 +1,6 @@
 package io.pelle.sak.model.notes
 
+import io.pelle.sak.model.firstOfOwner
 import io.pelle.sak.model.changesTo
 import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
@@ -129,16 +130,13 @@ class NoteRepository(
         owner: String,
         name: String,
     ) {
-        database.dsl.transaction { configuration ->
-            val dsl = DSL.using(configuration)
-            if (dsl.fetchExists(NOTE_LISTS, NOTE_LISTS.OWNER.eq(owner))) return@transaction
+        firstOfOwner(database, NOTE_LISTS, NOTE_LISTS.OWNER, owner) { dsl ->
             dsl
                 .insertInto(NOTE_LISTS)
                 .set(NOTE_LISTS.OWNER, owner)
                 .set(NOTE_LISTS.NAME, name)
                 .set(NOTE_LISTS.SHARED, false)
                 .set(NOTE_LISTS.CREATED_AT, clock.instant())
-                .onConflictDoNothing()
                 .execute()
         }
     }

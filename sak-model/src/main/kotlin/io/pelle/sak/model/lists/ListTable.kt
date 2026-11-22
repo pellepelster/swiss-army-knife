@@ -1,5 +1,6 @@
 package io.pelle.sak.model.lists
 
+import io.pelle.sak.model.firstOfOwner
 import io.pelle.sak.model.changesTo
 import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
@@ -176,26 +177,20 @@ internal class ListTable<R : Record>(
         name: String,
         created: (DSLContext, Int, Instant) -> Unit = { _, _, _ -> },
     ): SakList? =
-        try {
-            database.dsl.transactionResult { configuration ->
-                val dsl = DSL.using(configuration)
-                if (dsl.fetchExists(table, this.owner.eq(owner))) return@transactionResult null
-                val now = clock.instant()
-                val id =
-                    dsl
-                        .insertInto(table)
-                        .set(this.owner, owner)
-                        .set(this.name, name)
-                        .set(this.shared, false)
-                        .set(createdAt, now)
-                        .returningResult(this.id)
-                        .fetchOne()!!
-                        .value1()!!
-                created(dsl, id, now)
-                list(dsl, owner, id)!!
-            }
-        } catch (_: IntegrityConstraintViolationException) {
-            null
+        firstOfOwner(database, table, this.owner, owner) { dsl ->
+            val now = clock.instant()
+            val id =
+                dsl
+                    .insertInto(table)
+                    .set(this.owner, owner)
+                    .set(this.name, name)
+                    .set(this.shared, false)
+                    .set(createdAt, now)
+                    .returningResult(this.id)
+                    .fetchOne()!!
+                    .value1()!!
+            created(dsl, id, now)
+            list(dsl, owner, id)!!
         }
 
     // every user who sees the list changes its icon (LIST-2), only the owner renames, shares or
