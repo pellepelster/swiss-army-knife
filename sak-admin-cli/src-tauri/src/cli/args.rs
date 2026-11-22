@@ -82,7 +82,7 @@ pub enum ProjectCommand {
     /// Open an ssh session on the server, or run a command after --
     ///
     /// Runs in the image of the tools with the key derived from the password, and checks the
-    /// server's derived host key. The key is never written to disk.
+    /// server's derived host key. The key is not written to disk.
     #[command(after_help = EXIT_CODES)]
     Ssh {
         #[command(flatten)]
@@ -96,6 +96,26 @@ pub enum ProjectCommand {
         /// A command to run on the server instead of a session
         #[arg(last = true)]
         command: Vec<String>,
+    },
+    /// Write an ssh configuration and the ssh key of the server to a directory
+    ///
+    /// Writes config, id_ed25519, id_ed25519.pub and known_hosts, for the ssh of this machine:
+    /// `ssh -F <directory>/config <name>` opens a session as root and checks the server's derived
+    /// host key. The key is written unencrypted and gives root on the server: delete the directory
+    /// when it is no longer needed. No existing file is replaced.
+    #[command(after_help = EXIT_CODES)]
+    SshConfig {
+        #[command(flatten)]
+        provider: Provider,
+        /// The name of the SAK instance
+        #[arg(env = NAME_VARIABLE)]
+        name: String,
+        /// The directory the files are written to, created when it is not there
+        #[arg(long, value_name = "DIRECTORY")]
+        output: std::path::PathBuf,
+        /// Ask for the password, even when SAK_PASSWORD is set
+        #[arg(long)]
+        password: bool,
     },
     /// Back up all data of a SAK instance
     ///
@@ -258,6 +278,9 @@ impl ProjectCommand {
                 provider, password, ..
             })
             | ProjectCommand::Ssh {
+                provider, password, ..
+            }
+            | ProjectCommand::SshConfig {
                 provider, password, ..
             }
             | ProjectCommand::Backup {

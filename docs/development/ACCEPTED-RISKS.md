@@ -69,8 +69,9 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   run. A lock label would stay behind after a killed run.
 
 - **The client key passes the container engine.** sakadmin hands the private ssh key to an agent in a container and
-  to the provisioning container; it never touches disk, but with a remote, unencrypted `DOCKER_HOST` it would cross
-  the network. Accepted for now: sakadmin expects the local engine. To revisit: refuse a plain tcp engine.
+  to the provisioning container; there it never touches disk (only `sakadmin ssh-config` writes it, `SECURITY-2`), but
+  with a remote, unencrypted `DOCKER_HOST` it would cross the network. Accepted for now: sakadmin expects the local
+  engine. To revisit: refuse a plain tcp engine.
 
 - **The trusted root of sigstore is built into sakadmin.** An update is verified offline against the trusted root of
   the sakadmin that installs it, so no host but GitHub sees the update. If sigstore replaces its root keys, a sakadmin

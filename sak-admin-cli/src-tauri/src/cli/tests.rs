@@ -257,6 +257,28 @@ fn ssh_takes_the_name_and_a_command_after_two_dashes() {
 }
 
 #[test]
+fn ssh_config_takes_the_name_and_needs_the_directory() {
+    let Some(ProjectCommand::SshConfig {
+        name,
+        output,
+        password,
+        ..
+    }) = project(parse(&["ssh-config", "--output", "some/where", "alpha"]).unwrap())
+    else {
+        panic!("no ssh-config command");
+    };
+    assert_eq!(name, "alpha");
+    assert_eq!(output, std::path::PathBuf::from("some/where"));
+    assert!(!password);
+    // no directory of its own: the key goes only where the user says
+    let error = parse(&["ssh-config", "alpha"]).unwrap_err();
+    assert_eq!(
+        error.kind(),
+        clap::error::ErrorKind::MissingRequiredArgument
+    );
+}
+
+#[test]
 fn backup_takes_the_name_and_restore_the_name_and_the_file() {
     assert!(is_command_line(&["backup".to_string()]));
     assert!(is_command_line(&["restore".to_string()]));

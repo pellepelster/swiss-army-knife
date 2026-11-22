@@ -177,6 +177,9 @@ async fn execute(command: ProjectCommand) -> Result<i32, SakadminError> {
         ProjectCommand::Config(ConfigCommand::Show { name, .. }) => {
             show_config(&manager, &token, &name, &password.0).await
         }
+        ProjectCommand::SshConfig { name, output, .. } => {
+            ssh_config(&manager, &token, &name, &password.0, &output).await
+        }
         ProjectCommand::Backup { name, .. } => {
             backup(&manager, &token, &runtime, &name, &password.0).await
         }

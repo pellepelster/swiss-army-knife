@@ -54,6 +54,41 @@ pub(super) async fn ssh(
     Ok(code)
 }
 
+/// the ssh configuration, the client key and the known hosts of the deployment written to
+/// `directory`, for the ssh of the user; the one command that writes the key (`SECURITY-2`)
+pub(super) async fn ssh_config(
+    manager: &DeploymentManager,
+    provider: &HetznerToken,
+    name: &str,
+    password: &str,
+    directory: &std::path::Path,
+) -> Result<(), SakadminError> {
+    let name = name.trim();
+    let target = manager
+        .ssh_target(provider.tokens(), name, password)
+        .await?;
+    let config = crate::core::ssh_config::write(name, &target, directory)?;
+    log(
+        Level::Info,
+        t!(
+            "cli.ssh_config_written",
+            name = name,
+            config = config.display()
+        ),
+    );
+    log(
+        Level::Warn,
+        t!(
+            "cli.ssh_config_key",
+            name = name,
+            path = config
+                .with_file_name(crate::core::ssh_config::PRIVATE_KEY)
+                .display()
+        ),
+    );
+    Ok(())
+}
+
 /// the maintenance of the server: each line of the server logged, the answer as lines or, with
 /// --json, as it is. A reboot waits until the deployment answers again, unless --no-wait; an
 /// update with --reboot-server waits too

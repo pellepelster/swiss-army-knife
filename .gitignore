@@ -5,3 +5,5 @@ build/
 *.iml
 out/
 .ansible/
+# the ssh configurations and keys of sakadmin ssh-config for debugging, never committed
+.debug/

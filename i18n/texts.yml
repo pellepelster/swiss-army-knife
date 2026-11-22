@@ -1106,6 +1106,21 @@ admin_cli:
     ssh_not_started:
       en: "%{runtime} could not start the container of the ssh session: %{error}"
       de: "%{runtime} konnte den Container der ssh-Sitzung nicht starten: %{error}"
+    ssh_config_written:
+      en: "ssh configuration of %{name} written. Connect with: ssh -F \"%{config}\" %{name}"
+      de: "ssh-Konfiguration von %{name} geschrieben. Verbinden mit: ssh -F \"%{config}\" %{name}"
+    ssh_config_key:
+      en: "%{path} is the ssh key of %{name}, not encrypted: it gives root on the server. Delete the directory when you no longer need it."
+      de: "%{path} ist der SSH-Key von %{name}, unverschlüsselt: er gibt root auf dem Server. Lösche das Verzeichnis, wenn du es nicht mehr brauchst."
+    ssh_config_exists:
+      en: "%{path} exists, sakadmin replaces no file. Delete it or give another directory, nothing was written."
+      de: "%{path} existiert, sakadmin ersetzt keine Datei. Lösche sie oder gib ein anderes Verzeichnis an, nichts wurde geschrieben."
+    ssh_config_bad_directory:
+      en: "The directory %{path} has a quote or a line break in its name, an ssh configuration cannot name it. Give another directory."
+      de: "Das Verzeichnis %{path} hat ein Anführungszeichen oder einen Zeilenumbruch im Namen, eine ssh-Konfiguration kann es nicht nennen. Gib ein anderes Verzeichnis an."
+    ssh_config_not_written:
+      en: "%{path} could not be written: %{error}"
+      de: "%{path} konnte nicht geschrieben werden: %{error}"
     backup_started: { en: "Backing up %{name} from root@%{host}…", de: "Sichere %{name} von root@%{host}…" }
     backup_done:
       en: "Backup of %{name} written to %{path} (%{size})."

@@ -274,7 +274,8 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
   Nothing of it is stored on the user's machine: sakadmin derives it again for every run, so losing a machine loses
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
-- `SECURITY-2` **The ssh key must never be written to disk.**
+- `SECURITY-2` **The ssh key must never be written to disk.** The one exception is `sakadmin ssh-config`: it writes the
+  key to the directory that the user names. sakadmin never reads the key from a file.
 - `SECURITY-3` **An app is connected by a signed in session.** An app never asks for a password. A signed in session
   of the web app hands it a connect token: good for one exchange within 2 minutes, for a session of the same user
   with its own full time and the roles the user has at the exchange. A phone scans the token as a QR code, which

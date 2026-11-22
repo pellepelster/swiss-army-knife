@@ -21,6 +21,7 @@ pub mod runtime;
 pub mod sak_backend;
 pub mod smtp;
 pub mod ssh;
+pub mod ssh_config;
 pub mod update;
 
 /// the version of SAK this sakadmin is (`VERSION` of the build, `build.rs`), the tag of the images

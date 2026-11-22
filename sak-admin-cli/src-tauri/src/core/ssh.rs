@@ -1,5 +1,6 @@
 //! an ssh session as root on the server of a deployment, in a container of its own of the image of
-//! the tools. The private client key is never written and is in no environment: it goes to an
+//! the tools. The private client key is not written here and is in no environment (only
+//! `ssh_config` writes it, when the user asks, `SECURITY-2`): it goes to an
 //! ssh-agent in the container through the stdin of `ssh-add`; the session is a second `exec`, so it
 //! can have the terminal of sakadmin. The host key derived from the password is the only known host,
 //! so the server is verified, not trusted on first use. The container goes afterwards, also on a
@@ -46,7 +47,7 @@ pub struct SshTarget {
 
 impl SshTarget {
     /// the host key for both addresses, as ssh reads a known hosts file
-    fn known_hosts(&self) -> String {
+    pub(crate) fn known_hosts(&self) -> String {
         let key = self.host_key.public_key();
         std::iter::once(&self.host)
             .chain(self.host_ipv6.as_ref())
