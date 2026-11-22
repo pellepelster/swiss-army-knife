@@ -7,7 +7,10 @@ test.beforeEach(async ({ request }) => {
   await deleteAllMails(request);
 });
 
-test('signs in with the e-mailed link and returns to the requested page', async ({ page, request }) => {
+test('signs in with the e-mailed link and returns to the requested page', async ({
+  page,
+  request,
+}) => {
   const errors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
@@ -68,7 +71,10 @@ test('a link can only be used once', async ({ browser, page, request }) => {
   await other.close();
 });
 
-test('addresses that may not sign in see the same answer but get no link', async ({ page, request }) => {
+test('addresses that may not sign in see the same answer but get no link', async ({
+  page,
+  request,
+}) => {
   await page.goto('/login');
   await page.getByLabel('E-mail address').fill('someone@example.org');
   await page.getByRole('button', { name: 'Send login link' }).click();

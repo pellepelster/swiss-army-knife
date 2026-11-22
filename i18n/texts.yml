@@ -2137,6 +2137,13 @@ todo:
       nothing_to_purge: { en: "The list has no done tasks.", de: "Die Liste hat keine erledigten Aufgaben." }
       not_purged: { en: "The done tasks could not be removed.", de: "Die erledigten Aufgaben konnten nicht entfernt werden." }
       priority_not_set: { en: "The priority could not be changed.", de: "Die Priorität konnte nicht geändert werden." }
+      # the title of a task changed in its row and a task deleted, both from its menu (LIST-2)
+      renaming: { en: "The title is changed in its row.", de: "Der Titel wird in seiner Zeile geändert." }
+      rename: { en: "Rename", de: "Umbenennen" }
+      title_of: { en: "Title of %{title}", de: "Titel von %{title}" }
+      title_required: { en: "A task needs a title.", de: "Eine Aufgabe braucht einen Titel." }
+      not_renamed: { en: "The task could not be renamed.", de: "Die Aufgabe konnte nicht umbenannt werden." }
+      not_deleted: { en: "The task could not be deleted.", de: "Die Aufgabe konnte nicht gelöscht werden." }
       # the due date added to or taken away from a task from its menu (TODO-4)
       add_due_date: { en: "Add due date", de: "Fälligkeitsdatum hinzufügen" }
       has_due_date: { en: "The task has a due date.", de: "Die Aufgabe hat ein Fälligkeitsdatum." }
@@ -2190,6 +2197,7 @@ todo:
   android:
     # the name of the app, also the title of the deployment screen
     app_name: "SAK Todo"
+    item_title_invalid: { en: "A title must have 1 to 256 characters.", de: "Ein Titel muss 1 bis 256 Zeichen haben." }
     cancel: { en: "Cancel", de: "Abbrechen" }
     ok: { en: "OK", de: "OK" }
     nothing_to_do: { en: "Nothing to do.", de: "Nichts zu tun." }

@@ -46,6 +46,7 @@ val models =
         "TodoListRequest",
         "TodoItemResponse",
         "TodoNewItemRequest",
+        "TodoItemRequest",
         "TodoDoneRequest",
         "TodoPriorityRequest",
         "TodoDueDateRequest",

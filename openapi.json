@@ -4196,6 +4196,115 @@
             }
         },
         "/api/v1/todo/items/{id}": {
+            "put": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Change a task",
+                "description": "The title of a task, open or done. Every user who sees its list changes it, also one another user added (LIST-2).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the task",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TodoItemRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "The changed task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TodoItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An invalid title, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "The user sees no such task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "todo"
+                ],
+                "summary": "Delete a task",
+                "description": "A task, open or done, goes for good, e.g. one added by mistake: no list shows it. Every user who sees its list deletes it, also one another user added (LIST-2).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the task",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The task is gone"
+                    },
+                    "404": {
+                        "description": "The user sees no such task",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
             "get": {
                 "tags": [
                     "todo"
@@ -7155,6 +7264,18 @@
                             "string",
                             "null"
                         ]
+                    }
+                }
+            },
+            "TodoItemRequest": {
+                "type": "object",
+                "title": "TodoItemRequest",
+                "required": [
+                    "title"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string"
                     }
                 }
             },

@@ -132,11 +132,7 @@ class TodoService(
         val day = day(dueDate)
         val errors =
             listOfNotNull(
-                if (normalized.isEmpty() || normalized.length > MAX_TITLE_LENGTH || normalized.any { it.isISOControl() }) {
-                    ErrorMessage(TodoTexts.INVALID_TITLE, "max" to MAX_TITLE_LENGTH)
-                } else {
-                    null
-                },
+                titleError(normalized),
                 day.exceptionOrNull()?.let { ErrorMessage(TodoTexts.INVALID_DUE_DATE) },
                 if (priority != null && TodoPriority.of(priority) == null) ErrorMessage(TodoTexts.INVALID_PRIORITY) else null,
             )
@@ -144,6 +140,24 @@ class TodoService(
         val item = repository.insertItem(user, listId, normalized, day.getOrNull(), priority?.let(TodoPriority::of) ?: TodoPriority.NORMAL)
         return item?.let { TodoItemAddResult.Saved(changed(it)) } ?: TodoItemAddResult.UnknownList
     }
+
+    // another title, of a task open or done, by any user who sees its list (LIST-2)
+    fun renameItem(
+        user: String,
+        id: Int,
+        title: String,
+    ): TodoItemUpdateResult {
+        val normalized = title.trim()
+        titleError(normalized)?.let { return TodoItemUpdateResult.Invalid(listOf(it)) }
+        return saved(repository.setTitle(user, id, normalized))
+    }
+
+    // gone for good, e.g. a task added by mistake, by any user who sees its list (LIST-2); false when
+    // the user sees no such task
+    fun deleteItem(
+        user: String,
+        id: Int,
+    ): Boolean = repository.deleteItem(user, id)?.also { changed(it) } != null
 
     // done or open again (TODO-3), by any user who sees its list (LIST-2)
     fun setDone(
@@ -179,6 +193,14 @@ class TodoService(
         listId: Int,
         ids: Collection<Int>,
     ): Int? = repository.purge(user, listId, ids)?.also { if (it > 0) changes.changed(listId) }
+
+    // a trimmed title: not empty, not too long, no control characters
+    private fun titleError(title: String) =
+        if (title.isEmpty() || title.length > MAX_TITLE_LENGTH || title.any { it.isISOControl() }) {
+            ErrorMessage(TodoTexts.INVALID_TITLE, "max" to MAX_TITLE_LENGTH)
+        } else {
+            null
+        }
 
     // yyyy-mm-dd, none or empty for no day; a failure for another text
     private fun day(text: String?): Result<LocalDate?> = text?.trim()?.ifEmpty { null }?.let { runCatching { LocalDate.parse(it) } } ?: Result.success(null)

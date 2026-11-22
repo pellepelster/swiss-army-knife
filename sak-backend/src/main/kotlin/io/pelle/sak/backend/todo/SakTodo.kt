@@ -22,6 +22,7 @@ import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
+import io.pelle.sak.backend.todo.model.TodoItemRequest
 import io.pelle.sak.backend.todo.model.TodoDoneRequest
 import io.pelle.sak.backend.todo.model.TodoDueDateRequest
 import io.pelle.sak.backend.todo.model.TodoItemResponse
@@ -255,6 +256,46 @@ fun Route.todo(todoService: TodoService) {
                     description = "The task"
                     schema = jsonSchema<TodoItemResponse>()
                 }
+                errors(HttpStatusCode.NotFound, "The user sees no such task")
+            }
+        }
+
+        put("/{id}") {
+            val id = call.idParameter() ?: return@put
+            val request = call.receive<TodoItemRequest>()
+            call.respondItem(withContext(Dispatchers.IO) { todoService.renameItem(call.owner, id, request.title) })
+        }.describe {
+            tag(TODO_TAG)
+            summary = "Change a task"
+            description = "The title of a task, open or done. Every user who sees its list changes it, also one another user added (LIST-2)."
+            parameters { itemId() }
+            requestBody {
+                required = true
+                schema = jsonSchema<TodoItemRequest>()
+            }
+            responses {
+                HttpStatusCode.OK {
+                    description = "The changed task"
+                    schema = jsonSchema<TodoItemResponse>()
+                }
+                errors(HttpStatusCode.BadRequest, "An invalid title, or a malformed request")
+                errors(HttpStatusCode.NotFound, "The user sees no such task")
+            }
+        }
+
+        delete("/{id}") {
+            val id = call.idParameter() ?: return@delete
+            val deleted = withContext(Dispatchers.IO) { todoService.deleteItem(call.owner, id) }
+            call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+        }.describe {
+            tag(TODO_TAG)
+            summary = "Delete a task"
+            description =
+                "A task, open or done, goes for good, e.g. one added by mistake: no list shows it. Every user who sees its list " +
+                "deletes it, also one another user added (LIST-2)."
+            parameters { itemId() }
+            responses {
+                HttpStatusCode.NoContent { description = "The task is gone" }
                 errors(HttpStatusCode.NotFound, "The user sees no such task")
             }
         }

@@ -40,6 +40,6 @@ date only as a real day, `yyyy-mm-dd`.
 
 ## API
 
-Read, create, rename, share and delete a list; read the tasks of a list; add a task; mark it done or open, change its
-priority and its due date; purge the done tasks a request names (`POST /api/v1/todo/lists/{id}/purge`, `TODO-6`);
-listen to the changes of the lists (`GET /api/v1/todo/changes`, `LIST-4`).
+Read, create, rename, share and delete a list; read the tasks of a list; add a task, rename and delete it; mark it done
+or open, change its priority and its due date; purge the done tasks a request names (`POST
+/api/v1/todo/lists/{id}/purge`, `TODO-6`); listen to the changes of the lists (`GET /api/v1/todo/changes`, `LIST-4`).

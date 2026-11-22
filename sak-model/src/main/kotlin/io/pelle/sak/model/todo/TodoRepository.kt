@@ -236,6 +236,36 @@ class TodoRepository(
             .fetchOne()
             ?.toItem()
 
+    // the title of a task, open or done, also of one another user added to a shared list (LIST-2);
+    // null when the user does not see it
+    fun setTitle(
+        user: String,
+        id: Int,
+        title: String,
+    ): TodoItem? =
+        database.dsl
+            .update(TODO_ITEMS)
+            .set(TODO_ITEMS.TITLE, title)
+            .set(TODO_ITEMS.UPDATED_AT, changedAt(TODO_ITEMS.UPDATED_AT, clock.instant(), TODO_ITEMS.TITLE.changesTo(title)))
+            .where(TODO_ITEMS.ID.eq(id), visibleItem(user))
+            .returning()
+            .fetchOne()
+            ?.toItem()
+
+    // a task, open or done, gone for good, e.g. one added by mistake, also one another user added to a
+    // shared list (LIST-2); it stays as deleted. The task as it was, null when the user does not see it
+    fun deleteItem(
+        user: String,
+        id: Int,
+    ): TodoItem? =
+        database.dsl
+            .update(TODO_ITEMS)
+            .set(TODO_ITEMS.DELETED_AT, clock.instant())
+            .where(TODO_ITEMS.ID.eq(id), visibleItem(user))
+            .returning()
+            .fetchOne()
+            ?.toItem()
+
     // deletes the done tasks of the ids given only, the ones the user saw, not one done meanwhile
     // (TODO-6); they stay as deleted. Null when the user does not see the list, else how many went
     fun purge(

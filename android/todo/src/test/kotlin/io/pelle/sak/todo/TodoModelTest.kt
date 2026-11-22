@@ -1,6 +1,7 @@
 package io.pelle.sak.todo
 
 import io.ktor.http.HttpStatusCode
+import io.pelle.sak.api.model.TodoItemResponse
 import io.pelle.sak.core.Screen
 import io.pelle.sak.core.session.MemorySessionStore
 import io.pelle.sak.core.session.Stored
@@ -19,6 +20,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -228,6 +231,144 @@ class TodoModelTest {
             model.setDueDate(model.lists().items.first { it.id == 10 }, null)
             advanceUntilIdle()
             assertEquals("The due date could not be saved.", model.lists().error.english())
+        }
+
+    // the Rename of the menu of the task, the title typed, then saved
+    private fun TodoModel.rename(
+        item: TodoItemResponse,
+        title: String,
+    ) {
+        askRename(item)
+        editRename(title)
+        renameItem()
+    }
+
+    private fun TodoModel.item(title: String) = lists().items.first { it.title == title }
+
+    @Test
+    fun `a task is renamed from its menu, an invalid or unchanged title is not sent, a refused one shows why`() =
+        runTest {
+            backend.answers["PUT /todo/items/10"] = HttpStatusCode.OK to item(10, 1, "Fix the gate")
+            backend.answers["PUT /todo/items/11"] = HttpStatusCode.BadRequest to """{"errors":[{"code":"test.refused","message":"no"}]}"""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            backend.answers["GET /todo/lists/1/items"] =
+                HttpStatusCode.OK to page(item(10, 1, "Fix the gate"), item(11, 1, "Paint the fence", "2026-12-24"))
+            model.rename(model.item("Fix the door"), "  Fix the gate ")
+            assertNull(model.lists().renaming)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /todo/items/10 {"title":"Fix the gate"}"""))
+            assertNull(model.lists().error)
+            // the list loads again as the backend has it
+            assertEquals(listOf("Fix the gate", "Paint the fence"), model.titles())
+
+            model.rename(model.item("Paint the fence"), "Paint")
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""PUT /todo/items/11 {"title":"Paint"}"""))
+            assertEquals("no", model.lists().error.english())
+            assertEquals(listOf("Fix the gate", "Paint the fence"), model.titles())
+
+            val sent = backend.requests.count { it.startsWith("PUT /todo/items/") }
+            // an invalid title stays in the dialog, its error shows (UX-6)
+            model.askRename(model.item("Fix the gate"))
+            model.editRename(" ")
+            assertFalse(model.lists().renaming!!.left)
+            model.renameItem()
+            assertTrue(model.lists().renaming!!.left)
+            model.editRename("x".repeat(257))
+            model.renameItem()
+            assertNotNull(model.lists().renaming)
+            model.dismissRename()
+            assertNull(model.lists().renaming)
+            // the field left shows the error too
+            model.askRename(model.item("Fix the gate"))
+            model.leaveRename()
+            assertTrue(model.lists().renaming!!.left)
+            // unchanged, the dialog closes and nothing is sent
+            model.editRename(" Fix the gate ")
+            model.renameItem()
+            assertNull(model.lists().renaming)
+            advanceUntilIdle()
+            assertEquals(sent, backend.requests.count { it.startsWith("PUT /todo/items/") })
+            assertTrue(TodoModel.validTitle("x".repeat(256)))
+            assertFalse(TodoModel.validTitle("x".repeat(257)))
+        }
+
+    @Test
+    fun `a rename the backend can not do, or of a task that is gone, shows why and the list as the backend has it`() =
+        runTest {
+            backend.answers["PUT /todo/items/10"] = HttpStatusCode.InternalServerError to ""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.rename(model.item("Fix the door"), "Fix the gate")
+            advanceUntilIdle()
+            assertEquals("The task could not be renamed.", model.lists().error.english())
+            assertEquals(listOf("Fix the door", "Paint the fence"), model.titles())
+
+            // deleted meanwhile, e.g. by another user: no answer of the fake backend is a 404
+            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(10, 1, "Fix the door"))
+            model.rename(model.item("Paint the fence"), "Paint")
+            advanceUntilIdle()
+            assertEquals("The task could not be renamed.", model.lists().error.english())
+            assertEquals(listOf("Fix the door"), model.titles())
+        }
+
+    @Test
+    fun `a task deleted from the menu of its row goes for good, a refused delete shows why`() =
+        runTest {
+            backend.answers["DELETE /todo/items/10"] = HttpStatusCode.NoContent to ""
+            val model = signedIn()
+            advanceUntilIdle()
+
+            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(11, 1, "Paint the fence", "2026-12-24"))
+            model.askDelete(model.item("Fix the door"))
+            assertEquals(10, model.lists().deleting?.id)
+            // nothing goes before the user confirmed it (UX-4.1)
+            advanceUntilIdle()
+            assertTrue(backend.requests.none { it.startsWith("DELETE") })
+            model.deleteItem(model.item("Fix the door"))
+            assertNull(model.lists().deleting)
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("DELETE /todo/items/10"))
+            assertNull(model.lists().error)
+            // no undo: the list loads again as the backend has it
+            assertNull(model.lists().undo)
+            assertEquals(listOf("Paint the fence"), model.titles())
+
+            // refused, here a task that is gone already (404): the list says why and loads
+            model.deleteItem(model.item("Paint the fence"))
+            advanceUntilIdle()
+            assertEquals("The task could not be deleted.", model.lists().error.english())
+            assertEquals(listOf("Paint the fence"), model.titles())
+        }
+
+    @Test
+    fun `the dialogs of the menu of a task stay when its row goes, back closes them`() =
+        runTest {
+            val model = signedIn()
+            advanceUntilIdle()
+
+            model.askRename(model.item("Fix the door"))
+            model.editRename("Fix the ga")
+            // another user deleted it: the list no longer shows it, the dialog keeps the title typed
+            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(11, 1, "Paint the fence", "2026-12-24"))
+            model.refresh()
+            advanceUntilIdle()
+            assertEquals(listOf("Paint the fence"), model.titles())
+            assertEquals("Fix the ga", model.lists().renaming?.title)
+            model.back()
+            assertNull(model.lists().renaming)
+            assertEquals(1, model.lists().open)
+
+            model.askDelete(model.item("Paint the fence"))
+            model.back()
+            assertNull(model.lists().deleting)
+            model.askDelete(model.item("Paint the fence"))
+            model.dismissDelete()
+            assertNull(model.lists().deleting)
+            assertEquals(1, model.lists().open)
         }
 
     @Test

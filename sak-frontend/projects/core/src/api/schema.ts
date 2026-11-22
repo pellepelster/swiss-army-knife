@@ -3685,9 +3685,90 @@ export interface paths {
         };
       };
     };
-    put?: never;
+    /**
+     * Change a task
+     * @description The title of a task, open or done. Every user who sees its list changes it, also one another user added (LIST-2).
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the task */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': components['schemas']['TodoItemRequest'];
+        };
+      };
+      responses: {
+        /** @description The changed task */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['TodoItemResponse'];
+          };
+        };
+        /** @description An invalid title, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The user sees no such task */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
     post?: never;
-    delete?: never;
+    /**
+     * Delete a task
+     * @description A task, open or done, goes for good, e.g. one added by mistake: no list shows it. Every user who sees its list deletes it, also one another user added (LIST-2).
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the task */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The task is gone */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description The user sees no such task */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
     options?: never;
     head?: never;
     patch?: never;
@@ -5411,6 +5492,10 @@ export interface components {
       title: string;
       dueDate?: string | null;
       priority?: string | null;
+    };
+    /** TodoItemRequest */
+    TodoItemRequest: {
+      title: string;
     };
     /** TodoPriorityRequest */
     TodoPriorityRequest: {

@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onRoot
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import com.github.takahirom.roborazzi.captureRoboImage
 import io.pelle.sak.core.ui.SakTheme
 import java.io.File
@@ -43,15 +44,18 @@ class Screenshots(
         }
     }
 
-    // what is shown now, light and dark; settle lets the app and compose finish what they started
+    // what is shown now, light and dark; settle lets the app and compose finish what they started.
+    // With screen, the whole screen with every window, so a dialog shows over the app as on a phone
     fun shoot(
         name: String,
+        screen: Boolean = false,
         settle: () -> Unit,
     ) {
         for (mode in listOf(false, true)) {
             dark = mode
             settle()
-            compose.onRoot().captureRoboImage(File(dir, if (mode) "android-$name-dark.png" else "android-$name.png"))
+            val file = File(dir, if (mode) "android-$name-dark.png" else "android-$name.png")
+            if (screen) captureScreenRoboImage(file) else compose.onRoot().captureRoboImage(file)
         }
         dark = false
     }

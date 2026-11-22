@@ -55,7 +55,13 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await expect(page.getByTestId('secret-key')).toHaveText(/^[A-Za-z0-9+/]{40}$/);
 
   // an object put with the key pair is counted with its size
-  await putObject(accessKeyId, (await page.getByTestId('secret-key').textContent())!.trim(), 'e2e-hosting', 'fixture.txt', FIXTURE_OBJECT);
+  await putObject(
+    accessKeyId,
+    (await page.getByTestId('secret-key').textContent())!.trim(),
+    'e2e-hosting',
+    'fixture.txt',
+    FIXTURE_OBJECT,
+  );
   await page.goto('/static-hosting/e2e-hosting/configuration');
   await expect(page.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
   await expect(page.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);

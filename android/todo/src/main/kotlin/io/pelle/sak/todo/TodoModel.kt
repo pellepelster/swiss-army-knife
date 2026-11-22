@@ -160,6 +160,51 @@ class TodoModel(
         }
     }
 
+    // the Delete of the menu of a task asks for a confirmation first (UX-12, UX-4.1)
+    fun askDelete(item: TodoItemResponse) = lists { it.copy(deleting = item) }
+
+    fun dismissDelete() = lists { it.copy(deleting = null) }
+
+    // after the user confirmed it (UX-12): the task goes for good, no undo; the list loads after the
+    // answer, a failure shows why and loads, also for a task that is gone already
+    fun deleteItem(item: TodoItemResponse) {
+        if (state.value !is ListsScreen) return
+        lists { it.copy(deleting = null, error = null) }
+        scope.launch {
+            request(R.string.todo_list_not_deleted, ::failed) { it.deleteItem(item.id) } ?: return@launch
+            load()
+        }
+    }
+
+    fun askRename(item: TodoItemResponse) = lists { it.copy(renaming = Renaming(item, item.title)) }
+
+    fun editRename(title: String) = lists { lists -> lists.copy(renaming = lists.renaming?.copy(title = title)) }
+
+    // the field of the title was left: its error shows from now on (UX-6)
+    fun leaveRename() = lists { lists -> lists.copy(renaming = lists.renaming?.copy(left = true)) }
+
+    fun dismissRename() = lists { it.copy(renaming = null) }
+
+    // an invalid title stays in the dialog with its error (validTitle), an unchanged one is not sent;
+    // the list loads after the answer, a failure shows why and loads
+    fun renameItem() {
+        val lists = state.value as? ListsScreen ?: return
+        val renaming = lists.renaming ?: return
+        val trimmed = renaming.title.trim()
+        if (!validTitle(trimmed)) {
+            state.value = lists.copy(renaming = renaming.copy(left = true))
+            return
+        }
+        state.value = lists.copy(renaming = null)
+        val item = renaming.item
+        if (trimmed == item.title) return
+        this.lists { it.copy(error = null) }
+        scope.launch {
+            request(R.string.todo_list_not_renamed, ::failed) { it.renameItem(item.id, trimmed) } ?: return@launch
+            load()
+        }
+    }
+
     // the done tasks shown go at once, the backend deletes them after undoMs unless undone; a task done
     // meanwhile stays, struck through. A purge before goes to the backend at once (TODO-6, UX-4.2)
     fun purge() {
@@ -217,10 +262,13 @@ class TodoModel(
         pending = null
     }
 
-    // from the settings to where they were opened, from a list to the home (also on the next start)
+    // closes the top dialog, from the settings to where they were opened, from a list to the home (also
+    // on the next start)
     override fun back() {
         val lists = state.value as? ListsScreen ?: return
         when {
+            lists.renaming != null -> state.value = lists.copy(renaming = null)
+            lists.deleting != null -> state.value = lists.copy(deleting = null)
             lists.settings != null -> state.value = lists.copy(settings = null)
             lists.open != null -> show(null)
         }
@@ -243,6 +291,8 @@ class TodoModel(
                 itemPriority = Priority.NORMAL,
                 adding = false,
                 undo = null,
+                renaming = null,
+                deleting = null,
             )
         scope.launch { store.update { it.withOpenList(open) } }
         load(after = purged)
@@ -317,7 +367,17 @@ class TodoModel(
                     // a task of the purge open again meanwhile shows, the backend does not purge it
                     val hidden = pending?.takeIf { it.listId == open }?.let { purge -> items.filter { it.id in purge.ids && it.doneAt != null } }.orEmpty()
                     pending?.takeIf { it.listId == open }?.let { pending = it.copy(items = hidden) }
-                    lists { it.copy(lists = lists, open = open, items = items - hidden.toSet(), loading = false) }
+                    lists { current ->
+                        // the dialogs belong to the list open: when it went, they go; they stay with the
+                        // task as it is now, also when the list no longer shows it
+                        val stays = current.open == open
+                        val renaming =
+                            current.renaming?.takeIf { stays }?.let { renaming ->
+                                items.firstOrNull { it.id == renaming.item.id }?.let { renaming.copy(item = it) } ?: renaming
+                            }
+                        val deleting = current.deleting?.takeIf { stays }?.let { deleting -> items.firstOrNull { it.id == deleting.id } ?: deleting }
+                        current.copy(lists = lists, open = open, items = items - hidden.toSet(), renaming = renaming, deleting = deleting, loading = false)
+                    }
                 }
             }
     }
@@ -342,5 +402,12 @@ class TodoModel(
     // nothing when another screen is shown
     private inline fun lists(change: (ListsScreen) -> ListsScreen) {
         (state.value as? ListsScreen)?.let { state.value = change(it) }
+    }
+
+    companion object {
+        // TodoService.MAX_TITLE_LENGTH
+        const val MAX_TITLE = 256
+
+        fun validTitle(title: String) = title.trim().let { it.isNotEmpty() && it.length <= MAX_TITLE }
     }
 }

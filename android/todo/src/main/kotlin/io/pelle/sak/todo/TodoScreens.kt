@@ -24,6 +24,14 @@ val TodoItemResponse.due: LocalDate? get() = dueDate?.let { runCatching { LocalD
 // a list on the home; items is the number of open tasks
 fun TodoListResponse.summary() = ListSummary(id, name, icon, shared, mine, items)
 
+// the task renamed in a dialog over the list, with the title typed; its error shows once the field
+// was left or the title was to be saved (UX-6)
+data class Renaming(
+    val item: TodoItemResponse,
+    val title: String,
+    val left: Boolean = false,
+)
+
 // the settings of a list the user creates (no id) or changes
 data class ListSettings(
     override val id: Int? = null,
@@ -53,6 +61,10 @@ data class ListsScreen(
     val itemPriority: Priority = Priority.NORMAL,
     val adding: Boolean = false,
     val undo: Undo? = null,
+    // the task renamed in a dialog over the list, kept when its row goes, e.g. after a change event
+    val renaming: Renaming? = null,
+    // the task whose Delete asks for a confirmation in a dialog over the list (UX-4.1)
+    val deleting: TodoItemResponse? = null,
     // the settings of a list, a new one or one the user sees, over the home or the list
     override val settings: ListSettings? = null,
     // the newer version of the app the deployment runs, offered on the home

@@ -22,6 +22,12 @@
     <string name="todo_list_nothing_to_purge">The list has no done tasks.</string>
     <string name="todo_list_not_purged">The done tasks could not be removed.</string>
     <string name="todo_list_priority_not_set">The priority could not be changed.</string>
+    <string name="todo_list_renaming">The title is changed in its row.</string>
+    <string name="todo_list_rename">Rename</string>
+    <string name="todo_list_title_of">Title of %1$s</string>
+    <string name="todo_list_title_required">A task needs a title.</string>
+    <string name="todo_list_not_renamed">The task could not be renamed.</string>
+    <string name="todo_list_not_deleted">The task could not be deleted.</string>
     <string name="todo_list_add_due_date">Add due date</string>
     <string name="todo_list_has_due_date">The task has a due date.</string>
     <string name="todo_list_remove_due_date">Remove due date</string>
@@ -35,6 +41,7 @@
     <string name="todo_priority_normal">Normal priority</string>
     <string name="todo_priority_low">Low priority</string>
     <string name="todo_app_name" translatable="false">SAK Todo</string>
+    <string name="todo_item_title_invalid">A title must have 1 to 256 characters.</string>
     <string name="todo_cancel">Cancel</string>
     <string name="todo_ok">OK</string>
     <string name="todo_nothing_to_do">Nothing to do.</string>

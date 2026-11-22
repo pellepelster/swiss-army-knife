@@ -1,5 +1,7 @@
 package io.pelle.sak.todo
 
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
@@ -175,5 +177,19 @@ class TodoScreenshots {
             settle()
             model.open(1)
             screenshots.shoot("todo-list-land") { settle() }
+        }
+
+    // the date picker of a new task over the list, on a phone in landscape: its OK must be in reach
+    @Test
+    @Config(qualifiers = "+land")
+    fun duePickerLandscape() =
+        runTest {
+            val model = signedIn()
+            screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
+            settle()
+            model.open(1)
+            settle()
+            compose.onNodeWithTag("item-due").performClick()
+            screenshots.shoot("todo-due-picker-land", screen = true) { settle() }
         }
 }

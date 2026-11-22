@@ -217,39 +217,84 @@ const PRIORITY_LABEL = {
               class="list-group-item p-0 d-flex flex-wrap align-items-center"
               [attr.data-testid]="'item-' + item.id"
             >
-              <button
-                type="button"
-                class="btn todo-item flex-grow-1 min-w-0 rounded-0 border-0 text-start d-flex align-items-center gap-3 px-3 py-2"
-                [attr.aria-label]="toggleLabel(item)"
-                [attr.aria-pressed]="!!item.doneAt"
-                (click)="done(item)"
-              >
-                <!-- an arrow up for a high priority, a dash for a normal one, an arrow down for a low
-                     one, so every row has one and the titles line up (TODO-5) -->
-                <app-priority-icon
-                  [priority]="item.priority"
-                  [title]="priorityLabel[item.priority] | t"
-                  [attr.data-testid]="'priority-' + item.id"
-                />
-                <span
-                  class="flex-grow-1 text-break"
-                  [class.item-struck]="!!item.doneAt"
-                  [class.text-body-secondary]="!!item.doneAt"
-                  >{{ item.title }}</span
+              @if (renaming() === item.id) {
+                <!-- Enter or leaving it saves, Escape keeps the title (UX-6) -->
+                <div class="flex-grow-1 min-w-0 px-3 py-2">
+                  <input
+                    #renameField
+                    [id]="'rename-' + item.id"
+                    class="form-control"
+                    maxlength="256"
+                    autocomplete="off"
+                    [class.is-invalid]="renameEmpty()"
+                    [attr.aria-label]="'todo.list.title_of' | t: { title: item.title }"
+                    [attr.aria-describedby]="renameEmpty() ? 'rename-error-' + item.id : null"
+                    [value]="item.title"
+                    (input)="renameEmpty.set(false)"
+                    (keydown.enter)="$event.preventDefault(); rename(item, renameField, true)"
+                    (keydown.escape)="$event.preventDefault(); cancelRename(item)"
+                    (blur)="rename(item, renameField)"
+                  />
+                  @if (renameEmpty()) {
+                    <div class="invalid-feedback d-block" [id]="'rename-error-' + item.id">
+                      {{ 'todo.list.title_required' | t }}
+                    </div>
+                  }
+                </div>
+              } @else {
+                <button
+                  type="button"
+                  [id]="'item-' + item.id"
+                  class="btn todo-item flex-grow-1 min-w-0 rounded-0 border-0 text-start d-flex align-items-center gap-3 px-3 py-2"
+                  [attr.aria-label]="toggleLabel(item)"
+                  [attr.aria-pressed]="!!item.doneAt"
+                  (click)="done(item)"
                 >
-                @if (item.dueDate) {
+                  <!-- an arrow up for a high priority, a dash for a normal one, an arrow down for a low
+                     one, so every row has one and the titles line up (TODO-5) -->
+                  <app-priority-icon
+                    [priority]="item.priority"
+                    [title]="priorityLabel[item.priority] | t"
+                    [attr.data-testid]="'priority-' + item.id"
+                  />
                   <span
-                    class="small text-nowrap"
-                    [class.text-danger]="item.dueDate < today()"
-                    [class.text-body-secondary]="item.dueDate >= today()"
-                    [attr.data-testid]="'due-' + item.id"
-                    >{{ dueText(item.dueDate) }}</span
+                    class="flex-grow-1 text-break"
+                    [class.item-struck]="!!item.doneAt"
+                    [class.text-body-secondary]="!!item.doneAt"
+                    >{{ item.title }}</span
                   >
-                }
-              </button>
-              <!-- the priority (TODO-5) and the due date (TODO-4); an entry that does not apply is
-                   disabled (UX-8) -->
-              <app-action-menu class="pe-1" [name]="item.title">
+                  @if (item.dueDate) {
+                    <span
+                      class="small text-nowrap"
+                      [class.text-danger]="item.dueDate < today()"
+                      [class.text-body-secondary]="item.dueDate >= today()"
+                      [attr.data-testid]="'due-' + item.id"
+                      >{{ dueText(item.dueDate) }}</span
+                    >
+                  }
+                </button>
+              }
+              <!-- the title, the priority (TODO-5) and the due date (TODO-4); an entry that does not
+                   apply is disabled (UX-8). Its last entry deletes the task (LIST-2) -->
+              <app-action-menu
+                class="pe-1"
+                [name]="item.title"
+                deletes
+                (deleted)="deleteItem(item)"
+              >
+                <button
+                  type="button"
+                  class="dropdown-item"
+                  role="menuitem"
+                  data-testid="rename"
+                  [disabled]="renaming() === item.id"
+                  [title]="renaming() === item.id ? ('todo.list.renaming' | t) : ''"
+                  (click)="startRename(item)"
+                >
+                  <i class="fa-solid fa-fw fa-pen me-2" aria-hidden="true"></i
+                  >{{ 'todo.list.rename' | t }}
+                </button>
+                <div class="dropdown-divider" role="separator"></div>
                 @for (each of priorities; track each) {
                   <button
                     type="button"
@@ -323,7 +368,8 @@ const PRIORITY_LABEL = {
                   </button>
                 </form>
               }
-              <!-- the error of marking it done, of its priority or its due date, in its row (UX-15) -->
+              <!-- the error of marking it done, of its title, its priority or its due date, in its row
+                   (UX-15) -->
               @if (itemError.of(item.id); as error) {
                 <p class="alert alert-danger m-2 w-100" role="alert">{{ error }}</p>
               }
@@ -499,6 +545,76 @@ export class TodoPage {
     this.send(this.service.setDone(item.id, done), 'todo.list.not_done', item.id);
   }
 
+  // the task whose title is in a field; an empty title is not saved
+  protected readonly renaming = signal<number | null>(null);
+  protected readonly renameEmpty = signal(false);
+
+  protected startRename(item: TodoItem): void {
+    // one field in a row at a time: a due date typed is not saved
+    this.dating.set(null);
+    this.renameEmpty.set(false);
+    this.renaming.set(item.id);
+    afterNextRender(
+      () => {
+        const field = this.host.nativeElement.querySelector<HTMLInputElement>(`#rename-${item.id}`);
+        field?.focus();
+        field?.select();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  protected cancelRename(item: TodoItem): void {
+    this.closeRename(item.id);
+    this.focusRow(item.id);
+  }
+
+  private closeRename(id: number): void {
+    if (this.renaming() !== id) return;
+    this.renameEmpty.set(false);
+    this.renaming.set(null);
+  }
+
+  // once the row shows again, so the focus is not lost to the page
+  private focusRow(id: number): void {
+    afterNextRender(
+      () => this.host.nativeElement.querySelector<HTMLElement>(`#item-${id}`)?.focus(),
+      { injector: this.injector },
+    );
+  }
+
+  // the field goes first, so leaving it after Enter or Escape saves nothing. Enter brings the focus
+  // back to the row, leaving the field keeps it where it went
+  protected rename(item: TodoItem, field: HTMLInputElement, enter = false): void {
+    if (this.renaming() !== item.id) return;
+    const title = field.value.trim();
+    if (!title) {
+      this.renameEmpty.set(true);
+      return;
+    }
+    this.renaming.set(null);
+    if (enter) this.focusRow(item.id);
+    if (title === item.title) return;
+    this.send(this.service.renameItem(item.id, title), 'todo.list.not_renamed', item.id);
+  }
+
+  // removed for good, not purged: it goes at once, a failure brings it back and says why (LIST-2)
+  protected deleteItem(item: TodoItem): void {
+    this.closeRename(item.id);
+    if (this.dating() === item.id) this.dating.set(null);
+    this.itemError.clear();
+    this.loadedItems.update((items) => items.filter((each) => each.id !== item.id));
+    this.service
+      .deleteItem(item.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        error: (error: unknown) => {
+          this.itemError.set(item.id, apiErrorMessage(error, this.i18n.t('todo.list.not_deleted')));
+          this.loadItems();
+        },
+      });
+  }
+
   protected changePriority(item: TodoItem, priority: TodoPriority): void {
     if (item.priority === priority) return;
     this.send(this.service.setPriority(item.id, priority), 'todo.list.priority_not_set', item.id);
@@ -510,6 +626,8 @@ export class TodoPage {
 
   // the field of the due date in the row of a task without one, focused
   protected startDueDate(item: TodoItem): void {
+    // one field in a row at a time: a title open was saved when its field was left
+    this.closeRename(item.id);
     this.dueTyped.set('');
     this.dating.set(item.id);
     afterNextRender(

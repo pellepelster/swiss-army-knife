@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -28,6 +29,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -61,6 +64,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import io.pelle.sak.api.model.TodoItemResponse
 import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.ui.AccountMenu
+import io.pelle.sak.core.ui.ConfirmDelete
 import io.pelle.sak.core.ui.Empty
 import io.pelle.sak.core.ui.Error
 import io.pelle.sak.core.ui.MenuIcon
@@ -70,6 +74,7 @@ import io.pelle.sak.core.ui.listTitle
 import io.pelle.sak.todo.ListsScreen
 import io.pelle.sak.todo.Priority
 import io.pelle.sak.todo.R
+import io.pelle.sak.todo.Renaming
 import io.pelle.sak.todo.TodoModel
 import io.pelle.sak.todo.due
 import io.pelle.sak.todo.summary
@@ -95,6 +100,9 @@ internal fun ListScreen(
     model: TodoModel,
 ) {
     BackHandler(onBack = model::back)
+    // the dialogs of the menu of a task live in the model, they stay when the row goes
+    screen.renaming?.let { RenameItem(it, model) }
+    screen.deleting?.let { item -> ConfirmDelete(item.title, onDelete = { model.deleteItem(item) }, onDismiss = model::dismissDelete) }
     val list = screen.lists.firstOrNull { it.id == open }
     Page(
         listTitle(list?.summary()),
@@ -277,8 +285,8 @@ private fun ItemRow(
     }
 }
 
-// the priority (TODO-5), add or remove the due date, each disabled when it does not apply (TODO-4,
-// UX-8)
+// rename, the priority (TODO-5), add or remove the due date, each disabled when it does not apply
+// (TODO-4, UX-8). Its last entry deletes the task after a confirmation (UX-12, UX-4.1)
 @Composable
 private fun ItemMenu(
     item: TodoItemResponse,
@@ -289,6 +297,15 @@ private fun ItemMenu(
     Box {
         IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-item-${item.id}")) { MenuIcon(item.title) }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.todo_list_rename)) },
+                onClick = {
+                    menu = false
+                    model.askRename(item)
+                },
+                modifier = Modifier.testTag("rename-item-${item.id}"),
+            )
+            HorizontalDivider()
             PriorityMenuItems(item.priority, tag = { "set-priority-${item.id}-${it.value}" }) {
                 menu = false
                 model.setPriority(item, it)
@@ -314,9 +331,59 @@ private fun ItemMenu(
                 enabled = item.dueDate != null,
                 modifier = Modifier.testTag("remove-due-date-${item.id}"),
             )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(stringResource(CoreR.string.shared_delete)) },
+                onClick = {
+                    menu = false
+                    model.askDelete(item)
+                },
+                colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.testTag("delete-item-${item.id}"),
+            )
         }
     }
     if (picking) DuePicker(null, onPick = { day -> day?.let { model.setDueDate(item, it) } }, onDismiss = { picking = false })
+}
+
+// an empty or too long title shows its error once the field was left or Done was pressed, and can
+// not be saved (UX-6); Cancel is the safe default
+@Composable
+private fun RenameItem(
+    renaming: Renaming,
+    model: TodoModel,
+) {
+    val valid = TodoModel.validTitle(renaming.title)
+    val error = renaming.left && !valid
+    var focused by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = model::dismissRename,
+        title = { Text(stringResource(R.string.todo_list_rename)) },
+        text = {
+            OutlinedTextField(
+                value = renaming.title,
+                onValueChange = model::editRename,
+                label = { Text(stringResource(R.string.todo_list_task)) },
+                singleLine = true,
+                isError = error,
+                supportingText = { if (error) Text(stringResource(R.string.todo_item_title_invalid)) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { model.renameItem() }),
+                modifier =
+                    Modifier
+                        .onFocusChanged {
+                            if (focused && !it.isFocused) model.leaveRename()
+                            focused = it.isFocused
+                        }.testTag("rename-item-name"),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = model::renameItem, enabled = valid, modifier = Modifier.testTag("rename-item-save")) {
+                Text(stringResource(CoreR.string.shared_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = model::dismissRename) { Text(stringResource(R.string.todo_cancel)) } },
+    )
 }
 
 // the priority of the next task (TODO-5)

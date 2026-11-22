@@ -22,6 +22,12 @@
     <string name="todo_list_nothing_to_purge">Die Liste hat keine erledigten Aufgaben.</string>
     <string name="todo_list_not_purged">Die erledigten Aufgaben konnten nicht entfernt werden.</string>
     <string name="todo_list_priority_not_set">Die Priorität konnte nicht geändert werden.</string>
+    <string name="todo_list_renaming">Der Titel wird in seiner Zeile geändert.</string>
+    <string name="todo_list_rename">Umbenennen</string>
+    <string name="todo_list_title_of">Titel von %1$s</string>
+    <string name="todo_list_title_required">Eine Aufgabe braucht einen Titel.</string>
+    <string name="todo_list_not_renamed">Die Aufgabe konnte nicht umbenannt werden.</string>
+    <string name="todo_list_not_deleted">Die Aufgabe konnte nicht gelöscht werden.</string>
     <string name="todo_list_add_due_date">Fälligkeitsdatum hinzufügen</string>
     <string name="todo_list_has_due_date">Die Aufgabe hat ein Fälligkeitsdatum.</string>
     <string name="todo_list_remove_due_date">Fälligkeitsdatum entfernen</string>
@@ -34,6 +40,7 @@
     <string name="todo_priority_high">Hohe Priorität</string>
     <string name="todo_priority_normal">Normale Priorität</string>
     <string name="todo_priority_low">Niedrige Priorität</string>
+    <string name="todo_item_title_invalid">Ein Titel muss 1 bis 256 Zeichen haben.</string>
     <string name="todo_cancel">Abbrechen</string>
     <string name="todo_ok">OK</string>
     <string name="todo_nothing_to_do">Nichts zu tun.</string>

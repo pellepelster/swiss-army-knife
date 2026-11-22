@@ -4,7 +4,10 @@ import { deleteAllMails } from './mailpit';
 
 const ADDRESS = 'api@example.org';
 
-test('documents the api in swagger ui, which tries it out with the session of the apps', async ({ page, request }) => {
+test('documents the api in swagger ui, which tries it out with the session of the apps', async ({
+  page,
+  request,
+}) => {
   const errors: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
@@ -16,7 +19,10 @@ test('documents the api in swagger ui, which tries it out with the session of th
   // the service worker leaves swagger ui to the backend, which adds the slash
   await expect(page).toHaveURL('/swagger/');
   await expect(page.getByRole('heading', { name: /sak api/ })).toBeVisible();
-  for (const path of ['/api/v1/auth/login/link', '/api/v1/static-hosting/{bucket}/access-logs/metrics']) {
+  for (const path of [
+    '/api/v1/auth/login/link',
+    '/api/v1/static-hosting/{bucket}/access-logs/metrics',
+  ]) {
     await expect(page.getByText(path, { exact: true })).toBeVisible();
   }
 

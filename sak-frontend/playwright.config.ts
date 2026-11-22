@@ -21,7 +21,10 @@ const DATA_DIR = process.env['SAK_E2E_DATA_DIR'];
 export const FIXTURE_OBJECT = 'hello world';
 
 // the images the backend role deploys
-const roleDefaults = readFileSync(resolve(__dirname, '../ansible/roles/backend/defaults/main.yml'), 'utf8');
+const roleDefaults = readFileSync(
+  resolve(__dirname, '../ansible/roles/backend/defaults/main.yml'),
+  'utf8',
+);
 const image = (name: string) => roleDefaults.match(new RegExp(`^${name}: (\\S+)$`, 'm'))![1];
 const vectorConfig = resolve(__dirname, '../ansible/roles/backend/files/vector.yaml');
 
@@ -67,7 +70,8 @@ export default defineConfig({
       gracefulShutdown,
     },
     {
-      command: '../sak-backend/build/install/sak-backend/bin/sak-backend -config=e2e/backend-config.yaml',
+      command:
+        '../sak-backend/build/install/sak-backend/bin/sak-backend -config=e2e/backend-config.yaml',
       url: `${APPS_URL}/`,
       timeout: 60_000,
       reuseExistingServer: !process.env['CI'],

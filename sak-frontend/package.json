@@ -8,7 +8,9 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "postinstall": "npm --prefix ../sak-theme ci --no-audit --no-fund",
-    "api:types": "node scripts/api-types.mjs"
+    "api:types": "node scripts/api-types.mjs",
+    "format": "prettier --write src e2e projects scripts \"*.ts\" \"*.json\"",
+    "format:check": "prettier --check src e2e projects scripts \"*.ts\" \"*.json\""
   },
   "private": true,
   "packageManager": "npm@12.2.2",

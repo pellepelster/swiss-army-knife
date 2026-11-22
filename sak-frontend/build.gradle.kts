@@ -24,10 +24,19 @@ val npmBuild by tasks.registering(Exec::class) {
     outputs.dir("dist")
 }
 
+// every file of the frontend that is written by hand is formatted with prettier (.prettierrc); the
+// generated ones are left out (.prettierignore). `npm run format` formats them
+val npmFormatCheck by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Check the formatting of the frontend"
+    dependsOn(npmCi)
+    commandLine("npm", "run", "format:check")
+}
+
 val npmTest by tasks.registering(Exec::class) {
     group = "verification"
     description = "Run the unit tests of the frontend"
-    dependsOn(npmCi)
+    dependsOn(npmCi, npmFormatCheck)
     commandLine("npm", "test", "--", "--watch=false")
 }
 

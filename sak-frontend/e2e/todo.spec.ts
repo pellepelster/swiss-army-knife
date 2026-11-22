@@ -50,5 +50,20 @@ test('keeps a todo list, a done task in its place, purges the done ones', async 
   await expect(tasks.getByText('Paint the fence')).toBeVisible();
   await expect(tasks.getByText('Fix the door')).toBeHidden();
 
+  // a task is renamed in its row and deleted for good from its menu (LIST-2)
+  await page.getByRole('button', { name: 'Actions of Paint the fence' }).click();
+  await page.getByRole('menuitem', { name: 'Rename' }).click();
+  await page.getByLabel('Title of Paint the fence').fill('Paint the gate');
+  await page.getByLabel('Title of Paint the fence').press('Enter');
+  await expect(tasks.getByText('Paint the gate')).toBeVisible();
+  await page.reload();
+  await expect(tasks.getByText('Paint the gate')).toBeVisible();
+  await page.getByRole('button', { name: 'Actions of Paint the gate' }).click();
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+  await page.getByLabel('Delete Paint the gate').getByRole('button', { name: 'Delete' }).click();
+  await expect(tasks.getByText('Paint the gate')).toBeHidden();
+  await page.reload();
+  await expect(page.getByText('Paint the gate')).toBeHidden();
+
   expect(errors).toEqual([]);
 });

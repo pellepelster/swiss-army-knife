@@ -22,6 +22,10 @@ A task is of high, normal or low priority. The high ones come first, with an arr
 down. A due date shows next to the task, in red when the day has passed. The menu of a task changes its priority and
 adds or removes its due date.
 
+## Rename and delete
+
+The menu of a task renames it or deletes it, for example a task that you added by mistake.
+
 ![A todo list with tasks of each priority, one overdue and one done](../screenshots/web-todo-desktop.png)
 
 ## Done

@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.todo
 
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.pelle.sak.api.ErrorMessage
@@ -78,6 +79,34 @@ class TodoServiceTest {
         service.purge(OTHER, home, listOf(fence.id)) shouldBe null
         service.items(PELLE, home)!!.map { it.title } shouldBe listOf("Paint the fence")
         service.setDone(PELLE, 999, done = true) shouldBe TodoItemUpdateResult.NotFound
+    }
+
+    @Test
+    fun `a task is renamed and deleted by itself, by every user who sees its list (LIST-2)`() {
+        val party = list(PELLE, "Party", shared = true)
+        val private = list(PELLE, "Home")
+        val music = add(OTHER, party, "Bring music")
+        val door = add(PELLE, private, "Fix the door")
+
+        // trimmed, a done one too; a title that does not fit is refused and stays
+        done(PELLE, music.id)
+        (service.renameItem(PELLE, music.id, "  Bring the music ") as TodoItemUpdateResult.Saved).item.let {
+            it.title shouldBe "Bring the music"
+            it.doneAt shouldNotBe null
+        }
+        service.renameItem(PELLE, music.id, " ").shouldBeInstanceOf<TodoItemUpdateResult.Invalid>()
+        service.renameItem(PELLE, music.id, "x".repeat(TodoService.MAX_TITLE_LENGTH + 1)).shouldBeInstanceOf<TodoItemUpdateResult.Invalid>()
+        service.item(PELLE, music.id)!!.title shouldBe "Bring the music"
+
+        // not a task of a list the user does not see
+        service.renameItem(OTHER, door.id, "Theirs") shouldBe TodoItemUpdateResult.NotFound
+        service.deleteItem(OTHER, door.id) shouldBe false
+        service.item(PELLE, door.id)!!.title shouldBe "Fix the door"
+
+        service.deleteItem(OTHER, music.id) shouldBe true
+        service.deleteItem(OTHER, music.id) shouldBe false
+        service.items(PELLE, party) shouldBe emptyList()
+        service.renameItem(PELLE, music.id, "Gone") shouldBe TodoItemUpdateResult.NotFound
     }
 
     @Test

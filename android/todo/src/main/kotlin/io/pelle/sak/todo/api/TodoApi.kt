@@ -10,6 +10,7 @@ import io.ktor.http.contentType
 import io.pelle.sak.api.model.LoginRequest
 import io.pelle.sak.api.model.TodoDoneRequest
 import io.pelle.sak.api.model.TodoDueDateRequest
+import io.pelle.sak.api.model.TodoItemRequest
 import io.pelle.sak.api.model.TodoItemResponse
 import io.pelle.sak.api.model.TodoListRequest
 import io.pelle.sak.api.model.TodoListResponse
@@ -81,6 +82,26 @@ class TodoApi(
                 contentType(ContentType.Application.Json)
                 setBody(TodoNewItemRequest(listId = listId, title = title, dueDate = dueDate?.toString(), priority = priority.takeIf { it != Priority.NORMAL }?.value))
             }.answer(R.string.todo_list_not_added)
+
+    // the title of a task, open or done
+    suspend fun renameItem(
+        id: Int,
+        title: String,
+    ): TodoItemResponse =
+        client
+            .put("$url/todo/items/$id") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(TodoItemRequest(title))
+            }.answer(R.string.todo_list_not_renamed)
+
+    // the task goes for good; 204, no body
+    suspend fun deleteItem(id: Int) {
+        client
+            .delete("$url/todo/items/$id") {
+                session()
+            }.answer<Unit>(R.string.todo_list_not_deleted)
+    }
 
     // done or open again (TODO-3)
     suspend fun setDone(

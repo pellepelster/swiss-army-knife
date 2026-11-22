@@ -95,7 +95,8 @@ export async function putObject(
   content: string,
 ): Promise<void> {
   const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
-  const hmac = (secret: string | Buffer, value: string) => createHmac('sha256', secret).update(value).digest();
+  const hmac = (secret: string | Buffer, value: string) =>
+    createHmac('sha256', secret).update(value).digest();
   const url = new URL(`/s3/${bucket}/${key}`, APPS_URL);
   // 20261122T141500Z
   const time = new Date().toISOString().replace(/[-:]|\.\d+/g, '');
@@ -115,7 +116,10 @@ export async function putObject(
     headers['x-amz-content-sha256'],
   ].join('\n');
   const scope = [time.slice(0, 8), 'us-east-1', 's3', 'aws4_request'];
-  const signingKey = scope.reduce<string | Buffer>((secret, part) => hmac(secret, part), `AWS4${secretAccessKey}`);
+  const signingKey = scope.reduce<string | Buffer>(
+    (secret, part) => hmac(secret, part),
+    `AWS4${secretAccessKey}`,
+  );
   const signature = hmac(
     signingKey,
     ['AWS4-HMAC-SHA256', time, scope.join('/'), sha256(canonicalRequest)].join('\n'),

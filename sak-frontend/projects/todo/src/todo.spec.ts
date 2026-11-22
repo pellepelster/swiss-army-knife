@@ -54,7 +54,7 @@ describe('Todo', () => {
     http.verify();
   });
 
-  const { page, button, open, url, rowMenu } = pageHelpers(() => harness);
+  const { page, button, open, url, rowMenu, deleteFromRow } = pageHelpers(() => harness);
   const input = (id: string) => page().querySelector<HTMLInputElement>(`#${id}`)!;
   const type = async (id: string, value: string) => {
     input(id).value = value;
@@ -203,6 +203,98 @@ describe('Todo', () => {
     );
   });
 
+  it('renames a task in its row from its menu, open or done; Escape keeps the title, an empty one is not saved', async () => {
+    await load([home], [task(10, 'Taxse'), task(11, 'Read')]);
+    const rename = async (title: string) => {
+      (await rowMenu(title)).querySelector<HTMLButtonElement>('[data-testid=rename]')!.click();
+      await harness.fixture.whenStable();
+    };
+    const field = (id: number) => page().querySelector<HTMLInputElement>(`#rename-${id}`)!;
+
+    // Escape keeps the title, leaving the field afterwards saves nothing
+    await rename('Taxse');
+    expect(field(10).value).toBe('Taxse');
+    // the Rename of the task renamed is disabled and says why (UX-12)
+    const entry = page().querySelector<HTMLButtonElement>(
+      '[data-testid=item-10] [data-testid=rename]',
+    )!;
+    expect(entry.disabled).toBe(true);
+    expect(entry.title).toBe('The title is changed in its row.');
+    field(10).value = 'Other';
+    field(10).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await harness.fixture.whenStable();
+    expect(field(10)).toBeNull();
+    http.expectNone({ method: 'PUT' });
+    // the focus is back on the row, not lost to the page
+    expect(document.activeElement?.id).toBe('item-10');
+
+    // an empty title says so under the field when it is left, typing takes the error away
+    await rename('Taxse');
+    field(10).value = '  ';
+    field(10).dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+    expect(field(10).classList.contains('is-invalid')).toBe(true);
+    expect(page().querySelector('#rename-error-10')?.textContent).toContain(
+      'A task needs a title.',
+    );
+    http.expectNone({ method: 'PUT' });
+    field(10).value = ' Taxes ';
+    field(10).dispatchEvent(new Event('input'));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('#rename-error-10')).toBeNull();
+
+    // Enter saves the title trimmed; the field left afterwards saves it no second time
+    const opened = field(10);
+    opened.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await harness.fixture.whenStable();
+    opened.dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+    const request = http.expectOne({ method: 'PUT', url: '/api/v1/todo/items/10' });
+    expect(request.request.body).toEqual({ title: 'Taxes' });
+    request.flush(task(10, 'Taxes'));
+    await flushItems(1, [task(10, 'Taxes'), task(11, 'Read')]);
+    expect(field(10)).toBeNull();
+    expect(titles()).toEqual(['Taxes', 'Read']);
+
+    // the same title is not sent; a refused one says why in its row
+    await rename('Read');
+    field(11).dispatchEvent(new Event('blur'));
+    await harness.fixture.whenStable();
+    http.expectNone({ method: 'PUT' });
+    await rename('Read');
+    field(11).value = 'Read more';
+    field(11).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    await harness.fixture.whenStable();
+    http
+      .expectOne({ method: 'PUT', url: '/api/v1/todo/items/11' })
+      .flush(null, { status: 500, statusText: 'Server Error' });
+    await flushItems(1, [task(10, 'Taxes'), task(11, 'Read')]);
+    expect(page().querySelector('[data-testid=item-11] [role=alert]')?.textContent).toContain(
+      'The task could not be renamed.',
+    );
+    expect(titles()).toEqual(['Taxes', 'Read']);
+  });
+
+  it('deletes a task for good from the menu of its row after asking, a failure brings it back', async () => {
+    await load([home], [task(10, 'Taxes'), task(11, 'Read')]);
+    await deleteFromRow('Taxes');
+    http.expectOne({ method: 'DELETE', url: '/api/v1/todo/items/10' }).flush(null);
+    await harness.fixture.whenStable();
+    expect(titles()).toEqual(['Read']);
+
+    await deleteFromRow('Read');
+    expect(titles()).toEqual([]);
+    http
+      .expectOne({ method: 'DELETE', url: '/api/v1/todo/items/11' })
+      .flush(null, { status: 500, statusText: 'Server Error' });
+    await flushItems(1, [task(11, 'Read')]);
+    // in the row of the task, which is back (UX-15)
+    expect(page().querySelector('[data-testid=item-11] [role=alert]')?.textContent).toContain(
+      'The task could not be deleted.',
+    );
+    expect(titles()).toEqual(['Read']);
+  });
+
   it('removes the due date of a task from the menu of its row, disabled without one (TODO-4)', async () => {
     await load([home], [task(10, 'Taxes', '2020-05-31'), task(11, 'Read')]);
     const remove = (menu: HTMLElement) =>
@@ -226,9 +318,9 @@ describe('Todo', () => {
     expect(add(await rowMenu('Taxes')).disabled).toBe(true);
     expect(add(await rowMenu('Taxes')).title).toBe('The task has a due date.');
 
-    // the menu focuses its first entry, the first priority
+    // the menu focuses its first entry, the rename
     const menu = await rowMenu('Read');
-    expect(document.activeElement).toBe(menu.querySelector('[data-testid=set-priority-high]'));
+    expect(document.activeElement).toBe(menu.querySelector('[data-testid=rename]'));
     add(menu).click();
     await harness.fixture.whenStable();
     const field = () => page().querySelector<HTMLInputElement>('#due-date-11');

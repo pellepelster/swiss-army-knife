@@ -5,12 +5,6 @@
   "compilerOptions": {
     "types": []
   },
-  "include": [
-    "src/**/*.ts",
-    "projects/**/*.ts"
-  ],
-  "exclude": [
-    "src/**/*.spec.ts",
-    "projects/**/*.spec.ts"
-  ]
+  "include": ["src/**/*.ts", "projects/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts", "projects/**/*.spec.ts"]
 }

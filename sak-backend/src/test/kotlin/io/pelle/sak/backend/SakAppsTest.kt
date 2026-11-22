@@ -856,6 +856,18 @@ class SakAppsTest {
             }
             get(port, "/api/v1/todo/lists/$listId", session).json().string("id") shouldBe listId
             get(port, "/api/v1/todo/items/4711", session).statusCode() shouldBe 404
+
+            // a task is renamed and deleted by itself (LIST-2), a done one too
+            put(port, "/api/v1/todo/items/$door", """{"title":" Fix the back door "}""", session).json().string("title") shouldBe "Fix the back door"
+            put(port, "/api/v1/todo/items/$door", """{"title":" "}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "todo.invalid_title"
+            }
+            put(port, "/api/v1/todo/items/4711", """{"title":"Nothing"}""", session).statusCode() shouldBe 404
+            val mistake = post(port, "/api/v1/todo/items", """{"listId":$listId,"title":"A mistake"}""", session).json().string("id")
+            delete(port, "/api/v1/todo/items/$mistake", session).statusCode() shouldBe 204
+            delete(port, "/api/v1/todo/items/$mistake", session).statusCode() shouldBe 404
+            get(port, "/api/v1/todo/items/$mistake", session).statusCode() shouldBe 404
             get(port, "/api/v1/todo/lists/4711", session).statusCode() shouldBe 404
             // only the done tasks the request names go (TODO-6)
             post(port, "/api/v1/todo/lists/$listId/purge", """{"itemIds":[$door,$fence]}""", session).statusCode() shouldBe 204

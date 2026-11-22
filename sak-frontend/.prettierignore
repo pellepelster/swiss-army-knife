@@ -1,0 +1,9 @@
+# generated, not edited: the icon css (scripts/icons.mjs) and the text catalogs (mise run i18n:generate)
+src/icons/icons.css
+projects/core/src/i18n/catalog.*.ts
+# written by npm and by the builds
+package-lock.json
+dist
+.angular
+test-results
+playwright-report
