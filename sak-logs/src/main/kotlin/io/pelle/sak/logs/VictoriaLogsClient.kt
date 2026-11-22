@@ -53,7 +53,7 @@ internal class VictoriaLogsClient(
 
     private fun uri(path: String): URI {
         val uri = runCatching { URI("$url$path") }.getOrNull()
-        require(uri != null && uri.scheme in setOf("http", "https") && uri.host != null) { "the victorialogs url '$url' is no http url" }
+        require(uri != null && uri.scheme in setOf("http", "https") && uri.host != null) { "the victorialogs url '$url' (victorialogs_url of the configuration) is no http url" }
         return uri
     }
 

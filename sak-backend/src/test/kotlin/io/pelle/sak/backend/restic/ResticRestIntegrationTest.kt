@@ -32,7 +32,7 @@ class ResticRestIntegrationTest {
 
     private val store by lazy {
         val dir = Files.createDirectories(tempDir.resolve("restic"))
-        ResticStore(FilesystemBinaryStorage(dir), WriteGuard({ Long.MAX_VALUE }))
+        ResticStore(FilesystemBinaryStorage(dir), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
     }
 
     private fun withServer(block: (port: Int) -> Unit) {

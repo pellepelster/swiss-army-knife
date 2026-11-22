@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.s3.storage.WriteGuard
 import com.github.benmanes.caffeine.cache.Ticker
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
@@ -21,7 +22,7 @@ class BucketStatisticsCacheTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val storage by lazy { BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), { bucket -> BlobPath(listOf(bucket)) }) }
+    private val storage by lazy { BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)) }
 
     private val nanos = AtomicLong()
 

@@ -186,15 +186,6 @@ class SakConfigLoaderTest {
     }
 
     @Test
-    fun `fails on a victorialogs url that is none`() {
-        load("data_dir: /data\n${ROOT_DOMAIN}logs:\n  victorialogs_url: http://127.0.0.1:9428\n").logs.victorialogsUrl shouldBe "http://127.0.0.1:9428"
-        for (url in listOf("http://local host:9428", "127.0.0.1:9428", "ftp://127.0.0.1")) {
-            shouldThrow<RuntimeException> { load("data_dir: /data\n${ROOT_DOMAIN}logs:\n  victorialogs_url: '$url'\n") }
-                .message shouldContain "the victorialogs_url '$url' is no http url"
-        }
-    }
-
-    @Test
     fun `caddy admin url defaults to localhost 2019`() {
         load("data_dir: /data\n$ROOT_DOMAIN").caddyAdminUrl shouldBe SakConfig.DEFAULT_CADDY_ADMIN_URL
     }

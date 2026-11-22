@@ -114,15 +114,9 @@ data class SakConfig(
     data class LogsConfig(
         // the ingress access logs end up here, the access logs of the buckets are read from it
         @SerialName("victorialogs_url")
+        // an http url; sak-logs, which asks it, refuses another one when the backend starts
         val victorialogsUrl: String = DEFAULT_VICTORIALOGS_URL,
-    ) {
-        init {
-            val url = runCatching { java.net.URI(victorialogsUrl) }.getOrNull()
-            require(url != null && url.scheme in setOf("http", "https") && url.host != null) {
-                "the victorialogs_url '$victorialogsUrl' is no http url"
-            }
-        }
-    }
+    )
 
     @Serializable
     data class AuthConfig(

@@ -1,5 +1,6 @@
 package io.pelle.sak.s3
 
+import io.pelle.sak.s3.storage.WriteGuard
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -59,7 +60,7 @@ class S3WireTest {
             routing {
                 route("/s3") {
                     s3(
-                        BinaryStorageS3Backend(FilesystemBinaryStorage(rootDir), { bucket -> BlobPath(listOf(bucket)) }),
+                        BinaryStorageS3Backend(FilesystemBinaryStorage(rootDir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)),
                         accessCallback,
                     )
                 }

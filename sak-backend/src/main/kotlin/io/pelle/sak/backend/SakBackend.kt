@@ -1,5 +1,7 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.backend.hosting.removeStaleUploads
+import io.pelle.sak.backend.hosting.STALE_UPLOAD_CHECK
 import io.pelle.sak.api.logCause
 import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.auth.LoginListener
@@ -48,12 +50,7 @@ import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import java.nio.file.Files
 import kotlin.system.exitProcess
 import io.pelle.sak.api.installUnexpectedErrors
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import java.time.Duration
-import java.time.Instant
 
 private val logger = KotlinLogging.logger {}
 
@@ -67,6 +64,9 @@ fun main(args: Array<String>) {
 
     EngineMain.main(arrayOf("-config=$BUNDLED_CONFIG") + args)
 }
+
+// what the job of the reconciler is called in the log
+private const val CONFIGURE_CADDY = "configure caddy"
 
 fun Application.module() {
     val config = SakConfigLoader.load(environment.config)
@@ -82,10 +82,11 @@ fun Application.module() {
         CaddyReconciler(CaddyManager(config.caddyAdminUrl), config = {
             caddyConfig(config, services.bucketService.domains(), services.redirectService.locations(), port, services.bucketStorage::objectsDirectory)
         })
-    services.bucketService.onChange(reconciler::reconcileNow)
-    services.redirectService.onChange(reconciler::reconcileNow)
-    monitor.subscribe(ApplicationStarted) { reconciler.start() }
-    monitor.subscribe(ApplicationStopping) { reconciler.stop() }
+    // at once after a change of the domains, without waiting for the next period
+    val configureNow = { services.jobs.once(CONFIGURE_CADDY, reconciler::reconcile) }
+    services.bucketService.onChange(configureNow)
+    services.redirectService.onChange(configureNow)
+    monitor.subscribe(ApplicationStarted) { services.jobs.every(CONFIGURE_CADDY, CaddyReconciler.INTERVAL, reconciler::reconcile) }
 }
 
 // every service of the backend, made once by sak()
@@ -116,6 +117,8 @@ class SakServices(
     val accessLogsManager: AccessLogsManager,
     // the objects of the buckets, and the directory caddy serves them from
     val bucketStorage: BinaryStorageS3Backend,
+    // where the backend runs what it does on its own
+    val jobs: BackgroundJobs,
 ) {
     // the apps that prepare the data of a user who signs in: the first list of each list-based app
     // (LIST-1), the first repository of restic (BACKUP-7)
@@ -177,12 +180,16 @@ fun Application.sak(config: SakConfig): SakServices {
     val resticService = ResticRepositoryService(database, mayLogin = { owner -> rolesOf?.invoke(owner).orEmpty().isNotEmpty() }, store = resticStore)
     val resticBackupPlanService = ResticBackupPlanService(database)
     val accessCallback = BucketKeysAccessCallback(bucketService)
-    val statistics = BucketStatisticsCache(storage)
+    // everything the backend does on its own runs here and ends with it
+    val jobs = BackgroundJobs()
+    monitor.subscribe(ApplicationStopping) { jobs.stop() }
+    val statistics = BucketStatisticsCache(storage, executor = jobs)
     statistics.warm(bucketService.all().map { it.name })
-    removeStaleUploads(storage, bucketService, statistics)
+    jobs.every("remove the unfinished uploads of the buckets", STALE_UPLOAD_CHECK) { removeStaleUploads(storage, bucketService, statistics) }
     reportLeftovers(bucketService, fileService)
     reportResticLeftovers(resticStore, resticService)
-    resticStore.count(resticService.resourceIds())
+    // so the first list of the repositories does not wait for it
+    jobs.once("count the repositories of restic") { resticStore.count(resticService.resourceIds()) }
 
     routing {
         route(S3_PATH_PREFIX) {
@@ -216,6 +223,7 @@ fun Application.sak(config: SakConfig): SakServices {
             userService,
             AccessLogsManager(config.logs.victorialogsUrl),
             storage,
+            jobs,
         )
 
     // broken apps, e.g. an unreadable signing key, must not take the s3 api down with them
@@ -228,30 +236,6 @@ fun Application.sak(config: SakConfig): SakServices {
     }
 
     return services
-}
-
-// removes the multipart uploads with no part for STALE_UPLOAD_AGE, at the start and every
-// STALE_UPLOAD_CHECK, so a bucket key can not fill the data volume with parts it never completes
-private fun Application.removeStaleUploads(
-    storage: BinaryStorageS3Backend,
-    buckets: S3BucketService,
-    statistics: BucketStatisticsCache,
-) = launch(Dispatchers.IO) {
-    while (isActive) {
-        try {
-            val before = Instant.now().minus(STALE_UPLOAD_AGE)
-            buckets.all().forEach { bucket ->
-                val removed = storage.removeStaleUploads(bucket.name, before)
-                if (removed > 0) {
-                    logger.info { "removed $removed unfinished uploads of the bucket ${bucket.name}" }
-                    statistics.invalidate(bucket.name)
-                }
-            }
-        } catch (e: Exception) {
-            logger.warn(logCause(e)) { "could not remove the unfinished uploads of the buckets" }
-        }
-        delay(STALE_UPLOAD_CHECK.toMillis())
-    }
 }
 
 // tells the admin of the directories of the buckets and of the files that no row has, e.g. left by a
@@ -285,6 +269,4 @@ private fun reportResticLeftovers(
     }
 }
 
-private val STALE_UPLOAD_AGE: Duration = Duration.ofDays(1)
 
-private val STALE_UPLOAD_CHECK: Duration = Duration.ofHours(1)

@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.s3.storage.isValidBucketName
 import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.leftovers
@@ -246,10 +247,7 @@ class S3BucketService(
 
         private const val SECRET_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
-        // 3 to 63 lower case letters, digits and hyphens, starting and ending with a letter or
-        // digit: a valid s3 bucket name and a valid label of a domain, the bucket's subdomain
-        private val NAME = Regex("^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$")
-
-        fun isValidName(name: String) = NAME.matches(name)
+        // the rule of sak-s3, which stores the bucket
+        fun isValidName(name: String) = isValidBucketName(name)
     }
 }

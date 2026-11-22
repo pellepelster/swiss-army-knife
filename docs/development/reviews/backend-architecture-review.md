@@ -10,7 +10,9 @@ weight: 12
 **Created:** 2026-11-22
 
 **Checked again:** 2026-11-22, after the fixes of `BA-1`, `BA-2`, `BA-3`, `BA-6`, `BA-9`, `BA-10`, `BA-11`, `BA-12`,
-`BA-13`, `BA-19`, `BA-20` and `BA-30`, which are in the history of git; `BA-22` and `BA-23` list what is left of them.
+`BA-13`, `BA-14`, `BA-19`, `BA-20`, `BA-22` and `BA-30`, which are in the history of git; `BA-23` lists what is left
+of it. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a route `GET /settings` of
+their own, an app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -51,11 +53,11 @@ Fix: `DomainRegistry` takes two functions of `RedirectService` in place of the r
   chooses the content type; `Route.grocery` takes the `FileService` only for it.
 - Routes take a store next to their service: `ResticStore` for the size of a repository
   (`backend/restic/SakRestic.kt:70-73,206,225`), `BucketStatisticsCache` (`backend/hosting/SakBuckets.kt:52,276-284`).
-- `backend/SakBackend.kt` runs the job that removes the unfinished uploads and warms the statistics; no class of
-  `hosting/` owns them.
+- `backend/SakBackend.kt` warms the statistics of the buckets and starts the job of the unfinished uploads
+  (`hosting/StaleUploads.kt`); no class of `hosting/` owns the two.
 
-Fix: `UserService.sendAppLink`, `GroceryService.photoContent`, a size function on the two services, and the job of
-the uploads in `hosting/`.
+Fix: `UserService.sendAppLink`, `GroceryService.photoContent`, a size function on the two services, and a class of
+`hosting/` that starts its own jobs.
 
 ### `BA-7` Changes that reach deleted rows (`MODEL-3`, checked)
 
@@ -77,18 +79,6 @@ class with a public table and public functions that take a `DSLContext`. Only `S
 outside `sak-model` uses jOOQ today.
 
 Fix: `implementation(libs.jooq)`, and `ListTable` internal.
-
-## Should fix: the code does not do what it says
-
-### `BA-14` Work in the background starts in four ways, one without a catch (checked in part)
-
-- `CaddyReconciler`: a scheduled executor, started and stopped with the application (`backend/SakCaddy.kt`).
-- The unfinished uploads: a coroutine with a catch, with `Instant.now()` and no clock (`backend/SakBackend.kt`).
-- `BucketStatisticsCache`: a thread pool of its own that is never shut down.
-- `ResticStore.count` (`backend/restic/ResticStore.kt:143-145`): a thread without a catch; a repository that fails
-  ends the count of all that follow, without a line in the log.
-
-Fix: a catch for each repository in `count`; one way to run a job with a stop.
 
 ## Could fix: modules
 
@@ -127,7 +117,6 @@ Fix: a second small interface for the three functions.
 - `sak-logs`: `accessLogs` takes two parts of the `AccessLogsManager` (`backend/SakApps.kt:210-214`); `quoted`,
   `streamFilter`, `TimeSeriesGrid`, `StatsSeries` and `UserAgentClassifier` are public and used inside only.
 - `sak-auth`, `sak-logs` and `sak-backend` declare `ktor-server-content-negotiation`; only `sak-api` installs it.
-- The default guard of `BinaryStorageS3Backend` and `usableBytes` are used by tests only.
 
 Fix: `internal` for what one module uses; the three dependencies go.
 
@@ -148,14 +137,6 @@ Fix: `internal` for what one module uses; the three dependencies go.
 
 Fix: the routes of a list and one request and response class in `lists/`; the checks in `Lists.kt`; `lists.sees` in
 `GroceryRepository`.
-
-### `BA-22` Small copies
-
-- The routes `GET /settings` of the notes and of the groceries differ in names only.
-- The name of a bucket has two rules that differ: `S3BucketService` takes no dot, `BinaryStorageS3Backend` does.
-  `sak-s3` keeps its own rule, it must not build a path from a name it did not check.
-- The url of victorialogs is checked with the same code in `sak-config` and in `sak-logs`, and the 2 GiB of the free
-  bytes are in `sak-config` and in `sak-s3`: these modules do not know each other.
 
 ## Could fix: inconsistencies
 
@@ -251,7 +232,7 @@ Fix: the repository answers the item and a result with the cases; `GroceryServic
 
 ## Not checked
 
-- Nothing was built or run for the review: a finding that names a behaviour (`BA-7`, `BA-14`) is from the code.
+- Nothing was built or run for the review: a finding that names a behaviour (`BA-7`) is from the code.
 - The tests, the frontend, the Android apps, the desktop apps and the roles of ansible.
 - Whether a dependency can go (`BA-18`) was not tried with a build.
 - The line numbers are of the working tree of 2026-11-22.

@@ -20,7 +20,7 @@ class BinaryStorageS3BackendTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val storage by lazy { BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), rootResolver()) }
+    private val storage by lazy { BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), rootResolver(), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)) }
 
     private fun rootResolver(root: String = "root1") = S3BucketPathResolver { bucket -> BlobPath(listOf(root, "$bucket-data")) }
 
@@ -410,7 +410,7 @@ class BinaryStorageS3BackendTest {
 
     @Test
     fun `the resolver decides where a bucket is stored`() {
-        val other = BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), rootResolver("root2"))
+        val other = BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), rootResolver("root2"), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
 
         storage.putObject("bucket1", "index.html", "one".byteInputStream(), ObjectMetadata())
         other.putObject("bucket1", "index.html", "two".byteInputStream(), ObjectMetadata())
@@ -427,7 +427,7 @@ class BinaryStorageS3BackendTest {
 
     @Test
     fun `a bucket the resolver does not know does not exist`() {
-        val empty = BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), { null })
+        val empty = BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), { null }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
 
         shouldThrow<NoSuchBucketException> { empty.putObject("bucket1", "key.txt", "x".byteInputStream(), ObjectMetadata()) }
         shouldThrow<NoSuchBucketException> { empty.headObject("bucket1", "key.txt") }

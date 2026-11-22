@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.restic
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import io.pelle.sak.api.logCause
 import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.leftovers
@@ -13,6 +15,9 @@ import java.security.MessageDigest
 import java.util.HexFormat
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+
+
+private val logger = KotlinLogging.logger {}
 
 // what saving a file of a repository came to
 sealed interface ResticFileSaveResult {
@@ -142,9 +147,16 @@ class ResticStore(
     // the first ask after a start walks the files of the repository, see `count`
     fun usage(repository: ResourceId): Long = usages[repository] ?: locked(repository) { usages.getOrPut(repository) { files(repository) } }
 
-    // counts the repositories in the background, so the first list of them does not wait
+    // counts the repositories, so the first list of them does not wait: run in the background at the
+    // start. One that can not be counted is logged and counted with its first ask, the others follow
     fun count(repositories: Collection<ResourceId>) {
-        Thread({ repositories.forEach(::usage) }, "restic-usage").apply { isDaemon = true }.start()
+        repositories.forEach { repository ->
+            try {
+                usage(repository)
+            } catch (e: Exception) {
+                logger.warn(logCause(e)) { "could not count the repository of restic $repository" }
+            }
+        }
     }
 
     // the bytes of the config and of the files of every type, the staged ones left out

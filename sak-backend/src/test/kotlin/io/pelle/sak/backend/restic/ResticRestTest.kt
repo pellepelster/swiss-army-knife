@@ -354,7 +354,7 @@ class ResticRestTest {
             send("POST", "/restic/$id/config", login, "other config".toByteArray()).statusCode() shouldBe 403
             store.usage(rid) shouldBe 10
             // a new store counts again
-            ResticStore(FilesystemBinaryStorage(resticDir), WriteGuard({ Long.MAX_VALUE })).usage(rid) shouldBe 1010
+            ResticStore(FilesystemBinaryStorage(resticDir), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)).usage(rid) shouldBe 1010
         }
 
     // every file below the directory of the repositories, staged ones included

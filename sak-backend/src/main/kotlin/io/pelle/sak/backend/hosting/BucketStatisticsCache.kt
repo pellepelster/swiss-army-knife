@@ -12,7 +12,6 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 import kotlin.time.Duration.Companion.milliseconds
 
 private val logger = KotlinLogging.logger {}
@@ -29,8 +28,8 @@ class BucketStatisticsCache(
     private val storage: BinaryStorageS3Backend,
     clock: Clock = Clock.systemUTC(),
     ticker: Ticker = Ticker.systemTicker(),
-    // the counting is blocking io
-    executor: Executor = Executors.newFixedThreadPool(2) { Thread(it, "bucket-statistics").apply { isDaemon = true } },
+    // where the counting runs, it is blocking io: the background jobs of the backend
+    executor: Executor,
 ) {
     private val cache: AsyncLoadingCache<String, BucketStatistics> =
         Caffeine

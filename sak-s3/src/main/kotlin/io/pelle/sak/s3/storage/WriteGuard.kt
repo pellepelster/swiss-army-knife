@@ -10,7 +10,9 @@ import java.io.InputStream
 class WriteGuard(
     // the bytes free on the volume of the buckets
     private val freeBytes: () -> Long,
-    val minFreeBytes: Long = DEFAULT_MIN_FREE_BYTES,
+    // the bytes that stay free, for the database, the certificates and the logs to go on; who makes the
+    // guard knows the volume
+    val minFreeBytes: Long,
     val maxBytes: Long = MAX_OBJECT_BYTES,
     // how many bytes are read between two looks at the free bytes
     private val checkEvery: Long = CHECK_EVERY,
@@ -51,9 +53,6 @@ class WriteGuard(
     }
 
     companion object {
-        // room for the database, the certificates and the logs to go on
-        const val DEFAULT_MIN_FREE_BYTES = 2L * 1024 * 1024 * 1024
-
         // the largest object of one request and the largest part, as S3 has them
         const val MAX_OBJECT_BYTES = 5L * 1024 * 1024 * 1024
 

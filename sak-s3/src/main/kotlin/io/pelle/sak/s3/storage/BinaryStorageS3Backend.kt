@@ -22,8 +22,8 @@ import tools.jackson.module.kotlin.readValue
 class BinaryStorageS3Backend(
     private val storage: BinaryStorage,
     private val resolver: S3BucketPathResolver,
-    // the room a write may take, by default from the free bytes of the volume of the storage
-    private val guard: WriteGuard = WriteGuard({ usableBytes(storage) }),
+    // the room a write may take
+    private val guard: WriteGuard,
 ) : S3StorageBackend {
     private val mapper: ObjectMapper = jacksonObjectMapper()
 
@@ -338,7 +338,7 @@ class BinaryStorageS3Backend(
     private fun objectsPath(bucket: String): BlobPath = requireBucket(bucket).resolve(DATA)
 
     private fun requireBucket(bucket: String): BlobPath {
-        if (!bucket.matches(BUCKET_NAME_REGEX)) throw NoSuchBucketException(bucket)
+        if (!isValidBucketName(bucket)) throw NoSuchBucketException(bucket)
         return resolver.resolve(bucket) ?: throw NoSuchBucketException(bucket)
     }
 
@@ -424,7 +424,6 @@ class BinaryStorageS3Backend(
 
         private val NUL: Char = Char(0)
 
-        private val BUCKET_NAME_REGEX = Regex("[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
         private val UPLOAD_ID_REGEX = Regex("[a-f0-9-]{36}")
 
         fun encodeToken(key: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(key.toByteArray())
@@ -436,12 +435,4 @@ class BinaryStorageS3Backend(
                 null
             }
     }
-}
-
-// the bytes free on the volume the storage is on, from its root or the nearest directory above it
-// that is there
-private fun usableBytes(storage: BinaryStorage): Long {
-    var dir: java.nio.file.Path? = storage.directory(BlobPath(emptyList()))
-    while (dir != null && !java.nio.file.Files.exists(dir)) dir = dir.parent
-    return dir?.let { java.nio.file.Files.getFileStore(it).usableSpace } ?: Long.MAX_VALUE
 }

@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import java.time.Duration
 import io.pelle.sak.api.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.config.SakConfig
@@ -16,9 +17,6 @@ import io.pelle.sak.backend.restic.ResticStore
 import io.pelle.sak.storage.FilesystemBinaryStorage
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
 
 const val S3_PATH_PREFIX = "/s3"
 
@@ -183,15 +181,12 @@ fun caddyConfig(
 class CaddyReconciler(
     private val caddyManager: CaddyManager,
     private val config: () -> CaddyConfig,
-    private val intervalSeconds: Long = DEFAULT_INTERVAL_SECONDS,
 ) {
     private val logger = KotlinLogging.logger {}
 
     // whether the last attempt configured caddy, null before the first one; a success is logged
     // after none or a failure, an unreachable caddy only once at warn, then at debug
     private var configured: Boolean? = null
-
-    private var executor: ScheduledExecutorService? = null
 
     @Synchronized
     fun reconcile() {
@@ -211,23 +206,9 @@ class CaddyReconciler(
         }
     }
 
-    fun start() {
-        executor =
-            Executors.newSingleThreadScheduledExecutor { Thread(it, "caddy-reconciler").apply { isDaemon = true } }.also {
-                it.scheduleWithFixedDelay(::reconcile, 0, intervalSeconds, TimeUnit.SECONDS)
-            }
-    }
-
-    // without waiting for the next period, e.g. after the redirects changed
-    fun reconcileNow() {
-        executor?.execute(::reconcile)
-    }
-
-    fun stop() {
-        executor?.shutdownNow()
-    }
-
     companion object {
-        const val DEFAULT_INTERVAL_SECONDS = 30L
+        // how often caddy is configured again, so a caddy that started later or lost its configuration
+        // gets it (BackgroundJobs runs it)
+        val INTERVAL: Duration = Duration.ofSeconds(30)
     }
 }
