@@ -97,6 +97,30 @@ fun Route.s3(
     }
 }
 
+// the error of the S3 api for what the storage and the reading of a request throw, null for what
+// nobody expects (a 500)
+private fun s3Error(e: Exception): S3Exception? {
+    fun error(
+        status: Int,
+        code: String,
+        fallback: String,
+    ) = S3Exception(status, code, e.message ?: fallback)
+    return when (e) {
+        is S3Exception -> e
+        is NoSuchBucketException -> error(404, "NoSuchBucket", "no such bucket")
+        is NoSuchUploadException -> error(404, "NoSuchUpload", "no such upload")
+        is InvalidKeyException -> error(400, "InvalidRequest", "invalid key")
+        is KeyTooLongException -> error(400, "KeyTooLongError", "key too long")
+        is AwsChunkedFormatException -> error(400, "IncompleteBody", "malformed aws-chunked body")
+        is PayloadHashMismatchException -> error(400, "XAmzContentSHA256Mismatch", "payload hash mismatch")
+        is KeyConflictException -> error(400, "InvalidRequest", "key conflict")
+        is InvalidPartException -> error(400, "InvalidPart", "invalid part")
+        is EntityTooLargeException -> error(400, "EntityTooLarge", "entity too large")
+        is InsufficientStorageException -> error(507, "InsufficientStorage", "insufficient storage")
+        else -> null
+    }
+}
+
 private fun notImplemented() = S3Exception(501, "NotImplemented", "operation is not supported")
 
 private const val COPY_SOURCE_HEADER = "x-amz-copy-source"
@@ -118,31 +142,14 @@ private class S3Api(
             s3Call.block()
         } catch (e: CancellationException) {
             throw e
-        } catch (e: S3Exception) {
-            error(call, e.status, e.code, e.message)
-        } catch (e: NoSuchBucketException) {
-            error(call, 404, "NoSuchBucket", e.message ?: "no such bucket")
-        } catch (e: NoSuchUploadException) {
-            error(call, 404, "NoSuchUpload", e.message ?: "no such upload")
-        } catch (e: InvalidKeyException) {
-            error(call, 400, "InvalidRequest", e.message ?: "invalid key")
-        } catch (e: KeyTooLongException) {
-            error(call, 400, "KeyTooLongError", e.message ?: "key too long")
-        } catch (e: AwsChunkedFormatException) {
-            error(call, 400, "IncompleteBody", e.message ?: "malformed aws-chunked body")
-        } catch (e: PayloadHashMismatchException) {
-            error(call, 400, "XAmzContentSHA256Mismatch", e.message ?: "payload hash mismatch")
-        } catch (e: KeyConflictException) {
-            error(call, 400, "InvalidRequest", e.message ?: "key conflict")
-        } catch (e: InvalidPartException) {
-            error(call, 400, "InvalidPart", e.message ?: "invalid part")
-        } catch (e: EntityTooLargeException) {
-            error(call, 400, "EntityTooLarge", e.message ?: "entity too large")
-        } catch (e: InsufficientStorageException) {
-            error(call, 507, "InsufficientStorage", e.message ?: "insufficient storage")
         } catch (e: Exception) {
-            logger.error(e) { "S3 request failed: ${call.request.httpMethod.value} ${call.request.path()}" }
-            error(call, 500, "InternalError", "internal error")
+            val known = s3Error(e)
+            if (known == null) {
+                logger.error(e) { "S3 request failed: ${call.request.httpMethod.value} ${call.request.path()}" }
+                error(call, 500, "InternalError", "internal error")
+            } else {
+                error(call, known.status, known.code, known.message)
+            }
         }
     }
 

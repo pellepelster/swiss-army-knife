@@ -1,0 +1,16 @@
+# the changelog as it was before the access key id of a bucket was unique among the live buckets only
+# (0007-s3-buckets-access-key-live.yaml), for SakDatabaseTest: the paths are those of
+# db.changelog-master.yaml, so it takes the change sets as run
+databaseChangeLog:
+  - include:
+      file: db/changelog/0001-initial.yaml
+  - include:
+      file: db/changelog/0002-todo.yaml
+  - include:
+      file: db/changelog/0003-restic.yaml
+  - include:
+      file: db/changelog/0004-files-resource-id.yaml
+  - include:
+      file: db/changelog/0005-s3-buckets-resource-id.yaml
+  - include:
+      file: db/changelog/0006-drop-layout-migration-columns.yaml

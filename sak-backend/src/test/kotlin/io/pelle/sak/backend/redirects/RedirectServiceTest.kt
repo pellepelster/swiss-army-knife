@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.backend.DomainRegistry
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -57,10 +59,10 @@ class RedirectServiceTest {
 
         service.create("example.com", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.Exists
         for (source in listOf("localhost", "-a.com", "a-.com", "a..com", "1.2.3.4", "under_score.com", "console.example.org", "example.org")) {
-            service.create(source, RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.InvalidDomain
+            service.create(source, RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.Invalid(listOf(ErrorMessage(RedirectsTexts.INVALID_DOMAINS)))
         }
-        service.create("example.net", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.InvalidDomain
-        service.create("example.net", RedirectTarget.Domain("no domain"), owner = "admin@example.org") shouldBe RedirectCreateResult.InvalidDomain
+        service.create("example.net", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.Invalid(listOf(ErrorMessage(RedirectsTexts.INVALID_DOMAINS)))
+        service.create("example.net", RedirectTarget.Domain("no domain"), owner = "admin@example.org") shouldBe RedirectCreateResult.Invalid(listOf(ErrorMessage(RedirectsTexts.INVALID_DOMAINS)))
         service.create("example.net", RedirectTarget.Bucket("unknown"), owner = "admin@example.org") shouldBe RedirectCreateResult.UnknownBucket
         service.create("example.net", RedirectTarget.Bucket("private"), owner = "admin@example.org") shouldBe RedirectCreateResult.BucketNotServed
 
@@ -76,7 +78,7 @@ class RedirectServiceTest {
 
         val created = redirects.create("example.de", RedirectTarget.Bucket("private"), owner = "admin@example.org")
         redirects.location(created.shouldBeInstanceOf<RedirectCreateResult.Created>().redirect.target) shouldBe "private.example.org"
-        redirects.create("private.example.org", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.InvalidDomain
+        redirects.create("private.example.org", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.Invalid(listOf(ErrorMessage(RedirectsTexts.INVALID_DOMAINS)))
     }
 
     @Test
@@ -94,8 +96,8 @@ class RedirectServiceTest {
         changes.size shouldBe 2
 
         service.update("example.de", RedirectTarget.Domain("example.net")) shouldBe RedirectUpdateResult.NotFound
-        service.update("example.com", RedirectTarget.Domain("example.com")) shouldBe RedirectUpdateResult.InvalidDomain
-        service.update("example.com", RedirectTarget.Domain("no domain")) shouldBe RedirectUpdateResult.InvalidDomain
+        service.update("example.com", RedirectTarget.Domain("example.com")) shouldBe RedirectUpdateResult.Invalid(listOf(ErrorMessage(RedirectsTexts.INVALID_TARGET)))
+        service.update("example.com", RedirectTarget.Domain("no domain")) shouldBe RedirectUpdateResult.Invalid(listOf(ErrorMessage(RedirectsTexts.INVALID_TARGET)))
         service.update("example.com", RedirectTarget.Bucket("unknown")) shouldBe RedirectUpdateResult.UnknownBucket
         service.update("example.com", RedirectTarget.Bucket("private")) shouldBe RedirectUpdateResult.BucketNotServed
         service.byId("example.com")!!.target shouldBe RedirectTarget.Domain("example.net")
@@ -106,8 +108,8 @@ class RedirectServiceTest {
     fun `deletes redirects`() {
         service.create("example.com", RedirectTarget.Domain("example.org"), owner = "admin@example.org")
 
-        service.delete("EXAMPLE.com") shouldBe RedirectDeleteResult.Deleted
-        service.delete("example.com") shouldBe RedirectDeleteResult.NotFound
+        service.delete("EXAMPLE.com") shouldBe DeleteResult.Deleted
+        service.delete("example.com") shouldBe DeleteResult.NotFound
         service.all() shouldBe emptyList()
         changes.size shouldBe 2
     }

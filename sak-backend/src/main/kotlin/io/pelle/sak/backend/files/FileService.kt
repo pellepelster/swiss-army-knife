@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.leftovers
@@ -45,15 +46,21 @@ sealed interface FileStoreResult {
 
     data object TooLarge : FileStoreResult
 
-    // only the types the storage knows by their first bytes are taken, and only when they can be read
-    data object UnsupportedType : FileStoreResult
+    // the file is none the storage takes: what is wrong as the api answers it (API-1)
+    data class Invalid(
+        val errors: List<ErrorMessage>,
+    ) : FileStoreResult
 
-    // an image larger than MAX_IMAGE_SIZE pixels on its longer side
-    data object ImageTooLarge : FileStoreResult
+    companion object {
+        // only the types the storage knows by their first bytes are taken, and only when they can be read
+        val UNSUPPORTED_TYPE = Invalid(listOf(ErrorMessage(FilesTexts.UNSUPPORTED_TYPE)))
 
+        // an image larger than MAX_IMAGE_SIZE pixels on its longer side
+        val IMAGE_TOO_LARGE = Invalid(listOf(ErrorMessage(FilesTexts.IMAGE_TOO_LARGE, "max" to FileService.MAX_IMAGE_SIZE)))
 
-    // a recording longer than MAX_RECORDING_SECONDS
-    data object RecordingTooLong : FileStoreResult
+        // a recording longer than MAX_RECORDING_SECONDS
+        val RECORDING_TOO_LONG = Invalid(listOf(ErrorMessage(FilesTexts.RECORDING_TOO_LONG, "max" to FileService.MAX_RECORDING_SECONDS / 60)))
+    }
 }
 
 // the file storage of every app, the only way to the files. Every upload is a file with an id and a
@@ -160,9 +167,9 @@ class FileService(
     ): BufferedImage? =
         try {
             if (contentType.startsWith("audio/")) {
-                waveform(content)
+                Recordings.waveform(content)
             } else {
-                decode(content, size)?.let { scaled(it, size) }
+                Thumbnails.decode(content, size)?.let { Thumbnails.scaled(it, size) }
             }
         } catch (_: IOException) {
             null
@@ -205,7 +212,7 @@ class FileService(
             } catch (_: TooLargeException) {
                 return FileStoreResult.TooLarge
             }
-            val contentType = contentType(head.copyOf(headLength)) ?: return FileStoreResult.UnsupportedType
+            val contentType = contentType(head.copyOf(headLength)) ?: return FileStoreResult.UNSUPPORTED_TYPE
             check(storage.content(upload)!!, contentType)?.let { return it }
 
             // the content is in place before the file is committed
@@ -233,26 +240,6 @@ class FileService(
 
         const val MAX_RECORDING_SECONDS = 300
 
-        // null when the header leaves the number or the rate of the frames open
-        // (AudioSystem.NOT_SPECIFIED)
-        fun recordingSeconds(format: AudioFileFormat): Float? =
-            format.takeIf { it.frameLength >= 0 && it.format.frameRate > 0 }?.let { it.frameLength / it.format.frameRate }
-
-        // whether the recording is one the apps record or close to it: pcm of 8 or 16 bit, mono or
-        // stereo. The header is of the uploader; what reads a recording (the waveform) sizes its
-        // buffers from it, so nothing else is stored
-        fun isRecording(format: AudioFormat): Boolean =
-            format.encoding in PCM &&
-                format.sampleSizeInBits in RECORDING_BITS &&
-                format.channels in 1..MAX_RECORDING_CHANNELS &&
-                format.frameSize == format.channels * format.sampleSizeInBits / 8
-
-        private val PCM = setOf(AudioFormat.Encoding.PCM_SIGNED, AudioFormat.Encoding.PCM_UNSIGNED)
-
-        private val RECORDING_BITS = setOf(8, 16)
-
-        private const val MAX_RECORDING_CHANNELS = 2
-
         // why the content can not be stored, null when it can
         internal fun check(
             content: BlobContent,
@@ -264,20 +251,20 @@ class FileService(
                         // the reader marks and resets the stream
                         content.open().use { AudioSystem.getAudioFileFormat(BufferedInputStream(it)) }
                     } catch (_: UnsupportedAudioFileException) {
-                        return FileStoreResult.UnsupportedType
+                        return FileStoreResult.UNSUPPORTED_TYPE
                     } catch (_: IOException) {
-                        return FileStoreResult.UnsupportedType
+                        return FileStoreResult.UNSUPPORTED_TYPE
                     }
-                val seconds = recordingSeconds(format)
+                val seconds = Recordings.recordingSeconds(format)
                 when {
-                    !isRecording(format.format) -> FileStoreResult.UnsupportedType
-                    seconds == null -> FileStoreResult.UnsupportedType
-                    seconds > MAX_RECORDING_SECONDS -> FileStoreResult.RecordingTooLong
+                    !Recordings.isRecording(format.format) -> FileStoreResult.UNSUPPORTED_TYPE
+                    seconds == null -> FileStoreResult.UNSUPPORTED_TYPE
+                    seconds > MAX_RECORDING_SECONDS -> FileStoreResult.RECORDING_TOO_LONG
                     else -> null
                 }
             } else {
-                val (width, height) = ImageMetadata.size(content, contentType) ?: return FileStoreResult.UnsupportedType
-                if (maxOf(width, height) > MAX_IMAGE_SIZE) FileStoreResult.ImageTooLarge else null
+                val (width, height) = ImageMetadata.size(content, contentType) ?: return FileStoreResult.UNSUPPORTED_TYPE
+                if (maxOf(width, height) > MAX_IMAGE_SIZE) FileStoreResult.IMAGE_TOO_LARGE else null
             }
 
         private const val BUFFER_SIZE = 64 * 1024
@@ -311,166 +298,5 @@ class FileService(
         // the scaled size for one that was asked for, null for the file itself
         fun scaledSize(asked: Int): Int? = SCALED_SIZES.firstOrNull { it >= asked }
 
-        private const val WAVEFORM_BARS = 48
-
-        // subsampled when the image is at least SUBSAMPLED_SIZE times the size, which takes a
-        // fraction of the memory (2048 pixels for 128 are read as 512: 1 MB instead of 17 MB); the
-        // halving steps of scaled() smooth the aliasing. Null when no reader knows the image
-        internal fun decode(
-            image: BlobContent,
-            size: Int,
-        ): BufferedImage? =
-            image.open().use { stream ->
-                MemoryCacheImageInputStream(stream).use { input -> read(input, size) }
-            }
-
-        private fun read(
-            input: ImageInputStream,
-            size: Int,
-        ): BufferedImage? {
-            val reader = ImageIO.getImageReaders(input).asSequence().firstOrNull() ?: return null
-            try {
-                // as ImageIO.read
-                reader.setInput(input, true, true)
-                val param = reader.defaultReadParam
-                val subsampling = subsampling(maxOf(reader.getWidth(0), reader.getHeight(0)), size)
-                if (subsampling > 1) param.setSourceSubsampling(subsampling, subsampling, 0, 0)
-                return reader.read(0, param)
-            } finally {
-                reader.dispose()
-            }
-        }
-
-        // the largest power of 2 that keeps the longer side at least SUBSAMPLED_SIZE times size
-        internal fun subsampling(
-            longer: Int,
-            size: Int,
-        ): Int {
-            var subsampling = 1
-            while (longer / (subsampling * 2) >= size * SUBSAMPLED_SIZE) subsampling *= 2
-            return subsampling
-        }
-
-        private const val SUBSAMPLED_SIZE = 4
-
-        // the loudness of the recording in bars from its start to its end, on the 4:3 of the
-        // photos; the loudest part reaches the full height, silence keeps a dot
-        internal fun waveform(recording: BlobContent): BufferedImage {
-            // the reader marks and resets the stream
-            val peaks = AudioSystem.getAudioInputStream(BufferedInputStream(recording.open())).use { peaks(it) }
-            val loudest = peaks.max().takeIf { it > 0f } ?: 1f
-            val width = THUMBNAIL_SIZE
-            val height = THUMBNAIL_SIZE * 3 / 4
-            val image = BufferedImage(width, height, BufferedImage.TYPE_INT_RGB)
-            image.createGraphics().apply {
-                setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-                color = WAVEFORM_BACKGROUND
-                fillRect(0, 0, width, height)
-                color = WAVEFORM_INK
-                val step = width.toDouble() / (WAVEFORM_BARS + 2)
-                val bar = step * 0.6
-                peaks.forEachIndexed { index, peak ->
-                    val barHeight = maxOf(bar, peak / loudest * height * 0.7)
-                    val x = step * (index + 1) + (step - bar) / 2
-                    fill(RoundRectangle2D.Double(x, (height - barHeight) / 2, bar, barHeight, bar, bar))
-                }
-                dispose()
-            }
-            return image
-        }
-
-        // the largest absolute sample of the first channel (from 0 to 1, of 8 or 16 bit pcm) in
-        // each of the WAVEFORM_BARS bars, read block by block; a bar is at least one frame, a
-        // recording of fewer frames than bars has bars that share a frame
-        private fun peaks(input: AudioInputStream): List<Float> {
-            val format = input.format
-            val frameSize = format.frameSize
-            val bits = format.sampleSizeInBits
-            // also of a recording stored before only these were taken
-            if (!isRecording(format)) throw UnsupportedAudioFileException("only mono and stereo pcm of 8 and 16 bit is drawn, not $format")
-            val frames = input.frameLength
-            if (frames < 0) throw UnsupportedAudioFileException("the number of frames is not known")
-            val from = LongArray(WAVEFORM_BARS) { frames * it / WAVEFORM_BARS }
-            val to = LongArray(WAVEFORM_BARS) { maxOf(from[it] + 1, frames * (it + 1) / WAVEFORM_BARS) }
-            val peaks = FloatArray(WAVEFORM_BARS)
-            // the first bar that has not ended before the frame
-            var first = 0
-            var frame = 0L
-            // whole frames; its size is bounded in bytes, the size of a frame is of the header
-            val block = ByteArray(frameSize * maxOf(1, WAVEFORM_BLOCK_SIZE / frameSize))
-            while (true) {
-                val read = input.readNBytes(block, 0, block.size)
-                if (read < frameSize) break
-                for (offset in 0..read - frameSize step frameSize) {
-                    val sample =
-                        if (bits == 16) {
-                            val low = block[offset + if (format.isBigEndian) 1 else 0].toInt() and 0xFF
-                            val high = block[offset + if (format.isBigEndian) 0 else 1].toInt()
-                            ((high shl 8) or low) / 32768f
-                        } else if (format.encoding == AudioFormat.Encoding.PCM_UNSIGNED) {
-                            ((block[offset].toInt() and 0xFF) - 128) / 128f
-                        } else {
-                            block[offset] / 128f
-                        }
-                    while (first < WAVEFORM_BARS && to[first] <= frame) first++
-                    var bar = first
-                    while (bar < WAVEFORM_BARS && from[bar] <= frame) {
-                        if (frame < to[bar]) peaks[bar] = maxOf(peaks[bar], abs(sample))
-                        bar++
-                    }
-                    frame++
-                }
-                if (read < block.size) break
-            }
-            return peaks.toList()
-        }
-
-        private const val WAVEFORM_BLOCK_SIZE = 64 * 1024
-
-        private val WAVEFORM_BACKGROUND = Color(0xF7, 0xF5, 0xEF)
-
-        private val WAVEFORM_INK = Color(0x2B, 0x2A, 0x27)
-
-        // halved step by step, a single step from a large image leaves it jagged; jpeg has no
-        // transparency, it is drawn on white
-        internal fun scaled(
-            image: BufferedImage,
-            size: Int,
-        ): BufferedImage {
-            val factor = minOf(1.0, size.toDouble() / maxOf(image.width, image.height))
-            val width = maxOf(1, (image.width * factor).toInt())
-            val height = maxOf(1, (image.height * factor).toInt())
-            var current = image
-            do {
-                val stepWidth = maxOf(width, current.width / 2)
-                val stepHeight = maxOf(height, current.height / 2)
-                val step = BufferedImage(stepWidth, stepHeight, BufferedImage.TYPE_INT_RGB)
-                step.createGraphics().apply {
-                    setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-                    setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
-                    drawImage(current, 0, 0, stepWidth, stepHeight, Color.WHITE, null)
-                    dispose()
-                }
-                current = step
-            } while (current.width != width || current.height != height)
-            return current
-        }
-
-        // the types the storage takes, told by their first bytes: images and wav recordings
-        internal fun contentType(head: ByteArray): String? {
-            fun startsWith(vararg bytes: Int) = head.size >= bytes.size && bytes.indices.all { head[it] == bytes[it].toByte() }
-            fun ascii(
-                offset: Int,
-                text: String,
-            ) = head.size >= offset + text.length && text.indices.all { head[offset + it] == text[it].code.toByte() }
-            return when {
-                startsWith(0xFF, 0xD8, 0xFF) -> "image/jpeg"
-                startsWith(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A) -> "image/png"
-                ascii(0, "GIF87a") || ascii(0, "GIF89a") -> "image/gif"
-                ascii(0, "RIFF") && ascii(8, "WEBP") -> "image/webp"
-                ascii(0, "RIFF") && ascii(8, "WAVE") -> "audio/wav"
-                else -> null
-            }
-        }
     }
 }

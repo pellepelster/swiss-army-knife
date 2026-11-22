@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.todo
 
+import io.pelle.sak.backend.DeleteResult
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -7,7 +8,6 @@ import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.lists.ListSaveResult
 import io.pelle.sak.backend.lists.MAX_LIST_NAME_LENGTH
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.todo.TodoPriority
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -57,7 +57,7 @@ class TodoServiceTest {
         list(OTHER, "Team", shared = true)
         service.signedIn("third@example.org", Language.EN)
         service.lists("third@example.org").map { it.name } shouldBe listOf("My Todos", "Team")
-        service.deleteList(PELLE, service.lists(PELLE).single { it.owner == PELLE }.id) shouldBe ListDeleteResult.Deleted
+        service.deleteList(PELLE, service.lists(PELLE).single { it.owner == PELLE }.id) shouldBe DeleteResult.Deleted
         service.signedIn(PELLE, Language.EN)
         service.lists(PELLE).filter { it.owner == PELLE } shouldBe emptyList()
     }
@@ -75,8 +75,8 @@ class TodoServiceTest {
         // only the done tasks the user saw go, one done meanwhile stays (TODO-6)
         val fence = service.items(PELLE, home)!!.last()
         done(PELLE, fence.id)
-        service.purge(PELLE, home, listOf(door.id)) shouldBe 1
-        service.purge(OTHER, home, listOf(fence.id)) shouldBe null
+        service.purge(PELLE, home, listOf(door.id)) shouldBe DeleteResult.Deleted
+        service.purge(OTHER, home, listOf(fence.id)) shouldBe DeleteResult.NotFound
         service.items(PELLE, home)!!.map { it.title } shouldBe listOf("Paint the fence")
         service.setDone(PELLE, 999, done = true) shouldBe TodoItemUpdateResult.NotFound
     }
@@ -100,11 +100,11 @@ class TodoServiceTest {
 
         // not a task of a list the user does not see
         service.renameItem(OTHER, door.id, "Theirs") shouldBe TodoItemUpdateResult.NotFound
-        service.deleteItem(OTHER, door.id) shouldBe false
+        service.deleteItem(OTHER, door.id) shouldBe DeleteResult.NotFound
         service.item(PELLE, door.id)!!.title shouldBe "Fix the door"
 
-        service.deleteItem(OTHER, music.id) shouldBe true
-        service.deleteItem(OTHER, music.id) shouldBe false
+        service.deleteItem(OTHER, music.id) shouldBe DeleteResult.Deleted
+        service.deleteItem(OTHER, music.id) shouldBe DeleteResult.NotFound
         service.items(PELLE, party) shouldBe emptyList()
         service.renameItem(PELLE, music.id, "Gone") shouldBe TodoItemUpdateResult.NotFound
     }
@@ -158,12 +158,12 @@ class TodoServiceTest {
         val music = add(OTHER, party, "Bring music")
         // every user who sees the list marks a task done and purges it, also one of another user (LIST-2)
         done(PELLE, music.id).doneAt shouldNotBe null
-        service.purge(OTHER, party, listOf(music.id)) shouldBe 1
+        service.purge(OTHER, party, listOf(music.id)) shouldBe DeleteResult.Deleted
         service.updateList(OTHER, party, "Party", shared = false) shouldBe ListSaveResult.NotOwner
         service.updateList(OTHER, party, "Ours", shared = true) shouldBe ListSaveResult.NotOwner
         (service.updateList(OTHER, party, "Party", shared = true, icon = "🎉") as ListSaveResult.Saved).list.icon shouldBe "🎉"
-        service.deleteList(OTHER, party) shouldBe ListDeleteResult.NotFound
-        service.deleteList(PELLE, party) shouldBe ListDeleteResult.Deleted
+        service.deleteList(OTHER, party) shouldBe DeleteResult.NotFound
+        service.deleteList(PELLE, party) shouldBe DeleteResult.Deleted
     }
 
     @Test
@@ -177,10 +177,10 @@ class TodoServiceTest {
             add(PELLE, own, "Secret")
             val music = add(PELLE, party, "Bring music")
             done(OTHER, music.id)
-            service.purge(OTHER, party, listOf(music.id)) shouldBe 1
+            service.purge(OTHER, party, listOf(music.id)) shouldBe DeleteResult.Deleted
             // nothing to purge, no change
-            service.purge(OTHER, party, listOf(music.id)) shouldBe 0
-            service.deleteList(PELLE, party) shouldBe ListDeleteResult.Deleted
+            service.purge(OTHER, party, listOf(music.id)) shouldBe DeleteResult.Deleted
+            service.deleteList(PELLE, party) shouldBe DeleteResult.Deleted
 
             // the own list of pelle is private, the shared one heard also when it goes
             heard.await() shouldBe listOf(party, party, party, party)

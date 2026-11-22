@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.lists
 
+import io.pelle.sak.backend.Checked
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -72,12 +73,12 @@ data class ListValues(
     val icon: String?,
 )
 
-// the icon is one emoji, empty or none for no icon; the errors when they are not valid
+// the icon is one emoji, empty or none for no icon
 fun listValues(
     name: String,
     icon: String?,
     texts: ListTexts,
-): Pair<ListValues, List<ErrorMessage>> {
+): Checked<ListValues> {
     val values = ListValues(name.trim(), icon?.trim()?.ifEmpty { null })
     val errors =
         listOfNotNull(
@@ -88,7 +89,7 @@ fun listValues(
             },
             values.icon?.takeUnless(::isOneEmoji)?.let { ErrorMessage(texts.invalidIcon) },
         )
-    return values to errors
+    return if (errors.isEmpty()) Checked.Valid(values) else Checked.Invalid(errors)
 }
 
 fun ListUpdateResult.result(): ListSaveResult =

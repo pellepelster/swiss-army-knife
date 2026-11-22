@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.notes
 
+import io.pelle.sak.backend.respondDeleted
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.Text
 import io.pelle.sak.api.apiTime
@@ -35,7 +37,6 @@ import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.owner
-import io.pelle.sak.backend.notes.NoteDeleteResult
 import io.pelle.sak.backend.notes.Note
 import io.pelle.sak.backend.notes.NoteColor
 import io.pelle.sak.backend.notes.NoteProblem
@@ -58,21 +59,6 @@ private fun Note.response() =
         updatedAt?.apiTime(),
     )
 
-private fun NoteProblem.message() =
-    when (this) {
-        NoteProblem.TEXT_TOO_LONG -> Text(NotesTexts.TEXT_TOO_LONG, "max" to NoteService.MAX_TEXT_LENGTH)
-        NoteProblem.INVALID_COLOR -> Text(NotesTexts.INVALID_COLOR, "colors" to NoteColor.entries.joinToString(", ") { it.id })
-        NoteProblem.INVALID_LABEL -> INVALID_LABEL_NAME
-        NoteProblem.TOO_MANY_LABELS -> Text(NotesTexts.TOO_MANY_LABELS, "max" to NoteService.MAX_LABELS)
-        NoteProblem.UNKNOWN_PHOTO -> Text(NotesTexts.UNKNOWN_PHOTO)
-        NoteProblem.TOO_MANY_PHOTOS -> Text(NotesTexts.TOO_MANY_PHOTOS, "max" to NoteService.MAX_PHOTOS)
-        NoteProblem.UNKNOWN_RECORDING -> Text(NotesTexts.UNKNOWN_RECORDING)
-        NoteProblem.TOO_MANY_RECORDINGS -> Text(NotesTexts.TOO_MANY_RECORDINGS, "max" to NoteService.MAX_RECORDINGS)
-    }
-
-// the problems of a note that name a file the user does not have
-private val UNKNOWN_FILES = setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING)
-
 private suspend fun RoutingCall.respondSaved(
     result: NoteSaveResult,
     created: Boolean = false,
@@ -81,12 +67,8 @@ private suspend fun RoutingCall.respondSaved(
         is NoteSaveResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.note.response())
         NoteSaveResult.NotFound -> respond(HttpStatusCode.NotFound)
         NoteSaveResult.NoList -> respondErrors(NotesTexts.NO_LIST, status = HttpStatusCode.UnprocessableEntity)
-        // only photos or recordings that are not there: a 422 (API-6); any other problem a 400
-        is NoteSaveResult.Invalid ->
-            respondErrors(
-                result.problems.sorted().map { it.message() },
-                status = if (result.problems.all { it in UNKNOWN_FILES }) HttpStatusCode.UnprocessableEntity else HttpStatusCode.BadRequest,
-            )
+        is NoteSaveResult.Invalid -> respondErrors(result.errors)
+        is NoteSaveResult.UnknownFiles -> respondErrors(result.errors, status = HttpStatusCode.UnprocessableEntity)
     }
 
 // the notes of the signed in user with their labels, meant to be mounted behind the
@@ -232,10 +214,7 @@ fun Route.notes(
 
     delete("/{id}") {
         val id = call.idParameter() ?: return@delete
-        when (withContext(Dispatchers.IO) { noteService.delete(call.owner, id) }) {
-            NoteDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-            NoteDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-        }
+        call.respondDeleted(withContext(Dispatchers.IO) { noteService.delete(call.owner, id) })
     }.describe {
         tag(NOTES_TAG)
         summary = "Delete a note"

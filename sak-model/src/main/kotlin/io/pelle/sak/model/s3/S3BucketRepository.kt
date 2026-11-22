@@ -25,8 +25,19 @@ sealed interface BucketInsertResult {
     // one of the domains
     data object DomainTaken : BucketInsertResult
 
-    // the access key id, also the one of a deleted bucket: the caller draws another one
+    // the access key id of a live bucket: the caller draws another one
     data object AccessKeyTaken : BucketInsertResult
+}
+
+// what a new key pair for a bucket gives
+sealed interface BucketKeyPairUpdateResult {
+    data object Replaced : BucketKeyPairUpdateResult
+
+    // there is no live bucket of the name
+    data object NotFound : BucketKeyPairUpdateResult
+
+    // another live bucket has the access key id: the caller draws another one
+    data object AccessKeyTaken : BucketKeyPairUpdateResult
 }
 
 // what replacing the domains of a bucket gives
@@ -115,7 +126,7 @@ class S3BucketRepository(
     fun resourceIds(): Set<ResourceId> = resourceIds.all(database.dsl)
 
     // the unique constraints decide, so a bucket created at the same time is told apart: by the
-    // name taken (deleted buckets included), the access key id taken (deleted buckets included), else
+    // name taken (deleted buckets included, MODEL-3), the access key id taken (by a live bucket), else
     // a domain
     fun insert(
         name: String,
@@ -144,7 +155,8 @@ class S3BucketRepository(
         } catch (_: IntegrityConstraintViolationException) {
             when {
                 database.dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.NAME.eq(name)) -> BucketInsertResult.NameTaken
-                database.dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.ACCESS_KEY_ID.eq(accessKeyId)) -> BucketInsertResult.AccessKeyTaken
+                database.dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.ACCESS_KEY_ID.eq(accessKeyId), S3_BUCKETS.DELETED_AT.isNull) ->
+                    BucketInsertResult.AccessKeyTaken
                 else -> BucketInsertResult.DomainTaken
             }
         }
@@ -198,23 +210,24 @@ class S3BucketRepository(
             BucketDomainsReplaceResult.DomainTaken
         }
 
-    // a new key pair of a live bucket, the one before stops working; false when there is no
-    // such bucket or another bucket has the access key id
+    // a new key pair of a live bucket, the one before stops working
     fun replaceKeyPair(
         name: String,
         accessKeyId: String,
         secretAccessKey: String,
-    ): Boolean =
+    ): BucketKeyPairUpdateResult =
         try {
-            database.dsl
-                .update(S3_BUCKETS)
-                .set(S3_BUCKETS.ACCESS_KEY_ID, accessKeyId)
-                .set(S3_BUCKETS.SECRET_ACCESS_KEY, secretAccessKey)
-                .set(S3_BUCKETS.UPDATED_AT, clock.instant())
-                .where(S3_BUCKETS.NAME.eq(name), S3_BUCKETS.DELETED_AT.isNull)
-                .execute() > 0
+            val replaced =
+                database.dsl
+                    .update(S3_BUCKETS)
+                    .set(S3_BUCKETS.ACCESS_KEY_ID, accessKeyId)
+                    .set(S3_BUCKETS.SECRET_ACCESS_KEY, secretAccessKey)
+                    .set(S3_BUCKETS.UPDATED_AT, clock.instant())
+                    .where(S3_BUCKETS.NAME.eq(name), S3_BUCKETS.DELETED_AT.isNull)
+                    .execute() > 0
+            if (replaced) BucketKeyPairUpdateResult.Replaced else BucketKeyPairUpdateResult.NotFound
         } catch (_: IntegrityConstraintViolationException) {
-            false
+            BucketKeyPairUpdateResult.AccessKeyTaken
         }
 
     // the bucket and its domains stay as deleted, its name stays taken; false when there was none

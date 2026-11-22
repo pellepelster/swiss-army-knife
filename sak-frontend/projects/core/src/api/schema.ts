@@ -2067,7 +2067,7 @@ export interface paths {
     };
     /**
      * Rename or share a grocery list
-     * @description Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its owner shares or unshares it.
+     * @description Every user who sees a list changes its icon, a shared list of another user too; only its owner renames, shares or unshares it (LIST-2).
      */
     put: {
       parameters: {
@@ -3337,7 +3337,7 @@ export interface paths {
     };
     /**
      * Rename or share a todo list
-     * @description Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its owner shares or unshares it.
+     * @description Every user who sees a list changes its icon, a shared list of another user too; only its owner renames, shares or unshares it (LIST-2).
      */
     put: {
       parameters: {

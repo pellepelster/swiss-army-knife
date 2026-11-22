@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.todo
 
+import io.pelle.sak.backend.respondDeleted
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
@@ -37,7 +38,6 @@ import io.pelle.sak.backend.lists.listChanges
 import io.pelle.sak.backend.lists.respondList
 import io.pelle.sak.model.todo.TodoItem
 import io.pelle.sak.model.lists.SakList
-import io.pelle.sak.model.lists.ListDeleteResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -127,8 +127,8 @@ fun Route.todo(todoService: TodoService) {
             tag(TODO_TAG)
             summary = "Rename or share a todo list"
             description =
-                "Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its " +
-                "owner shares or unshares it."
+                "Every user who sees a list changes its icon, a shared list of another user too; only its owner renames, " +
+                "shares or unshares it (LIST-2)."
             parameters { listId() }
             requestBody {
                 required = true
@@ -148,10 +148,7 @@ fun Route.todo(todoService: TodoService) {
 
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
-            when (withContext(Dispatchers.IO) { todoService.deleteList(call.owner, id) }) {
-                ListDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-                ListDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            }
+            call.respondDeleted(withContext(Dispatchers.IO) { todoService.deleteList(call.owner, id) })
         }.describe {
             tag(TODO_TAG)
             summary = "Delete a todo list"
@@ -193,8 +190,7 @@ fun Route.todo(todoService: TodoService) {
         post("/{id}/purge") {
             val id = call.idParameter() ?: return@post
             val request = call.receive<TodoPurgeRequest>()
-            val purged = withContext(Dispatchers.IO) { todoService.purge(call.owner, id, request.itemIds) }
-            call.respond(if (purged != null) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+            call.respondDeleted(withContext(Dispatchers.IO) { todoService.purge(call.owner, id, request.itemIds) })
         }.describe {
             tag(TODO_TAG)
             summary = "Purge the done tasks of a todo list"
@@ -285,8 +281,7 @@ fun Route.todo(todoService: TodoService) {
 
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
-            val deleted = withContext(Dispatchers.IO) { todoService.deleteItem(call.owner, id) }
-            call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+            call.respondDeleted(withContext(Dispatchers.IO) { todoService.deleteItem(call.owner, id) })
         }.describe {
             tag(TODO_TAG)
             summary = "Delete a task"

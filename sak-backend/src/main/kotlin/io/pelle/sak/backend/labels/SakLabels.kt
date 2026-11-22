@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.labels
 
+import io.pelle.sak.backend.respondDeleted
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.Text
 import io.pelle.sak.api.apiTime
@@ -26,7 +28,6 @@ import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.backend.labels.LabelCreateResult
-import io.pelle.sak.backend.labels.LabelDeleteResult
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.labels.LabelRenameResult
@@ -66,7 +67,7 @@ fun Route.labels(labelService: LabelService) {
         val request = call.receive<LabelRequest>()
         when (val result = withContext(Dispatchers.IO) { labelService.create(call.owner, request.name) }) {
             is LabelCreateResult.Created -> call.respond(HttpStatusCode.Created, result.label.response())
-            LabelCreateResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
+            is LabelCreateResult.Invalid -> call.respondErrors(result.errors)
             LabelCreateResult.Exists -> call.respondErrors(LabelsTexts.EXISTS, status = HttpStatusCode.Conflict)
         }
     }.describe {
@@ -110,7 +111,7 @@ fun Route.labels(labelService: LabelService) {
         when (val result = withContext(Dispatchers.IO) { labelService.rename(call.owner, id, request.name) }) {
             is LabelRenameResult.Renamed -> call.respond(result.label.response())
             LabelRenameResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            LabelRenameResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
+            is LabelRenameResult.Invalid -> call.respondErrors(result.errors)
             LabelRenameResult.Exists -> call.respondErrors(LabelsTexts.EXISTS, status = HttpStatusCode.Conflict)
         }
     }.describe {
@@ -135,10 +136,7 @@ fun Route.labels(labelService: LabelService) {
 
     delete("/{id}") {
         val id = call.idParameter() ?: return@delete
-        when (withContext(Dispatchers.IO) { labelService.delete(call.owner, id) }) {
-            LabelDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-            LabelDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-        }
+        call.respondDeleted(withContext(Dispatchers.IO) { labelService.delete(call.owner, id) })
     }.describe {
         tag(LABELS_TAG)
         summary = "Delete a label"

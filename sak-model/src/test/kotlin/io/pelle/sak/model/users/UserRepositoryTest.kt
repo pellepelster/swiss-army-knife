@@ -20,7 +20,7 @@ class UserRepositoryTest {
     @Test
     fun `a user is added once, by address, and stays as a deleted row when removed`() {
         val anna = repository.insert("admin@example.org", "anna@example.org", "Anna")!!
-        anna shouldBe User(anna.id, "admin@example.org", "anna@example.org", "Anna", now, null)
+        anna shouldBe User(anna.id, "admin@example.org", "anna@example.org", "Anna", now)
         repository.insert("admin@example.org", "anna@example.org", null) shouldBe null
         val bob = repository.insert("admin@example.org", "bob@example.org", null)!!
         repository.all().map { it.email } shouldBe listOf("anna@example.org", "bob@example.org")

@@ -31,10 +31,7 @@ import io.pelle.sak.backend.hosting.model.BucketSecretResponse
 import io.pelle.sak.backend.hosting.model.BucketStatisticsResponse
 import io.pelle.sak.backend.hosting.model.CreateBucketRequest
 import io.pelle.sak.backend.hosting.model.UpdateDomainsRequest
-import io.pelle.sak.backend.hosting.BucketCreateResult
 import io.pelle.sak.model.s3.S3Bucket
-import io.pelle.sak.backend.hosting.S3BucketService
-import io.pelle.sak.backend.hosting.BucketDomainsUpdateResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -49,7 +46,6 @@ private const val S3_TAG = "s3"
 @OptIn(ExperimentalKtorApi::class)
 fun Route.buckets(
     bucketService: S3BucketService,
-    statistics: BucketStatisticsCache,
 ) {
     installApi()
 
@@ -60,7 +56,7 @@ fun Route.buckets(
             bucketService.subdomain(name),
             createdAt.apiTime(),
             updatedAt?.apiTime(),
-            statistics.response(name),
+            bucketService.statisticsResponse(name),
         )
 
     get {
@@ -88,13 +84,9 @@ fun Route.buckets(
     post {
         val request = call.receive<CreateBucketRequest>()
         when (val result = withContext(Dispatchers.IO) { bucketService.create(request.name, request.domains, call.owner) }) {
-            is BucketCreateResult.Created -> {
-                statistics.warm(listOf(result.bucket.name))
-                call.respond(HttpStatusCode.Created, result.bucket.response())
-            }
-            BucketCreateResult.InvalidName -> call.respondErrors(HostingTexts.INVALID_NAME)
-            BucketCreateResult.InvalidDomain -> call.respondErrors(HostingTexts.INVALID_DOMAIN)
-            BucketCreateResult.NameTaken -> call.respondErrors(HostingTexts.NAME_TAKEN, status = HttpStatusCode.Conflict)
+            is BucketCreateResult.Created -> call.respond(HttpStatusCode.Created, result.bucket.response())
+            is BucketCreateResult.Invalid -> call.respondErrors(result.errors)
+            BucketCreateResult.Exists -> call.respondErrors(HostingTexts.NAME_TAKEN, status = HttpStatusCode.Conflict)
             BucketCreateResult.SubdomainTaken -> call.respondErrors(HostingTexts.SUBDOMAIN_TAKEN, status = HttpStatusCode.Conflict)
             BucketCreateResult.DomainTaken -> call.respondErrors(HostingTexts.DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
@@ -158,7 +150,7 @@ fun Route.buckets(
         when (val result = withContext(Dispatchers.IO) { bucketService.updateDomains(name, request.domains, call.owner) }) {
             is BucketDomainsUpdateResult.Updated -> call.respond(result.bucket.response())
             BucketDomainsUpdateResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            BucketDomainsUpdateResult.InvalidDomain -> call.respondErrors(HostingTexts.INVALID_DOMAIN)
+            is BucketDomainsUpdateResult.Invalid -> call.respondErrors(result.errors)
             BucketDomainsUpdateResult.DomainTaken -> call.respondErrors(HostingTexts.DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
     }.describe {
@@ -229,13 +221,13 @@ fun Route.buckets(
     }
 
     post("/{bucket}/secret") {
-        val keyPair = withContext(Dispatchers.IO) { bucketService.replaceKeyPair(call.parameters["bucket"].orEmpty()) }
-        if (keyPair == null) {
-            call.respond(HttpStatusCode.NotFound)
-            return@post
+        when (val result = withContext(Dispatchers.IO) { bucketService.replaceKeyPair(call.parameters["bucket"].orEmpty()) }) {
+            is BucketKeyPairReplaceResult.Replaced -> {
+                call.response.header(HttpHeaders.CacheControl, "no-store")
+                call.respond(BucketSecretResponse(result.accessKeyId, result.secretAccessKey.value))
+            }
+            BucketKeyPairReplaceResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }
-        call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respond(BucketSecretResponse(keyPair.first, keyPair.second.value))
     }.describe {
         tag(S3_TAG)
         summary = "Replace the key pair of a bucket"
@@ -253,9 +245,9 @@ fun Route.buckets(
     }
 }
 
-private suspend fun BucketStatisticsCache.response(bucket: String): BucketStatisticsResponse =
+private suspend fun S3BucketService.statisticsResponse(bucket: String): BucketStatisticsResponse =
     try {
-        get(bucket)
+        statistics(bucket)
             ?.let { BucketStatisticsResponse(computing = false, objects = it.objects, bytes = it.bytes, computedAt = it.computedAt.apiTime()) }
             ?: BucketStatisticsResponse(computing = true)
     } catch (e: Exception) {

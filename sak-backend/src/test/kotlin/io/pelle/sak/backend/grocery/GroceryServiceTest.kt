@@ -1,5 +1,10 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.model.grocery.GroceryItemValues
+import io.pelle.sak.backend.DeleteResult
+import io.pelle.sak.model.testing.Media
+import io.pelle.sak.backend.files.FileStoreResult
+import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.isOneEmoji
 import io.pelle.sak.api.Language
 import io.pelle.sak.backend.lists.ListSaveResult
@@ -7,7 +12,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.lists.ListDeleteResult
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.take
@@ -28,18 +32,22 @@ private fun input(
     amount: String? = null,
     unit: String? = null,
     categoryId: Int? = null,
-) = GroceryItemInput(name, amount?.let(::BigDecimal), unit, categoryId)
+) = GroceryItemValues(name, amount?.let(::BigDecimal), unit, categoryId)
 
 class GroceryServiceTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val service by lazy { GroceryService(SakDatabase.open(tempDir.resolve("sak.db"))) }
+    private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
+
+    private val files by lazy { FileService(database, tempDir.resolve("files")) }
+
+    private val service by lazy { GroceryService(database, files) }
 
     private fun add(
         user: String,
         listId: Int,
-        input: GroceryItemInput,
+        input: GroceryItemValues,
     ) = (service.addItem(user, listId, input) as GroceryItemSaveResult.Saved).item
 
     // the first list of the user, created with the default categories in english when they have none
@@ -141,7 +149,7 @@ class GroceryServiceTest {
         service.orderCategories(OTHER, secret, emptyList()) shouldBe GroceryCategoriesOrderResult.NotFound
         val dips = (service.createCategory(OTHER, party, "Dips", null) as GroceryCategorySaveResult.Saved).category
         service.updateCategory(OTHER, party, dips.id, "Sauces", "🥫").shouldBeInstanceOf<GroceryCategorySaveResult.Saved>()
-        service.deleteCategory(OTHER, party, dips.id) shouldBe true
+        service.deleteCategory(OTHER, party, dips.id) shouldBe DeleteResult.Deleted
         // one name in any case and whitespace
         service.createCategory(PELLE, party, "snacks", null) shouldBe GroceryCategorySaveResult.Exists
         service.createCategory(PELLE, party, "SNACKS ", null) shouldBe GroceryCategorySaveResult.Exists
@@ -164,7 +172,7 @@ class GroceryServiceTest {
         add(PELLE, own, input("chips")).categoryId shouldBe null
 
         // a deleted category goes from its items and suggestions
-        service.deleteCategory(PELLE, party, snacks.id) shouldBe true
+        service.deleteCategory(PELLE, party, snacks.id) shouldBe DeleteResult.Deleted
         service.items(PELLE, party)!!.single().categoryId shouldBe null
         service.suggestions(PELLE, party, "chips")!!.items.let { it shouldBe emptyList() }
         service.checkItem(PELLE, service.items(PELLE, party)!!.single().id)
@@ -185,10 +193,10 @@ class GroceryServiceTest {
             service.updateCategory(PELLE, party, snacks.id, "Crisps", null)
             service.orderCategories(PELLE, party, service.categories(PELLE, party)!!.map { it.id }.reversed())
             service.setCategory(OTHER, chips.id, snacks.id)
-            service.deleteCategory(PELLE, party, snacks.id) shouldBe true
+            service.deleteCategory(PELLE, party, snacks.id) shouldBe DeleteResult.Deleted
             // forgetting deletes bought items, which the eye shows (GROCERY-14)
             service.checkItem(OTHER, chips.id) shouldBe true
-            service.forget(PELLE, party, chips.id) shouldBe true
+            service.forget(PELLE, party, chips.id) shouldBe DeleteResult.Deleted
 
             heard.await() shouldBe List(7) { party }
         }
@@ -245,8 +253,8 @@ class GroceryServiceTest {
         service.updateList(OTHER, shared.id, "Ours", shared = true) shouldBe ListSaveResult.NotOwner
         service.updateList(OTHER, shared.id, name, shared = false) shouldBe ListSaveResult.NotOwner
         service.updateList(OTHER, private.id, "Mine now", shared = false) shouldBe ListSaveResult.NotFound
-        service.deleteList(OTHER, shared.id) shouldBe ListDeleteResult.NotFound
-        service.deleteList(PELLE, shared.id) shouldBe ListDeleteResult.Deleted
+        service.deleteList(OTHER, shared.id) shouldBe DeleteResult.NotFound
+        service.deleteList(PELLE, shared.id) shouldBe DeleteResult.Deleted
         service.lists(OTHER) shouldBe emptyList()
     }
 
@@ -255,13 +263,13 @@ class GroceryServiceTest {
         service.lists(PELLE) shouldBe emptyList()
         val weekly = (service.createList(PELLE, "Weekly", shared = false, language = Language.EN) as ListSaveResult.Saved).list
         service.categories(PELLE, weekly.id)!!.map { it.name } shouldBe DefaultGroceryCategory.of(Language.EN).map { it.name }
-        service.deleteList(PELLE, weekly.id) shouldBe ListDeleteResult.Deleted
+        service.deleteList(PELLE, weekly.id) shouldBe DeleteResult.Deleted
         service.lists(PELLE) shouldBe emptyList()
     }
 
     @Test
     fun `tells every problem of an item at once`() {
-        (service.addItem(PELLE, list(PELLE), GroceryItemInput(" ", BigDecimal("0.0001"), "l", null)) as GroceryItemSaveResult.Invalid).errors shouldBe
+        (service.addItem(PELLE, list(PELLE), GroceryItemValues(" ", BigDecimal("0.0001"), "l", null)) as GroceryItemSaveResult.Invalid).errors shouldBe
             listOf(
                 ErrorMessage(GroceryTexts.INVALID_ITEM_NAME, "max" to GroceryService.MAX_ITEM_NAME_LENGTH),
                 ErrorMessage(GroceryTexts.INVALID_AMOUNT, "max" to GroceryService.MAX_AMOUNT),
@@ -291,9 +299,9 @@ class GroceryServiceTest {
         service.suggestions(OTHER, otherOwn, "mi")!!.items shouldBe emptyList()
         service.suggestions(OTHER, own, "mi") shouldBe null
 
-        service.forget(OTHER, own, suggestion.id) shouldBe false
-        service.forget(PELLE, party, suggestion.id) shouldBe false
-        service.forget(PELLE, own, suggestion.id) shouldBe true
+        service.forget(OTHER, own, suggestion.id) shouldBe DeleteResult.NotFound
+        service.forget(PELLE, party, suggestion.id) shouldBe DeleteResult.NotFound
+        service.forget(PELLE, own, suggestion.id) shouldBe DeleteResult.Deleted
         service.suggestions(PELLE, own, "")!!.items shouldBe emptyList()
     }
 
@@ -328,7 +336,7 @@ class GroceryServiceTest {
             service.updateItem(OTHER, chips.id, input("Crisps"))
             service.checkItem(OTHER, chips.id) shouldBe true
             service.checkItem(OTHER, chips.id) shouldBe false
-            service.deleteList(PELLE, party) shouldBe ListDeleteResult.Deleted
+            service.deleteList(PELLE, party) shouldBe DeleteResult.Deleted
 
             // the own list of pelle is private, the shared one heard also when it goes
             heard.await() shouldBe listOf(party, party, party, party)
@@ -360,5 +368,22 @@ class GroceryServiceTest {
         listOf("a", "1", "🎉🎉", "🎉 a", "\u0007").forEach { isOneEmoji(it) shouldBe false }
         service.createList(PELLE, "Wrong", shared = false, icon = "ab") shouldBe
             ListSaveResult.Invalid(listOf(ErrorMessage(GroceryTexts.INVALID_ICON)))
+    }
+
+    @Test
+    fun `the photo of an item is served to who sees the item, the file itself without a size`() {
+        val own = service.lists(PELLE).firstOrNull()?.id ?: (service.createList(PELLE, "Food", shared = false) as ListSaveResult.Saved).list.id
+        val milk = add(PELLE, own, input("Milk"))
+        val content = Media.JPEG + "a photo".toByteArray()
+        val photo = (files.store(content.inputStream(), PELLE) as FileStoreResult.Stored).file
+        service.setPhoto(PELLE, milk.id, photo.id).shouldBeInstanceOf<GroceryPhotoSetResult.Set>()
+
+        service.photoContent(PELLE, milk.id, photo.id, size = null)!!.let {
+            it.contentType shouldBe "image/jpeg"
+            it.content.open().use { stream -> stream.readAllBytes() } shouldBe content
+        }
+        // not another file, not for a user who does not see the list
+        service.photoContent(PELLE, milk.id, photo.id + 1, size = null) shouldBe null
+        service.photoContent(OTHER, milk.id, photo.id, size = null) shouldBe null
     }
 }

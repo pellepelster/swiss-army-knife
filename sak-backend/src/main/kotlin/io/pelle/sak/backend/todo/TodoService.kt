@@ -1,5 +1,8 @@
 package io.pelle.sak.backend.todo
 
+import io.pelle.sak.backend.orElse
+import io.pelle.sak.backend.result
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.Language
 import io.pelle.sak.api.render
@@ -13,7 +16,6 @@ import io.pelle.sak.backend.lists.result
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.todo.TodoItem
 import io.pelle.sak.model.lists.SakList
-import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.todo.TodoPriority
 import io.pelle.sak.model.todo.TodoRepository
 import kotlinx.coroutines.flow.Flow
@@ -89,8 +91,7 @@ class TodoService(
         shared: Boolean,
         icon: String? = null,
     ): ListSaveResult {
-        val (values, errors) = listValues(name, icon, TodoTexts.LISTS)
-        if (errors.isNotEmpty()) return ListSaveResult.Invalid(errors)
+        val values = listValues(name, icon, TodoTexts.LISTS).orElse { return ListSaveResult.Invalid(it) }
         return repository.insertList(user, values.name, shared, values.icon)?.let { ListSaveResult.Saved(changed(it)) } ?: ListSaveResult.Exists
     }
 
@@ -101,8 +102,7 @@ class TodoService(
         shared: Boolean,
         icon: String? = null,
     ): ListSaveResult {
-        val (values, errors) = listValues(name, icon, TodoTexts.LISTS)
-        if (errors.isNotEmpty()) return ListSaveResult.Invalid(errors)
+        val values = listValues(name, icon, TodoTexts.LISTS).orElse { return ListSaveResult.Invalid(it) }
         return repository.updateList(user, id, values.name, shared, values.icon).also(changes::changed).result()
     }
 
@@ -110,7 +110,7 @@ class TodoService(
     fun deleteList(
         user: String,
         id: Int,
-    ): ListDeleteResult = repository.deleteList(user, id).also { if (it == ListDeleteResult.Deleted) changes.changed(id) }
+    ): DeleteResult = repository.deleteList(user, id).result().also { if (it == DeleteResult.Deleted) changes.changed(id) }
 
     // the tasks of a list the user sees, done ones in their place, by priority (TODO-3, TODO-5); null
     // for another list
@@ -157,7 +157,7 @@ class TodoService(
     fun deleteItem(
         user: String,
         id: Int,
-    ): Boolean = repository.deleteItem(user, id)?.also { changed(it) } != null
+    ): DeleteResult = DeleteResult.of(repository.deleteItem(user, id)?.also { changed(it) } != null)
 
     // done or open again (TODO-3), by any user who sees its list (LIST-2)
     fun setDone(
@@ -186,13 +186,13 @@ class TodoService(
         return saved(repository.setDueDate(user, id, day))
     }
 
-    // deletes the done tasks among the ids, the ones the user saw done (TODO-6); null for another
-    // list, else how many went
+    // deletes the done tasks among the ids, the ones the user saw done (TODO-6), also when none of them
+    // is done any more; not found for a list the user does not see
     fun purge(
         user: String,
         listId: Int,
         ids: Collection<Int>,
-    ): Int? = repository.purge(user, listId, ids)?.also { if (it > 0) changes.changed(listId) }
+    ): DeleteResult = DeleteResult.of(repository.purge(user, listId, ids)?.also { if (it > 0) changes.changed(listId) } != null)
 
     // a trimmed title: not empty, not too long, no control characters
     private fun titleError(title: String) =

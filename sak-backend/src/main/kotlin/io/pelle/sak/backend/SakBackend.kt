@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.auth.Role
 import io.pelle.sak.backend.hosting.removeStaleUploads
 import io.pelle.sak.backend.hosting.STALE_UPLOAD_CHECK
 import io.pelle.sak.api.logCause
@@ -89,12 +90,12 @@ fun Application.module() {
     monitor.subscribe(ApplicationStarted) { services.jobs.every(CONFIGURE_CADDY, CaddyReconciler.INTERVAL, reconciler::reconcile) }
 }
 
-// every service of the backend, made once by sak()
+// what sak() makes once and the apps and the start use: the services, and the few things next to them
+// that are no service (the roles, the manager of the access logs, the storage of the buckets, the jobs)
 class SakServices(
     val settings: SettingService,
     // every scope of settings the settings api serves
     val settingsRegistry: SettingsRegistry,
-    val statistics: BucketStatisticsCache,
     val bucketService: S3BucketService,
     val redirectService: RedirectService,
     val labelService: LabelService,
@@ -103,8 +104,6 @@ class SakServices(
     val todoService: TodoService,
     val resticService: ResticRepositoryService,
     val resticBackupPlanService: ResticBackupPlanService,
-    // the one store of the files of the repositories: it keeps their sizes (BK-16)
-    val resticStore: ResticStore,
     val fileService: FileService,
     val fileTextService: FileTextService,
     val groceryDiscovery: GroceryDiscovery,
@@ -119,6 +118,8 @@ class SakServices(
     val bucketStorage: BinaryStorageS3Backend,
     // where the backend runs what it does on its own
     val jobs: BackgroundJobs,
+    // the roles of an address, asked with every request of a session; none without a login
+    val rolesOf: ((email: String) -> Set<Role>)?,
 ) {
     // the apps that prepare the data of a user who signs in: the first list of each list-based app
     // (LIST-1), the first repository of restic (BACKUP-7)
@@ -156,22 +157,30 @@ fun Application.sak(config: SakConfig): SakServices {
     val grocerySettings = GrocerySettingsService(settings)
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(reservedDomains(config))
+    // everything the backend does on its own runs here and ends with it
+    val jobs = BackgroundJobs()
+    monitor.subscribe(ApplicationStopping) { jobs.stop() }
     val bucketBlobs = bucketBlobs(config)
-    val bucketService =
+    // the objects are where the service of the buckets says, and the service counts them: each needs
+    // the other, the service is made last
+    lateinit var bucketService: S3BucketService
+    val storage = bucketStorage(config, bucketBlobs) { bucketService.objectsPath(it) }
+    val statistics = BucketStatisticsCache(storage, executor = jobs)
+    bucketService =
         S3BucketService(
             database,
             baseDomain = config.baseDomain,
             reservedNames = RESERVED_SITES + RESERVED_BUCKETS,
             domains = domains,
             storage = bucketBlobs,
+            statistics = statistics,
         )
-    val storage = bucketStorage(config, bucketBlobs, bucketService::objectsPath)
     val redirectService = RedirectService(database, bucketService, domains = domains)
     val labelService = LabelService(database)
     val fileService = FileService(database, filesDir(config))
     val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber, notesSettings::aiEnabled)
     val noteService = NoteService(database, labelService, fileService)
-    val groceryService = GroceryService(database)
+    val groceryService = GroceryService(database, fileService)
     val todoService = TodoService(database)
     val userService = UserService(database, config.auth?.admins.orEmpty())
     // without a login there are no users, so no repository is reached
@@ -180,12 +189,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val resticService = ResticRepositoryService(database, mayLogin = { owner -> rolesOf?.invoke(owner).orEmpty().isNotEmpty() }, store = resticStore)
     val resticBackupPlanService = ResticBackupPlanService(database)
     val accessCallback = BucketKeysAccessCallback(bucketService)
-    // everything the backend does on its own runs here and ends with it
-    val jobs = BackgroundJobs()
-    monitor.subscribe(ApplicationStopping) { jobs.stop() }
-    val statistics = BucketStatisticsCache(storage, executor = jobs)
-    statistics.warm(bucketService.all().map { it.name })
-    jobs.every("remove the unfinished uploads of the buckets", STALE_UPLOAD_CHECK) { removeStaleUploads(storage, bucketService, statistics) }
+    bucketService.start(jobs, storage)
     reportLeftovers(bucketService, fileService)
     reportResticLeftovers(resticStore, resticService)
     // so the first list of the repositories does not wait for it
@@ -203,27 +207,26 @@ fun Application.sak(config: SakConfig): SakServices {
     val domainCheck = DomainDnsCheck(config.dns.servers.map { DnsjavaNameServer(it) })
     val services =
         SakServices(
-            settings,
-            SettingsRegistry(listOf(openRouter, notesSettings, grocerySettings)),
-            statistics,
-            bucketService,
-            redirectService,
-            labelService,
-            noteService,
-            groceryService,
-            todoService,
-            resticService,
-            resticBackupPlanService,
-            resticStore,
-            fileService,
-            fileTextService,
-            GroceryDiscovery(fileService, openRouter::ingredientRecognizer, grocerySettings::aiEnabled),
-            HostingHealth(bucketService, domainCheck, config.addresses),
-            RedirectsHealth(redirectService, domainCheck, config.addresses),
-            userService,
-            AccessLogsManager(config.logs.victorialogsUrl),
-            storage,
-            jobs,
+            settings = settings,
+            settingsRegistry = SettingsRegistry(listOf(openRouter, notesSettings, grocerySettings)),
+            bucketService = bucketService,
+            redirectService = redirectService,
+            labelService = labelService,
+            noteService = noteService,
+            groceryService = groceryService,
+            todoService = todoService,
+            resticService = resticService,
+            resticBackupPlanService = resticBackupPlanService,
+            fileService = fileService,
+            fileTextService = fileTextService,
+            groceryDiscovery = GroceryDiscovery(fileService, openRouter::ingredientRecognizer, grocerySettings::aiEnabled),
+            hostingHealth = HostingHealth(bucketService, domainCheck, config.addresses),
+            redirectsHealth = RedirectsHealth(redirectService, domainCheck, config.addresses),
+            userService = userService,
+            accessLogsManager = AccessLogsManager(config.logs.victorialogsUrl),
+            bucketStorage = storage,
+            jobs = jobs,
+            rolesOf = rolesOf,
         )
 
     // broken apps, e.g. an unreadable signing key, must not take the s3 api down with them

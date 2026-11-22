@@ -16,7 +16,6 @@ data class User(
     val email: String,
     val name: String?,
     val createdAt: Instant,
-    val updatedAt: Instant?,
 )
 
 // the users, for UserService only; data of the whole deployment, only the role admin reaches them
@@ -70,5 +69,5 @@ class UserRepository(
             .where(USERS.ID.eq(id), USERS.DELETED_AT.isNull)
             .execute() > 0
 
-    private fun UsersRecord.toUser() = User(id!!, owner!!, email!!, name, createdAt!!, updatedAt)
+    private fun UsersRecord.toUser() = User(id!!, owner!!, email!!, name, createdAt!!)
 }

@@ -16,7 +16,6 @@ data class SettingRow(
     val scope: String,
     val value: String,
     val createdAt: Instant,
-    val updatedAt: Instant?,
     // who set it (MODEL-5)
     val owner: String,
 )
@@ -104,7 +103,6 @@ class SettingRepository(
             scope = scope!!,
             value = value!!,
             createdAt = createdAt!!,
-            updatedAt = updatedAt,
             owner = owner!!,
         )
 }

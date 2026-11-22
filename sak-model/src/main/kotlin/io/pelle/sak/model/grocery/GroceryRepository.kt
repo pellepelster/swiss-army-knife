@@ -88,8 +88,7 @@ data class GroceryItem(
     val checkedAt: Instant? = null,
 )
 
-// a suggestion of a list (GROCERY-11), a name added before: the values of its latest live item, how
-// many live items of the name the list has and when the latest was added
+// a suggestion of a list (GROCERY-11), a name added before: the values of its latest live item
 data class GrocerySuggestion(
     // the latest item of the name, what forgetting the suggestion names
     val id: Int,
@@ -99,8 +98,6 @@ data class GrocerySuggestion(
     val unit: String?,
     // a category of the list, null for none (GROCERY-13)
     val categoryId: Int?,
-    val timesUsed: Int,
-    val lastUsedAt: Instant,
 )
 
 // what the user gives of an item
@@ -108,9 +105,25 @@ data class GroceryItemValues(
     val name: String,
     val amount: BigDecimal?,
     val unit: String?,
-    // a category of the item's list; another one or a deleted one is none (GROCERY-13)
+    // a live category of the item's list, none when null (GROCERY-13)
     val categoryId: Int?,
 )
+
+// what a write of an item gives
+sealed interface GroceryItemWriteResult {
+    // the item of a write that saved it, else null
+    val item: GroceryItem? get() = null
+
+    data class Saved(
+        override val item: GroceryItem,
+    ) : GroceryItemWriteResult
+
+    // the user does not see the list or the item
+    data object NotFound : GroceryItemWriteResult
+
+    // the category given is no live one of the list of the item
+    data object UnknownCategory : GroceryItemWriteResult
+}
 
 // the lists, categories, items and suggestions of the grocery app, for GroceryService only. Reads
 // live rows only and checks who sees and changes them in the sql of each method (MODEL-6): a user
@@ -237,12 +250,21 @@ class GroceryRepository(
                 } else {
                     DSL.falseCondition()
                 }
+            // by the order of their category, those without a live one last; in a category the ones
+            // to buy first as added, then the bought ones, the last bought first (GROCERY-13)
             dsl
-                .selectFrom(GROCERY_ITEMS)
+                .select(GROCERY_ITEMS.asterisk())
+                .from(GROCERY_ITEMS)
+                .leftJoin(GROCERY_CATEGORIES)
+                .on(GROCERY_CATEGORIES.ID.eq(GROCERY_ITEMS.CATEGORY_ID), GROCERY_CATEGORIES.DELETED_AT.isNull)
                 .where(toBuy.or(bought))
-                .orderBy(GROCERY_ITEMS.ID)
-                .fetch()
-                .map { it.toItem() }
+                .orderBy(
+                    GROCERY_CATEGORIES.POSITION.asc().nullsLast(),
+                    DSL.field(GROCERY_ITEMS.CHECKED_AT.isNotNull).asc(),
+                    GROCERY_ITEMS.CHECKED_AT.desc(),
+                    GROCERY_ITEMS.ID.asc(),
+                ).fetch()
+                .map { it.into(GROCERY_ITEMS).toItem() }
         }
 
     // a live item, to buy or bought; null when the user does not see its list, or it is deleted
@@ -256,17 +278,18 @@ class GroceryRepository(
             .fetchOne()
             ?.toItem()
 
-    // the item on the list, null when the user does not see the list. It takes the photo and, without
+    // the item on the list of a user who sees it. It takes the photo and, without
     // one given, the category of the latest item of its name on the list (GROCERY-12, GROCERY-13). The
     // user is its owner (MODEL-5)
     fun insertItem(
         user: String,
         listId: Int,
         values: GroceryItemValues,
-    ): GroceryItem? =
+    ): GroceryItemWriteResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult null
+            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult GroceryItemWriteResult.NotFound
+            if (unknownCategory(dsl, listId, values.categoryId)) return@transactionResult GroceryItemWriteResult.UnknownCategory
             val key = groceryNameKey(values.name)
             val latest =
                 dsl
@@ -276,6 +299,7 @@ class GroceryRepository(
                     .orderBy(GROCERY_ITEMS.ID.desc())
                     .limit(1)
                     .fetchOne()
+            // a category taken from the latest item is none when it was deleted since
             dsl
                 .insertInto(GROCERY_ITEMS)
                 .set(GROCERY_ITEMS.LIST_ID, listId)
@@ -290,14 +314,15 @@ class GroceryRepository(
                 .returning()
                 .fetchOne()!!
                 .toItem()
+                .let(GroceryItemWriteResult::Saved)
         }
 
-    // null when the user does not see its list
+    // the values of a live item, to buy or bought, on a list the user sees
     fun updateItem(
         user: String,
         id: Int,
         values: GroceryItemValues,
-    ): GroceryItem? =
+    ): GroceryItemWriteResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val listId =
@@ -306,8 +331,9 @@ class GroceryRepository(
                     .from(GROCERY_ITEMS)
                     .where(GROCERY_ITEMS.ID.eq(id), visibleItem(user))
                     .fetchOne()
-                    ?.value1() ?: return@transactionResult null
-            val categoryId = categoryOf(dsl, listId, values.categoryId)
+                    ?.value1() ?: return@transactionResult GroceryItemWriteResult.NotFound
+            if (unknownCategory(dsl, listId, values.categoryId)) return@transactionResult GroceryItemWriteResult.UnknownCategory
+            val categoryId = values.categoryId
             dsl
                 .update(GROCERY_ITEMS)
                 .set(GROCERY_ITEMS.NAME, values.name)
@@ -330,20 +356,20 @@ class GroceryRepository(
                 .returning()
                 .fetchOne()!!
                 .toItem()
+                .let(GroceryItemWriteResult::Saved)
         }
 
     // the category of a live item, to buy or bought, one of its list or none; the next item of the
-    // name on the list takes it (GROCERY-13). Null when the user does not see the item or the category
-    // is none of the live ones of its list
+    // name on the list takes it (GROCERY-13)
     fun setCategory(
         user: String,
         id: Int,
         categoryId: Int?,
-    ): GroceryItem? =
+    ): GroceryItemWriteResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            val current = dsl.selectFrom(GROCERY_ITEMS).where(GROCERY_ITEMS.ID.eq(id), visibleItem(user)).fetchOne() ?: return@transactionResult null
-            if (categoryId != null && categoryOf(dsl, current.listId!!, categoryId) == null) return@transactionResult null
+            val current = dsl.selectFrom(GROCERY_ITEMS).where(GROCERY_ITEMS.ID.eq(id), visibleItem(user)).fetchOne() ?: return@transactionResult GroceryItemWriteResult.NotFound
+            if (unknownCategory(dsl, current.listId!!, categoryId)) return@transactionResult GroceryItemWriteResult.UnknownCategory
             dsl
                 .update(GROCERY_ITEMS)
                 .set(GROCERY_ITEMS.CATEGORY_ID, categoryId)
@@ -352,6 +378,7 @@ class GroceryRepository(
                 .returning()
                 .fetchOne()!!
                 .toItem()
+                .let(GroceryItemWriteResult::Saved)
         }
 
     // the live categories of a list the user sees, in their order; null when the user does not see it
@@ -510,36 +537,22 @@ class GroceryRepository(
             )
         }
 
-    // the photo of a live item, to buy or bought: an image the user uploaded, or none; the next item
-    // of the name on the list takes it (GROCERY-12). Null when the user does not see the item or the
-    // file is no image of theirs; the file stays when the photo goes
+    // the photo of a live item, to buy or bought, or none; the next item of the name on the list takes
+    // it (GROCERY-12). The caller checked that the file is an image of the user. Null when the user
+    // does not see the item; the file stays when the photo goes
     fun setPhoto(
         user: String,
         id: Int,
         fileId: Int?,
     ): GroceryItem? =
-        database.dsl.transactionResult { configuration ->
-            val dsl = DSL.using(configuration)
-            if (fileId != null &&
-                !dsl.fetchExists(
-                    FILES,
-                    FILES.ID.eq(fileId),
-                    FILES.OWNER.eq(user),
-                    FILES.DELETED_AT.isNull,
-                    FILES.CONTENT_TYPE.startsWith("image/"),
-                )
-            ) {
-                return@transactionResult null
-            }
-            dsl
-                .update(GROCERY_ITEMS)
-                .set(GROCERY_ITEMS.PHOTO_FILE_ID, fileId)
-                .set(GROCERY_ITEMS.UPDATED_AT, changedAt(GROCERY_ITEMS.UPDATED_AT, clock.instant(), GROCERY_ITEMS.PHOTO_FILE_ID.changesTo(fileId)))
-                .where(GROCERY_ITEMS.ID.eq(id), visibleItem(user))
-                .returning()
-                .fetchOne()
-                ?.toItem()
-        }
+        database.dsl
+            .update(GROCERY_ITEMS)
+            .set(GROCERY_ITEMS.PHOTO_FILE_ID, fileId)
+            .set(GROCERY_ITEMS.UPDATED_AT, changedAt(GROCERY_ITEMS.UPDATED_AT, clock.instant(), GROCERY_ITEMS.PHOTO_FILE_ID.changesTo(fileId)))
+            .where(GROCERY_ITEMS.ID.eq(id), visibleItem(user))
+            .returning()
+            .fetchOne()
+            ?.toItem()
 
     // the file of the photo of a live item, to buy or checked, on a list the user sees, when it is
     // that photo; whoever uploaded it, a shared list shows it to every user (LIST-2)
@@ -559,11 +572,11 @@ class GroceryRepository(
             ?.toFile()
 
     // bought (GROCERY-3): the item leaves the list and stays as its history, what its suggestions are
-    // made of (GROCERY-11); false when the user does not see it or it is checked or deleted
+    // made of (GROCERY-11); null when the user does not see it or it is checked or deleted
     fun checkItem(
         user: String,
         id: Int,
-    ): Boolean {
+    ): GroceryItem? {
         val now = clock.instant()
         return database.dsl
             .update(GROCERY_ITEMS)
@@ -571,20 +584,24 @@ class GroceryRepository(
             // only an item to buy is checked, so this is a change of it
             .set(GROCERY_ITEMS.UPDATED_AT, now)
             .where(GROCERY_ITEMS.ID.eq(id), itemToBuy(user))
-            .execute() > 0
+            .returning()
+            .fetchOne()
+            ?.toItem()
     }
 
     // an item, to buy or bought, gone for good, e.g. one added by mistake: no list shows it, no
-    // suggestion counts it; false when the user does not see it. It stays as deleted
+    // suggestion counts it; null when the user does not see it. It stays as deleted
     fun deleteItem(
         user: String,
         id: Int,
-    ): Boolean =
+    ): GroceryItem? =
         database.dsl
             .update(GROCERY_ITEMS)
             .set(GROCERY_ITEMS.DELETED_AT, clock.instant())
             .where(GROCERY_ITEMS.ID.eq(id), visibleItem(user))
-            .execute() > 0
+            .returning()
+            .fetchOne()
+            ?.toItem()
 
     // a page of the names added to the list before whose name contains the text, both normalized
     // (groceryNameKey), with the values of the latest live item of each, the ones added most and last
@@ -610,16 +627,12 @@ class GroceryRepository(
                 items.field(GROCERY_ITEMS.AMOUNT)!!,
                 items.field(GROCERY_ITEMS.UNIT)!!,
                 items.field(GROCERY_ITEMS.CATEGORY_ID)!!,
-                times,
-                createdAt,
             ).from(items)
             .where(latest)
             .orderBy(times.desc(), createdAt.desc(), id)
             .limit(limit)
             .offset(offset)
-            .fetch { (id, name, amount, unit, categoryId, times, createdAt) ->
-                GrocerySuggestion(id!!, listId, name!!, amount, unit, categoryId, times!!, createdAt!!)
-            }
+            .fetch { (id, name, amount, unit, categoryId) -> GrocerySuggestion(id!!, listId, name!!, amount, unit, categoryId) }
         }
 
     // how many suggestions the list has for the text, as suggestions counts them; null when the user
@@ -723,6 +736,13 @@ class GroceryRepository(
             .and(GROCERY_CATEGORIES.LIST_ID.eq(listId))
             .and(GROCERY_CATEGORIES.DELETED_AT.isNull)
             .and(GROCERY_CATEGORIES.LIST_ID.`in`(DSL.select(GROCERY_LISTS.ID).from(GROCERY_LISTS).where(visibleList(user))))
+
+    // whether a category is given that is no live one of the list
+    private fun unknownCategory(
+        dsl: DSLContext,
+        listId: Int,
+        id: Int?,
+    ) = id != null && categoryOf(dsl, listId, id) == null
 
     // the id when it is a live category of the list, else null
     private fun categoryOf(

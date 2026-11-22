@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.backend.RedirectedDomains
 import io.pelle.sak.backend.DomainRegistry
 import io.pelle.sak.model.SakDatabase
@@ -19,8 +21,10 @@ sealed interface RedirectCreateResult {
         val redirect: Redirect,
     ) : RedirectCreateResult
 
-    // no valid domain, the source is the target, or a domain the backend or a bucket serves
-    data object InvalidDomain : RedirectCreateResult
+    // the values do not fit: every problem as the api answers it (API-1)
+    data class Invalid(
+        val errors: List<ErrorMessage>,
+    ) : RedirectCreateResult
 
     data object UnknownBucket : RedirectCreateResult
 
@@ -37,19 +41,15 @@ sealed interface RedirectUpdateResult {
 
     data object NotFound : RedirectUpdateResult
 
-    // no valid domain or the source itself
-    data object InvalidDomain : RedirectUpdateResult
+    // the values do not fit: every problem as the api answers it (API-1)
+    data class Invalid(
+        val errors: List<ErrorMessage>,
+    ) : RedirectUpdateResult
 
     data object UnknownBucket : RedirectUpdateResult
 
     // the bucket is not served at a domain, there is nothing to redirect to
     data object BucketNotServed : RedirectUpdateResult
-}
-
-sealed interface RedirectDeleteResult {
-    data object Deleted : RedirectDeleteResult
-
-    data object NotFound : RedirectDeleteResult
 }
 
 // the domains caddy redirects, the only way to them; listeners hear of every change
@@ -109,12 +109,12 @@ class RedirectService(
     ): RedirectCreateResult {
         val source = sourceDomain.lowercase()
         if (!isValidDomain(source) || domains.isReserved(source) || buckets.bucketOfDomain(source) != null) {
-            return RedirectCreateResult.InvalidDomain
+            return RedirectCreateResult.Invalid(INVALID_DOMAINS)
         }
         val normalized =
             when (val checked = check(source, target)) {
                 is CheckedTarget.Valid -> checked.target
-                CheckedTarget.InvalidDomain -> return RedirectCreateResult.InvalidDomain
+                CheckedTarget.InvalidDomain -> return RedirectCreateResult.Invalid(INVALID_DOMAINS)
                 CheckedTarget.UnknownBucket -> return RedirectCreateResult.UnknownBucket
                 CheckedTarget.BucketNotServed -> return RedirectCreateResult.BucketNotServed
             }
@@ -134,7 +134,7 @@ class RedirectService(
         val normalized =
             when (val checked = check(source, target)) {
                 is CheckedTarget.Valid -> checked.target
-                CheckedTarget.InvalidDomain -> return RedirectUpdateResult.InvalidDomain
+                CheckedTarget.InvalidDomain -> return RedirectUpdateResult.Invalid(INVALID_TARGET)
                 CheckedTarget.UnknownBucket -> return RedirectUpdateResult.UnknownBucket
                 CheckedTarget.BucketNotServed -> return RedirectUpdateResult.BucketNotServed
             }
@@ -143,12 +143,20 @@ class RedirectService(
         return RedirectUpdateResult.Updated(updated)
     }
 
-    fun delete(sourceDomain: String): RedirectDeleteResult {
+    fun delete(sourceDomain: String): DeleteResult {
         if (!repository.delete(sourceDomain.lowercase())) {
-            return RedirectDeleteResult.NotFound
+            return DeleteResult.NotFound
         }
         changed()
-        return RedirectDeleteResult.Deleted
+        return DeleteResult.Deleted
+    }
+
+    private companion object {
+        // no valid domain, the source is the target, or a domain the backend or a bucket serves
+        val INVALID_DOMAINS = listOf(ErrorMessage(RedirectsTexts.INVALID_DOMAINS))
+
+        // no valid domain or the source itself
+        val INVALID_TARGET = listOf(ErrorMessage(RedirectsTexts.INVALID_TARGET))
     }
 
     private sealed interface CheckedTarget {

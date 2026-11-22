@@ -49,9 +49,6 @@ class OpenRouterManager(
     @Volatile
     private var clients: Clients? = null
 
-    // whether the apps may send data to openrouter at all
-    fun enabled(): Boolean = get(ENABLED) == true
-
     // null without an api key
     fun textRecognizer(): TextRecognizer? = clients()?.recognizer
 

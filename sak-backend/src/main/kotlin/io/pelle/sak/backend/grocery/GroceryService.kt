@@ -1,5 +1,11 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.backend.Checked
+import io.pelle.sak.backend.orElse
+import io.pelle.sak.backend.result
+import io.pelle.sak.backend.DeleteResult
+import io.pelle.sak.storage.BlobContent
+import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.TextKey
@@ -21,8 +27,8 @@ import io.pelle.sak.model.grocery.GroceryCategoryReorderResult
 import io.pelle.sak.model.grocery.GroceryCategoryValues
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryItemValues
+import io.pelle.sak.model.grocery.GroceryItemWriteResult
 import io.pelle.sak.model.lists.SakList
-import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.grocery.GrocerySuggestion
 import io.pelle.sak.model.grocery.GroceryRepository
 import kotlinx.coroutines.flow.Flow
@@ -50,15 +56,6 @@ enum class DefaultGroceryCategory(
         fun of(language: Language) = entries.map { GroceryCategoryValues(it.label.render(language), it.icon) }
     }
 }
-
-// what the user gives of an item
-data class GroceryItemInput(
-    val name: String,
-    val amount: BigDecimal?,
-    val unit: String?,
-    // a category of the item's list, none when null
-    val categoryId: Int?,
-)
 
 sealed interface GroceryCategorySaveResult {
     data class Saved(
@@ -111,12 +108,15 @@ sealed interface GroceryItemSaveResult {
 // GroceryRepository checks who sees and changes what (MODEL-6)
 class GroceryService(
     private val repository: GroceryRepository,
+    // the photos of the items are files of the file storage
+    private val files: FileService,
     private val changes: ListChanges = ListChanges(),
 ) : LoginListener {
     constructor(
         database: SakDatabase,
+        files: FileService,
         clock: Clock = Clock.systemUTC(),
-    ) : this(GroceryRepository(database, clock))
+    ) : this(GroceryRepository(database, clock), files)
 
     // the ids of the lists the user sees that change from now on, a list deleted included (LIST-4)
     fun changes(user: String): Flow<Int> = changes.of(user, repository::seesList)
@@ -153,8 +153,7 @@ class GroceryService(
         icon: String? = null,
         language: Language = Language.FALLBACK,
     ): ListSaveResult {
-        val (values, errors) = listValues(name, icon, GroceryTexts.LISTS)
-        if (errors.isNotEmpty()) return ListSaveResult.Invalid(errors)
+        val values = listValues(name, icon, GroceryTexts.LISTS).orElse { return ListSaveResult.Invalid(it) }
         return repository.insertList(user, values.name, shared, values.icon, DefaultGroceryCategory.of(language))?.let { ListSaveResult.Saved(changed(it)) }
             ?: ListSaveResult.Exists
     }
@@ -166,8 +165,7 @@ class GroceryService(
         shared: Boolean,
         icon: String? = null,
     ): ListSaveResult {
-        val (values, errors) = listValues(name, icon, GroceryTexts.LISTS)
-        if (errors.isNotEmpty()) return ListSaveResult.Invalid(errors)
+        val values = listValues(name, icon, GroceryTexts.LISTS).orElse { return ListSaveResult.Invalid(it) }
         return repository.updateList(user, id, values.name, shared, values.icon).also(changes::changed).result()
     }
 
@@ -175,7 +173,7 @@ class GroceryService(
     fun deleteList(
         user: String,
         id: Int,
-    ): ListDeleteResult = repository.deleteList(user, id).also { if (it == ListDeleteResult.Deleted) changes.changed(id) }
+    ): DeleteResult = repository.deleteList(user, id).result().also { if (it == DeleteResult.Deleted) changes.changed(id) }
 
     // the items to buy of a list the user sees, with checked also the latest bought item of each name
     // not to buy (GROCERY-14); null for another list. By the order of their category (GROCERY-13),
@@ -185,38 +183,30 @@ class GroceryService(
         user: String,
         listId: Int,
         checked: Boolean = false,
-    ): List<GroceryItem>? {
-        val items = repository.items(user, listId, checked) ?: return null
-        val order = repository.categories(user, listId).orEmpty().withIndex().associate { (index, category) -> category.id to index }
-        return items.sortedWith(
-            compareBy<GroceryItem>({ order[it.categoryId] ?: order.size }, { it.checkedAt != null })
-                .thenByDescending { it.checkedAt }
-                .thenBy { it.id },
-        )
-    }
+    ): List<GroceryItem>? = repository.items(user, listId, checked)
 
     // on a list the user sees (LIST-1); it takes the photo and, without one given, the category of
     // the latest item of its name (GROCERY-11). Its category is one of the list (GROCERY-13)
     fun addItem(
         user: String,
         listId: Int,
-        input: GroceryItemInput,
+        input: GroceryItemValues,
     ): GroceryItemSaveResult {
-        val values = itemValues(input).getOrElse { return GroceryItemSaveResult.Invalid(it) }
-        val categories = repository.categories(user, listId) ?: return GroceryItemSaveResult.UnknownList
-        if (unknownCategory(values.categoryId, categories)) return GroceryItemSaveResult.UnknownCategory
-        return repository.insertItem(user, listId, values)?.let { GroceryItemSaveResult.Saved(changed(it)) } ?: GroceryItemSaveResult.UnknownList
+        val values = itemValues(input).orElse { return GroceryItemSaveResult.Invalid(it) }
+        return when (val result = repository.insertItem(user, listId, values)) {
+            is GroceryItemWriteResult.Saved -> GroceryItemSaveResult.Saved(changed(result.item))
+            GroceryItemWriteResult.NotFound -> GroceryItemSaveResult.UnknownList
+            GroceryItemWriteResult.UnknownCategory -> GroceryItemSaveResult.UnknownCategory
+        }
     }
 
     fun updateItem(
         user: String,
         id: Int,
-        input: GroceryItemInput,
+        input: GroceryItemValues,
     ): GroceryItemSaveResult {
-        val values = itemValues(input).getOrElse { return GroceryItemSaveResult.Invalid(it) }
-        val listId = repository.item(user, id)?.listId ?: return GroceryItemSaveResult.NotFound
-        if (unknownCategory(values.categoryId, repository.categories(user, listId).orEmpty())) return GroceryItemSaveResult.UnknownCategory
-        return repository.updateItem(user, id, values)?.let { GroceryItemSaveResult.Saved(changed(it)) } ?: GroceryItemSaveResult.NotFound
+        val values = itemValues(input).orElse { return GroceryItemSaveResult.Invalid(it) }
+        return saved(repository.updateItem(user, id, values))
     }
 
     // the category of an item on a list the user sees: one of its list, or none; the next item of its
@@ -225,13 +215,15 @@ class GroceryService(
         user: String,
         id: Int,
         categoryId: Int?,
-    ): GroceryItemSaveResult {
-        val listId = repository.item(user, id)?.listId ?: return GroceryItemSaveResult.NotFound
-        if (unknownCategory(categoryId, repository.categories(user, listId).orEmpty())) return GroceryItemSaveResult.UnknownCategory
-        repository.setCategory(user, id, categoryId)?.let { return GroceryItemSaveResult.Saved(changed(it)) }
-        // the category went between the check and the write, or the item
-        return if (repository.item(user, id) != null) GroceryItemSaveResult.UnknownCategory else GroceryItemSaveResult.NotFound
-    }
+    ): GroceryItemSaveResult = saved(repository.setCategory(user, id, categoryId))
+
+    // of a change of an item
+    private fun saved(result: GroceryItemWriteResult): GroceryItemSaveResult =
+        when (result) {
+            is GroceryItemWriteResult.Saved -> GroceryItemSaveResult.Saved(changed(result.item))
+            GroceryItemWriteResult.NotFound -> GroceryItemSaveResult.NotFound
+            GroceryItemWriteResult.UnknownCategory -> GroceryItemSaveResult.UnknownCategory
+        }
 
     // the categories of a list the user sees, in their order; null for another one (GROCERY-13)
     fun categories(
@@ -246,7 +238,7 @@ class GroceryService(
         name: String,
         icon: String?,
     ): GroceryCategorySaveResult {
-        val values = categoryValues(name, icon).getOrElse { return GroceryCategorySaveResult.Invalid(it) }
+        val values = categoryValues(name, icon).orElse { return GroceryCategorySaveResult.Invalid(it) }
         return categoryResult(listId, repository.insertCategory(user, listId, values, MAX_CATEGORIES))
     }
 
@@ -257,7 +249,7 @@ class GroceryService(
         name: String,
         icon: String?,
     ): GroceryCategorySaveResult {
-        val values = categoryValues(name, icon).getOrElse { return GroceryCategorySaveResult.Invalid(it) }
+        val values = categoryValues(name, icon).orElse { return GroceryCategorySaveResult.Invalid(it) }
         return categoryResult(listId, repository.updateCategory(user, listId, id, values))
     }
 
@@ -267,7 +259,7 @@ class GroceryService(
         user: String,
         listId: Int,
         id: Int,
-    ): Boolean = repository.deleteCategory(user, listId, id).also { if (it) changes.changed(listId) }
+    ): DeleteResult = DeleteResult.of(repository.deleteCategory(user, listId, id).also { if (it) changes.changed(listId) })
 
     // the ids are all categories of a list the user sees, each once, in their new order
     fun orderCategories(
@@ -286,20 +278,13 @@ class GroceryService(
     fun checkItem(
         user: String,
         id: Int,
-    ): Boolean {
-        val listId = repository.item(user, id)?.takeIf { it.checkedAt == null }?.listId ?: return false
-        return repository.checkItem(user, id).also { if (it) changes.changed(listId) }
-    }
+    ): Boolean = repository.checkItem(user, id)?.let(::changed) != null
 
-    // to buy or bought, gone for good, by any user who sees its list; false when the user sees no
-    // such item
+    // to buy or bought, gone for good, by any user who sees its list
     fun deleteItem(
         user: String,
         id: Int,
-    ): Boolean {
-        val listId = repository.item(user, id)?.listId ?: return false
-        return repository.deleteItem(user, id).also { if (it) changes.changed(listId) }
-    }
+    ): DeleteResult = DeleteResult.of(repository.deleteItem(user, id)?.let(::changed) != null)
 
     // of an item to buy or bought on a list the user sees: an image the user uploaded, or none to
     // take it away; the next item of its name on the list takes it (GROCERY-12)
@@ -308,16 +293,28 @@ class GroceryService(
         id: Int,
         fileId: Int?,
     ): GroceryPhotoSetResult {
-        if (repository.item(user, id) == null) return GroceryPhotoSetResult.NotFound
-        return repository.setPhoto(user, id, fileId)?.let { GroceryPhotoSetResult.Set(changed(it)) } ?: GroceryPhotoSetResult.NotAPhoto
+        if (fileId != null && files.byId(user, fileId)?.contentType?.startsWith("image/") != true) {
+            // an item the user does not see is not found, whatever the file is
+            return if (repository.item(user, id) == null) GroceryPhotoSetResult.NotFound else GroceryPhotoSetResult.NotAPhoto
+        }
+        return repository.setPhoto(user, id, fileId)?.let { GroceryPhotoSetResult.Set(changed(it)) } ?: GroceryPhotoSetResult.NotFound
     }
 
-    // the file of the photo of an item the user sees, when it is that photo
-    fun photo(
+    // the photo of an item the user sees, when the file is that photo: scaled to the smallest of the
+    // sizes of the file storage that is at least `size` pixels, a jpeg; larger, or without a size, the
+    // photo itself. Null when there is no such photo
+    fun photoContent(
         user: String,
         id: Int,
         fileId: Int,
-    ): StoredFile? = repository.photo(user, id, fileId)
+        size: Int?,
+    ): GroceryPhotoContent? {
+        val file = repository.photo(user, id, fileId) ?: return null
+        return when (val scaled = size?.let(FileService::scaledSize)) {
+            null -> files.content(file)?.let { GroceryPhotoContent(it, file.contentType) }
+            else -> files.thumbnail(file, scaled)?.let { GroceryPhotoContent(it, JPEG) }
+        }
+    }
 
     // a page of the names added to the list before whose name contains the text, the ones added most
     // and last first; the ones to buy on the list are left out. Null when the user does not see the
@@ -339,7 +336,7 @@ class GroceryService(
         user: String,
         listId: Int,
         id: Int,
-    ): Boolean = repository.forget(user, listId, id).also { if (it) changes.changed(listId) }
+    ): DeleteResult = DeleteResult.of(repository.forget(user, listId, id).also { if (it) changes.changed(listId) })
 
     private fun categoryResult(
         listId: Int,
@@ -356,7 +353,7 @@ class GroceryService(
     private fun categoryValues(
         name: String,
         icon: String?,
-    ): Result<GroceryCategoryValues, List<ErrorMessage>> {
+    ): Checked<GroceryCategoryValues> {
         val normalized = name.trim()
         val emoji = icon?.trim()?.ifEmpty { null }
         val errors =
@@ -368,19 +365,14 @@ class GroceryService(
                 },
                 emoji?.takeUnless(::isOneEmoji)?.let { ErrorMessage(GroceryTexts.INVALID_ICON) },
             )
-        return if (errors.isEmpty()) Result.Ok(GroceryCategoryValues(normalized, emoji)) else Result.Err(errors)
+        return if (errors.isEmpty()) Checked.Valid(GroceryCategoryValues(normalized, emoji)) else Checked.Invalid(errors)
     }
-
-    private fun unknownCategory(
-        categoryId: Int?,
-        categories: List<GroceryCategory>,
-    ) = categoryId != null && categories.none { it.id == categoryId }
 
     private fun changed(list: SakList) = list.also { changes.changed(it.id) }
 
     private fun changed(item: GroceryItem) = item.also { changes.changed(it.listId) }
 
-    private fun itemValues(input: GroceryItemInput): Result<GroceryItemValues, List<ErrorMessage>> {
+    private fun itemValues(input: GroceryItemValues): Checked<GroceryItemValues> {
         val name = input.name.trim()
         val unit = input.unit?.trim()?.ifEmpty { null }
         val amount = input.amount?.stripTrailingZeros()
@@ -403,26 +395,10 @@ class GroceryService(
                 },
                 if (unit != null && amount == null) ErrorMessage(GroceryTexts.UNIT_WITHOUT_AMOUNT) else null,
             )
-        return if (errors.isEmpty()) Result.Ok(GroceryItemValues(name, amount, unit, input.categoryId)) else Result.Err(errors)
+        return if (errors.isEmpty()) Checked.Valid(GroceryItemValues(name, amount, unit, input.categoryId)) else Checked.Invalid(errors)
     }
 
     // the values of an item or why they are not valid
-    private sealed interface Result<out T, out E> {
-        data class Ok<T>(
-            val value: T,
-        ) : Result<T, Nothing>
-
-        data class Err<E>(
-            val error: E,
-        ) : Result<Nothing, E>
-    }
-
-    private inline fun <T, E> Result<T, E>.getOrElse(handle: (E) -> T): T =
-        when (this) {
-            is Result.Ok -> value
-            is Result.Err -> handle(error)
-        }
-
     companion object {
         const val MAX_ITEM_NAME_LENGTH = 128
 
@@ -436,6 +412,14 @@ class GroceryService(
         const val MAX_CATEGORIES = 30
     }
 }
+
+// the photo of an item to serve: its bytes and their type
+class GroceryPhotoContent(
+    val content: BlobContent,
+    val contentType: String,
+)
+
+private const val JPEG = "image/jpeg"
 
 sealed interface GroceryPhotoSetResult {
     data class Set(

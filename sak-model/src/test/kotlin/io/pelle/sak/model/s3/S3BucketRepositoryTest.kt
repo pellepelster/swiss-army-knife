@@ -128,9 +128,10 @@ class S3BucketRepositoryTest {
         repository.bucketOfDomain("new.example.org") shouldBe null
         database.dsl.selectFrom(S3_BUCKETS).fetchOne()!!.updatedAt shouldBe null
 
-        // the access key id of a bucket stays taken, also of the deleted one
-        repository.insert("other", "AKIASITE", "SECRETAKIAOTHER", owner = OWNER) shouldBe BucketInsertResult.AccessKeyTaken
-        repository.byName("other") shouldBe null
+        // the access key id of a deleted bucket is free again (MODEL-3), the one of a live bucket is taken
+        repository.insert("other", "AKIASITE", "SECRETAKIAOTHER", owner = OWNER).shouldBeInstanceOf<BucketInsertResult.Inserted>()
+        repository.insert("third", "AKIASITE", "SECRETAKIATHIRD", owner = OWNER) shouldBe BucketInsertResult.AccessKeyTaken
+        repository.byName("third") shouldBe null
     }
 
     // a random that draws the resource ids in the order given

@@ -1,8 +1,11 @@
 package io.pelle.sak.backend.labels
 
+import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.api.Page
 import io.pelle.sak.model.labels.Label
+import io.pelle.sak.model.labels.LabelLinks
 import io.pelle.sak.model.labels.LabelRepository
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
@@ -13,7 +16,10 @@ sealed interface LabelCreateResult {
         val label: Label,
     ) : LabelCreateResult
 
-    data object InvalidName : LabelCreateResult
+    // the values do not fit: every problem as the api answers it (API-1)
+    data class Invalid(
+        val errors: List<ErrorMessage>,
+    ) : LabelCreateResult
 
     data object Exists : LabelCreateResult
 }
@@ -25,19 +31,16 @@ sealed interface LabelRenameResult {
 
     data object NotFound : LabelRenameResult
 
-    data object InvalidName : LabelRenameResult
+    // the values do not fit: every problem as the api answers it (API-1)
+    data class Invalid(
+        val errors: List<ErrorMessage>,
+    ) : LabelRenameResult
 
     data object Exists : LabelRenameResult
 }
 
-sealed interface LabelDeleteResult {
-    data object Deleted : LabelDeleteResult
-
-    data object NotFound : LabelDeleteResult
-}
-
 // the only way to the labels of a user (the owner); every app shares them, no other user sees them.
-// The apps that link labels hear of every deleted one to drop their links to it
+// The links of the apps to a label are dropped with it (SHARED-2)
 class LabelService(
     private val repository: LabelRepository,
 ) {
@@ -46,10 +49,11 @@ class LabelService(
         clock: Clock = Clock.systemUTC(),
     ) : this(LabelRepository(database, clock))
 
-    private val deleteListeners = CopyOnWriteArrayList<(owner: String, id: Int) -> Unit>()
+    private val links = CopyOnWriteArrayList<LabelLinks>()
 
-    fun onDelete(listener: (owner: String, id: Int) -> Unit) {
-        deleteListeners.add(listener)
+    // an app that links labels: its links to a label go with the label, in one transaction
+    fun linkedBy(links: LabelLinks) {
+        this.links.add(links)
     }
 
     // sorted by name
@@ -78,7 +82,7 @@ class LabelService(
         owner: String,
         name: String,
     ): LabelCreateResult {
-        val normalized = normalize(name) ?: return LabelCreateResult.InvalidName
+        val normalized = normalize(name) ?: return LabelCreateResult.Invalid(listOf(INVALID_LABEL_NAME))
         val label = repository.insert(owner, normalized) ?: return LabelCreateResult.Exists
         return LabelCreateResult.Created(label)
     }
@@ -89,7 +93,7 @@ class LabelService(
         name: String,
     ): LabelRenameResult {
         val label = repository.byId(owner, id) ?: return LabelRenameResult.NotFound
-        val normalized = normalize(name) ?: return LabelRenameResult.InvalidName
+        val normalized = normalize(name) ?: return LabelRenameResult.Invalid(listOf(INVALID_LABEL_NAME))
         if (normalized == label.name) return LabelRenameResult.Renamed(label)
         // deleted meanwhile, or another label got the name
         return when (val renamed = repository.rename(owner, id, normalized)) {
@@ -99,15 +103,11 @@ class LabelService(
         }
     }
 
-    // the label stays as deleted, the links to it are dropped by the applications
+    // the label stays as deleted, the links of the apps to it are dropped with it
     fun delete(
         owner: String,
         id: Int,
-    ): LabelDeleteResult {
-        if (!repository.delete(owner, id)) return LabelDeleteResult.NotFound
-        deleteListeners.forEach { it(owner, id) }
-        return LabelDeleteResult.Deleted
-    }
+    ): DeleteResult = DeleteResult.of(repository.delete(owner, id, links))
 
     // the names normalized by the caller; the missing labels are created; sorted by name
     fun resolve(

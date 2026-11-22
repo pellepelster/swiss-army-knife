@@ -36,7 +36,7 @@ class OpenRouterManagerTest {
 
     @Test
     fun `is off and has no clients until an admin turns it on and sets an api key`() {
-        manager.enabled() shouldBe false
+        (manager.get(OpenRouterManager.ENABLED) == true) shouldBe false
         manager.textRecognizer() shouldBe null
         manager.speechTranscriber() shouldBe null
 
@@ -68,7 +68,7 @@ class OpenRouterManagerTest {
     @Test
     fun `it is not turned on without an api key`() {
         manager.set(OpenRouterManager.ENABLED, true) shouldBe ErrorMessage(OpenRouterTexts.KEY_MISSING)
-        manager.enabled() shouldBe false
+        (manager.get(OpenRouterManager.ENABLED) == true) shouldBe false
         checked shouldBe emptyList()
     }
 
@@ -87,7 +87,7 @@ class OpenRouterManagerTest {
         manager.set(OpenRouterManager.ENABLED, false)
         manager.set(OpenRouterManager.API_KEY, "bad key") shouldBe null
         manager.set(OpenRouterManager.ENABLED, true) shouldBe ErrorMessage(OpenRouterTexts.KEY_REFUSED)
-        manager.enabled() shouldBe false
+        (manager.get(OpenRouterManager.ENABLED) == true) shouldBe false
     }
 
     @Test

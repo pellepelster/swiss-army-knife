@@ -9,10 +9,10 @@ weight: 12
 
 **Created:** 2026-11-22
 
-**Checked again:** 2026-11-22, after the fixes of `BA-1`, `BA-2`, `BA-3`, `BA-6`, `BA-9`, `BA-10`, `BA-11`, `BA-12`,
-`BA-13`, `BA-14`, `BA-19`, `BA-20`, `BA-22` and `BA-30`, and of `BA-4`, which are in the history of git; `BA-7` and
-`BA-23` list what is left of them. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a
-route `GET /settings` of their own, an app owns its settings endpoint.
+**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-7`, `BA-9` to `BA-14`, `BA-19`, `BA-20`, `BA-22`,
+`BA-26` and `BA-30`, which are in the history of git; `BA-23`, `BA-27`, `BA-28` and `BA-29` list what is left of
+them. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a route `GET /settings` of
+their own, an app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -36,28 +36,6 @@ manager (`EXT-1`). All binary data goes through `BinaryStorage`, and files, buck
 found by their resource id only.
 
 ## Should fix: the code breaks a rule
-
-### `BA-5` Routes and the start do the work of a service (`LAYER-1`)
-
-- `backend/users/SakUsers.kt:91-110`: the route of the app link normalizes the address, looks for the user, sends the
-  mail and logs.
-- `backend/grocery/SakGrocery.kt:652-675`: the route of a photo combines `GroceryService` and `FileService` and
-  chooses the content type; `Route.grocery` takes the `FileService` only for it.
-- Routes take a store next to their service: `ResticStore` for the size of a repository
-  (`backend/restic/SakRestic.kt:70-73,206,225`), `BucketStatisticsCache` (`backend/hosting/SakBuckets.kt:52,276-284`).
-- `backend/SakBackend.kt` warms the statistics of the buckets and starts the job of the unfinished uploads
-  (`hosting/StaleUploads.kt`); no class of `hosting/` owns the two.
-
-Fix: `UserService.sendAppLink`, `GroceryService.photoContent`, a size function on the two services, and a class of
-`hosting/` that starts its own jobs.
-
-### `BA-7` The access key id of a deleted bucket stays taken (`MODEL-3`)
-
-`access_key_id` of `s3_buckets` is unique over the deleted rows too (`0001-initial.yaml:25-30`), though `MODEL-3` keeps
-only the name of a deleted bucket taken. No request can see it: a new key pair that meets one is drawn again
-(`S3BucketService`, one in 2^100).
-
-Fix: a partial index over the live rows, which in sqlite rebuilds the table the domains and the redirects refer to.
 
 ### `BA-8` The compiler does not keep jOOQ in `sak-model` (`MODEL-2`, checked)
 
@@ -127,19 +105,15 @@ Fix: the routes of a list and one request and response class in `lists/`; the ch
 
 ## Could fix: inconsistencies
 
-### `BA-23` A service and a repository answer an outcome in many shapes
+### `BA-23` A repository answers an outcome in several shapes
 
-Every result type is named `<Entity><Verb>Result` now. What is left:
+The services answer in one form now: a sealed result named `<Entity><Verb>Result`, a validation failure with its
+`ErrorMessage`s, one `DeleteResult` for every delete and purge. What is left is in the repositories: a failure is
+`null`, a sealed result or a `Boolean`, by the repository (`GroceryRepository.deleteItem` and `checkItem` answer a
+`Boolean`, `TodoRepository.deleteItem` the row, `NoteRepository.delete` a `Boolean`). `GroceryService.checkItem` passes
+its `Boolean` on.
 
-- Services: next to the sealed results a `Boolean`, `null`, an `Int?` no route reads, and an exception for a case of
-  the domain (`S3BucketService`, `replaceKeyPair`). Some results hold the finished `ErrorMessage`s, for others the
-  route builds the text (the notes, the labels); "values or errors" has four forms (`Lists.kt`, `GroceryService`,
-  `TodoService`, `NoteService`).
-- Repositories: `null`, a sealed result, or a `Boolean` that means "not there" and "taken" at once
-  (`S3BucketRepository.replaceKeyPair`, which makes the service read again).
-- A delete has a result type of its own in each app (`NoteDeleteResult`, `LabelDeleteResult`, `ListDeleteResult`).
-
-Fix: a sealed result with the errors in it wherever there is more than one way to fail, and one type for a delete.
+Fix: a repository answers the row for a change, a sealed result where there is more than one way to fail.
 
 ### `BA-24` Where a thing lives and what it is called
 
@@ -174,47 +148,24 @@ path.
 
 ## Could fix: smells
 
-### `BA-26` The start builds things twice and hands 20 services over by their position
+### `BA-27` Two classes of the settings differ by one letter
 
-`rolesOf` is built in `backend/SakBackend.kt` and in `backend/SakApps.kt:155`, `loginApp(config)` three times in
-`SakApps.kt`, the limiter of OpenRouter in `SakApps.kt` and again as the default of two route functions.
-`SakServices` has 20 fields, set by position; next to services it holds a cache, a store, a manager and a storage.
+`SettingService` (the store of all values) and `SettingsService` (the settings of one scope) are in files of their own
+now, with their names. The bullets of AGENT.md name both classes, so a new name is a change of AGENT.md.
 
-Fix: build each once and name the arguments.
+Fix: agree on a name, e.g. `SettingStore` for the store, and change AGENT.md with it.
 
-### `BA-27` Classes and functions that do too much
+### `BA-28` The repository of the groceries reads the table of the files
 
-- `backend/files/FileService.kt`: the service, and in its companion the checks of a recording, the decoding and
-  scaling of an image, the drawing of a waveform and the type of a file (250 lines).
-- `backend/settings/Settings.kt`: `SettingService`, `SettingsService`, `StoredSettingsService` and `SettingsRegistry`
-  with ten more types in one file; two names differ by one letter.
-- `listObjects` of `BinaryStorageS3Backend` (69 lines), the 12 catches of `S3Routes.kt:112-147`.
-- `NoteService` writes to the database in its constructor: it removes the links of deleted labels, because a delete
-  of a label and the removal of its links are two transactions (`backend/labels/LabelService.kt:103-110`).
+`GroceryRepository.photo` joins the table of the files to answer the file of the photo of an item, whoever uploaded
+it. `FileService` hands a file to its owner only, so the service can not ask it for the photo of a shared list.
 
-### `BA-28` The groceries: the service repairs what the repository answers
+Fix: `FileService` answers a file for a caller that checked the access, and `GroceryRepository` only the id.
 
-- `checkItem`, `deleteItem` and `setPhoto` answer a `Boolean` or a `null` with two meanings, so `GroceryService`
-  reads the item before or after the write (`GroceryService.kt:226-230,287-298,308-309`). The todo lists answer the
-  row of the update.
-- The category of an item is checked in the service and again in the repository, which drops an unknown one in two
-  places and refuses it in a third.
-- The values of an item pass three classes with the same fields.
-- The order of the items is made in the service with a second read; the todo lists order in sql.
-- The repository reads the table of the files and checks that a photo is an image
-  (`model/grocery/GroceryRepository.kt:493-536`); for the notes the service does it through `FileService`.
+### `BA-29` A column nobody reads
 
-Fix: the repository answers the item and a result with the cases; `GroceryService` asks `FileService` for the photo.
-
-### `BA-29` Code nobody calls, and comments that say another thing
-
-- No caller outside the tests: `OpenRouterManager.enabled()`, `SettingService.delete`; `timesUsed` and `lastUsedAt`
-  of a suggestion are filled and never read (checked).
-- `User.updatedAt` and `SettingRow.updatedAt` are always null; `redirects.id` is never read.
-- The descriptions of `PUT /lists/{id}` say every user who sees a list renames it; the code and `LIST-2` say the
-  owner.
-- `backend/SakApps.kt:94` says `<root_domain>` and passes the base domain.
-- `SakBuckets.kt`, `SakRedirects.kt` and `SakFiles.kt` import classes of their own package.
+`redirects.id` is never read: a redirect is found by its source domain. The column goes with a changeset that makes
+the table again.
 
 ## Not checked
 

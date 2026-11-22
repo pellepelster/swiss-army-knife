@@ -1,5 +1,9 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.model.s3.BucketKeyPairUpdateResult
+import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.s3.storage.BinaryStorageS3Backend
+import io.pelle.sak.backend.BackgroundJobs
 import io.pelle.sak.s3.storage.isValidBucketName
 import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
@@ -24,18 +28,28 @@ sealed interface BucketCreateResult {
         val bucket: S3Bucket,
     ) : BucketCreateResult
 
-    data object InvalidName : BucketCreateResult
+    // the values do not fit: every problem as the api answers it (API-1)
+    data class Invalid(
+        val errors: List<ErrorMessage>,
+    ) : BucketCreateResult
 
-    data object NameTaken : BucketCreateResult
+    // a bucket of the name exists, also a deleted one
+    data object Exists : BucketCreateResult
 
     // <name>.<base_domain> is a domain of another bucket, a redirect or the backend
     data object SubdomainTaken : BucketCreateResult
 
-    // no valid domain, or one the backend serves itself or redirects
-    data object InvalidDomain : BucketCreateResult
-
     // another bucket is served at it
     data object DomainTaken : BucketCreateResult
+}
+
+sealed interface BucketKeyPairReplaceResult {
+    data class Replaced(
+        val accessKeyId: String,
+        val secretAccessKey: Secret,
+    ) : BucketKeyPairReplaceResult
+
+    data object NotFound : BucketKeyPairReplaceResult
 }
 
 sealed interface BucketDeleteResult {
@@ -56,7 +70,10 @@ sealed interface BucketDomainsUpdateResult {
 
     data object NotFound : BucketDomainsUpdateResult
 
-    data object InvalidDomain : BucketDomainsUpdateResult
+    // the values do not fit: every problem as the api answers it (API-1)
+    data class Invalid(
+        val errors: List<ErrorMessage>,
+    ) : BucketDomainsUpdateResult
 
     data object DomainTaken : BucketDomainsUpdateResult
 }
@@ -73,6 +90,8 @@ class S3BucketService(
     internal val domains: DomainRegistry,
     // the storage of the buckets, none where only their rows are needed
     private val storage: BinaryStorage? = null,
+    // the counts of the objects of the buckets, none where only their rows are needed
+    private val statistics: BucketStatisticsCache? = null,
 ) {
     // a bucket is never given a resource id whose directory is in the storage (MODEL-8)
     constructor(
@@ -82,7 +101,8 @@ class S3BucketService(
         reservedNames: Set<String> = emptySet(),
         domains: DomainRegistry = DomainRegistry(),
         storage: BinaryStorage? = null,
-    ) : this(S3BucketRepository(database, clock, free = { storage?.isFree(it) != false }), baseDomain, reservedNames, domains, storage)
+        statistics: BucketStatisticsCache? = null,
+    ) : this(S3BucketRepository(database, clock, free = { storage?.isFree(it) != false }), baseDomain, reservedNames, domains, storage, statistics)
 
     private val random = SecureRandom()
 
@@ -105,6 +125,23 @@ class S3BucketService(
     // the directories of the storage that are named as a resource id no bucket has, e.g. left by a
     // restore of the instance (MODEL-8); they are kept, and no new bucket gets one of them
     fun leftovers(): List<String> = storage?.leftovers(repository.resourceIds()).orEmpty()
+
+    // how many objects the bucket has and their bytes (HOSTING-3); null while they are counted, it
+    // waits only a moment for them
+    suspend fun statistics(name: String): BucketStatistics? = statistics?.get(name)
+
+    // what the buckets do on their own: their objects are counted now, so the first look at them does
+    // not wait, and the unfinished uploads go every STALE_UPLOAD_CHECK. objects is where the s3 api
+    // keeps them
+    fun start(
+        jobs: BackgroundJobs,
+        objects: BinaryStorageS3Backend,
+    ) {
+        statistics?.warm(all().map { it.name })
+        jobs.every("remove the unfinished uploads of the buckets", STALE_UPLOAD_CHECK) {
+            removeStaleUploads(objects, this) { statistics?.invalidate(it) }
+        }
+    }
 
     // the secret of the key pair, for sigv4 to verify the requests signed with it
     fun secretAccessKey(accessKeyId: String): Secret? =
@@ -139,17 +176,17 @@ class S3BucketService(
         owner: String,
     ): BucketCreateResult {
         if (!isValidName(name) || name in reservedNames) {
-            return BucketCreateResult.InvalidName
+            return BucketCreateResult.Invalid(listOf(ErrorMessage(HostingTexts.INVALID_NAME)))
         }
         if (repository.byName(name) != null) {
-            return BucketCreateResult.NameTaken
+            return BucketCreateResult.Exists
         }
         if (subdomain(name)?.let { !available(it) || repository.bucketOfDomain(it) != null } == true) {
             return BucketCreateResult.SubdomainTaken
         }
         val normalized =
             when (val checked = checkDomains(name, domains)) {
-                DomainCheck.Invalid -> return BucketCreateResult.InvalidDomain
+                DomainCheck.Invalid -> return BucketCreateResult.Invalid(INVALID_DOMAIN)
                 DomainCheck.Taken -> return BucketCreateResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
@@ -158,10 +195,12 @@ class S3BucketService(
         repeat(KEY_DRAWS) {
             when (val inserted = repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized, owner)) {
                 is BucketInsertResult.Inserted -> {
+                    // counted at once, the page that shows the new bucket does not wait
+                    statistics?.warm(listOf(inserted.bucket.name))
                     if (servedDomains(inserted.bucket).isNotEmpty()) changed()
                     return BucketCreateResult.Created(inserted.bucket)
                 }
-                BucketInsertResult.NameTaken -> return BucketCreateResult.NameTaken
+                BucketInsertResult.NameTaken -> return BucketCreateResult.Exists
                 BucketInsertResult.DomainTaken -> return BucketCreateResult.DomainTaken
                 BucketInsertResult.AccessKeyTaken -> Unit
             }
@@ -169,16 +208,17 @@ class S3BucketService(
         error("no free access key id for the bucket $name")
     }
 
-    // the old key pair stops working at once, so a leaked one ends without the bucket; null for an
-    // unknown bucket
-    fun replaceKeyPair(name: String): Pair<String, Secret>? {
-        if (repository.byName(name) == null) return null
+    // the old key pair stops working at once, so a leaked one ends without the bucket
+    fun replaceKeyPair(name: String): BucketKeyPairReplaceResult {
         // an access key id another bucket has (one in 2^100) is drawn again
         repeat(KEY_DRAWS) {
             val accessKeyId = key(ACCESS_KEY_ALPHABET, 20)
             val secret = key(SECRET_ALPHABET, 40)
-            if (repository.replaceKeyPair(name, accessKeyId, secret)) return accessKeyId to Secret(secret)
-            if (repository.byName(name) == null) return null
+            when (repository.replaceKeyPair(name, accessKeyId, secret)) {
+                BucketKeyPairUpdateResult.Replaced -> return BucketKeyPairReplaceResult.Replaced(accessKeyId, Secret(secret))
+                BucketKeyPairUpdateResult.NotFound -> return BucketKeyPairReplaceResult.NotFound
+                BucketKeyPairUpdateResult.AccessKeyTaken -> Unit
+            }
         }
         error("no free access key id for the bucket $name")
     }
@@ -193,7 +233,7 @@ class S3BucketService(
         val bucket = repository.byName(name) ?: return BucketDomainsUpdateResult.NotFound
         val normalized =
             when (val checked = checkDomains(name, domains)) {
-                DomainCheck.Invalid -> return BucketDomainsUpdateResult.InvalidDomain
+                DomainCheck.Invalid -> return BucketDomainsUpdateResult.Invalid(INVALID_DOMAIN)
                 DomainCheck.Taken -> return BucketDomainsUpdateResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
@@ -256,6 +296,9 @@ class S3BucketService(
         private const val ACCESS_KEY_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 
         private const val SECRET_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+        // no valid domain, or one the backend serves itself or redirects
+        private val INVALID_DOMAIN = listOf(ErrorMessage(HostingTexts.INVALID_DOMAIN))
 
         // how often a key pair is drawn until its access key id is free
         private const val KEY_DRAWS = 3

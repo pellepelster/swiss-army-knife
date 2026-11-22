@@ -69,8 +69,8 @@ fun resticUrl(
 
 private fun ResticRepository.response(
     apiHost: String,
-    store: ResticStore,
-) = ResticRepositoryResponse(id, name, resticUrl(apiHost, id), store.usage(resourceId), createdAt.apiTime())
+    usage: Long,
+) = ResticRepositoryResponse(id, name, resticUrl(apiHost, id), usage, createdAt.apiTime())
 
 private fun ResticBackupPlan.response() =
     ResticBackupPlanResponse(
@@ -108,7 +108,6 @@ private suspend fun ApplicationCall.respondPlan(
 fun Route.restic(
     service: ResticRepositoryService,
     plans: ResticBackupPlanService,
-    store: ResticStore,
     apiHost: String,
 ) {
     installApi()
@@ -203,7 +202,7 @@ fun Route.restic(
         get {
             val page = call.pageRequest() ?: return@get
             // cut before the sizes are looked up
-            val repositories = withContext(Dispatchers.IO) { page.of(service.repositories(call.owner)).map { it.response(apiHost, store) } }
+            val repositories = withContext(Dispatchers.IO) { page.of(service.repositories(call.owner)).map { it.response(apiHost, service.usage(it)) } }
             call.respond(page.of(repositories))
         }.describe {
             tag(RESTIC_TAG)
@@ -222,8 +221,8 @@ fun Route.restic(
         post {
             val request = call.receive<ResticRepositoryRequest>()
             when (val created = withContext(Dispatchers.IO) { service.create(call.owner, request.name) }) {
-                is ResticRepositoryCreateResult.Created -> call.respond(HttpStatusCode.Created, created.repository.response(apiHost, store))
-                ResticRepositoryCreateResult.InvalidName -> call.respondErrors(ResticTexts.INVALID_NAME)
+                is ResticRepositoryCreateResult.Created -> call.respond(HttpStatusCode.Created, created.repository.response(apiHost, withContext(Dispatchers.IO) { service.usage(created.repository) }))
+                is ResticRepositoryCreateResult.Invalid -> call.respondErrors(created.errors)
                 ResticRepositoryCreateResult.Exists -> call.respondErrors(ResticTexts.REPOSITORY_EXISTS, status = HttpStatusCode.Conflict)
             }
         }.describe {

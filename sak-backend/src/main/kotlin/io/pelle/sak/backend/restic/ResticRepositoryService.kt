@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.isDnsLabel
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.Language
@@ -19,7 +20,10 @@ sealed interface ResticRepositoryCreateResult {
         val repository: ResticRepository,
     ) : ResticRepositoryCreateResult
 
-    data object InvalidName : ResticRepositoryCreateResult
+    // the values do not fit: every problem as the api answers it (API-1)
+    data class Invalid(
+        val errors: List<ErrorMessage>,
+    ) : ResticRepositoryCreateResult
 
     // the user has a repository of the name
     data object Exists : ResticRepositoryCreateResult
@@ -31,6 +35,8 @@ class ResticRepositoryService(
     // whether an owner may still sign in: a removed user, or an admin no longer in the configuration,
     // reaches no repository of theirs (BK-8); asked on every login of restic
     private val mayLogin: (owner: String) -> Boolean,
+    // where the files of the repositories are, none where only their rows are needed
+    private val store: ResticStore? = null,
     private val random: SecureRandom = SecureRandom(),
 ) : LoginListener {
     // a repository is never given a resource id whose directory is in `store` (MODEL-8)
@@ -39,7 +45,10 @@ class ResticRepositoryService(
         mayLogin: (owner: String) -> Boolean,
         store: ResticStore? = null,
         clock: Clock = Clock.systemUTC(),
-    ) : this(ResticRepositoryRepository(database, clock, free = { store?.exists(it) != true }), mayLogin)
+    ) : this(ResticRepositoryRepository(database, clock, free = { store?.exists(it) != true }), mayLogin, store)
+
+    // the bytes the files of the repository take on the data volume (BK-16), 0 without a store
+    fun usage(repository: ResticRepository): Long = store?.usage(repository.resourceId) ?: 0
 
     fun repositories(user: String): List<ResticRepository> = repository.of(user)
 
@@ -64,7 +73,7 @@ class ResticRepositoryService(
         name: String,
     ): ResticRepositoryCreateResult {
         val trimmed = name.trim()
-        if (!isDnsLabel(trimmed)) return ResticRepositoryCreateResult.InvalidName
+        if (!isDnsLabel(trimmed)) return ResticRepositoryCreateResult.Invalid(listOf(ErrorMessage(ResticTexts.INVALID_NAME)))
         val token = newToken()
         return when (val inserted = repository.insert(user, trimmed, token)) {
             is ResticRepositoryInsertResult.Inserted -> ResticRepositoryCreateResult.Created(inserted.repository)

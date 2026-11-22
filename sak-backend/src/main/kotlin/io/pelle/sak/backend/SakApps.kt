@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.backend.users.AppLinkService
 import io.pelle.sak.backend.users.users
 import io.pelle.sak.backend.config.deployment
 import io.ktor.http.HttpHeaders
@@ -91,7 +92,7 @@ fun contentSecurityPolicy(config: SakConfig) =
 fun frontendOrigins(config: SakConfig): Set<URI> =
     setOf(URI("https://${config.frontendHost}"), URI(config.frontendUrl).let { URI(it.scheme, null, it.host, it.port, null, null, null) })
 
-// the apps the login links lead to, sak-frontend; the mails say "Sign in to <root_domain>"
+// the apps the login links lead to, sak-frontend; the mails say "Sign in to <base_domain>"
 fun loginApp(config: SakConfig) = LoginApp(config.frontendUrl, config.baseDomain)
 
 
@@ -152,7 +153,10 @@ fun Application.apps(
         }
     val adminPassword = auth.adminPassword?.let(::AdminPassword)
     val admin = adminOf(auth)
-    val rolesOf = rolesOf(auth, userService)
+    // made with the services, which ask it too; there is a login, so there are roles
+    val rolesOf = checkNotNull(services.rolesOf) { "no roles without a login" }
+    // what the mails and the pages call the deployment and where they lead
+    val loginApp = loginApp(config)
     // every app that prepares the data of a user who signs in: the first list of each list-based app (LIST-1)
     val onLogin = LoginListener { owner, language -> loginListeners.forEach { it.signedIn(owner, language) } }
 
@@ -188,7 +192,7 @@ fun Application.apps(
                     route("/auth") {
                         route("/login") {
                             if (mailSender != null) {
-                                login(tokens, mailSender, loginApp(config), rolesOf, onLogin = onLogin)
+                                login(tokens, mailSender, loginApp, rolesOf, onLogin = onLogin)
                             }
                             if (adminPassword != null) {
                                 passwordLogin(tokens, admin, adminPassword, rolesOf, onLogin = onLogin)
@@ -198,13 +202,13 @@ fun Application.apps(
                         }
                         authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
                             whoAmI(nameOf = userService::name)
-                            connect(tokens, loginApp(config))
+                            connect(tokens, loginApp)
                         }
                     }
                     authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
                         route("/static-hosting") {
                             requireRole(Role.ADMIN)
-                            buckets(bucketService, statistics)
+                            buckets(bucketService)
                             // the access logs of all the domains a bucket is served at
                             route("/{bucket}/access-logs") {
                                 accessLogs(
@@ -228,7 +232,7 @@ fun Application.apps(
                         }
                         route("/grocery") {
                             requireRole(Role.ADMIN, Role.USER)
-                            grocery(groceryService, fileService, groceryDiscovery, discoverLimiter)
+                            grocery(groceryService, groceryDiscovery, discoverLimiter)
                         }
                         route("/todo") {
                             requireRole(Role.ADMIN, Role.USER)
@@ -236,11 +240,11 @@ fun Application.apps(
                         }
                         route("/restic") {
                             requireRole(Role.ADMIN, Role.USER)
-                            restic(resticService, resticBackupPlanService, resticStore, config.apiHost)
+                            restic(resticService, resticBackupPlanService, config.apiHost)
                         }
                         route("/users") {
                             requireRole(Role.ADMIN)
-                            users(userService, mailSender?.let { AppLinkMailer(it, loginApp(config)) })
+                            users(userService, AppLinkService(userService, mailSender?.let { AppLinkMailer(it, loginApp) }))
                         }
                         route("/settings") {
                             requireRole(Role.ADMIN)

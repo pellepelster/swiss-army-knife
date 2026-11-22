@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.users
 
+import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.api.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
@@ -34,12 +35,11 @@ private fun UserEntry.response() = UserResponse(id, email, name, configured)
 
 private val logger = KotlinLogging.logger {}
 
-// the users who may sign in, meant to be mounted behind the authentication with the role admin;
-// without a mail server (single user mode) no links of the android apps are sent
+// the users who may sign in, meant to be mounted behind the authentication with the role admin
 @OptIn(ExperimentalKtorApi::class)
 fun Route.users(
     userService: UserService,
-    appLinks: AppLinkMailer?,
+    appLinks: AppLinkService,
 ) {
     installApi()
 
@@ -89,25 +89,14 @@ fun Route.users(
     }
 
     post("/app-link") {
-        val email = UserService.normalize(call.receive<AppLinkRequest>().email)
-        if (appLinks == null) {
-            call.respondErrors(UsersTexts.NO_MAIL_SERVER, status = HttpStatusCode.Conflict)
-            return@post
-        }
-        // the address of the body, no resource of the path (API-6)
-        if (withContext(Dispatchers.IO) { userService.users() }.none { it.email == email }) {
-            call.respondErrors(UsersTexts.NOT_A_USER, status = HttpStatusCode.UnprocessableEntity)
-            return@post
-        }
-        // the mail in the language of the admin who sends it, the language of the user is not known
+        val email = call.receive<AppLinkRequest>().email
         val language = call.language()
-        try {
-            withContext(Dispatchers.IO) { appLinks.send(email, language) }
-            logger.info { "sent the links of the android apps to ${logAddress(email)}" }
-            call.respond(HttpStatusCode.NoContent)
-        } catch (e: Exception) {
-            logger.warn(logCause(e)) { "could not send the links of the android apps to ${logAddress(email)}" }
-            call.respondErrors(UsersTexts.APP_LINK_NOT_SENT, status = HttpStatusCode.BadGateway)
+        when (withContext(Dispatchers.IO) { appLinks.send(email, language) }) {
+            AppLinkSendResult.Sent -> call.respond(HttpStatusCode.NoContent)
+            AppLinkSendResult.NoMailServer -> call.respondErrors(UsersTexts.NO_MAIL_SERVER, status = HttpStatusCode.Conflict)
+            // the address of the body, no resource of the path (API-6)
+            AppLinkSendResult.NotAUser -> call.respondErrors(UsersTexts.NOT_A_USER, status = HttpStatusCode.UnprocessableEntity)
+            AppLinkSendResult.NotSent -> call.respondErrors(UsersTexts.APP_LINK_NOT_SENT, status = HttpStatusCode.BadGateway)
         }
     }.describe {
         tag(USERS_TAG)
@@ -130,8 +119,7 @@ fun Route.users(
 
     delete("/{id}") {
         val id = call.idParameter() ?: return@delete
-        val deleted = withContext(Dispatchers.IO) { userService.delete(id) }
-        call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+        call.respondDeleted(withContext(Dispatchers.IO) { userService.delete(id) })
     }.describe {
         tag(USERS_TAG)
         summary = "Delete a user"

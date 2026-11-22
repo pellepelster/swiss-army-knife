@@ -24,16 +24,12 @@ class SettingServiceTest {
     }
 
     @Test
-    fun `creates a setting once and deletes it softly`() {
+    fun `creates a setting once`() {
         var created = 0
 
         val first = service.getOrCreate(SettingName.AUTH_SIGNING_KEY) { "key ${++created}" }
         service.getOrCreate(SettingName.AUTH_SIGNING_KEY) { "key ${++created}" } shouldBe first
         created shouldBe 1
-
-        service.delete(SettingName.AUTH_SIGNING_KEY) shouldBe true
-        service.delete(SettingName.AUTH_SIGNING_KEY) shouldBe false
-        service.get(SettingName.AUTH_SIGNING_KEY) shouldBe null
-        service.getOrCreate(SettingName.AUTH_SIGNING_KEY) { "key ${++created}" } shouldBe "key 2"
+        service.get(SettingName.AUTH_SIGNING_KEY) shouldBe first
     }
 }

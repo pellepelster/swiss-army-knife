@@ -99,4 +99,57 @@ class SakDatabaseTest {
             ("resource_id" in columns("files") && "resource_id" in columns("s3_buckets")) shouldBe true
         }
     }
+
+    @Test
+    fun `the table of the buckets made again keeps the buckets, their domains and the redirects to them`() {
+        Files.createDirectories(file.parent)
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            migrateIsolated(connection, "db/changelog/until-0006.yaml")
+            connection.createStatement().use { statement ->
+                for ((name, key, deletedAt) in listOf(Triple("site", "AKsite", "NULL"), Triple("gone", "AKgone", "'2026-11-02 00:00:00.000'"))) {
+                    statement.executeUpdate(
+                        "INSERT INTO s3_buckets (name, resource_id, access_key_id, secret_access_key, owner, created_at, deleted_at) " +
+                            "VALUES ('$name', '${name}00000000', '$key', 'secret', 'admin@example.org', '2026-11-01 00:00:00.000', $deletedAt)",
+                    )
+                }
+                statement.executeUpdate(
+                    "INSERT INTO s3_buckets_domains (domain, bucket_name, position, owner, created_at) " +
+                        "VALUES ('example.org', 'site', 0, 'admin@example.org', '2026-11-01 00:00:00.000')",
+                )
+                statement.executeUpdate(
+                    "INSERT INTO redirects (source_domain, target_type, target_bucket, owner, created_at) " +
+                        "VALUES ('www.example.org', 'BUCKET', 'site', 'admin@example.org', '2026-11-01 00:00:00.000')",
+                )
+            }
+            // liquibase leaves the connection without auto commit
+            connection.commit()
+        }
+
+        val database = SakDatabase.open(file)
+        val buckets = io.pelle.sak.model.s3.S3BucketRepository(database)
+
+        buckets.byName("site")!!.let {
+            it.resourceId shouldBe ResourceId("site00000000")
+            it.accessKeyId shouldBe "AKsite"
+            it.domains shouldBe listOf("example.org")
+        }
+        buckets.resourceIds() shouldBe setOf(ResourceId("site00000000"), ResourceId("gone00000000"))
+        io.pelle.sak.model.ingress.RedirectRepository(database).sourcesTo("site") shouldBe listOf("www.example.org")
+        // the access key id of the deleted bucket is free, its name is not; the one of the live bucket is taken
+        buckets.insert("other", "AKgone", "secret", owner = "admin@example.org").let { (it is io.pelle.sak.model.s3.BucketInsertResult.Inserted) shouldBe true }
+        buckets.insert("gone", "AKnew", "secret", owner = "admin@example.org") shouldBe io.pelle.sak.model.s3.BucketInsertResult.NameTaken
+        buckets.insert("third", "AKsite", "secret", owner = "admin@example.org") shouldBe io.pelle.sak.model.s3.BucketInsertResult.AccessKeyTaken
+        // the foreign keys hold as before: no row is without its bucket, and none can be added without one
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("PRAGMA foreign_key_check").use { it.next() shouldBe false }
+            }
+        }
+        shouldThrow<DataAccessException> {
+            database.dsl.execute(
+                "INSERT INTO s3_buckets_domains (domain, bucket_name, position, owner, created_at) " +
+                    "VALUES ('none.example.org', 'none', 0, 'admin@example.org', '2026-11-01 00:00:00.000')",
+            )
+        }
+    }
 }

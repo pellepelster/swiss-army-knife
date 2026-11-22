@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.backend.respondDeleted
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.apiTime
@@ -25,11 +27,7 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.backend.redirects.RedirectCreateResult
-import io.pelle.sak.backend.redirects.RedirectDeleteResult
-import io.pelle.sak.backend.redirects.RedirectUpdateResult
 import io.pelle.sak.model.ingress.Redirect
-import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.model.ingress.RedirectTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -80,8 +78,7 @@ fun Route.redirects(redirectService: RedirectService) {
         val request = call.receive<CreateRedirectRequest>()
         when (val result = withContext(Dispatchers.IO) { redirectService.create(request.sourceDomain, request.target.target(), call.owner) }) {
             is RedirectCreateResult.Created -> call.respond(HttpStatusCode.Created, result.redirect.response())
-            RedirectCreateResult.InvalidDomain ->
-                call.respondErrors(RedirectsTexts.INVALID_DOMAINS)
+            is RedirectCreateResult.Invalid -> call.respondErrors(result.errors)
             RedirectCreateResult.Exists -> call.respondErrors(RedirectsTexts.EXISTS, status = HttpStatusCode.Conflict)
             RedirectCreateResult.UnknownBucket ->
                 call.respondErrors(RedirectsTexts.UNKNOWN_BUCKET, status = HttpStatusCode.UnprocessableEntity)
@@ -138,8 +135,7 @@ fun Route.redirects(redirectService: RedirectService) {
         when (val result = withContext(Dispatchers.IO) { redirectService.update(source, request.target.target()) }) {
             is RedirectUpdateResult.Updated -> call.respond(result.redirect.response())
             RedirectUpdateResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            RedirectUpdateResult.InvalidDomain ->
-                call.respondErrors(RedirectsTexts.INVALID_TARGET)
+            is RedirectUpdateResult.Invalid -> call.respondErrors(result.errors)
             RedirectUpdateResult.UnknownBucket ->
                 call.respondErrors(RedirectsTexts.UNKNOWN_BUCKET, status = HttpStatusCode.UnprocessableEntity)
             RedirectUpdateResult.BucketNotServed ->
@@ -168,10 +164,7 @@ fun Route.redirects(redirectService: RedirectService) {
     }
 
     delete("/{source}") {
-        when (withContext(Dispatchers.IO) { redirectService.delete(call.parameters["source"].orEmpty()) }) {
-            RedirectDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-            RedirectDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-        }
+        call.respondDeleted(withContext(Dispatchers.IO) { redirectService.delete(call.parameters["source"].orEmpty()) })
     }.describe {
         tag(INGRESS_TAG)
         summary = "Stop redirecting a domain"

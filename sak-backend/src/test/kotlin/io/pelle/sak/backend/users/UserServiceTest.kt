@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.users
 
+import io.pelle.sak.backend.DeleteResult
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
@@ -36,8 +37,8 @@ class UserServiceTest {
         service.name("bob@example.org") shouldBe null
 
         val anna = service.users().first { it.email == "anna@example.org" }
-        service.delete(anna.id!!) shouldBe true
+        service.delete(anna.id!!) shouldBe DeleteResult.Deleted
         service.isUser("anna@example.org") shouldBe false
-        service.delete(anna.id!!) shouldBe false
+        service.delete(anna.id!!) shouldBe DeleteResult.NotFound
     }
 }

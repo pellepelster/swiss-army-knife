@@ -26,7 +26,6 @@ class SettingRepositoryTest {
     fun `keeps one setting per name and scope that is not deleted, a deleted one stays`() {
         val first = repository.insert("A_SETTING", "system", "the value", owner = OWNER)!!
         first.createdAt shouldBe now
-        first.updatedAt shouldBe null
 
         repository.insert("A_SETTING", "system", "other", owner = OWNER) shouldBe null
         repository.insert("A_SETTING", "admin@example.org", "other", owner = OWNER) shouldNotBe null

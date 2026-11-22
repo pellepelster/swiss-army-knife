@@ -28,10 +28,6 @@ import io.pelle.sak.backend.API_VERSION
 import io.pelle.sak.backend.files.model.DiscoverTextResponse
 import io.pelle.sak.backend.files.model.FileResponse
 import io.pelle.sak.api.idParameter
-import io.pelle.sak.backend.files.FileTextDiscoverResult
-import io.pelle.sak.backend.files.FileService
-import io.pelle.sak.backend.files.FileTextService
-import io.pelle.sak.backend.files.FileStoreResult
 import io.pelle.sak.model.files.StoredFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -59,7 +55,8 @@ fun StoredFile.response() = FileResponse(id, contentType, size, fileUrl(id), thu
 fun Route.files(
     fileService: FileService,
     fileTextService: FileTextService,
-    discoverTextLimiter: RateLimiter = discoverTextLimiter(),
+    // the limit of what goes to openrouter, one for the notes and the grocery lists: the apps make it
+    discoverTextLimiter: RateLimiter,
 ) {
     installApi()
 
@@ -69,11 +66,7 @@ fun Route.files(
             is FileStoreResult.Stored -> call.respond(HttpStatusCode.Created, result.file.response())
             FileStoreResult.TooLarge ->
                 call.respondErrors(Text(FilesTexts.TOO_LARGE, "max" to fileService.maxSize / (1024 * 1024)), status = HttpStatusCode.PayloadTooLarge)
-            FileStoreResult.UnsupportedType -> call.respondErrors(FilesTexts.UNSUPPORTED_TYPE)
-            FileStoreResult.ImageTooLarge ->
-                call.respondErrors(Text(FilesTexts.IMAGE_TOO_LARGE, "max" to FileService.MAX_IMAGE_SIZE))
-            FileStoreResult.RecordingTooLong ->
-                call.respondErrors(Text(FilesTexts.RECORDING_TOO_LONG, "max" to FileService.MAX_RECORDING_SECONDS / 60))
+            is FileStoreResult.Invalid -> call.respondErrors(result.errors)
         }
     }.describe {
         tag(FILES_TAG)

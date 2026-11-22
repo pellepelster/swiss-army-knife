@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.api.ErrorMessage
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -71,7 +72,7 @@ class S3BucketServiceTest {
         val bucket = service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>().bucket
         val before = service.keyPair("pelle-io")!!
 
-        val (accessKeyId, secret) = service.replaceKeyPair("pelle-io")!!
+        val (accessKeyId, secret) = (service.replaceKeyPair("pelle-io") as BucketKeyPairReplaceResult.Replaced).let { it.accessKeyId to it.secretAccessKey }
 
         accessKeyId shouldNotBe bucket.accessKeyId
         secret.value shouldNotBe before.second.value
@@ -79,16 +80,16 @@ class S3BucketServiceTest {
         service.byAccessKeyId(bucket.accessKeyId) shouldBe null
         service.secretAccessKey(bucket.accessKeyId) shouldBe null
         service.secretAccessKey(accessKeyId)!!.value shouldBe secret.value
-        service.replaceKeyPair("unknown") shouldBe null
+        service.replaceKeyPair("unknown") shouldBe BucketKeyPairReplaceResult.NotFound
     }
 
     @Test
     fun `rejects taken, invalid and reserved names`() {
         service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
 
-        service.create("pelle-io", owner = "admin@example.org") shouldBe BucketCreateResult.NameTaken
+        service.create("pelle-io", owner = "admin@example.org") shouldBe BucketCreateResult.Exists
         for (name in listOf("ab", "Upper", "-start", "end-", "dot.ted", "a..b", "192.168.0.1", "a".repeat(64), "under_score", "console")) {
-            service.create(name, owner = "admin@example.org") shouldBe BucketCreateResult.InvalidName
+            service.create(name, owner = "admin@example.org") shouldBe BucketCreateResult.Invalid(listOf(ErrorMessage(HostingTexts.INVALID_NAME)))
         }
         service.all().map { it.name } shouldBe listOf("pelle-io")
     }
@@ -121,7 +122,7 @@ class S3BucketServiceTest {
         buckets.servedDomains(buckets.byName("site")!!) shouldBe listOf("site.example.org")
 
         // no name whose subdomain is served already, sak.<base_domain> is the frontend's
-        buckets.create("sak", owner = "admin@example.org") shouldBe BucketCreateResult.InvalidName
+        buckets.create("sak", owner = "admin@example.org") shouldBe BucketCreateResult.Invalid(listOf(ErrorMessage(HostingTexts.INVALID_NAME)))
         buckets.create("redirected", owner = "admin@example.org") shouldBe BucketCreateResult.SubdomainTaken
         buckets.create("other", listOf("taken.example.org"), owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
         buckets.create("taken", owner = "admin@example.org") shouldBe BucketCreateResult.SubdomainTaken
@@ -145,10 +146,10 @@ class S3BucketServiceTest {
         service.create("site", listOf("example.org"), owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
 
         service.create("other", listOf("example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.DomainTaken
-        service.create("other", listOf("console.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.InvalidDomain
-        service.create("other", listOf("redirected.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.InvalidDomain
-        service.create("other", listOf("no domain"), owner = "admin@example.org") shouldBe BucketCreateResult.InvalidDomain
-        service.create("site", listOf("other.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.NameTaken
+        service.create("other", listOf("console.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.Invalid(listOf(ErrorMessage(HostingTexts.INVALID_DOMAIN)))
+        service.create("other", listOf("redirected.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.Invalid(listOf(ErrorMessage(HostingTexts.INVALID_DOMAIN)))
+        service.create("other", listOf("no domain"), owner = "admin@example.org") shouldBe BucketCreateResult.Invalid(listOf(ErrorMessage(HostingTexts.INVALID_DOMAIN)))
+        service.create("site", listOf("other.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.Exists
         service.all().map { it.name } shouldBe listOf("site")
     }
 
@@ -163,7 +164,7 @@ class S3BucketServiceTest {
         service.byName("site")!!.domains shouldBe listOf("www.example.org", "example.org")
 
         service.updateDomains("site", listOf("other.example.org"), owner = "admin@example.org") shouldBe BucketDomainsUpdateResult.DomainTaken
-        service.updateDomains("site", listOf("console.example.org"), owner = "admin@example.org") shouldBe BucketDomainsUpdateResult.InvalidDomain
+        service.updateDomains("site", listOf("console.example.org"), owner = "admin@example.org") shouldBe BucketDomainsUpdateResult.Invalid(listOf(ErrorMessage(HostingTexts.INVALID_DOMAIN)))
         service.updateDomains("unknown", emptyList(), owner = "admin@example.org") shouldBe BucketDomainsUpdateResult.NotFound
         service.byName("site")!!.domains shouldBe listOf("www.example.org", "example.org")
 
@@ -183,7 +184,7 @@ class S3BucketServiceTest {
 
         service.byName("site") shouldBe null
         service.all() shouldBe emptyList()
-        service.create("site", owner = "admin@example.org") shouldBe BucketCreateResult.NameTaken
+        service.create("site", owner = "admin@example.org") shouldBe BucketCreateResult.Exists
         service.create("other", listOf("example.com"), owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
     }
 

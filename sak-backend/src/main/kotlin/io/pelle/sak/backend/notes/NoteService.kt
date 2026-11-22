@@ -1,5 +1,8 @@
 package io.pelle.sak.backend.notes
 
+import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
+import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.backend.DeleteResult
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import io.pelle.sak.model.SakDatabase
@@ -57,15 +60,23 @@ data class Note(
     val updatedAt: Instant?,
 )
 
-enum class NoteProblem {
-    TEXT_TOO_LONG,
-    INVALID_COLOR,
-    INVALID_LABEL,
-    TOO_MANY_LABELS,
-    UNKNOWN_PHOTO,
-    TOO_MANY_PHOTOS,
-    UNKNOWN_RECORDING,
-    TOO_MANY_RECORDINGS,
+// what can be wrong with a note, each with the message the api answers (API-1), in the order they are
+// answered
+enum class NoteProblem(
+    val message: ErrorMessage,
+) {
+    TEXT_TOO_LONG(ErrorMessage(NotesTexts.TEXT_TOO_LONG, "max" to NoteService.MAX_TEXT_LENGTH)),
+    INVALID_COLOR(ErrorMessage(NotesTexts.INVALID_COLOR, "colors" to NoteColor.entries.joinToString(", ") { it.id })),
+    INVALID_LABEL(INVALID_LABEL_NAME),
+    TOO_MANY_LABELS(ErrorMessage(NotesTexts.TOO_MANY_LABELS, "max" to NoteService.MAX_LABELS)),
+    UNKNOWN_PHOTO(ErrorMessage(NotesTexts.UNKNOWN_PHOTO)),
+    TOO_MANY_PHOTOS(ErrorMessage(NotesTexts.TOO_MANY_PHOTOS, "max" to NoteService.MAX_PHOTOS)),
+    UNKNOWN_RECORDING(ErrorMessage(NotesTexts.UNKNOWN_RECORDING)),
+    TOO_MANY_RECORDINGS(ErrorMessage(NotesTexts.TOO_MANY_RECORDINGS, "max" to NoteService.MAX_RECORDINGS)),
+    ;
+
+    // a photo or a recording the note names that the owner does not have (API-6)
+    val unknownFile get() = this == UNKNOWN_PHOTO || this == UNKNOWN_RECORDING
 }
 
 sealed interface NoteSaveResult {
@@ -78,15 +89,24 @@ sealed interface NoteSaveResult {
     // the owner has no list, they get one when they sign in (NOTES-1)
     data object NoList : NoteSaveResult
 
+    // the values do not fit: every problem as the api answers it (API-1)
     data class Invalid(
-        val problems: Set<NoteProblem>,
+        val errors: List<ErrorMessage>,
     ) : NoteSaveResult
-}
 
-sealed interface NoteDeleteResult {
-    data object Deleted : NoteDeleteResult
+    // only photos or recordings that are not there for the owner (API-6)
+    data class UnknownFiles(
+        val errors: List<ErrorMessage>,
+    ) : NoteSaveResult
 
-    data object NotFound : NoteDeleteResult
+    companion object {
+        // the result of problems: the unknown files alone are an entity the request refers to, any
+        // other problem makes the note invalid
+        fun of(problems: Set<NoteProblem>): NoteSaveResult {
+            val errors = problems.sorted().map { it.message }
+            return if (problems.all { it.unknownFile }) UnknownFiles(errors) else Invalid(errors)
+        }
+    }
 }
 
 // the notes, the only way to them; only the owner, who created a note, sees and changes it. The
@@ -105,9 +125,7 @@ class NoteService(
     ) : this(NoteRepository(database, clock), labels, files)
 
     init {
-        labels.onDelete(repository::detachLabel)
-        // a label deleted without its links being dropped, the label service deletes it first
-        repository.detachDeletedLabels()
+        labels.linkedBy(repository)
     }
 
     // the first list of a user who never had one, in the language of the sign-in, the one of all their
@@ -150,8 +168,8 @@ class NoteService(
         // before the check, which creates the labels not known yet
         val listId = repository.ownList(owner) ?: return NoteSaveResult.NoList
         return when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
-            is Checked.Invalid -> NoteSaveResult.Invalid(checked.problems)
-            is Checked.Valid -> saved(repository.insert(owner, listId, text, checked.color.id, checked.labels.ids(), checked.files), checked)
+            is CheckedNote.Invalid -> NoteSaveResult.of(checked.problems)
+            is CheckedNote.Valid -> saved(repository.insert(owner, listId, text, checked.color.id, checked.labels.ids(), checked.files), checked)
         }
     }
 
@@ -169,8 +187,8 @@ class NoteService(
         // another owner's, creates none
         repository.byId(owner, id) ?: return NoteSaveResult.NotFound
         return when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
-            is Checked.Invalid -> NoteSaveResult.Invalid(checked.problems)
-            is Checked.Valid -> saved(repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.files), checked)
+            is CheckedNote.Invalid -> NoteSaveResult.of(checked.problems)
+            is CheckedNote.Valid -> saved(repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.files), checked)
         }
     }
 
@@ -178,13 +196,13 @@ class NoteService(
     fun delete(
         owner: String,
         id: Int,
-    ): NoteDeleteResult = if (repository.delete(owner, id)) NoteDeleteResult.Deleted else NoteDeleteResult.NotFound
+    ): DeleteResult = if (repository.delete(owner, id)) DeleteResult.Deleted else DeleteResult.NotFound
 
     // what the repository made of the checked values: it checks again in its transaction that the list
     // and the files are the owner's (MODEL-6), and leaves out a label deleted since the check
     private fun saved(
         save: NoteWriteResult,
-        checked: Checked.Valid,
+        checked: CheckedNote.Valid,
     ): NoteSaveResult =
         when (save) {
             is NoteWriteResult.Saved ->
@@ -192,7 +210,7 @@ class NoteService(
             NoteWriteResult.NotFound -> NoteSaveResult.NotFound
             NoteWriteResult.NoList -> NoteSaveResult.NoList
             is NoteWriteResult.UnknownFiles ->
-                NoteSaveResult.Invalid(
+                NoteSaveResult.of(
                     setOfNotNull(
                         NoteProblem.UNKNOWN_PHOTO.takeIf { checked.photos.any { it in save.fileIds } },
                         NoteProblem.UNKNOWN_RECORDING.takeIf { checked.recordings.any { it in save.fileIds } },
@@ -200,20 +218,20 @@ class NoteService(
                 )
         }
 
-    private sealed interface Checked {
+    private sealed interface CheckedNote {
         data class Valid(
             val color: NoteColor,
             val labels: List<Label>,
             val photos: List<Int>,
             val recordings: List<Int>,
-        ) : Checked {
+        ) : CheckedNote {
             // as they are stored, the photos first
             val files get() = photos + recordings
         }
 
         data class Invalid(
             val problems: Set<NoteProblem>,
-        ) : Checked
+        ) : CheckedNote
     }
 
     // the labels are only created when the note is valid otherwise; a photo or a recording twice is
@@ -225,7 +243,7 @@ class NoteService(
         labelNames: Collection<String>,
         photos: List<Int>,
         recordings: List<Int>,
-    ): Checked {
+    ): CheckedNote {
         val problems = mutableSetOf<NoteProblem>()
         if (text.length > MAX_TEXT_LENGTH) problems += NoteProblem.TEXT_TOO_LONG
         val noteColor = NoteColor.of(color)
@@ -242,9 +260,9 @@ class NoteService(
         val stored = files.byIds(owner, distinctPhotos + distinctRecordings)
         if (distinctPhotos.any { stored[it]?.contentType?.startsWith("image/") != true }) problems += NoteProblem.UNKNOWN_PHOTO
         if (distinctRecordings.any { stored[it]?.contentType?.startsWith("audio/") != true }) problems += NoteProblem.UNKNOWN_RECORDING
-        if (problems.isNotEmpty()) return Checked.Invalid(problems)
+        if (problems.isNotEmpty()) return CheckedNote.Invalid(problems)
 
-        return Checked.Valid(noteColor!!, labels.resolve(owner, names), distinctPhotos, distinctRecordings)
+        return CheckedNote.Valid(noteColor!!, labels.resolve(owner, names), distinctPhotos, distinctRecordings)
     }
 
     // the labels and files of all the notes in one read, the files told apart by their type

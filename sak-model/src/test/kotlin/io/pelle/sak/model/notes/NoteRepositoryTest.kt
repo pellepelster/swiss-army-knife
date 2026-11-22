@@ -158,25 +158,12 @@ class NoteRepositoryTest {
         val kept = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "breakfast", "yellow", setOf(milk, eggs), emptyList()).note()
 
         repository.delete("pelle@pelle.io", deleted.id)
-        repository.detachLabel("pelle@pelle.io", eggs)
+        LabelRepository(database).delete("pelle@pelle.io", eggs, listOf(repository)) shouldBe true
 
         labelLinks(deleted.id) shouldBe listOf(milk to true)
         labelLinks(kept.id) shouldBe listOf(milk to false, eggs to true)
         repository.byId("pelle@pelle.io", kept.id)!!.labelIds shouldBe setOf(milk)
         repository.count("pelle@pelle.io", eggs) shouldBe 0
-    }
-
-    @Test
-    fun `drops the links to labels that were deleted without being detached`() {
-        val milk = label("milk")
-        val eggs = label("eggs")
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "breakfast", "yellow", setOf(milk, eggs), emptyList()).note()
-        LabelRepository(database).delete("pelle@pelle.io", eggs)
-
-        repository.detachDeletedLabels()
-        repository.detachDeletedLabels()
-
-        labelLinks(note.id) shouldBe listOf(milk to false, eggs to true)
     }
 
     @Test

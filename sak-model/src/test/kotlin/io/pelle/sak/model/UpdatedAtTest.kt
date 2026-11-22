@@ -1,6 +1,7 @@
 package io.pelle.sak.model
 
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.grocery.GroceryItemValues
 import io.pelle.sak.model.grocery.GroceryRepository
@@ -54,14 +55,14 @@ class UpdatedAtTest {
     fun `a grocery item keeps its time when saved as it is, a check changes it`() {
         val list = GroceryRepository(database, first).insertList(PELLE, "Food", shared = false)!!
         val values = GroceryItemValues("Milk", BigDecimal("1.5"), "l", null)
-        val item = GroceryRepository(database, first).insertItem(PELLE, list.id, values)!!
+        val item = GroceryRepository(database, first).insertItem(PELLE, list.id, values).item!!
         val repository = GroceryRepository(database, second)
 
-        repository.updateItem(PELLE, item.id, values)!!.updatedAt shouldBe null
-        repository.setCategory(PELLE, item.id, null)!!.updatedAt shouldBe null
+        repository.updateItem(PELLE, item.id, values).item!!.updatedAt shouldBe null
+        repository.setCategory(PELLE, item.id, null).item!!.updatedAt shouldBe null
         repository.setPhoto(PELLE, item.id, null)!!.updatedAt shouldBe null
 
-        repository.checkItem(PELLE, item.id) shouldBe true
+        repository.checkItem(PELLE, item.id) shouldNotBe null
         database.dsl.select(GROCERY_ITEMS.UPDATED_AT).from(GROCERY_ITEMS).where(GROCERY_ITEMS.ID.eq(item.id)).fetchOne()!!.value1() shouldBe later
     }
 

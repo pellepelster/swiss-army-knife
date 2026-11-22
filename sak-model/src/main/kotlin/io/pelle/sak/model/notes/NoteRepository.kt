@@ -4,6 +4,7 @@ import io.pelle.sak.model.changesTo
 import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.labels.Label
+import io.pelle.sak.model.labels.LabelLinks
 import io.pelle.sak.model.jooq.tables.records.NotesRecord
 import io.pelle.sak.model.jooq.tables.references.FILES
 import io.pelle.sak.model.jooq.tables.references.LABELS
@@ -57,7 +58,7 @@ class NoteRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers
     private val clock: Clock = Clock.systemUTC(),
-) {
+) : LabelLinks() {
     // the newest first, of one label or of all when labelId is null
     fun page(
         owner: String,
@@ -269,19 +270,12 @@ class NoteRepository(
         }
 
     // drops the label of the owner from every note of the owner
-    fun detachLabel(
+    internal override fun detach(
+        dsl: DSLContext,
         owner: String,
         labelId: Int,
-    ) = deleteLabels(database.dsl, NOTES_LABELS.LABEL_ID.eq(labelId).and(NOTES_LABELS.OWNER.eq(owner)), clock.instant())
-
-    // drops every deleted label from the notes, the ones whose detachLabel did not happen, e.g. the
-    // process ended between deleting the label and detaching it; does nothing when there are none
-    fun detachDeletedLabels() =
-        deleteLabels(
-            database.dsl,
-            NOTES_LABELS.LABEL_ID.`in`(DSL.select(LABELS.ID).from(LABELS).where(LABELS.DELETED_AT.isNotNull)),
-            clock.instant(),
-        )
+        now: Instant,
+    ) = deleteLabels(dsl, NOTES_LABELS.LABEL_ID.eq(labelId).and(NOTES_LABELS.OWNER.eq(owner)), now)
 
     private fun visible(
         owner: String,

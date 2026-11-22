@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.model.grocery.GroceryItemValues
+import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.api.logText
 import io.pelle.sak.api.language
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -31,7 +33,6 @@ import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.RateLimiter
 import io.pelle.sak.auth.owner
-import io.pelle.sak.backend.files.discoverTextLimiter
 import io.pelle.sak.backend.files.FilesTexts
 import io.pelle.sak.backend.grocery.model.GroceryDiscoveredItemResponse
 import io.pelle.sak.backend.grocery.model.GroceryDiscoveredResponse
@@ -54,7 +55,6 @@ import io.pelle.sak.model.grocery.GroceryCategory
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.backend.lists.listChanges
 import io.pelle.sak.backend.lists.respondList
-import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.lists.SakList
 import io.pelle.sak.model.grocery.GrocerySuggestion
 import io.ktor.server.application.ApplicationCall
@@ -78,9 +78,9 @@ private fun GrocerySuggestion.response() = GrocerySuggestionResponse(id, name, a
 
 private fun GroceryCategory.response() = GroceryCategoryResponse(id, name, icon)
 
-private fun GroceryItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, categoryId)
+private fun GroceryItemRequest.input() = GroceryItemValues(name, amount?.let { BigDecimal.valueOf(it) }, unit, categoryId)
 
-private fun GroceryNewItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, categoryId)
+private fun GroceryNewItemRequest.input() = GroceryItemValues(name, amount?.let { BigDecimal.valueOf(it) }, unit, categoryId)
 
 private suspend fun ApplicationCall.respondCategory(
     result: GroceryCategorySaveResult,
@@ -115,15 +115,14 @@ private suspend fun ApplicationCall.respondPhoto(result: GroceryPhotoSetResult) 
 @OptIn(ExperimentalKtorApi::class)
 fun Route.grocery(
     groceryService: GroceryService,
-    fileService: FileService,
-    discovery: GroceryDiscovery? = null,
-    // the limit of what goes to openrouter, shared with the text the notes discover
-    discoverLimiter: RateLimiter = discoverTextLimiter(),
+    discovery: GroceryDiscovery,
+    // the limit of what goes to openrouter, shared with the text the notes discover: the apps make it
+    discoverLimiter: RateLimiter,
 ) {
     installApi()
 
     get("/settings") {
-        call.respond(GrocerySettingsResponse(withContext(Dispatchers.IO) { discovery?.available() == true }))
+        call.respond(GrocerySettingsResponse(withContext(Dispatchers.IO) { discovery.available() }))
     }.describe {
         tag(GROCERY_TAG)
         summary = "What the grocery lists may do"
@@ -143,7 +142,7 @@ fun Route.grocery(
         val owner = call.owner
         val result =
             withContext(Dispatchers.IO) {
-                discovery?.discover(owner, id) { discoverLimiter.tryAcquire(owner) } ?: GroceryDiscoverResult.Disabled
+                discovery.discover(owner, id) { discoverLimiter.tryAcquire(owner) }
             }
         when (result) {
             is GroceryDiscoverResult.Discovered ->
@@ -257,8 +256,8 @@ fun Route.grocery(
             tag(GROCERY_TAG)
             summary = "Rename or share a grocery list"
             description =
-                "Every user who sees a list changes its name and its icon, a shared list of another user too (LIST-2); only its " +
-                "owner shares or unshares it."
+                "Every user who sees a list changes its icon, a shared list of another user too; only its owner renames, " +
+                "shares or unshares it (LIST-2)."
             parameters { listId() }
             requestBody {
                 required = true
@@ -278,10 +277,7 @@ fun Route.grocery(
 
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
-            when (withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) }) {
-                ListDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-                ListDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            }
+            call.respondDeleted(withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) })
         }.describe {
             tag(GROCERY_TAG)
             summary = "Delete a grocery list"
@@ -470,8 +466,7 @@ fun Route.grocery(
         delete("/{id}/categories/{categoryId}") {
             val id = call.idParameter() ?: return@delete
             val categoryId = call.idParameter("categoryId") ?: return@delete
-            val deleted = withContext(Dispatchers.IO) { groceryService.deleteCategory(call.owner, id, categoryId) }
-            call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+            call.respondDeleted(withContext(Dispatchers.IO) { groceryService.deleteCategory(call.owner, id, categoryId) })
         }.describe {
             tag(GROCERY_TAG)
             summary = "Delete a category of a grocery list"
@@ -489,8 +484,7 @@ fun Route.grocery(
         delete("/{id}/suggestions/{suggestionId}") {
             val id = call.idParameter() ?: return@delete
             val suggestionId = call.idParameter("suggestionId") ?: return@delete
-            val forgotten = withContext(Dispatchers.IO) { groceryService.forget(call.owner, id, suggestionId) }
-            call.respond(if (forgotten) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+            call.respondDeleted(withContext(Dispatchers.IO) { groceryService.forget(call.owner, id, suggestionId) })
         }.describe {
             tag(GROCERY_TAG)
             summary = "Forget a suggestion of a grocery list"
@@ -654,22 +648,14 @@ fun Route.grocery(
                 call.respondErrors(ApiTexts.MALFORMED_REQUEST)
                 return@get
             }
-            val content =
-                withContext(Dispatchers.IO) {
-                    groceryService.photo(call.owner, id, fileId)?.let { file ->
-                        when (val scaled = size?.let(FileService::scaledSize)) {
-                            null -> fileService.content(file)?.let { BlobResponse(it, ContentType.parse(file.contentType)) }
-                            else -> fileService.thumbnail(file, scaled)?.let { BlobResponse(it, ContentType.Image.JPEG) }
-                        }
-                    }
-                }
-            if (content == null) {
+            val photo = withContext(Dispatchers.IO) { groceryService.photoContent(call.owner, id, fileId, size) }
+            if (photo == null) {
                 call.respond(HttpStatusCode.NotFound)
                 return@get
             }
             // the file id names the photo, a new photo has another url
             call.response.header(HttpHeaders.CacheControl, IMMUTABLE)
-            call.respond(content)
+            call.respond(BlobResponse(photo.content, ContentType.parse(photo.contentType)))
         }.describe {
             tag(GROCERY_TAG)
             summary = "The photo of an item"
@@ -716,8 +702,7 @@ fun Route.grocery(
 
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
-            val deleted = withContext(Dispatchers.IO) { groceryService.deleteItem(call.owner, id) }
-            call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+            call.respondDeleted(withContext(Dispatchers.IO) { groceryService.deleteItem(call.owner, id) })
         }.describe {
             tag(GROCERY_TAG)
             summary = "Delete an item"

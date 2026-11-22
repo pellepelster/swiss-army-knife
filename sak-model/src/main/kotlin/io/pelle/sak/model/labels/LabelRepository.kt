@@ -5,8 +5,22 @@ import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.LabelsRecord
 import io.pelle.sak.model.jooq.tables.references.LABELS
+import org.jooq.DSLContext
 import org.jooq.exception.IntegrityConstraintViolationException
 import java.time.Clock
+import java.time.Instant
+
+// what links labels, e.g. the notes: a repository of an app. A class, so that its function with
+// jOOQ stays in the model (MODEL-2)
+abstract class LabelLinks {
+    // drops the links of the owner to the label, in the transaction that deletes the label
+    internal abstract fun detach(
+        dsl: DSLContext,
+        owner: String,
+        labelId: Int,
+        now: Instant,
+    )
+}
 
 // the labels, for LabelService only; reads the live labels of the owner only
 class LabelRepository(
@@ -103,17 +117,25 @@ class LabelRepository(
             LabelNameUpdateResult.NameTaken
         }
 
-    // false when the owner had none
+    // false when the owner had none. What links labels drops its links to it in the same transaction
+    // (SHARED-2), so no link to a deleted label stays
     fun delete(
         owner: String,
         id: Int,
+        links: List<LabelLinks> = emptyList(),
     ): Boolean {
         val now = clock.instant()
-        return database.dsl
-            .update(LABELS)
-            .set(LABELS.DELETED_AT, now)
-            .where(LABELS.OWNER.eq(owner), LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
-            .execute() > 0
+        return database.dsl.transactionResult { configuration ->
+            val dsl = configuration.dsl()
+            val deleted =
+                dsl
+                    .update(LABELS)
+                    .set(LABELS.DELETED_AT, now)
+                    .where(LABELS.OWNER.eq(owner), LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
+                    .execute() > 0
+            if (deleted) links.forEach { it.detach(dsl, owner, id, now) }
+            deleted
+        }
     }
 
     private fun LabelsRecord.toLabel() =

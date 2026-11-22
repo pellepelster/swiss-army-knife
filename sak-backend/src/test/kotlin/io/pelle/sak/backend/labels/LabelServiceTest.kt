@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.labels
 
+import io.pelle.sak.backend.DeleteResult
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
@@ -31,9 +32,7 @@ class LabelServiceTest {
 
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 
-    private val deleted = mutableListOf<Int>()
-
-    private val service by lazy { LabelService(database, clock).apply { onDelete { _, id -> deleted.add(id) } } }
+    private val service by lazy { LabelService(database, clock) }
 
     private fun create(name: String) = service.create(OWNER, name).shouldBeInstanceOf<LabelCreateResult.Created>().label
 
@@ -44,7 +43,7 @@ class LabelServiceTest {
 
         service.create(OWNER, "HOME office") shouldBe LabelCreateResult.Exists
         for (name in listOf("", "   ", "a".repeat(65), "bell\u0007")) {
-            service.create(OWNER, name) shouldBe LabelCreateResult.InvalidName
+            service.create(OWNER, name) shouldBe LabelCreateResult.Invalid(listOf(INVALID_LABEL_NAME))
         }
         create("a".repeat(64))
         service.byName(OWNER, "Home Office") shouldBe label
@@ -71,7 +70,7 @@ class LabelServiceTest {
             home.copy(name = "house", updatedAt = clock.now)
         service.byId(OWNER, home.id)?.updatedAt shouldBe clock.now
         service.rename(OWNER, home.id, "work") shouldBe LabelRenameResult.Exists
-        service.rename(OWNER, home.id, " ") shouldBe LabelRenameResult.InvalidName
+        service.rename(OWNER, home.id, " ") shouldBe LabelRenameResult.Invalid(listOf(INVALID_LABEL_NAME))
         service.rename(OWNER, 4711, "other") shouldBe LabelRenameResult.NotFound
     }
 
@@ -79,9 +78,8 @@ class LabelServiceTest {
     fun `deletes labels softly, their names are free again`() {
         val home = create("home")
 
-        service.delete(OWNER, home.id) shouldBe LabelDeleteResult.Deleted
-        service.delete(OWNER, home.id) shouldBe LabelDeleteResult.NotFound
-        deleted shouldBe listOf(home.id)
+        service.delete(OWNER, home.id) shouldBe DeleteResult.Deleted
+        service.delete(OWNER, home.id) shouldBe DeleteResult.NotFound
         service.byId(OWNER, home.id) shouldBe null
         service.page(OWNER, 0, 10).total shouldBe 0
 
@@ -106,7 +104,7 @@ class LabelServiceTest {
 
         service.page("other@example.org", 0, 10).total shouldBe 0
         service.byName("other@example.org", "home") shouldBe null
-        service.delete("other@example.org", home.id) shouldBe LabelDeleteResult.NotFound
+        service.delete("other@example.org", home.id) shouldBe DeleteResult.NotFound
         service.rename("other@example.org", home.id, "house") shouldBe LabelRenameResult.NotFound
         val others = service.resolve("other@example.org", setOf("home")).single()
         others.id shouldBe home.id + 1
