@@ -14,9 +14,8 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   restic and the paths of the backup plans. Accepted until the whole file is encrypted.
 
 - **The files are not encrypted at rest.** The files of the file storage, their thumbnails and the objects of the
-  buckets are plain on the data volume. Accepted until
-  [issue #134](https://github.com/pellepelster/swiss-army-knife/issues/134) encrypts them in `sak-storage`
-  (`MODEL-7`).
+  buckets are plain on the data volume. Accepted until issue `#134` of [ISSUES.md](ISSUES.md) encrypts them in
+  `sak-storage` (`MODEL-7`).
 
 - **Data from before the resource ids needs v0.1.63.** Before v0.1.62 the files were kept below their sha-256, before
   v0.1.63 the objects of the buckets below `buckets/<name>`. v0.1.63 moves the files and copies the buckets to their
@@ -83,7 +82,7 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
 - **The server checks no signature of an image.** sakadmin verifies the images and hands the server their digests, so
   the server pulls exactly the images sakadmin verified; a sakadmin that does not verify (a tag set with
   `SAK_DOCKER_IMAGE_TAG`) hands it tags. Accepted: podman reads only the older signatures of cosign, not the bundles
-  of cosign 3. To revisit when podman reads them (issue #145).
+  of cosign 3. To revisit when podman reads them (issue `#145` of [ISSUES.md](ISSUES.md)).
 
 - **A label can be lost while a note is saved.** If the user deletes a new label on another device in the same
   moment, the note is saved without it; if the note is deleted, the label stays without a note. Accepted: it takes
