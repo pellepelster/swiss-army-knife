@@ -38,10 +38,16 @@ private const val MAX_SEARCH_LENGTH = 200
 
 private const val LOGS_TAG = "access logs"
 
+// the access logs of a site, read through the manager of victorialogs (EXT-1); the site as below
+fun Route.accessLogs(
+    site: suspend (ApplicationCall) -> Site?,
+    manager: AccessLogsManager,
+) = accessLogs(site, manager.metrics, manager.logs)
+
 // the access logs of one site, its metrics and a search, meant to be mounted below
 // the path of the site behind the authentication, which the openapi document takes its security
 // requirement from; the site is asked for on every request, its domains change
-fun Route.accessLogs(
+internal fun Route.accessLogs(
     // called on the event loop, a lookup that blocks (e.g. a database query) switches to the io
     // dispatcher itself
     site: suspend (ApplicationCall) -> Site?,

@@ -3,14 +3,14 @@ package io.pelle.sak.s3.auth
 import java.io.InputStream
 import java.security.MessageDigest
 
-class PayloadHashMismatchException(
+internal class PayloadHashMismatchException(
     val expected: String,
     val actual: String,
 ) : RuntimeException("payload sha256 '$actual' does not match the declared x-amz-content-sha256 '$expected'")
 
 // hashes everything read from the source and fails at its end when the hash is not the
 // declared one, so a write fed from this stream fails before the blob is moved into place
-class Sha256VerifyingInputStream(
+internal class Sha256VerifyingInputStream(
     private val source: InputStream,
     private val expectedHex: String,
 ) : InputStream() {

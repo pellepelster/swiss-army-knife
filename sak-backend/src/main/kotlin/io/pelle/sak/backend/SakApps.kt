@@ -213,8 +213,7 @@ fun Application.apps(
                             route("/{bucket}/access-logs") {
                                 accessLogs(
                                     { call -> withContext(Dispatchers.IO) { bucketSite(bucketService, call.parameters["bucket"].orEmpty()) } },
-                                    accessLogsManager.metrics,
-                                    accessLogsManager.logs,
+                                    accessLogsManager,
                                 )
                             }
                         }

@@ -98,5 +98,6 @@ You need:
 
 Your SAK instance now runs on its own. You need sakadmin again only to change, update, back up or maintain it.
 
-Next: read [what the apps can do](features.md), or install the apps on your phone:
+Next: [look after your SAK instance](manage.md), [add more users](users.md), read
+[what the apps can do](features.md), or install the apps on your phone:
 [the web apps](apps/android/web-apps.md) or [the native Android apps](apps/android/native-apps.md).

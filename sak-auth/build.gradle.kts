@@ -12,7 +12,6 @@ dependencies {
     api(libs.ktor.server.routing.openapi)
     api(libs.ktor.server.auth)
     implementation(libs.ktor.server.auth.jwt)
-    implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.angus.mail)
     // argon2id, the admin password is checked against its hash

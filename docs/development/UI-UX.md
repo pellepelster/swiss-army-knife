@@ -6,10 +6,10 @@ weight: 20
 
 # UI and UX
 
-How the apps look and behave for the people who use them: the web app, the Android apps, the desktop apps, the
-sakadmin ui and the sakadmin cli. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code of
-the web app does it in `FRONTEND-2` to `FRONTEND-6` of
-[the architecture of the components](architecture/components/INDEX.md#web-app).
+How the apps look and behave for the people who use them: the web app, the Android apps and the desktop apps. What
+only sakadmin does, in its ui and its cli, is in [SAKADMIN.md](architecture/components/SAKADMIN.md). How the system is
+built is in [SYSTEM.md](architecture/SYSTEM.md), how the code of the web app does it in `FRONTEND-2` to `FRONTEND-6`
+of [the architecture of the components](architecture/components/INDEX.md#web-app).
 
 The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule adds a number, e.g. `UX-4.1`.
 
@@ -96,40 +96,6 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
   does the same.
 - `ANDROID-3` **Pull down to reload.** Every screen that shows data of the deployment loads it again when the user
   pulls it down.
-
-## sakadmin
-
-- `CTL-1` **A plan that destroys asks first.** Create, deploy and destroy show the plan; when it destroys a resource or
-  replaces one, sakadmin asks for a confirmation before it applies: the sakadmin ui in a dialog, the sakadmin cli by
-  having the name of the deployment typed. `--yes` skips it in the sakadmin cli; without a terminal and without `--yes`
-  the command stops with a usage error and changes nothing.
-- `CTL-2` **No surprise by default.** A deploy keeps the settings of the deployment (e.g. DNS mode, root domain,
-  location) unless they are given; a default never changes a running deployment.
-- `CTL-3` **Feature parity.** The sakadmin ui and the sakadmin cli can do the same: what one does, the other
-  does too.
-- `UI-11` **One line per event:** date, level, message, nothing indented. On a terminal the level is colored (info
-  green, warning yellow, error red); a warning deserves a second look, e.g. a change the plan found or a resource a
-  destroy deletes.
-
-## sakadmin ui
-
-- `UI-8` **Plan before change.** The plan (`CTL-1`) of a deploy is the check on the page of the deployment. Only the
-  apply changes something, and it shows each resource as it goes, with the output of the provisioning below.
-- `UI-10` **A destroy says what goes.** It asks only for the password. The data volume stays (`CLOUD-8`) unless the
-  user ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
-
-## sakadmin cli
-
-- `CLI-1` **A secret is never an argument**, it would show in the list of processes. Every secret comes from its
-  environment variable or is typed on the terminal without echo; its flag (e.g. `--password`) asks even when the
-  variable is set. The password of a new deployment is typed twice.
-- `CLI-2` **Test deployments.** `--acme-ca staging` makes a test deployment (`SAKADM-7`). The integration tests use it.
-- `CLI-4` **ssh, in the sakadmin cli only.** `sakadmin ssh <name> [-- <command>]` opens a root session or runs a
-  command, from the image of the tools: the key derived from the password lives only in an ssh-agent of the container,
-  the server is checked against its derived host key.
-- `CLI-6` **Scriptable.** Every input is an argument or an environment variable, `--help` lists them all.
-- `CLI-8` **Exit codes tell what happened.** Success, failure, wrong arguments and each refusal a script may handle
-  have a code of their own, listed by `--help`.
 
 ## Desktop apps
 

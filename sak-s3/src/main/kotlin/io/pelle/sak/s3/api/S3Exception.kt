@@ -1,6 +1,6 @@
 package io.pelle.sak.s3.api
 
-class S3Exception(
+internal class S3Exception(
     val status: Int,
     val code: String,
     override val message: String,

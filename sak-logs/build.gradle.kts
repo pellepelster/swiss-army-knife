@@ -10,7 +10,6 @@ dependencies {
     api(project(":sak-api"))
     // the routes describe themselves for the openapi document
     api(libs.ktor.server.routing.openapi)
-    implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.kotlinx.serialization.json)
 

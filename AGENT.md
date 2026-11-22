@@ -32,8 +32,9 @@ Read this file first. It contains rules for the complete repository.
 
 ## UI/UX
 
-How the apps (frontend, sakadmin ui, sakadmin cli, Android Apps) look and behave for their users is in
-[docs/development/UI-UX.md](docs/development/UI-UX.md), follow it for every change of a ui.
+How the apps (frontend, Android apps, desktop apps) look and behave for their users is in
+[docs/development/UI-UX.md](docs/development/UI-UX.md), what only sakadmin does in
+[SAKADMIN.md](docs/development/architecture/components/SAKADMIN.md); follow them for every change of a ui.
 
 ## Architecture
 
@@ -55,9 +56,6 @@ refer to a rule by its id.
 
 ## Privacy in the code
 
-- The boundaries are in architecture/SYSTEM.md, "Privacy". In the code: fonts and libraries are bundled (e.g.
-  `@fontsource`, `swagger-ui-dist`), the content security policy is `contentSecurityPolicy` and is never widened
-  beyond `<root_domain>`, and calls to openrouter send `provider.data_collection: deny`.
 - A type that holds a secret never shows it as text: its `toString()` (or what the language has for it) leaves the
   value out, so a secret can not get into a log or an error message by accident.
 
@@ -70,6 +68,5 @@ refer to a rule by its id.
 ## Additional Agent Rules & Context
 
 - [README.md](README.md) — general project overview.
-- [docs/development/architecture/SYSTEM.md](docs/development/architecture/SYSTEM.md) — how SAK is built, the first
-  of the three levels of the architecture.
-- `docs/development/reviews/` — the reviews, each finding with its unique id.
+- [docs/development/ISSUES.md](docs/development/ISSUES.md) — the open issues. They are kept there and not on GitHub;
+  an issue that is done is deleted.

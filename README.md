@@ -24,6 +24,7 @@ server, set up and looked after by one program, sakadmin.
 - **Todo lists:** tasks with a priority and an optional due date, private or shared, updated live on every device.
 - **Static hosting:** websites from S3 buckets, at their own domain or at a subdomain.
 - **Redirects:** domains that lead to another address, with automatic TLS certificates.
+- **Backups (preview):** restic repositories that your SAK instance keeps for you.
 
 The notes, the grocery lists and the todo lists also have a native Android app.
 
@@ -66,8 +67,8 @@ it changes anything.
   <img src="docs/screenshots/sakadmin-cli-help.png" alt="The help of the sakadmin command line" width="80%">
 </p>
 
-Both can install, update and destroy a SAK instance, back up and restore all its data as one encrypted file, maintain
-its server, and update themselves.
+Both can install, update and destroy a SAK instance, maintain its server, and update themselves. The command line also
+backs up and restores all data of a SAK instance as one encrypted file.
 
 ## Across all devices
 
@@ -93,5 +94,6 @@ You need a Hetzner Cloud project, a domain whose DNS zone is in that project, an
 
 1. [Install sakadmin](https://pellepelster.github.io/swiss-army-knife/installation/).
 2. [Create your first SAK instance](https://pellepelster.github.io/swiss-army-knife/first-steps/).
+3. [Look after it](https://pellepelster.github.io/swiss-army-knife/manage/): update, back up, maintain.
 
 Or read [all features](https://pellepelster.github.io/swiss-army-knife/features/).

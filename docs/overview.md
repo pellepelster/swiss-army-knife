@@ -13,7 +13,7 @@ phone.
 ```text
         your computer                                   Hetzner Cloud
  ┌───────────────────────────┐              ┌──────────────────────────────────────┐
- │ sakadmin                    │   creates,   │ your SAK instance                    │
+ │ sakadmin                  │   creates,   │ your SAK instance                    │
  │  UI or command line       │──deploys,───▶│  server, data volume, addresses,     │
  │                           │   backs up   │  firewall, DNS records               │
  │ ~/.sak/<name>/backups     │◀─────────────│  the apps: notes, grocery lists,     │
@@ -45,6 +45,10 @@ A SAK instance is one server at Hetzner Cloud with a name, for example `family`,
   use the same root domain.
 - **Domain**: `sak.<root domain>`, for example `sak.example.org`. Only this SAK instance can use the root domain.
 
+The apps and the websites of the buckets are below the **base domain**: `<name>.<root domain>` in the DNS mode
+**Subdomain**, the root domain itself in the DNS mode **Domain**. A bucket `blog` is so served at
+`blog.family.example.org` or at `blog.example.org`.
+
 All data is on the data volume, a disk that outlives the server: a deploy can replace the server, the data volume
 stays.
 
@@ -52,8 +56,9 @@ The SAK instance runs on its own. You need sakadmin only to set it up, change or
 
 ## The password
 
-sakadmin finds a SAK instance again with its name and password alone; it keeps only the backups on your computer. All
-keys of the SAK instance, for the server and for the backups, come from the password. So:
+sakadmin finds a SAK instance again with its name and password alone. On your computer it keeps only the backups and
+the settings of the last deploy, encrypted with the password (`~/.sak/<name>/`). All keys of the SAK instance, for the
+server and for the backups, come from the password. So:
 
 - sakadmin on another computer, with the same name, password and Hetzner token, manages the same SAK instance;
 - the admin signs in to the apps with the same password;
@@ -64,4 +69,4 @@ keys of the SAK instance, for the server and for the backups, come from the pass
 sakadmin and the SAK instance have the same version. `sakadmin update` (or **Check for updates** in the UI) updates
 sakadmin; the next deploy brings the SAK instance to the same version.
 
-Next: [install sakadmin](installation.md).
+Next: [install sakadmin](installation.md). Later: [look after your SAK instance](manage.md).

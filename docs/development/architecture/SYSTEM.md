@@ -174,23 +174,12 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 ## Desktop apps
 
-- `DESK-1` **The desktop apps share one crate.** What sakadmin and sakbackup both need is in `sak-desktop-shared`,
-  never copied into an app:
-    - `session`: the sign-in through the browser and the session (`SessionManager`).
-    - `window`: the tauri commands of the sign-in. An app manages a `SessionManager` and an `InstanceStore` and
-      lists the commands in its `generate_handler!`.
-    - `instances`: the SAK addresses of the sign-ins (`InstanceStore`).
-    - `secrets`: the session tokens in the keychain of the system (`SecretStore`).
-    - `i18n`: the language of the system and the texts of the window; its own texts are `desktop_shared` of
-      texts.yml.
-    - `desktop`: the desktop entry of linux.
-    - `ui/`: the views and the view of the sign-in. `mise run desktop:ui` copies them to `ui/shared/` of each app,
-      next to the theme in `ui/theme/`.
-- `DESK-2` **One core, two faces.** A desktop app with a window and a command line (sakadmin, sakbackup) does all its
-  work in its core (`src/core`): for sakadmin the start checks, deployments and plans, provisioning, keys and
-  providers, for sakbackup the repositories, plans, runs, snapshots and restores. The core knows neither the window
-  (`src/gui`) nor the command line (`src/cli`). Both are thin layers on it: they take the input, call the core and
-  show what it answers, and neither does work the other can't do through the core.
+- `DESK-1` **The desktop apps share one crate.** Code that more than one desktop app needs is in
+  `sak-desktop-shared`, never copied into an app.
+- `DESK-2` **One core, two faces.** A desktop app with a window and a command line does all its work in its core
+  (`src/core`). The core knows neither the window (`src/gui`) nor the command line (`src/cli`). Both are thin layers
+  on it: they take the input, call the core and show what it answers, and neither does work the other can't do
+  through the core.
 
 ## Cloud resources
 
@@ -248,17 +237,20 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 ## Privacy
 
 - `PRIVACY-1` **Nothing from outside.** No page loads anything from outside the root domain: no CDN, font service,
-  analytics or other third party. Everything is bundled or served by the backend. The content security policy allows
-  only the page's own origin and `api.<base domain>`.
+  analytics or other third party. Everything is bundled or served by the backend, fonts and libraries included (e.g.
+  `@fontsource`, `swagger-ui-dist`). The content security policy (`contentSecurityPolicy`) allows only the page's own
+  origin and `api.<base domain>` and is never widened.
 - `PRIVACY-2` **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated,
   and the user agrees before each transfer and knows where the data goes. No default activates such a connection.
-- `PRIVACY-3` **Exemption: the container registry.** sakadmin and the server pull the images of SAK from the GitHub
+- `PRIVACY-3` **Exemption: the container registries.** sakadmin and the server pull the images of SAK from the GitHub
   container registry (ghcr.io) without asking: sakadmin the image of its tools and the canary on each start, the server
-  the images of the backend and the ingress on each deploy. The registry then sees the IP address of the user's
-  machine and of the server, and which images they pull, nothing else. Communication with the registry is allowed; SAK
-  cannot run without its images.
+  the images of the backend and the ingress on each deploy. The server also pulls the two images of its logs
+  (VictoriaLogs and Vector) from Docker Hub on each deploy. Each registry then sees the IP address of the machine
+  that pulls and which images it pulls, nothing else. Communication with these registries is allowed; SAK cannot run
+  without its images.
 - `PRIVACY-4` **User data stays.** User data leaves the backend only when the user asks for it (for example text
-  discovery), and only to providers that do not collect it.
+  discovery), and only to providers that do not collect it: a call to OpenRouter sends
+  `provider.data_collection: deny`.
 
 ## Security
 

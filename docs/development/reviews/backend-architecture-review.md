@@ -9,8 +9,8 @@ weight: 12
 
 **Created:** 2026-11-22
 
-**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-7`, `BA-9` to `BA-14`, `BA-16`, `BA-19`, `BA-20`,
-`BA-22`, `BA-26`, `BA-27` and `BA-30`, which are in the history of git; `BA-23`, `BA-28` and `BA-29` list what is
+**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-14`, `BA-16`, `BA-18` to `BA-20`, `BA-22`, `BA-26`,
+`BA-27` and `BA-30`, which are in the history of git; `BA-23`, `BA-28` and `BA-29` list what is
 left of them. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a route
 `GET /settings` of their own, an app owns its settings endpoint.
 
@@ -35,16 +35,6 @@ every time goes through `apiTime()`, every create answers 201. Caddy, victorialo
 manager (`EXT-1`). All binary data goes through `BinaryStorage`, and files, buckets and repositories of restic are
 found by their resource id only.
 
-## Should fix: the code breaks a rule
-
-### `BA-8` The compiler does not keep jOOQ in `sak-model` (`MODEL-2`, checked)
-
-`sak-model/build.gradle.kts:15` has jOOQ as an `api` dependency, and `model/lists/ListTable.kt:59-63` is a public
-class with a public table and public functions that take a `DSLContext`. Only `SakDatabase.dsl` is internal. No code
-outside `sak-model` uses jOOQ today.
-
-Fix: `implementation(libs.jooq)`, and `ListTable` internal.
-
 ## Could fix: modules
 
 ### `BA-15` The guard of the S3 api guards restic, and nothing guards the files
@@ -64,16 +54,6 @@ The backend so holds the class (`backend/SakBackend.kt`, `BucketStatisticsCache`
 a function of the class.
 
 Fix: a second small interface for the three functions.
-
-### `BA-18` More is public and more is declared than is used
-
-- `sak-s3`: nothing of `api/` and `auth/` but `Route.s3` and the access callback is used outside the module, all of
-  it is public.
-- `sak-logs`: `accessLogs` takes two parts of the `AccessLogsManager` (`backend/SakApps.kt:210-214`); `quoted`,
-  `streamFilter`, `TimeSeriesGrid`, `StatsSeries` and `UserAgentClassifier` are public and used inside only.
-- `sak-auth`, `sak-logs` and `sak-backend` declare `ktor-server-content-negotiation`; only `sak-api` installs it.
-
-Fix: `internal` for what one module uses; the three dependencies go.
 
 ## Could fix: duplications
 
@@ -153,5 +133,4 @@ the table again.
 ## Not checked
 
 - The tests, the frontend, the Android apps, the desktop apps and the roles of ansible.
-- Whether a dependency can go (`BA-18`) was not tried with a build.
 - The line numbers are of the working tree of 2026-11-22.

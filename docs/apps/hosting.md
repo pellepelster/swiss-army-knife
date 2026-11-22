@@ -13,7 +13,8 @@ and SAK serves them with automatic TLS certificates.
 
 ## A bucket
 
-Each bucket is served at `<name>.<base domain>`, and also at your own domains, if you add them. A folder serves its
+Each bucket is served at `<name>.<base domain>`, for example `blog.family.example.org`
+([the base domain](../overview.md#the-sak-instance)), and also at your own domains, if you add them. A folder serves its
 `index.html`. The page of a bucket shows its addresses, its number of files and its size.
 
 ![A bucket of static hosting](../screenshots/web-hosting-bucket-desktop.png)

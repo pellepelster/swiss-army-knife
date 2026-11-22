@@ -12,7 +12,7 @@ import java.time.format.DateTimeParseException
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
-data class SigV4Request(
+internal data class SigV4Request(
     val method: String,
     val rawUri: String,
     val rawQuery: String?,
@@ -22,7 +22,7 @@ data class SigV4Request(
     fun header(name: String) = headers[name]?.joinToString(",")
 }
 
-sealed class SigV4Result {
+internal sealed class SigV4Result {
     data class Authenticated(
         val accessKeyId: String,
     ) : SigV4Result()
@@ -34,7 +34,7 @@ sealed class SigV4Result {
     ) : SigV4Result()
 }
 
-class SigV4Verifier(
+internal class SigV4Verifier(
     private val accessCallback: S3AccessCallback,
     private val maxClockSkew: Duration,
     private val clock: Clock = Clock.systemUTC(),

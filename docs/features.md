@@ -36,7 +36,8 @@ with the robot button, for one photo or recording at a time. Providers that coll
 ## Users
 
 - **Single user:** the admin signs in with the password. No mail server needed.
-- **Multiple users:** the admin adds users by their e-mail address. Needs a mail server.
+- **Multiple users:** the admin adds users by their e-mail address. Needs a mail server
+  ([Multiple users](users.md)).
 - **No passwords for users:** no sign-up, users sign in with a link sent by e-mail.
 - **Simple sharing:** data is private, or shared with everyone. No roles, no groups.
 - **Connect an app with a QR code:** the web app shows a QR code, the Android app scans it and is signed in.
@@ -67,9 +68,11 @@ each change.
 Both can:
 
 - **Install, update and destroy** a SAK instance.
-- **Back up and restore** all data, as one encrypted file on your computer.
 - **Maintain the server:** upgrade its packages and reboot it, never during a backup.
 - **Update themselves** when you ask; the next deploy updates the server too.
+
+The command line also **backs up and restores** all data, as one encrypted file on your computer. How to do each of
+these is in [Look after your SAK instance](manage.md).
 
 ## Across all devices
 
@@ -127,8 +130,8 @@ bought; what you added before comes back as a suggestion. Every change shows at 
 
 Tasks, private or shared, with a priority (high, normal or low) and an optional due date. High priority comes first;
 an overdue task shows in red. A task you tap as done stays in its place, struck through, until you remove the done
-tasks (you can undo this for 2 seconds). The menu of a task changes its priority and its due date. Every change shows
-at once on every device.
+tasks (you can undo this for 2 seconds). The menu of a task renames it, changes its priority and its due date, or
+deletes it. Every change shows at once on every device.
 
 ![A todo list with tasks of each priority, one overdue and one done](screenshots/web-todo-desktop.png)
 
@@ -150,5 +153,12 @@ Domains that lead to another address: an external domain, or the site of a bucke
 and renewed automatically.
 
 ![Redirects](screenshots/web-redirects-desktop.png)
+
+### Backups (preview)
+
+[More about the backups](apps/backups.md).
+
+The restic repositories that your SAK instance keeps for you, with their sizes. The desktop app that makes the
+backups, SAK Backup, is not released yet.
 
 Next: how [sakadmin and your SAK instance](overview.md) belong together, or [install sakadmin](installation.md).

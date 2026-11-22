@@ -12,7 +12,8 @@ val changelog = layout.projectDirectory.dir("src/main/resources/db/changelog")
 val generated = layout.buildDirectory.dir("generated-sources/jooq")
 
 dependencies {
-    api(libs.jooq)
+    // not api: no other module compiles against jOOQ (MODEL-2)
+    implementation(libs.jooq)
     implementation(libs.liquibase.core)
     implementation(libs.sqlite.jdbc)
 

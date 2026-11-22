@@ -26,7 +26,7 @@ class VictoriaLogsAnswerTooLargeException(
     maxBytes: Int,
 ) : VictoriaLogsException("the answer of victorialogs is larger than $maxBytes bytes")
 
-data class StatsSeries(
+internal data class StatsSeries(
     val name: String,
     val labels: Map<String, String>,
     val points: List<StatsPoint>,

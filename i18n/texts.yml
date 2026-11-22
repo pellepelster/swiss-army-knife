@@ -1348,7 +1348,7 @@ admin_cli:
       no_zones:
         en: "The project has no DNS zone. Create the zone of the root domain at the provider first."
         de: "Das Projekt hat keine DNS-Zone. Erstelle zuerst die Zone der Root-Domain beim Provider."
-      dns_mode: { en: "DNS Mode", de: "DNS-Modus" }
+      dns_mode: { en: "DNS mode", de: "DNS-Modus" }
       dns_mode_subdomain: { en: "Subdomain", de: "Subdomain" }
       dns_mode_domain: { en: "Domain", de: "Domain" }
       dns_mode_hint_subdomain:

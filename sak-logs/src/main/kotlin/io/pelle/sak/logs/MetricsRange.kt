@@ -31,7 +31,7 @@ enum class MetricsRange(
 
 // the buckets of a range, aligned to its step so consecutive queries share their buckets; the
 // last one is the bucket now falls into
-class TimeSeriesGrid(
+internal class TimeSeriesGrid(
     val range: MetricsRange,
     now: Instant,
 ) {

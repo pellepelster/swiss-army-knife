@@ -52,3 +52,42 @@ it. It is one binary with two faces, the sakadmin ui and the sakadmin cli (`DESK
   to the server by digest (backend, ingress). An image without the signature is not pulled. A tag set with
   `SAK_DOCKER_IMAGE_TAG` that no workflow pushes is pulled unchecked. Third-party images (victorialogs, vector) are
   pinned by digest.
+
+## How it looks and behaves
+
+Adds to the rules of all apps and of the desktop apps in [UI-UX.md](../../UI-UX.md) (`UX-1` to `UX-15`,
+`DESKTOP-1` to `DESKTOP-3`).
+
+### Both faces
+
+- `CTL-1` **A plan that destroys asks first.** Create, deploy and destroy show the plan; when it destroys a resource or
+  replaces one, sakadmin asks for a confirmation before it applies: the sakadmin ui in a dialog, the sakadmin cli by
+  having the name of the deployment typed. `--yes` skips it in the sakadmin cli; without a terminal and without `--yes`
+  the command stops with a usage error and changes nothing.
+- `CTL-2` **No surprise by default.** A deploy keeps the settings of the deployment (e.g. DNS mode, root domain,
+  location) unless they are given; a default never changes a running deployment.
+- `CTL-3` **Feature parity.** The sakadmin ui and the sakadmin cli can do the same: what one does, the other
+  does too.
+- `UI-11` **One line per event:** date, level, message, nothing indented. On a terminal the level is colored (info
+  green, warning yellow, error red); a warning deserves a second look, e.g. a change the plan found or a resource a
+  destroy deletes.
+
+### sakadmin ui
+
+- `UI-8` **Plan before change.** The plan (`CTL-1`) of a deploy is the check on the page of the deployment. Only the
+  apply changes something, and it shows each resource as it goes, with the output of the provisioning below.
+- `UI-10` **A destroy says what goes.** It asks only for the password. The data volume stays (`CLOUD-8`) unless the
+  user ticks a box to delete it too; then the form turns red. The plan and a last confirmation dialog say what goes.
+
+### sakadmin cli
+
+- `CLI-1` **A secret is never an argument**, it would show in the list of processes. Every secret comes from its
+  environment variable or is typed on the terminal without echo; its flag (e.g. `--password`) asks even when the
+  variable is set. The password of a new deployment is typed twice.
+- `CLI-2` **Test deployments.** `--acme-ca staging` makes a test deployment (`SAKADM-7`). The integration tests use it.
+- `CLI-4` **ssh, in the sakadmin cli only.** `sakadmin ssh <name> [-- <command>]` opens a root session or runs a
+  command, from the image of the tools: the key derived from the password lives only in an ssh-agent of the container,
+  the server is checked against its derived host key.
+- `CLI-6` **Scriptable.** Every input is an argument or an environment variable, `--help` lists them all.
+- `CLI-8` **Exit codes tell what happened.** Success, failure, wrong arguments and each refusal a script may handle
+  have a code of their own, listed by `--help`.

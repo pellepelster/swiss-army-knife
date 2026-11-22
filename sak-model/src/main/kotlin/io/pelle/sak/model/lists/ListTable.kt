@@ -57,8 +57,8 @@ sealed interface ListUpdateResult {
 
 // the lists of a list-based app, shared by every such app (LIST-1, LIST-2, MODEL-6): a user sees
 // their own lists and the shared ones of the others; only the owner renames, shares, unshares and
-// deletes a list. Reads live rows only
-class ListTable<R : Record>(
+// deletes a list. Reads live rows only. Internal: it is a part of the repositories, with jOOQ (MODEL-2)
+internal class ListTable<R : Record>(
     private val database: SakDatabase,
     private val clock: Clock,
     val table: Table<R>,

@@ -13,7 +13,8 @@ There are two ways to use SAK Notes, SAK Grocery List and SAK Todo on an Android
 
 ## Apps from outside of Google Play
 
-The native apps do not come from Google Play, and Android makes such apps hard to install:
+The native apps that you download with a link of your SAK instance do not come from Google Play, and Android makes
+such apps hard to install:
 
 - The browser, Android and Play Protect each show a warning, and some make the app look dangerous.
 - You must allow the browser to install apps, and later the app itself, for its updates.

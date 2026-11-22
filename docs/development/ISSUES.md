@@ -13,6 +13,9 @@ of the finding. An issue that is done is deleted here.
 The texts are as they were written: a path or a name in them is the one of the date of the issue, e.g. `sakctl` is
 `sakadmin` now. They were not checked again when they were moved.
 
+A user can still open an issue on GitHub, e.g. a question on the privacy policy of the Android apps. Such an issue is
+answered there; when it is work to do, it is moved here and closed there.
+
 A weakness that is kept on purpose is in [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md), the open findings of the reviews are
 in [the reviews](reviews/).
 

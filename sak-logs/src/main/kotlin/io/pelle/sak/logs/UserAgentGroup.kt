@@ -26,7 +26,7 @@ enum class UserAgentGroup(
 }
 
 // the first matching rule wins, so bots that pretend to be browsers come before the browsers
-object UserAgentClassifier {
+internal object UserAgentClassifier {
     private val RULES: List<Pair<UserAgentGroup, Regex>> =
         listOf(
             UserAgentGroup.ANTHROPIC to "Claude-?(?:User|Bot|SearchBot)|anthropic",

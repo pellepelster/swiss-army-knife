@@ -2,7 +2,7 @@ package io.pelle.sak.s3.api
 
 import java.util.UUID
 
-object S3ErrorXml {
+internal object S3ErrorXml {
     fun body(
         code: String,
         message: String,

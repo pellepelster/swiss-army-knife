@@ -394,7 +394,7 @@ ui:
     root_domain: "Root domain"
     root_domain_hint: "A DNS zone of the project. SAK does not create the zone, create it at the provider first."
     no_zones: "The project has no DNS zone. Create the zone of the root domain at the provider first."
-    dns_mode: "DNS Mode"
+    dns_mode: "DNS mode"
     dns_mode_subdomain: "Subdomain"
     dns_mode_domain: "Domain"
     dns_mode_hint_subdomain: "The SAK instance manages %{name}.<root domain> and *.%{name}.<root domain>. Its apps are at sak.%{name}.<root domain>, their api at api.%{name}.<root domain>. More SAK instances in subdomain mode can use the same root domain."

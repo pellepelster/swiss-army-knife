@@ -4,11 +4,11 @@ import java.io.EOFException
 import java.io.IOException
 import java.io.InputStream
 
-class AwsChunkedFormatException(
+internal class AwsChunkedFormatException(
     message: String,
 ) : IOException(message)
 
-class AwsChunkedInputStream(
+internal class AwsChunkedInputStream(
     private val source: InputStream,
 ) : InputStream() {
     private var remainingInChunk = 0L
