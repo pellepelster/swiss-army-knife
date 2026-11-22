@@ -10,9 +10,9 @@ weight: 12
 **Created:** 2026-11-22
 
 **Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-14`, `BA-16`, `BA-18` to `BA-20`, `BA-22`, `BA-26`,
-`BA-27` and `BA-30`, which are in the history of git; `BA-23`, `BA-28` and `BA-29` list what is
-left of them. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a route
-`GET /settings` of their own, an app owns its settings endpoint.
+`BA-27` to `BA-30`, which are in the history of git; `BA-23` lists what is left of it. Of
+`BA-22` one copy stays on purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an
+app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -115,20 +115,6 @@ Fix: one file `<App>Texts.kt` for each app, the tags named like the paths, the d
 
 Fix: one line in INDEX.md for the verbs and the answers; `installApi()` once for `/api/v1` and once for the well-known
 path.
-
-## Could fix: smells
-
-### `BA-28` The repository of the groceries reads the table of the files
-
-`GroceryRepository.photo` joins the table of the files to answer the file of the photo of an item, whoever uploaded
-it. `FileService` hands a file to its owner only, so the service can not ask it for the photo of a shared list.
-
-Fix: `FileService` answers a file for a caller that checked the access, and `GroceryRepository` only the id.
-
-### `BA-29` A column nobody reads
-
-`redirects.id` is never read: a redirect is found by its source domain. The column goes with a changeset that makes
-the table again.
 
 ## Not checked
 

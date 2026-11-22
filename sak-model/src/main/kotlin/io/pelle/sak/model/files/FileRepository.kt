@@ -1,5 +1,7 @@
 package io.pelle.sak.model.files
 
+import org.jooq.DSLContext
+import org.jooq.Condition
 import io.pelle.sak.model.ResourceIds
 import io.pelle.sak.model.changesTo
 import io.pelle.sak.model.changedAt
@@ -90,6 +92,21 @@ class FileRepository(
 }
 
 // a row of files as the file storage has it
+// a live file that something of another repository shows, whoever uploaded it, e.g. the photo of an
+// item on a shared list (LIST-2). `shown` is the check of that repository, who sees the thing that
+// shows the file; it is a part of this one sql, so the access is checked with the read (MODEL-6).
+// The table of the files is read here only
+internal fun shownFile(
+    dsl: DSLContext,
+    id: Int,
+    shown: Condition,
+): StoredFile? =
+    dsl
+        .selectFrom(FILES)
+        .where(FILES.ID.eq(id), FILES.DELETED_AT.isNull, shown)
+        .fetchOne()
+        ?.toFile()
+
 internal fun FilesRecord.toFile() =
     StoredFile(
         id = id!!,

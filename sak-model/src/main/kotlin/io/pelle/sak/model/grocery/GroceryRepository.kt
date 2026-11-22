@@ -4,14 +4,13 @@ import io.pelle.sak.model.changesTo
 import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.StoredFile
-import io.pelle.sak.model.files.toFile
+import io.pelle.sak.model.files.shownFile
 import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.lists.ListTable
 import io.pelle.sak.model.lists.ListUpdateResult
 import io.pelle.sak.model.lists.SakList
 import io.pelle.sak.model.jooq.tables.records.GroceryCategoriesRecord
 import io.pelle.sak.model.jooq.tables.records.GroceryItemsRecord
-import io.pelle.sak.model.jooq.tables.references.FILES
 import io.pelle.sak.model.jooq.tables.references.GROCERY_CATEGORIES
 import io.pelle.sak.model.jooq.tables.references.GROCERY_ITEMS
 import io.pelle.sak.model.jooq.tables.references.GROCERY_LISTS
@@ -561,15 +560,16 @@ class GroceryRepository(
         id: Int,
         fileId: Int,
     ): StoredFile? =
-        database.dsl
-            .select(FILES.asterisk())
-            .from(GROCERY_ITEMS)
-            .join(FILES)
-            .on(FILES.ID.eq(GROCERY_ITEMS.PHOTO_FILE_ID))
-            .where(GROCERY_ITEMS.ID.eq(id), GROCERY_ITEMS.PHOTO_FILE_ID.eq(fileId), visibleItem(user), FILES.DELETED_AT.isNull)
-            .fetchOne()
-            ?.into(FILES)
-            ?.toFile()
+        shownFile(
+            database.dsl,
+            fileId,
+            DSL.exists(
+                DSL
+                    .selectOne()
+                    .from(GROCERY_ITEMS)
+                    .where(GROCERY_ITEMS.ID.eq(id), GROCERY_ITEMS.PHOTO_FILE_ID.eq(fileId), visibleItem(user)),
+            ),
+        )
 
     // bought (GROCERY-3): the item leaves the list and stays as its history, what its suggestions are
     // made of (GROCERY-11); null when the user does not see it or it is checked or deleted
