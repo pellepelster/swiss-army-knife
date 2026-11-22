@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 // what asked for a login link; the signin page hands the link of an android app on to that app. A
 // closed list, so a link never names another package. linkName is the client parameter of the link
 @Serializable
-enum class LoginClient(
+enum class LoginClientRequest(
     val linkName: String?,
 ) {
     @SerialName("web")

@@ -1,5 +1,6 @@
 package io.pelle.sak.model.restic
 
+import io.pelle.sak.model.ResourceIds
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.ResticRepositoriesRecord
@@ -33,13 +34,13 @@ data class ResticLogin(
 }
 
 // what inserting a repository came to
-sealed interface ResticInsert {
+sealed interface ResticRepositoryInsertResult {
     data class Inserted(
         val repository: ResticRepository,
-    ) : ResticInsert
+    ) : ResticRepositoryInsertResult
 
     // the owner has a repository of the name
-    data object NameTaken : ResticInsert
+    data object NameTaken : ResticRepositoryInsertResult
 }
 
 // the repositories of restic, for ResticRepositoryService only. A repository belongs to its owner
@@ -51,9 +52,11 @@ class ResticRepositoryRepository(
     private val clock: Clock = Clock.systemUTC(),
     // whether a resource id may be given out beside the database, e.g. no directory of it is left from
     // a restore of the instance (MODEL-8)
-    private val free: (ResourceId) -> Boolean = { true },
-    private val random: SecureRandom = SecureRandom(),
+    free: (ResourceId) -> Boolean = { true },
+    random: SecureRandom = SecureRandom(),
 ) {
+    private val resourceIds = ResourceIds(RESTIC_REPOSITORIES, RESTIC_REPOSITORIES.RESOURCE_ID, free, random)
+
     // the repositories of the owner, by name
     fun of(owner: String): List<ResticRepository> =
         database.dsl
@@ -64,13 +67,7 @@ class ResticRepositoryRepository(
             .map { it.repository() }
 
     // the resource ids of all repositories, the deleted ones included: their directories are no leftovers
-    fun resourceIds(): Set<ResourceId> =
-        database.dsl
-            .select(RESTIC_REPOSITORIES.RESOURCE_ID)
-            .from(RESTIC_REPOSITORIES)
-            .fetch(RESTIC_REPOSITORIES.RESOURCE_ID)
-            .map { ResourceId(it!!) }
-            .toSet()
+    fun resourceIds(): Set<ResourceId> = resourceIds.all(database.dsl)
 
     // the token of a repository of the owner
     fun token(
@@ -117,11 +114,11 @@ class ResticRepositoryRepository(
         owner: String,
         name: String,
         token: String,
-    ): ResticInsert =
+    ): ResticRepositoryInsertResult =
         try {
-            ResticInsert.Inserted(database.dsl.transactionResult { configuration -> insert(DSL.using(configuration), owner, name, token) })
+            ResticRepositoryInsertResult.Inserted(database.dsl.transactionResult { configuration -> insert(DSL.using(configuration), owner, name, token) })
         } catch (_: IntegrityConstraintViolationException) {
-            ResticInsert.NameTaken
+            ResticRepositoryInsertResult.NameTaken
         }
 
     private fun insert(
@@ -135,23 +132,11 @@ class ResticRepositoryRepository(
             .set(RESTIC_REPOSITORIES.OWNER, owner)
             .set(RESTIC_REPOSITORIES.NAME, name)
             .set(RESTIC_REPOSITORIES.TOKEN, token)
-            .set(RESTIC_REPOSITORIES.RESOURCE_ID, newResourceId(dsl).value)
+            .set(RESTIC_REPOSITORIES.RESOURCE_ID, resourceIds.new(dsl).value)
             .set(RESTIC_REPOSITORIES.CREATED_AT, clock.instant())
             .returning()
             .fetchOne()!!
             .repository()
 
-    // a resource id no repository had, deleted ones included, and free beside the database; drawn
-    // again when taken, which 36^12 ids make next to impossible
-    private fun newResourceId(dsl: DSLContext): ResourceId =
-        generateSequence { ResourceId.random(random) }
-            .take(MAX_DRAWS)
-            .firstOrNull { !dsl.fetchExists(RESTIC_REPOSITORIES, RESTIC_REPOSITORIES.RESOURCE_ID.eq(it.value)) && free(it) }
-            ?: error("no free resource id after $MAX_DRAWS draws")
-
     private fun ResticRepositoriesRecord.repository() = ResticRepository(id!!, ResourceId(resourceId!!), owner!!, name!!, createdAt!!)
-
-    private companion object {
-        const val MAX_DRAWS = 3
-    }
 }

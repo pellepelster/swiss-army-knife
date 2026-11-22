@@ -64,11 +64,11 @@ fun Route.users(
     post {
         val request = call.receive<UserRequest>()
         when (val result = withContext(Dispatchers.IO) { userService.add(call.owner, request.email, request.name) }) {
-            is AddUserResult.Added ->
+            is UserAddResult.Added ->
                 call.respond(HttpStatusCode.Created, UserResponse(result.user.id, result.user.email, result.user.name, configured = false))
-            is AddUserResult.Invalid -> call.respondErrors(result.errors)
-            AddUserResult.Exists -> call.respondErrors(UsersTexts.EXISTS, status = HttpStatusCode.Conflict)
-            AddUserResult.Admin -> call.respondErrors(UsersTexts.IS_ADMIN, status = HttpStatusCode.Conflict)
+            is UserAddResult.Invalid -> call.respondErrors(result.errors)
+            UserAddResult.Exists -> call.respondErrors(UsersTexts.EXISTS, status = HttpStatusCode.Conflict)
+            UserAddResult.Admin -> call.respondErrors(UsersTexts.IS_ADMIN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(USERS_TAG)
@@ -94,8 +94,9 @@ fun Route.users(
             call.respondErrors(UsersTexts.NO_MAIL_SERVER, status = HttpStatusCode.Conflict)
             return@post
         }
+        // the address of the body, no resource of the path (API-6)
         if (withContext(Dispatchers.IO) { userService.users() }.none { it.email == email }) {
-            call.respondErrors(UsersTexts.NOT_A_USER, status = HttpStatusCode.NotFound)
+            call.respondErrors(UsersTexts.NOT_A_USER, status = HttpStatusCode.UnprocessableEntity)
             return@post
         }
         // the mail in the language of the admin who sends it, the language of the user is not known
@@ -121,8 +122,8 @@ fun Route.users(
         }
         responses {
             HttpStatusCode.NoContent { description = "The e-mail is sent" }
-            errors(HttpStatusCode.NotFound, "The address is no user or admin of the deployment")
             errors(HttpStatusCode.Conflict, "The deployment has no mail server")
+            errors(HttpStatusCode.UnprocessableEntity, "The address is no user or admin of the deployment")
             errors(HttpStatusCode.BadGateway, "The mail server did not take the e-mail")
         }
     }

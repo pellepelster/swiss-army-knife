@@ -1,5 +1,8 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.backend.isFree
+import io.pelle.sak.backend.blobPath
+import io.pelle.sak.backend.leftovers
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.s3.storage.WriteGuard
 import io.pelle.sak.storage.BinaryStorage
@@ -12,19 +15,19 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 // what saving a file of a repository came to
-sealed interface ResticSave {
-    data object Saved : ResticSave
+sealed interface ResticFileSaveResult {
+    data object Saved : ResticFileSaveResult
 
     // a file of the name is there already: restic never writes one twice, a file is not replaced
-    data object Exists : ResticSave
+    data object Exists : ResticFileSaveResult
 
     // the content is not the one its name is the sha-256 of: an upload that broke on its way
-    data object Damaged : ResticSave
+    data object Damaged : ResticFileSaveResult
 
     // a config for a repository that has backed up data: it was initialized, its config is missing, and
     // a new one would hide what is there (BK-6). Keys and locks alone are no data: restic init writes
     // its key before the config
-    data object NotEmpty : ResticSave
+    data object NotEmpty : ResticFileSaveResult
 }
 
 // a file of a repository: the config, or one of a type by its name
@@ -81,7 +84,7 @@ class ResticStore(
     private fun path(
         repository: ResourceId,
         file: ResticFile,
-    ) = if (file.type == null) BlobPath(listOf(repository.value, file.name)) else BlobPath(listOf(repository.value, file.type, file.name))
+    ) = if (file.type == null) repository.blobPath(file.name) else repository.blobPath(file.type, file.name)
 
     // the size of a file, null when there is none
     fun size(
@@ -105,7 +108,7 @@ class ResticStore(
         visit: (name: String, size: Long) -> Unit,
     ) {
         require(type in ResticFile.TYPES) { "no type of a repository: $type" }
-        storage.forEach(BlobPath(listOf(repository.value, type))) {
+        storage.forEach(repository.blobPath(type)) {
             if (it.segments.size == 1 && ResticFile.NAME.matches(it.segments.single())) visit(it.segments.single(), it.size)
         }
     }
@@ -114,21 +117,21 @@ class ResticStore(
         repository: ResourceId,
         file: ResticFile,
         content: InputStream,
-    ): ResticSave {
+    ): ResticFileSaveResult {
         val target = path(repository, file)
-        if (storage.stat(target) != null) return ResticSave.Exists
-        if (file.type == null && hasData(repository)) return ResticSave.NotEmpty
+        if (storage.stat(target) != null) return ResticFileSaveResult.Exists
+        if (file.type == null && hasData(repository)) return ResticFileSaveResult.NotEmpty
         guard.requireRoom()
-        val staged = BlobPath(listOf(repository.value, STAGING, UUID.randomUUID().toString()))
+        val staged = repository.blobPath(STAGING, UUID.randomUUID().toString())
         try {
             val digest = MessageDigest.getInstance("SHA-256")
             storage.write(staged, DigestInputStream(guard.guarded(content, minOf(guard.maxBytes, MAX_FILE_BYTES)), digest))
-            if (file.type != null && HexFormat.of().formatHex(digest.digest()) != file.name) return ResticSave.Damaged
+            if (file.type != null && HexFormat.of().formatHex(digest.digest()) != file.name) return ResticFileSaveResult.Damaged
             return locked(repository) {
-                if (storage.stat(target) != null) return@locked ResticSave.Exists
+                if (storage.stat(target) != null) return@locked ResticFileSaveResult.Exists
                 storage.move(staged, target)
                 changed(repository, storage.stat(target)?.size ?: 0)
-                ResticSave.Saved
+                ResticFileSaveResult.Saved
             }
         } finally {
             storage.delete(staged)
@@ -147,18 +150,18 @@ class ResticStore(
     // the bytes of the config and of the files of every type, the staged ones left out
     private fun files(repository: ResourceId) =
         (storage.stat(path(repository, ResticFile.config))?.size ?: 0) +
-            ResticFile.TYPES.sumOf { storage.usage(BlobPath(listOf(repository.value, it))).bytes }
+            ResticFile.TYPES.sumOf { storage.usage(repository.blobPath(it)).bytes }
 
     // whether a repository has backed up anything: data, an index or a snapshot
-    private fun hasData(repository: ResourceId) = DATA_TYPES.any { storage.children(BlobPath(listOf(repository.value, it))).isNotEmpty() }
+    private fun hasData(repository: ResourceId) = DATA_TYPES.any { storage.children(repository.blobPath(it)).isNotEmpty() }
 
     // whether anything of a repository is on the data volume: a directory left from a restore of the
     // instance is never given to a new repository (MODEL-8)
-    fun exists(repository: ResourceId): Boolean = storage.children(BlobPath(listOf(repository.value))).isNotEmpty()
+    fun exists(repository: ResourceId): Boolean = !storage.isFree(repository)
 
     // the directories of repositories that are not in `known`, e.g. the ones a restore of the instance
     // left without their row; never deleted, nobody reaches them
-    fun leftovers(known: Set<ResourceId>): List<String> = storage.children(BlobPath(emptyList())).filter { name -> ResourceId.of(name) !in known }
+    fun leftovers(known: Set<ResourceId>): List<String> = storage.leftovers(known)
 
     // false when there was no such file
     fun delete(

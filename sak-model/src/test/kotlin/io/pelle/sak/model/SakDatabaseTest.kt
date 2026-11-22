@@ -60,4 +60,43 @@ class SakDatabaseTest {
         shouldThrow<DataAccessException> { insert(database, "bucket1", accessKeyId = "AK2") }
         shouldThrow<DataAccessException> { insert(database, "bucket2", accessKeyId = "AK1") }
     }
+
+    @Test
+    fun `a database of the release that copied to the resource ids keeps its files and buckets without the columns of the copies`() {
+        Files.createDirectories(file.parent)
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            migrateIsolated(connection, "db/changelog/until-0005.yaml")
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "INSERT INTO files (id, resource_id, sha256, content_type, size, owner, created_at) " +
+                        "VALUES (1, 'file00000001', '${"a".repeat(64)}', 'image/jpeg', 7, 'admin@example.org', '2026-11-01 00:00:00.000')",
+                )
+                statement.executeUpdate(
+                    "INSERT INTO s3_buckets (name, resource_id, objects_at_name, access_key_id, secret_access_key, owner, created_at) " +
+                        "VALUES ('site', 'site00000001', 0, 'AKsite', 'secret', 'admin@example.org', '2026-11-01 00:00:00.000')",
+                )
+            }
+            // liquibase leaves the connection without auto commit
+            connection.commit()
+        }
+
+        val database = SakDatabase.open(file)
+
+        io.pelle.sak.model.files.FileRepository(database).byId("admin@example.org", 1)!!.let {
+            it.resourceId shouldBe ResourceId("file00000001")
+            it.size shouldBe 7
+        }
+        io.pelle.sak.model.s3.S3BucketRepository(database).byName("site")!!.resourceId shouldBe ResourceId("site00000001")
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            fun columns(table: String) =
+                connection.createStatement().use { statement ->
+                    statement.executeQuery("SELECT name FROM pragma_table_info('$table')").use { rows ->
+                        generateSequence { if (rows.next()) rows.getString(1) else null }.toSet()
+                    }
+                }
+            ("sha256" in columns("files")) shouldBe false
+            ("objects_at_name" in columns("s3_buckets")) shouldBe false
+            ("resource_id" in columns("files") && "resource_id" in columns("s3_buckets")) shouldBe true
+        }
+    }
 }

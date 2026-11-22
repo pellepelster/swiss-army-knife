@@ -40,7 +40,7 @@ class ResticRepositoryRepositoryTest {
 
     @Test
     fun `a repository belongs to its owner, its token is apart`() {
-        val laptop = (repository.insert(ANNA, "laptop", "token-1") as ResticInsert.Inserted).repository
+        val laptop = (repository.insert(ANNA, "laptop", "token-1") as ResticRepositoryInsertResult.Inserted).repository
         laptop shouldBe ResticRepository(laptop.id, laptop.resourceId, ANNA, "laptop", now)
         repository.of(ANNA) shouldBe listOf(laptop)
         repository.of(BERT) shouldBe emptyList()
@@ -52,15 +52,15 @@ class ResticRepositoryRepositoryTest {
 
     @Test
     fun `a name is unique among the repositories of its owner`() {
-        repository.insert(ANNA, "laptop", "a").shouldBeInstanceOf<ResticInsert.Inserted>()
-        repository.insert(ANNA, "laptop", "b") shouldBe ResticInsert.NameTaken
-        repository.insert(BERT, "laptop", "c").shouldBeInstanceOf<ResticInsert.Inserted>()
+        repository.insert(ANNA, "laptop", "a").shouldBeInstanceOf<ResticRepositoryInsertResult.Inserted>()
+        repository.insert(ANNA, "laptop", "b") shouldBe ResticRepositoryInsertResult.NameTaken
+        repository.insert(BERT, "laptop", "c").shouldBeInstanceOf<ResticRepositoryInsertResult.Inserted>()
         repository.of(ANNA).map { it.name } shouldBe listOf("laptop")
     }
 
     @Test
     fun `every repository gets its own resource id, never one that is taken (MODEL-8)`() {
-        val laptop = (repository.insert(ANNA, "laptop", "a") as ResticInsert.Inserted).repository
+        val laptop = (repository.insert(ANNA, "laptop", "a") as ResticRepositoryInsertResult.Inserted).repository
         val first = repository.insertFirst(BERT, "my-backups", "b")!!
         laptop.resourceId shouldNotBe first.resourceId
         repository.of(BERT).single().resourceId shouldBe first.resourceId
@@ -69,7 +69,7 @@ class ResticRepositoryRepositoryTest {
         // a taken one is drawn again
         val left = ResourceId("leftover0001")
         val taken = ResticRepositoryRepository(SakDatabase.open(tempDir.resolve("other.db")), free = { it != left }, random = draws(left.value, "fresh0000001"))
-        (taken.insert(ANNA, "laptop", "c") as ResticInsert.Inserted).repository.resourceId shouldBe ResourceId("fresh0000001")
+        (taken.insert(ANNA, "laptop", "c") as ResticRepositoryInsertResult.Inserted).repository.resourceId shouldBe ResourceId("fresh0000001")
     }
 
     // a SecureRandom that draws the characters of `ids` one after the other

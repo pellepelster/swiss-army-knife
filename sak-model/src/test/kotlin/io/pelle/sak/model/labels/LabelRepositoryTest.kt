@@ -70,7 +70,7 @@ class LabelRepositoryTest {
         repository.byId(OTHER, home.id) shouldBe null
         repository.byIds(OTHER, listOf(home.id, others.id)) shouldBe listOf(others)
         repository.byNames(OTHER, listOf("home")) shouldBe listOf(others)
-        repository.rename(OTHER, home.id, "house") shouldBe LabelRename.NotFound
+        repository.rename(OTHER, home.id, "house") shouldBe LabelNameUpdateResult.NotFound
         repository.delete(OTHER, home.id) shouldBe false
         repository.byId(OWNER, home.id) shouldBe home
     }
@@ -80,10 +80,10 @@ class LabelRepositoryTest {
         val home = repository.insert(OWNER, "home")!!
         val work = repository.insert(OWNER, "work")!!
 
-        repository.rename(OWNER, home.id, "house").shouldBeInstanceOf<LabelRename.Renamed>().label.name shouldBe "house"
-        repository.rename(OWNER, home.id, "work") shouldBe LabelRename.NameTaken
+        repository.rename(OWNER, home.id, "house").shouldBeInstanceOf<LabelNameUpdateResult.Renamed>().label.name shouldBe "house"
+        repository.rename(OWNER, home.id, "work") shouldBe LabelNameUpdateResult.NameTaken
         repository.delete(OWNER, work.id)
-        repository.rename(OWNER, work.id, "office") shouldBe LabelRename.NotFound
-        repository.rename(OWNER, 4711, "office") shouldBe LabelRename.NotFound
+        repository.rename(OWNER, work.id, "office") shouldBe LabelNameUpdateResult.NotFound
+        repository.rename(OWNER, 4711, "office") shouldBe LabelNameUpdateResult.NotFound
     }
 }

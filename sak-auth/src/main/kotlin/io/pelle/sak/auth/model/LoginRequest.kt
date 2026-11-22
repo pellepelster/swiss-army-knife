@@ -9,6 +9,6 @@ import kotlinx.serialization.Serializable
 data class LoginRequest(
     val email: String,
     val redirect: String? = null,
-    val client: LoginClient = LoginClient.WEB,
+    val client: LoginClientRequest = LoginClientRequest.WEB,
     val nonce: String? = null,
 )

@@ -25,13 +25,13 @@ class ResticBackupPlanRepositoryTest {
 
     private val plans by lazy { ResticBackupPlanRepository(database, Clock.fixed(now, ZoneOffset.UTC)) }
 
-    private fun repository(owner: String) = (repositories.insert(owner, "laptop", "token-$owner") as ResticInsert.Inserted).repository.id
+    private fun repository(owner: String) = (repositories.insert(owner, "laptop", "token-$owner") as ResticRepositoryInsertResult.Inserted).repository.id
 
     @Test
     fun `a backup plan keeps its repository, its host and its paths in their order`() {
         val laptop = repository(ANNA)
         val values = ResticBackupPlanValues("documents", laptop, "annas-laptop", listOf("/home/anna/Documents", "/home/anna/Notes"))
-        val saved = (plans.insert(ANNA, values) as ResticBackupPlanSave.Saved).plan
+        val saved = (plans.insert(ANNA, values) as ResticBackupPlanWriteResult.Saved).plan
         saved shouldBe ResticBackupPlan(saved.id, ANNA, "documents", laptop, "annas-laptop", values.paths, now, null)
         plans.of(ANNA) shouldBe listOf(saved)
         plans.byId(BERT, saved.id) shouldBe null
@@ -42,24 +42,24 @@ class ResticBackupPlanRepositoryTest {
     fun `a backup plan names a repository of its owner and a name of its own`() {
         val laptop = repository(ANNA)
         val bertsRepository = repository(BERT)
-        plans.insert(ANNA, ResticBackupPlanValues("documents", bertsRepository, "h", listOf("/a"))) shouldBe ResticBackupPlanSave.UnknownRepository
-        plans.insert(ANNA, ResticBackupPlanValues("documents", 4711, "h", listOf("/a"))) shouldBe ResticBackupPlanSave.UnknownRepository
+        plans.insert(ANNA, ResticBackupPlanValues("documents", bertsRepository, "h", listOf("/a"))) shouldBe ResticBackupPlanWriteResult.UnknownRepository
+        plans.insert(ANNA, ResticBackupPlanValues("documents", 4711, "h", listOf("/a"))) shouldBe ResticBackupPlanWriteResult.UnknownRepository
         plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "h", listOf("/a")))
-        plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "h", listOf("/b"))) shouldBe ResticBackupPlanSave.NameTaken
+        plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "h", listOf("/b"))) shouldBe ResticBackupPlanWriteResult.NameTaken
     }
 
     @Test
     fun `a change replaces the values and the paths, of a backup plan of the owner only`() {
         val laptop = repository(ANNA)
-        val id = (plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "h", listOf("/a", "/b"))) as ResticBackupPlanSave.Saved).plan.id
+        val id = (plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "h", listOf("/a", "/b"))) as ResticBackupPlanWriteResult.Saved).plan.id
         plans.insert(ANNA, ResticBackupPlanValues("other", laptop, "h", listOf("/c")))
         // what a run keeps is kept with the plan, none keeps every snapshot (BACKUP-8)
         val changed = ResticBackupPlanValues("papers", laptop, "h2", listOf("/b", "/z"), ResticKeep(daily = 7, monthly = 12))
-        plans.update(BERT, id, changed) shouldBe ResticBackupPlanSave.NotFound
-        plans.update(ANNA, id, changed.copy(name = "other")) shouldBe ResticBackupPlanSave.NameTaken
-        plans.update(ANNA, id, changed.copy(repositoryId = 4711)) shouldBe ResticBackupPlanSave.UnknownRepository
-        (plans.update(ANNA, id, changed) as ResticBackupPlanSave.Saved).plan shouldBe
+        plans.update(BERT, id, changed) shouldBe ResticBackupPlanWriteResult.NotFound
+        plans.update(ANNA, id, changed.copy(name = "other")) shouldBe ResticBackupPlanWriteResult.NameTaken
+        plans.update(ANNA, id, changed.copy(repositoryId = 4711)) shouldBe ResticBackupPlanWriteResult.UnknownRepository
+        (plans.update(ANNA, id, changed) as ResticBackupPlanWriteResult.Saved).plan shouldBe
             ResticBackupPlan(id, ANNA, "papers", laptop, "h2", listOf("/b", "/z"), now, now, ResticKeep(daily = 7, monthly = 12))
-        (plans.update(ANNA, id, changed.copy(keep = ResticKeep())) as ResticBackupPlanSave.Saved).plan.keep shouldBe ResticKeep()
+        (plans.update(ANNA, id, changed.copy(keep = ResticKeep())) as ResticBackupPlanWriteResult.Saved).plan.keep shouldBe ResticKeep()
     }
 }

@@ -10,6 +10,7 @@ import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.auth.LoginListener
+import io.pelle.sak.model.notes.NoteWriteResult
 import io.pelle.sak.model.notes.NoteRepository
 import io.pelle.sak.model.notes.NoteRow
 import java.time.Clock
@@ -67,25 +68,25 @@ enum class NoteProblem {
     TOO_MANY_RECORDINGS,
 }
 
-sealed interface SaveNoteResult {
+sealed interface NoteSaveResult {
     data class Saved(
         val note: Note,
-    ) : SaveNoteResult
+    ) : NoteSaveResult
 
-    data object NotFound : SaveNoteResult
+    data object NotFound : NoteSaveResult
 
     // the owner has no list, they get one when they sign in (NOTES-1)
-    data object NoList : SaveNoteResult
+    data object NoList : NoteSaveResult
 
     data class Invalid(
         val problems: Set<NoteProblem>,
-    ) : SaveNoteResult
+    ) : NoteSaveResult
 }
 
-sealed interface DeleteNoteResult {
-    data object Deleted : DeleteNoteResult
+sealed interface NoteDeleteResult {
+    data object Deleted : NoteDeleteResult
 
-    data object NotFound : DeleteNoteResult
+    data object NotFound : NoteDeleteResult
 }
 
 // the notes, the only way to them; only the owner, who created a note, sees and changes it. The
@@ -145,15 +146,12 @@ class NoteService(
         labelNames: Collection<String> = emptyList(),
         photos: List<Int> = emptyList(),
         recordings: List<Int> = emptyList(),
-    ): SaveNoteResult {
+    ): NoteSaveResult {
         // before the check, which creates the labels not known yet
-        val listId = repository.ownList(owner) ?: return SaveNoteResult.NoList
+        val listId = repository.ownList(owner) ?: return NoteSaveResult.NoList
         return when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
-            is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
-            is Checked.Valid -> {
-                val row = repository.insert(owner, listId, text, checked.color.id, checked.labels.ids(), checked.files)
-                SaveNoteResult.Saved(row.toNote(checked.labels, checked.photos, checked.recordings))
-            }
+            is Checked.Invalid -> NoteSaveResult.Invalid(checked.problems)
+            is Checked.Valid -> saved(repository.insert(owner, listId, text, checked.color.id, checked.labels.ids(), checked.files), checked)
         }
     }
 
@@ -166,18 +164,13 @@ class NoteService(
         labelNames: Collection<String> = emptyList(),
         photos: List<Int> = emptyList(),
         recordings: List<Int> = emptyList(),
-    ): SaveNoteResult {
+    ): NoteSaveResult {
         // before the check, which creates the labels not known yet: a note that is not there, or
         // another owner's, creates none
-        repository.byId(owner, id) ?: return SaveNoteResult.NotFound
+        repository.byId(owner, id) ?: return NoteSaveResult.NotFound
         return when (val checked = check(owner, text, color, labelNames, photos, recordings)) {
-            is Checked.Invalid -> SaveNoteResult.Invalid(checked.problems)
-            is Checked.Valid -> {
-                val updated =
-                    repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.files)
-                        ?: return SaveNoteResult.NotFound
-                SaveNoteResult.Saved(updated.toNote(checked.labels, checked.photos, checked.recordings))
-            }
+            is Checked.Invalid -> NoteSaveResult.Invalid(checked.problems)
+            is Checked.Valid -> saved(repository.update(owner, id, text, checked.color.id, checked.labels.ids(), checked.files), checked)
         }
     }
 
@@ -185,7 +178,27 @@ class NoteService(
     fun delete(
         owner: String,
         id: Int,
-    ): DeleteNoteResult = if (repository.delete(owner, id)) DeleteNoteResult.Deleted else DeleteNoteResult.NotFound
+    ): NoteDeleteResult = if (repository.delete(owner, id)) NoteDeleteResult.Deleted else NoteDeleteResult.NotFound
+
+    // what the repository made of the checked values: it checks again in its transaction that the list
+    // and the files are the owner's (MODEL-6), and leaves out a label deleted since the check
+    private fun saved(
+        save: NoteWriteResult,
+        checked: Checked.Valid,
+    ): NoteSaveResult =
+        when (save) {
+            is NoteWriteResult.Saved ->
+                NoteSaveResult.Saved(save.note.toNote(checked.labels.filter { it.id in save.note.labelIds }, checked.photos, checked.recordings))
+            NoteWriteResult.NotFound -> NoteSaveResult.NotFound
+            NoteWriteResult.NoList -> NoteSaveResult.NoList
+            is NoteWriteResult.UnknownFiles ->
+                NoteSaveResult.Invalid(
+                    setOfNotNull(
+                        NoteProblem.UNKNOWN_PHOTO.takeIf { checked.photos.any { it in save.fileIds } },
+                        NoteProblem.UNKNOWN_RECORDING.takeIf { checked.recordings.any { it in save.fileIds } },
+                    ),
+                )
+        }
 
     private sealed interface Checked {
         data class Valid(

@@ -92,14 +92,14 @@ private fun ResticBackupPlanRequest.values() =
     ResticBackupPlanValues(name, repositoryId, host, paths, ResticKeep(keepLast, keepDaily, keepWeekly, keepMonthly, keepYearly))
 
 private suspend fun ApplicationCall.respondPlan(
-    result: ResticBackupPlanResult,
+    result: ResticBackupPlanSaveResult,
     created: Boolean = false,
 ) = when (result) {
-    is ResticBackupPlanResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.plan.response())
-    is ResticBackupPlanResult.Invalid -> respondErrors(result.errors)
-    ResticBackupPlanResult.NotFound -> respond(HttpStatusCode.NotFound)
-    ResticBackupPlanResult.UnknownRepository -> respondErrors(ResticTexts.UNKNOWN_REPOSITORY, status = HttpStatusCode.UnprocessableEntity)
-    ResticBackupPlanResult.Exists -> respondErrors(ResticTexts.PLAN_EXISTS, status = HttpStatusCode.Conflict)
+    is ResticBackupPlanSaveResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.plan.response())
+    is ResticBackupPlanSaveResult.Invalid -> respondErrors(result.errors)
+    ResticBackupPlanSaveResult.NotFound -> respond(HttpStatusCode.NotFound)
+    ResticBackupPlanSaveResult.UnknownRepository -> respondErrors(ResticTexts.UNKNOWN_REPOSITORY, status = HttpStatusCode.UnprocessableEntity)
+    ResticBackupPlanSaveResult.Exists -> respondErrors(ResticTexts.PLAN_EXISTS, status = HttpStatusCode.Conflict)
 }
 
 // the repositories of restic of the signed in user (BACKUP-1, BACKUP-2) and the backup plans into them
@@ -222,9 +222,9 @@ fun Route.restic(
         post {
             val request = call.receive<ResticRepositoryRequest>()
             when (val created = withContext(Dispatchers.IO) { service.create(call.owner, request.name) }) {
-                is ResticCreate.Created -> call.respond(HttpStatusCode.Created, created.repository.response(apiHost, store))
-                ResticCreate.InvalidName -> call.respondErrors(ResticTexts.INVALID_NAME)
-                ResticCreate.Exists -> call.respondErrors(ResticTexts.REPOSITORY_EXISTS, status = HttpStatusCode.Conflict)
+                is ResticRepositoryCreateResult.Created -> call.respond(HttpStatusCode.Created, created.repository.response(apiHost, store))
+                ResticRepositoryCreateResult.InvalidName -> call.respondErrors(ResticTexts.INVALID_NAME)
+                ResticRepositoryCreateResult.Exists -> call.respondErrors(ResticTexts.REPOSITORY_EXISTS, status = HttpStatusCode.Conflict)
             }
         }.describe {
             tag(RESTIC_TAG)
@@ -420,9 +420,9 @@ private class ResticRequest(
             }
         call.respond(
             when (result) {
-                ResticSave.Saved -> HttpStatusCode.OK
-                ResticSave.Exists, ResticSave.NotEmpty -> HttpStatusCode.Forbidden
-                ResticSave.Damaged -> HttpStatusCode.BadRequest
+                ResticFileSaveResult.Saved -> HttpStatusCode.OK
+                ResticFileSaveResult.Exists, ResticFileSaveResult.NotEmpty -> HttpStatusCode.Forbidden
+                ResticFileSaveResult.Damaged -> HttpStatusCode.BadRequest
             },
         )
     }

@@ -88,7 +88,7 @@ class ResticRestTest {
     ) {
         val server = embeddedServer(Netty, port = 0) { routing { route(RESTIC_PATH_PREFIX) { resticRest(service, store, failures) } } }.start()
         try {
-            val repository = (service.create(ANNA, "laptop") as ResticCreate.Created).repository
+            val repository = (service.create(ANNA, "laptop") as ResticRepositoryCreateResult.Created).repository
             Client(http, runBlocking { server.engine.resolvedConnectors().first().port }).block(repository.id, service.token(ANNA, repository.id)!!)
         } finally {
             server.stop()
@@ -155,7 +155,7 @@ class ResticRestTest {
 
             // a restore of the instance puts back a database without the repository: its files stay, nobody
             // reaches them, the next repository gets a directory of its own
-            val second = (ResticRepositoryService(SakDatabase.open(tempDir.resolve("restored.db")), mayLogin = { true }, store = store).create(ANNA, "laptop") as ResticCreate.Created).repository
+            val second = (ResticRepositoryService(SakDatabase.open(tempDir.resolve("restored.db")), mayLogin = { true }, store = store).create(ANNA, "laptop") as ResticRepositoryCreateResult.Created).repository
             second.resourceId shouldNotBe rid
             store.exists(second.resourceId) shouldBe false
             store.leftovers(setOf(second.resourceId)) shouldBe listOf(rid.value)
@@ -207,7 +207,7 @@ class ResticRestTest {
     @Test
     fun `the token of the repository is its only login, a client that fails too often is refused`() =
         restTest(failures = RateLimiter(3, Duration.ofHours(1))) { id, token ->
-            val other = (service.create(ANNA, "other") as ResticCreate.Created).repository
+            val other = (service.create(ANNA, "other") as ResticRepositoryCreateResult.Created).repository
             send("GET", "/restic/$id/config").let {
                 it.statusCode() shouldBe 401
                 it.headers().firstValue("WWW-Authenticate").get() shouldContain "Basic"
@@ -227,7 +227,7 @@ class ResticRestTest {
     @Test
     fun `a login is refused unless it is the user and the token of the repository of the path`() =
         restTest { id, token ->
-            val berts = (service.create(BERT, "laptop") as ResticCreate.Created).repository
+            val berts = (service.create(BERT, "laptop") as ResticRepositoryCreateResult.Created).repository
             val bertsToken = service.token(BERT, berts.id)!!
             val content = "of bert".toByteArray()
             send("POST", "/restic/${berts.id}/data/${sha256(content)}", "${berts.id}" to bertsToken, content).statusCode() shouldBe 200

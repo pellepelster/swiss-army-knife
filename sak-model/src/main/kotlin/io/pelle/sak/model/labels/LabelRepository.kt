@@ -1,5 +1,7 @@
 package io.pelle.sak.model.labels
 
+import io.pelle.sak.model.changesTo
+import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.LabelsRecord
 import io.pelle.sak.model.jooq.tables.references.LABELS
@@ -86,19 +88,19 @@ class LabelRepository(
         owner: String,
         id: Int,
         name: String,
-    ): LabelRename =
+    ): LabelNameUpdateResult =
         try {
             database.dsl
                 .update(LABELS)
                 .set(LABELS.NAME, name)
-                .set(LABELS.UPDATED_AT, clock.instant())
+                .set(LABELS.UPDATED_AT, changedAt(LABELS.UPDATED_AT, clock.instant(), LABELS.NAME.changesTo(name)))
                 .where(LABELS.OWNER.eq(owner), LABELS.ID.eq(id), LABELS.DELETED_AT.isNull)
                 .returning()
                 .fetchOne()
-                ?.let { LabelRename.Renamed(it.toLabel()) }
-                ?: LabelRename.NotFound
+                ?.let { LabelNameUpdateResult.Renamed(it.toLabel()) }
+                ?: LabelNameUpdateResult.NotFound
         } catch (_: IntegrityConstraintViolationException) {
-            LabelRename.NameTaken
+            LabelNameUpdateResult.NameTaken
         }
 
     // false when the owner had none

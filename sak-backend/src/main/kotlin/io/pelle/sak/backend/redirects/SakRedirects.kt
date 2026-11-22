@@ -3,7 +3,8 @@ package io.pelle.sak.backend.redirects
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.apiTime
-import io.pelle.sak.backend.redirects.model.RedirectTarget
+import io.pelle.sak.backend.redirects.model.RedirectTargetRequest
+import io.pelle.sak.backend.redirects.model.RedirectTargetResponse
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.redirects.model.RedirectResponse
 import io.pelle.sak.backend.redirects.model.CreateRedirectRequest
@@ -24,27 +25,27 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.backend.redirects.CreateRedirectResult
-import io.pelle.sak.backend.redirects.DeleteRedirectResult
-import io.pelle.sak.backend.redirects.UpdateRedirectResult
+import io.pelle.sak.backend.redirects.RedirectCreateResult
+import io.pelle.sak.backend.redirects.RedirectDeleteResult
+import io.pelle.sak.backend.redirects.RedirectUpdateResult
 import io.pelle.sak.model.ingress.Redirect
 import io.pelle.sak.backend.redirects.RedirectService
-import io.pelle.sak.model.ingress.RedirectTarget as TargetOfRedirect
+import io.pelle.sak.model.ingress.RedirectTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private const val INGRESS_TAG = "ingress"
 
-private fun TargetOfRedirect.response(): RedirectTarget =
+private fun RedirectTarget.response(): RedirectTargetResponse =
     when (this) {
-        is TargetOfRedirect.Domain -> RedirectTarget.Domain(domain)
-        is TargetOfRedirect.Bucket -> RedirectTarget.Bucket(bucket)
+        is RedirectTarget.Domain -> RedirectTargetResponse.Domain(domain)
+        is RedirectTarget.Bucket -> RedirectTargetResponse.Bucket(bucket)
     }
 
-private fun RedirectTarget.target(): TargetOfRedirect =
+private fun RedirectTargetRequest.target(): RedirectTarget =
     when (this) {
-        is RedirectTarget.Domain -> TargetOfRedirect.Domain(domain)
-        is RedirectTarget.Bucket -> TargetOfRedirect.Bucket(bucket)
+        is RedirectTargetRequest.Domain -> RedirectTarget.Domain(domain)
+        is RedirectTargetRequest.Bucket -> RedirectTarget.Bucket(bucket)
     }
 
 // mounted behind the authentication
@@ -78,13 +79,13 @@ fun Route.redirects(redirectService: RedirectService) {
     post {
         val request = call.receive<CreateRedirectRequest>()
         when (val result = withContext(Dispatchers.IO) { redirectService.create(request.sourceDomain, request.target.target(), call.owner) }) {
-            is CreateRedirectResult.Created -> call.respond(HttpStatusCode.Created, result.redirect.response())
-            CreateRedirectResult.InvalidDomain ->
+            is RedirectCreateResult.Created -> call.respond(HttpStatusCode.Created, result.redirect.response())
+            RedirectCreateResult.InvalidDomain ->
                 call.respondErrors(RedirectsTexts.INVALID_DOMAINS)
-            CreateRedirectResult.Exists -> call.respondErrors(RedirectsTexts.EXISTS, status = HttpStatusCode.Conflict)
-            CreateRedirectResult.UnknownBucket ->
+            RedirectCreateResult.Exists -> call.respondErrors(RedirectsTexts.EXISTS, status = HttpStatusCode.Conflict)
+            RedirectCreateResult.UnknownBucket ->
                 call.respondErrors(RedirectsTexts.UNKNOWN_BUCKET, status = HttpStatusCode.UnprocessableEntity)
-            CreateRedirectResult.BucketNotServed ->
+            RedirectCreateResult.BucketNotServed ->
                 call.respondErrors(RedirectsTexts.BUCKET_NOT_SERVED, status = HttpStatusCode.UnprocessableEntity)
         }
     }.describe {
@@ -120,11 +121,7 @@ fun Route.redirects(redirectService: RedirectService) {
         tag(INGRESS_TAG)
         summary = "A redirected domain"
         parameters {
-            path("source") {
-                description = "The redirected domain"
-                required = true
-                schema = jsonSchema<String>()
-            }
+            sourceDomain()
         }
         responses {
             HttpStatusCode.OK {
@@ -139,13 +136,13 @@ fun Route.redirects(redirectService: RedirectService) {
         val request = call.receive<UpdateRedirectRequest>()
         val source = call.parameters["source"].orEmpty()
         when (val result = withContext(Dispatchers.IO) { redirectService.update(source, request.target.target()) }) {
-            is UpdateRedirectResult.Updated -> call.respond(result.redirect.response())
-            UpdateRedirectResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            UpdateRedirectResult.InvalidDomain ->
+            is RedirectUpdateResult.Updated -> call.respond(result.redirect.response())
+            RedirectUpdateResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            RedirectUpdateResult.InvalidDomain ->
                 call.respondErrors(RedirectsTexts.INVALID_TARGET)
-            UpdateRedirectResult.UnknownBucket ->
+            RedirectUpdateResult.UnknownBucket ->
                 call.respondErrors(RedirectsTexts.UNKNOWN_BUCKET, status = HttpStatusCode.UnprocessableEntity)
-            UpdateRedirectResult.BucketNotServed ->
+            RedirectUpdateResult.BucketNotServed ->
                 call.respondErrors(RedirectsTexts.BUCKET_NOT_SERVED, status = HttpStatusCode.UnprocessableEntity)
         }
     }.describe {
@@ -153,11 +150,7 @@ fun Route.redirects(redirectService: RedirectService) {
         summary = "Change where a domain is redirected to"
         description = "The redirected domain stays, its target is replaced. Caddy is configured right away."
         parameters {
-            path("source") {
-                description = "The redirected domain"
-                required = true
-                schema = jsonSchema<String>()
-            }
+            sourceDomain()
         }
         requestBody {
             required = true
@@ -176,18 +169,14 @@ fun Route.redirects(redirectService: RedirectService) {
 
     delete("/{source}") {
         when (withContext(Dispatchers.IO) { redirectService.delete(call.parameters["source"].orEmpty()) }) {
-            DeleteRedirectResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-            DeleteRedirectResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            RedirectDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
+            RedirectDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }
     }.describe {
         tag(INGRESS_TAG)
         summary = "Stop redirecting a domain"
         parameters {
-            path("source") {
-                description = "The redirected domain"
-                required = true
-                schema = jsonSchema<String>()
-            }
+            sourceDomain()
         }
         responses {
             HttpStatusCode.NoContent { description = "The redirect is gone" }
@@ -206,3 +195,10 @@ object RedirectsTexts : Catalog("redirects") {
     val HEALTH_NAME = text("health.name")
     val HEALTH_WHAT = text("health.what")
 }
+
+private fun io.ktor.openapi.Parameters.Builder.sourceDomain() =
+    path("source") {
+        description = "The redirected domain"
+        required = true
+        schema = jsonSchema<String>()
+    }

@@ -5,7 +5,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.references.REDIRECTS
-import io.pelle.sak.model.s3.InsertBucketResult
+import io.pelle.sak.model.s3.BucketInsertResult
 import io.pelle.sak.model.s3.S3BucketRepository
 import org.jooq.exception.DataAccessException
 import org.junit.jupiter.api.Test
@@ -26,7 +26,7 @@ class RedirectRepositoryTest {
 
     @Test
     fun `the schema holds exactly the target of the type and only known buckets`() {
-        S3BucketRepository(database).insert("site", "AKIASITE", "SECRET", owner = OWNER).shouldBeInstanceOf<InsertBucketResult.Inserted>()
+        S3BucketRepository(database).insert("site", "AKIASITE", "SECRET", owner = OWNER).shouldBeInstanceOf<BucketInsertResult.Inserted>()
         fun insert(
             type: String,
             domain: String?,
@@ -70,7 +70,7 @@ class RedirectRepositoryTest {
 
     @Test
     fun `tells the live redirects that lead to a bucket`() {
-        S3BucketRepository(database).insert("site", "AKIASITE", "SECRET", owner = OWNER).shouldBeInstanceOf<InsertBucketResult.Inserted>()
+        S3BucketRepository(database).insert("site", "AKIASITE", "SECRET", owner = OWNER).shouldBeInstanceOf<BucketInsertResult.Inserted>()
         val repository = RedirectRepository(database)
         repository.insert("www.example.com", RedirectTarget.Bucket("site"), owner = OWNER)
         repository.insert("example.com", RedirectTarget.Bucket("site"), owner = OWNER)

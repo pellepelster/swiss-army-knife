@@ -9,20 +9,20 @@ import io.pelle.sak.api.render
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.backend.isOneEmoji
 import io.pelle.sak.backend.lists.ListChanges
-import io.pelle.sak.backend.lists.ListResult
+import io.pelle.sak.backend.lists.ListSaveResult
 import io.pelle.sak.backend.lists.ListTexts
 import io.pelle.sak.backend.lists.listValues
 import io.pelle.sak.backend.lists.result
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.model.grocery.GroceryCategory
-import io.pelle.sak.model.grocery.GroceryCategoryChange
-import io.pelle.sak.model.grocery.GroceryCategoryOrder
+import io.pelle.sak.model.grocery.GroceryCategoryWriteResult
+import io.pelle.sak.model.grocery.GroceryCategoryReorderResult
 import io.pelle.sak.model.grocery.GroceryCategoryValues
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.model.grocery.GroceryItemValues
 import io.pelle.sak.model.lists.SakList
-import io.pelle.sak.model.lists.ListDelete
+import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.grocery.GrocerySuggestion
 import io.pelle.sak.model.grocery.GroceryRepository
 import kotlinx.coroutines.flow.Flow
@@ -60,48 +60,51 @@ data class GroceryItemInput(
     val categoryId: Int?,
 )
 
-sealed interface GroceryCategoryResult {
+sealed interface GroceryCategorySaveResult {
     data class Saved(
         val category: GroceryCategory,
-    ) : GroceryCategoryResult
+    ) : GroceryCategorySaveResult
 
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : GroceryCategoryResult
+    ) : GroceryCategorySaveResult
 
     // the user sees no such list, or it has no such category
-    data object NotFound : GroceryCategoryResult
+    data object NotFound : GroceryCategorySaveResult
 
     // the list has a category of the name
-    data object Exists : GroceryCategoryResult
+    data object Exists : GroceryCategorySaveResult
 }
 
-sealed interface GroceryCategoriesResult {
+sealed interface GroceryCategoriesOrderResult {
     data class Ordered(
         val categories: List<GroceryCategory>,
-    ) : GroceryCategoriesResult
+    ) : GroceryCategoriesOrderResult
 
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : GroceryCategoriesResult
+    ) : GroceryCategoriesOrderResult
 
     // the user sees no such list
-    data object NotFound : GroceryCategoriesResult
+    data object NotFound : GroceryCategoriesOrderResult
 }
 
-sealed interface GroceryItemResult {
+sealed interface GroceryItemSaveResult {
     data class Saved(
         val item: GroceryItem,
-    ) : GroceryItemResult
+    ) : GroceryItemSaveResult
 
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : GroceryItemResult
+    ) : GroceryItemSaveResult
 
-    data object NotFound : GroceryItemResult
+    data object NotFound : GroceryItemSaveResult
 
     // the list the new item names is none the user sees (API-6)
-    data object UnknownList : GroceryItemResult
+    data object UnknownList : GroceryItemSaveResult
+
+    // the category the request names is none of the list of the item (API-6)
+    data object UnknownCategory : GroceryItemSaveResult
 }
 
 // the grocery lists, their items and the suggestions, the only way to them; it checks the values,
@@ -149,11 +152,11 @@ class GroceryService(
         shared: Boolean,
         icon: String? = null,
         language: Language = Language.FALLBACK,
-    ): ListResult {
+    ): ListSaveResult {
         val (values, errors) = listValues(name, icon, GroceryTexts.LISTS)
-        if (errors.isNotEmpty()) return ListResult.Invalid(errors)
-        return repository.insertList(user, values.name, shared, values.icon, DefaultGroceryCategory.of(language))?.let { ListResult.Saved(changed(it)) }
-            ?: ListResult.Exists
+        if (errors.isNotEmpty()) return ListSaveResult.Invalid(errors)
+        return repository.insertList(user, values.name, shared, values.icon, DefaultGroceryCategory.of(language))?.let { ListSaveResult.Saved(changed(it)) }
+            ?: ListSaveResult.Exists
     }
 
     fun updateList(
@@ -162,9 +165,9 @@ class GroceryService(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListResult {
+    ): ListSaveResult {
         val (values, errors) = listValues(name, icon, GroceryTexts.LISTS)
-        if (errors.isNotEmpty()) return ListResult.Invalid(errors)
+        if (errors.isNotEmpty()) return ListSaveResult.Invalid(errors)
         return repository.updateList(user, id, values.name, shared, values.icon).also(changes::changed).result()
     }
 
@@ -172,7 +175,7 @@ class GroceryService(
     fun deleteList(
         user: String,
         id: Int,
-    ): ListDelete = repository.deleteList(user, id).also { if (it == ListDelete.Deleted) changes.changed(id) }
+    ): ListDeleteResult = repository.deleteList(user, id).also { if (it == ListDeleteResult.Deleted) changes.changed(id) }
 
     // the items to buy of a list the user sees, with checked also the latest bought item of each name
     // not to buy (GROCERY-14); null for another list. By the order of their category (GROCERY-13),
@@ -198,22 +201,22 @@ class GroceryService(
         user: String,
         listId: Int,
         input: GroceryItemInput,
-    ): GroceryItemResult {
-        val values = itemValues(input).getOrElse { return GroceryItemResult.Invalid(it) }
-        val categories = repository.categories(user, listId) ?: return GroceryItemResult.UnknownList
-        categoryError(values.categoryId, categories)?.let { return GroceryItemResult.Invalid(listOf(it)) }
-        return repository.insertItem(user, listId, values)?.let { GroceryItemResult.Saved(changed(it)) } ?: GroceryItemResult.UnknownList
+    ): GroceryItemSaveResult {
+        val values = itemValues(input).getOrElse { return GroceryItemSaveResult.Invalid(it) }
+        val categories = repository.categories(user, listId) ?: return GroceryItemSaveResult.UnknownList
+        if (unknownCategory(values.categoryId, categories)) return GroceryItemSaveResult.UnknownCategory
+        return repository.insertItem(user, listId, values)?.let { GroceryItemSaveResult.Saved(changed(it)) } ?: GroceryItemSaveResult.UnknownList
     }
 
     fun updateItem(
         user: String,
         id: Int,
         input: GroceryItemInput,
-    ): GroceryItemResult {
-        val values = itemValues(input).getOrElse { return GroceryItemResult.Invalid(it) }
-        val listId = repository.item(user, id)?.listId ?: return GroceryItemResult.NotFound
-        categoryError(values.categoryId, repository.categories(user, listId).orEmpty())?.let { return GroceryItemResult.Invalid(listOf(it)) }
-        return repository.updateItem(user, id, values)?.let { GroceryItemResult.Saved(changed(it)) } ?: GroceryItemResult.NotFound
+    ): GroceryItemSaveResult {
+        val values = itemValues(input).getOrElse { return GroceryItemSaveResult.Invalid(it) }
+        val listId = repository.item(user, id)?.listId ?: return GroceryItemSaveResult.NotFound
+        if (unknownCategory(values.categoryId, repository.categories(user, listId).orEmpty())) return GroceryItemSaveResult.UnknownCategory
+        return repository.updateItem(user, id, values)?.let { GroceryItemSaveResult.Saved(changed(it)) } ?: GroceryItemSaveResult.NotFound
     }
 
     // the category of an item on a list the user sees: one of its list, or none; the next item of its
@@ -222,12 +225,12 @@ class GroceryService(
         user: String,
         id: Int,
         categoryId: Int?,
-    ): GroceryItemResult {
-        val listId = repository.item(user, id)?.listId ?: return GroceryItemResult.NotFound
-        categoryError(categoryId, repository.categories(user, listId).orEmpty())?.let { return GroceryItemResult.Invalid(listOf(it)) }
-        repository.setCategory(user, id, categoryId)?.let { return GroceryItemResult.Saved(changed(it)) }
+    ): GroceryItemSaveResult {
+        val listId = repository.item(user, id)?.listId ?: return GroceryItemSaveResult.NotFound
+        if (unknownCategory(categoryId, repository.categories(user, listId).orEmpty())) return GroceryItemSaveResult.UnknownCategory
+        repository.setCategory(user, id, categoryId)?.let { return GroceryItemSaveResult.Saved(changed(it)) }
         // the category went between the check and the write, or the item
-        return if (repository.item(user, id) != null) GroceryItemResult.Invalid(listOf(ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY))) else GroceryItemResult.NotFound
+        return if (repository.item(user, id) != null) GroceryItemSaveResult.UnknownCategory else GroceryItemSaveResult.NotFound
     }
 
     // the categories of a list the user sees, in their order; null for another one (GROCERY-13)
@@ -242,8 +245,8 @@ class GroceryService(
         listId: Int,
         name: String,
         icon: String?,
-    ): GroceryCategoryResult {
-        val values = categoryValues(name, icon).getOrElse { return GroceryCategoryResult.Invalid(it) }
+    ): GroceryCategorySaveResult {
+        val values = categoryValues(name, icon).getOrElse { return GroceryCategorySaveResult.Invalid(it) }
         return categoryResult(listId, repository.insertCategory(user, listId, values, MAX_CATEGORIES))
     }
 
@@ -253,8 +256,8 @@ class GroceryService(
         id: Int,
         name: String,
         icon: String?,
-    ): GroceryCategoryResult {
-        val values = categoryValues(name, icon).getOrElse { return GroceryCategoryResult.Invalid(it) }
+    ): GroceryCategorySaveResult {
+        val values = categoryValues(name, icon).getOrElse { return GroceryCategorySaveResult.Invalid(it) }
         return categoryResult(listId, repository.updateCategory(user, listId, id, values))
     }
 
@@ -271,11 +274,11 @@ class GroceryService(
         user: String,
         listId: Int,
         ids: List<Int>,
-    ): GroceryCategoriesResult =
+    ): GroceryCategoriesOrderResult =
         when (val order = repository.orderCategories(user, listId, ids)) {
-            is GroceryCategoryOrder.Ordered -> GroceryCategoriesResult.Ordered(order.categories).also { changes.changed(listId) }
-            GroceryCategoryOrder.NotFound -> GroceryCategoriesResult.NotFound
-            GroceryCategoryOrder.Mismatch -> GroceryCategoriesResult.Invalid(listOf(ErrorMessage(GroceryTexts.INVALID_CATEGORY_ORDER)))
+            is GroceryCategoryReorderResult.Ordered -> GroceryCategoriesOrderResult.Ordered(order.categories).also { changes.changed(listId) }
+            GroceryCategoryReorderResult.NotFound -> GroceryCategoriesOrderResult.NotFound
+            GroceryCategoryReorderResult.Mismatch -> GroceryCategoriesOrderResult.Invalid(listOf(ErrorMessage(GroceryTexts.INVALID_CATEGORY_ORDER)))
         }
 
     // bought (GROCERY-3), by any user who sees its list (LIST-2): it leaves the list and stays as its
@@ -304,9 +307,9 @@ class GroceryService(
         user: String,
         id: Int,
         fileId: Int?,
-    ): GroceryPhotoResult {
-        if (repository.item(user, id) == null) return GroceryPhotoResult.NotFound
-        return repository.setPhoto(user, id, fileId)?.let { GroceryPhotoResult.Set(changed(it)) } ?: GroceryPhotoResult.NotAPhoto
+    ): GroceryPhotoSetResult {
+        if (repository.item(user, id) == null) return GroceryPhotoSetResult.NotFound
+        return repository.setPhoto(user, id, fileId)?.let { GroceryPhotoSetResult.Set(changed(it)) } ?: GroceryPhotoSetResult.NotAPhoto
     }
 
     // the file of the photo of an item the user sees, when it is that photo
@@ -340,14 +343,14 @@ class GroceryService(
 
     private fun categoryResult(
         listId: Int,
-        change: GroceryCategoryChange,
-    ): GroceryCategoryResult =
+        change: GroceryCategoryWriteResult,
+    ): GroceryCategorySaveResult =
         when (change) {
-            is GroceryCategoryChange.Saved -> GroceryCategoryResult.Saved(change.category).also { changes.changed(listId) }
-            GroceryCategoryChange.NotFound -> GroceryCategoryResult.NotFound
-            GroceryCategoryChange.NameTaken -> GroceryCategoryResult.Exists
-            GroceryCategoryChange.TooMany ->
-                GroceryCategoryResult.Invalid(listOf(ErrorMessage(GroceryTexts.TOO_MANY_CATEGORIES, "max" to MAX_CATEGORIES)))
+            is GroceryCategoryWriteResult.Saved -> GroceryCategorySaveResult.Saved(change.category).also { changes.changed(listId) }
+            GroceryCategoryWriteResult.NotFound -> GroceryCategorySaveResult.NotFound
+            GroceryCategoryWriteResult.NameTaken -> GroceryCategorySaveResult.Exists
+            GroceryCategoryWriteResult.TooMany ->
+                GroceryCategorySaveResult.Invalid(listOf(ErrorMessage(GroceryTexts.TOO_MANY_CATEGORIES, "max" to MAX_CATEGORIES)))
         }
 
     private fun categoryValues(
@@ -368,10 +371,10 @@ class GroceryService(
         return if (errors.isEmpty()) Result.Ok(GroceryCategoryValues(normalized, emoji)) else Result.Err(errors)
     }
 
-    private fun categoryError(
+    private fun unknownCategory(
         categoryId: Int?,
         categories: List<GroceryCategory>,
-    ) = if (categoryId != null && categories.none { it.id == categoryId }) ErrorMessage(GroceryTexts.UNKNOWN_CATEGORY) else null
+    ) = categoryId != null && categories.none { it.id == categoryId }
 
     private fun changed(list: SakList) = list.also { changes.changed(it.id) }
 
@@ -434,16 +437,16 @@ class GroceryService(
     }
 }
 
-sealed interface GroceryPhotoResult {
+sealed interface GroceryPhotoSetResult {
     data class Set(
         val item: GroceryItem,
-    ) : GroceryPhotoResult
+    ) : GroceryPhotoSetResult
 
     // the user sees no such item
-    data object NotFound : GroceryPhotoResult
+    data object NotFound : GroceryPhotoSetResult
 
-    // the file is no image the user uploaded
-    data object NotAPhoto : GroceryPhotoResult
+    // the file the request names is no image the user uploaded (API-6)
+    data object NotAPhoto : GroceryPhotoSetResult
 }
 
 // the texts of the grocery lists (grocery.backend in i18n/texts.yml)

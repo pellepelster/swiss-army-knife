@@ -16,3 +16,6 @@ databaseChangeLog:
   - include:
       file: 0005-s3-buckets-resource-id.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0006-drop-layout-migration-columns.yaml
+      relativeToChangelogFile: true

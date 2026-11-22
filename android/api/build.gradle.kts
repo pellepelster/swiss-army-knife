@@ -34,7 +34,7 @@ val models =
         "GrocerySuggestionResponse",
         "GrocerySettingsResponse",
         "GroceryDiscoveredResponse",
-        "GroceryDiscoveredItem",
+        "GroceryDiscoveredItemResponse",
         "LabelResponse",
         "PhotoResponse",
         "RecordingResponse",

@@ -13,6 +13,10 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
+// the http client of the requests to openrouter. OpenRouterManager makes one for all its clients
+// (EXT-1), it lives as long as the backend
+fun openRouterHttpClient(): HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()
+
 // what openrouter's chat completions answered: how many choices, and the text of the first one, null
 // when it has none
 internal data class Completion(
@@ -20,22 +24,23 @@ internal data class Completion(
     val content: String?,
 )
 
-// the request of a recognizer to openrouter's chat completions, the file in place of BASE64_DATA
-// (base64Body). An error of openrouter, an answer that is no json or of another shape and an
-// openrouter that can not be reached are a TextRecognitionException, never another one
-internal fun chatCompletion(
+// a json request to openrouter with a file in place of BASE64_DATA (base64Body), and the json object
+// it answered. An error of openrouter, an answer that is no json object and an openrouter that can not
+// be reached are a TextRecognitionException, never another one
+internal fun postJson(
     httpClient: HttpClient,
-    url: String,
+    // the whole address, e.g. <url>/chat/completions
+    address: String,
     apiToken: String,
     timeout: Duration,
     json: String,
     file: BlobContent,
-): Completion {
+): JsonObject {
     val response =
         try {
             httpClient.send(
                 HttpRequest
-                    .newBuilder(URI.create("$url/chat/completions"))
+                    .newBuilder(URI.create(address))
                     .timeout(timeout)
                     .header("Authorization", "Bearer $apiToken")
                     .header("Content-Type", "application/json")
@@ -58,6 +63,20 @@ internal fun chatCompletion(
         val message = ((error as? JsonObject)?.get("message") as? JsonPrimitive ?: error as? JsonPrimitive)?.contentOrNull
         throw TextRecognitionException("openrouter answered ${response.statusCode()}: ${message ?: "no message"}")
     }
+    return body
+}
+
+// the request of a recognizer to openrouter's chat completions; an answer of another shape has no
+// choice
+internal fun chatCompletion(
+    httpClient: HttpClient,
+    url: String,
+    apiToken: String,
+    timeout: Duration,
+    json: String,
+    file: BlobContent,
+): Completion {
+    val body = postJson(httpClient, "$url/chat/completions", apiToken, timeout, json, file)
     val choices = body["choices"] as? JsonArray
     val message = (choices?.firstOrNull() as? JsonObject)?.get("message") as? JsonObject
     return Completion(choices?.size ?: 0, (message?.get("content") as? JsonPrimitive)?.contentOrNull)

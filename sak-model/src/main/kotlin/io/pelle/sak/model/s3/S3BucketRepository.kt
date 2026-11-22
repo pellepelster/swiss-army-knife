@@ -1,5 +1,6 @@
 package io.pelle.sak.model.s3
 
+import io.pelle.sak.model.ResourceIds
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.S3BucketsRecord
@@ -13,16 +14,16 @@ import java.time.Instant
 import java.time.Clock
 
 // what inserting a bucket gives: the bucket, or which of its values another bucket has
-sealed interface InsertBucketResult {
+sealed interface BucketInsertResult {
     data class Inserted(
         val bucket: S3Bucket,
-    ) : InsertBucketResult
+    ) : BucketInsertResult
 
     // the name, also the one of a deleted bucket
-    data object NameTaken : InsertBucketResult
+    data object NameTaken : BucketInsertResult
 
     // one of the domains
-    data object DomainTaken : InsertBucketResult
+    data object DomainTaken : BucketInsertResult
 }
 
 // the buckets and their domains, for S3BucketService only
@@ -32,9 +33,11 @@ class S3BucketRepository(
     private val clock: Clock = Clock.systemUTC(),
     // whether a resource id may be given out beside the database, e.g. no directory of it is left from
     // a restore of the instance (MODEL-8)
-    private val free: (ResourceId) -> Boolean = { true },
-    private val random: SecureRandom = SecureRandom(),
+    free: (ResourceId) -> Boolean = { true },
+    random: SecureRandom = SecureRandom(),
 ) {
+    private val resourceIds = ResourceIds(S3_BUCKETS, S3_BUCKETS.RESOURCE_ID, free, random)
+
     fun all(): List<S3Bucket> {
         val domains = domainsByBucket(database.dsl, null)
         return database.dsl
@@ -84,44 +87,18 @@ class S3BucketRepository(
             .where(S3_BUCKETS_DOMAINS.DOMAIN.eq(domain), S3_BUCKETS_DOMAINS.DELETED_AT.isNull)
             .fetchOne(S3_BUCKETS_DOMAINS.BUCKET_NAME)
 
-    // where the objects of a live bucket are, null when there is none
-    fun location(name: String): S3BucketLocation? =
-        database.dsl
-            .select(S3_BUCKETS.NAME, S3_BUCKETS.RESOURCE_ID, S3_BUCKETS.OBJECTS_AT_NAME)
-            .from(S3_BUCKETS)
-            .where(S3_BUCKETS.NAME.eq(name), S3_BUCKETS.DELETED_AT.isNull)
-            .fetchOne()
-            ?.let { S3BucketLocation(it.value1()!!, ResourceId(it.value2()!!), it.value3()!!) }
-
-    // where the objects of every bucket are, the deleted ones included, for the copy to the resource
-    // ids the backend runs on its own (MODEL-6)
-    fun locations(): List<S3BucketLocation> =
-        database.dsl
-            .select(S3_BUCKETS.NAME, S3_BUCKETS.RESOURCE_ID, S3_BUCKETS.OBJECTS_AT_NAME)
-            .from(S3_BUCKETS)
-            .orderBy(S3_BUCKETS.NAME)
-            .fetch()
-            .map { S3BucketLocation(it.value1()!!, ResourceId(it.value2()!!), it.value3()!!) }
-
-    // the resource ids of all buckets, the deleted ones included: their directories are no leftovers. The
-    // backend looks for leftovers on its own, so there is no user to check (MODEL-6)
-    fun resourceIds(): Set<ResourceId> =
+    // the resource id of a live bucket, null when there is none: where its objects are (MODEL-8)
+    fun resourceId(name: String): ResourceId? =
         database.dsl
             .select(S3_BUCKETS.RESOURCE_ID)
             .from(S3_BUCKETS)
-            .fetch(S3_BUCKETS.RESOURCE_ID)
-            .map { ResourceId(it!!) }
-            .toSet()
+            .where(S3_BUCKETS.NAME.eq(name), S3_BUCKETS.DELETED_AT.isNull)
+            .fetchOne(S3_BUCKETS.RESOURCE_ID)
+            ?.let(::ResourceId)
 
-    // the objects of the bucket, a deleted one too, are at its resource id from now on. No change of
-    // the bucket itself, so its updated time stays
-    fun objectsAtResourceId(name: String) {
-        database.dsl
-            .update(S3_BUCKETS)
-            .set(S3_BUCKETS.OBJECTS_AT_NAME, false)
-            .where(S3_BUCKETS.NAME.eq(name))
-            .execute()
-    }
+    // the resource ids of all buckets, the deleted ones included: their directories are no leftovers. The
+    // backend looks for leftovers on its own, so there is no user to check (MODEL-6)
+    fun resourceIds(): Set<ResourceId> = resourceIds.all(database.dsl)
 
     // the unique constraints decide, so a bucket created at the same time is told apart: by the
     // name taken (deleted buckets included), else a domain
@@ -132,30 +109,28 @@ class S3BucketRepository(
         domains: List<String> = emptyList(),
         // who creates it, also of its domains (MODEL-5)
         owner: String,
-    ): InsertBucketResult =
+    ): BucketInsertResult =
         try {
             database.dsl.transactionResult { configuration ->
                 val dsl = DSL.using(configuration)
-                val bucket = S3Bucket(name, newResourceId(dsl), accessKeyId, clock.instant(), null, domains, owner)
+                val bucket = S3Bucket(name, resourceIds.new(dsl), accessKeyId, clock.instant(), null, domains, owner)
                 dsl
                     .insertInto(S3_BUCKETS)
                     .set(S3_BUCKETS.NAME, bucket.name)
                     .set(S3_BUCKETS.RESOURCE_ID, bucket.resourceId.value)
-                    // a new bucket has its objects at its resource id from the start
-                    .set(S3_BUCKETS.OBJECTS_AT_NAME, false)
                     .set(S3_BUCKETS.ACCESS_KEY_ID, bucket.accessKeyId)
                     .set(S3_BUCKETS.SECRET_ACCESS_KEY, secretAccessKey)
                     .set(S3_BUCKETS.CREATED_AT, bucket.createdAt)
                     .set(S3_BUCKETS.OWNER, owner)
                     .execute()
                 bucket.domains.forEachIndexed { position, domain -> insertDomain(dsl, bucket.name, domain, position, bucket.createdAt, owner) }
-                InsertBucketResult.Inserted(bucket)
+                BucketInsertResult.Inserted(bucket)
             }
         } catch (_: IntegrityConstraintViolationException) {
             if (database.dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.NAME.eq(name))) {
-                InsertBucketResult.NameTaken
+                BucketInsertResult.NameTaken
             } else {
-                InsertBucketResult.DomainTaken
+                BucketInsertResult.DomainTaken
             }
         }
 
@@ -178,6 +153,8 @@ class S3BucketRepository(
                         .where(S3_BUCKETS_DOMAINS.BUCKET_NAME.eq(name), S3_BUCKETS_DOMAINS.DELETED_AT.isNull)
                         .fetch()
                         .associateBy { it.domain!! }
+                // the same domains in the same order are no change of the bucket
+                val unchanged = rows.values.sortedBy { it.position }.map { it.domain } == domains
                 val removed = rows.filterKeys { it !in domains }.values.map { it.id }
                 dsl
                     .update(S3_BUCKETS_DOMAINS)
@@ -189,11 +166,13 @@ class S3BucketRepository(
                 moved.forEach { (position, domain) -> move(dsl, rows.getValue(domain).id!!, -1 - position, now) }
                 moved.forEach { (position, domain) -> move(dsl, rows.getValue(domain).id!!, position, now) }
                 domains.forEachIndexed { position, domain -> if (domain !in rows) insertDomain(dsl, name, domain, position, now, owner) }
-                dsl
-                    .update(S3_BUCKETS)
-                    .set(S3_BUCKETS.UPDATED_AT, now)
-                    .where(S3_BUCKETS.NAME.eq(name))
-                    .execute()
+                if (!unchanged) {
+                    dsl
+                        .update(S3_BUCKETS)
+                        .set(S3_BUCKETS.UPDATED_AT, now)
+                        .where(S3_BUCKETS.NAME.eq(name))
+                        .execute()
+                }
             }
             true
         } catch (_: IntegrityConstraintViolationException) {
@@ -239,14 +218,6 @@ class S3BucketRepository(
             }
             deleted
         }
-
-    // a resource id no bucket had, deleted ones included, and free beside the database; drawn again
-    // when taken, which 36^12 ids make next to impossible
-    private fun newResourceId(dsl: DSLContext): ResourceId =
-        generateSequence { ResourceId.random(random) }
-            .take(MAX_DRAWS)
-            .firstOrNull { !dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.RESOURCE_ID.eq(it.value)) && free(it) }
-            ?: error("no free resource id after $MAX_DRAWS draws")
 
     private fun insertDomain(
         dsl: DSLContext,
@@ -304,19 +275,7 @@ class S3BucketRepository(
             domains = domains,
             owner = owner!!,
         )
-
-    private companion object {
-        const val MAX_DRAWS = 3
-    }
 }
-
-// where the objects of a bucket are on the data volume: below its resource id (MODEL-8), or still below
-// its name, as the releases before the resource ids kept them, until the backend copied them
-data class S3BucketLocation(
-    val name: String,
-    val resourceId: ResourceId,
-    val objectsAtName: Boolean,
-)
 
 // domains are where caddy serves the bucket's objects, in their order; the secret of the key pair
 // is left out, only secretAccessKey and keyPair of the repository read it

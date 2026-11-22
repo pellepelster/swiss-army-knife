@@ -3,8 +3,8 @@ package io.pelle.sak.model.todo
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.lists.ListDelete
-import io.pelle.sak.model.lists.ListUpdate
+import io.pelle.sak.model.lists.ListDeleteResult
+import io.pelle.sak.model.lists.ListUpdateResult
 import io.pelle.sak.model.lists.SakList
 import io.pelle.sak.model.jooq.tables.references.TODO_ITEMS
 import org.jooq.exception.DataAccessException
@@ -39,9 +39,9 @@ class TodoRepositoryTest {
         repository.insertItem(PELLE, home.id, "Fix the door")!!.title shouldBe "Fix the door"
         repository.lists(PELLE) shouldBe listOf(home.copy(items = 1))
 
-        repository.deleteList(OTHER, home.id) shouldBe ListDelete.NotFound
-        repository.deleteList(PELLE, home.id) shouldBe ListDelete.Deleted
-        repository.deleteList(PELLE, home.id) shouldBe ListDelete.NotFound
+        repository.deleteList(OTHER, home.id) shouldBe ListDeleteResult.NotFound
+        repository.deleteList(PELLE, home.id) shouldBe ListDeleteResult.Deleted
+        repository.deleteList(PELLE, home.id) shouldBe ListDeleteResult.NotFound
         repository.lists(PELLE) shouldBe emptyList()
         // its tasks go with it, but stay as deleted
         database.dsl.fetchCount(TODO_ITEMS, TODO_ITEMS.LIST_ID.eq(home.id), TODO_ITEMS.DELETED_AT.isNull) shouldBe 0
@@ -74,8 +74,8 @@ class TodoRepositoryTest {
         repository.insertItem(OTHER, secret.id, "Peek") shouldBe null
         repository.setDone(OTHER, gift.id, done = true) shouldBe null
         repository.purge(OTHER, secret.id, emptyList()) shouldBe null
-        repository.updateList(OTHER, secret.id, "Mine", shared = true) shouldBe ListUpdate.NotFound
-        repository.deleteList(OTHER, secret.id) shouldBe ListDelete.NotFound
+        repository.updateList(OTHER, secret.id, "Mine", shared = true) shouldBe ListUpdateResult.NotFound
+        repository.deleteList(OTHER, secret.id) shouldBe ListDeleteResult.NotFound
         repository.seesList(OTHER, secret.id) shouldBe false
         repository.items(PELLE, secret.id)!!.map { it.title } shouldBe listOf("Buy a gift")
 
@@ -85,24 +85,24 @@ class TodoRepositoryTest {
         repository.setDone(OTHER, invite.id, done = true)!!.doneAt shouldBe now
         repository.items(PELLE, party.id)!!.map { it.title } shouldBe listOf("Send the invitations", "Bring music")
         // only the owner renames it, another user changes its icon (LIST-2)
-        (repository.updateList(OTHER, party.id, "Party", shared = true, icon = "🎉") as ListUpdate.Updated).list.let {
+        (repository.updateList(OTHER, party.id, "Party", shared = true, icon = "🎉") as ListUpdateResult.Updated).list.let {
             it.icon shouldBe "🎉"
             it.owner shouldBe PELLE
             it.items shouldBe 1
         }
-        repository.updateList(OTHER, party.id, "Party", shared = false) shouldBe ListUpdate.NotOwner
-        repository.updateList(OTHER, party.id, "Ours", shared = true) shouldBe ListUpdate.NotOwner
-        repository.updateList(OTHER, party.id, "Secret", shared = true) shouldBe ListUpdate.NotOwner
-        repository.updateList(PELLE, party.id, "Secret", shared = true) shouldBe ListUpdate.NameTaken
-        repository.deleteList(OTHER, party.id) shouldBe ListDelete.NotFound
+        repository.updateList(OTHER, party.id, "Party", shared = false) shouldBe ListUpdateResult.NotOwner
+        repository.updateList(OTHER, party.id, "Ours", shared = true) shouldBe ListUpdateResult.NotOwner
+        repository.updateList(OTHER, party.id, "Secret", shared = true) shouldBe ListUpdateResult.NotOwner
+        repository.updateList(PELLE, party.id, "Secret", shared = true) shouldBe ListUpdateResult.NameTaken
+        repository.deleteList(OTHER, party.id) shouldBe ListDeleteResult.NotFound
         // unshared by its owner, the list is none of the other user's to change
         // the owner unshares it, which the update says, the other user saw it until then (LIST-4)
-        (repository.updateList(PELLE, party.id, "Ours", shared = false) as ListUpdate.Updated).unshared shouldBe true
-        (repository.updateList(PELLE, party.id, "Ours", shared = false) as ListUpdate.Updated).unshared shouldBe false
-        repository.updateList(OTHER, party.id, "Theirs", shared = false) shouldBe ListUpdate.NotFound
+        (repository.updateList(PELLE, party.id, "Ours", shared = false) as ListUpdateResult.Updated).unshared shouldBe true
+        (repository.updateList(PELLE, party.id, "Ours", shared = false) as ListUpdateResult.Updated).unshared shouldBe false
+        repository.updateList(OTHER, party.id, "Theirs", shared = false) shouldBe ListUpdateResult.NotFound
         // unshared, its changes no longer reach the other user (LIST-4)
         repository.seesList(OTHER, party.id) shouldBe false
-        repository.deleteList(PELLE, party.id) shouldBe ListDelete.Deleted
+        repository.deleteList(PELLE, party.id) shouldBe ListDeleteResult.Deleted
         repository.items(OTHER, party.id) shouldBe null
         repository.seesList(PELLE, party.id) shouldBe true
     }

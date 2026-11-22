@@ -31,7 +31,7 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.files.FileService
-import io.pelle.sak.backend.hosting.CreateBucketResult
+import io.pelle.sak.backend.hosting.BucketCreateResult
 import io.pelle.sak.backend.hosting.S3BucketService
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -313,7 +313,7 @@ class SakAppsTest {
     @Test
     fun `serves the buckets with their statistics, which writes through the s3 api renew`() {
         val config = config()
-        val bucket1 = (buckets(config).create("bucket1", owner = "admin@example.org") as CreateBucketResult.Created).bucket
+        val bucket1 = (buckets(config).create("bucket1", owner = "admin@example.org") as BucketCreateResult.Created).bucket
 
         withServer(config) { port ->
             val session = signIn(port)
@@ -616,14 +616,20 @@ class SakAppsTest {
             ImageIO.read(image(admin, "?size=300").body().inputStream()).width shouldBe 480
             ImageIO.read(image(admin, "?size=5000").body().inputStream()).width shouldBe 600
             ImageIO.read(image(admin).body().inputStream()).width shouldBe 600
-            image(admin, "?size=0").statusCode() shouldBe 400
+            // a size that is none is a 400 with its message (API-1), a file id that is no number no resource
+            request(port, "GET", "/api/v1/grocery/items/$milk/photos/$photo?size=0", admin, answer = HttpResponse.BodyHandlers.ofString()).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "api.malformed_request"
+            }
+            request(port, "GET", "/api/v1/grocery/items/$milk/photos/none", admin, answer = HttpResponse.BodyHandlers.ofString())
+                .statusCode() shouldBe 404
             request(port, "GET", "/api/v1/grocery/items/$milk/photos/${photo.toInt() + 1}", admin, answer = HttpResponse.BodyHandlers.ofString())
                 .statusCode() shouldBe 404
 
             // the other user sees it on the shared list, but attaches only a file of their own
             image(anna, "?size=100").statusCode() shouldBe 200
             put(port, "/api/v1/grocery/items/$milk/photo", """{"fileId":$photo}""", anna).let {
-                it.statusCode() shouldBe 400
+                it.statusCode() shouldBe 422
                 it.body() shouldContain "grocery.not_a_photo"
             }
 
@@ -959,7 +965,16 @@ class SakAppsTest {
             put(port, "/api/v1/grocery/lists/$listId/categories/order", """{"ids":[$snacks]}""", session).statusCode() shouldBe 400
             val apples = get(port, "/api/v1/grocery/lists/$listId/items", session).json().getValue("items").jsonArray.single().jsonObject.string("id")
             put(port, "/api/v1/grocery/items/$apples/category", """{"categoryId":$snacks}""", session).json().string("categoryId") shouldBe snacks
-            put(port, "/api/v1/grocery/items/$apples/category", """{"categoryId":0}""", session).statusCode() shouldBe 400
+            // a category that is none of the list is a 422 (API-6), in a change and in a new item
+            put(port, "/api/v1/grocery/items/$apples/category", """{"categoryId":0}""", session).let {
+                it.statusCode() shouldBe 422
+                it.body() shouldContain "grocery.unknown_category"
+            }
+            put(port, "/api/v1/grocery/items/$apples", """{"name":"Apples","categoryId":0}""", session).statusCode() shouldBe 422
+            post(port, "/api/v1/grocery/items", """{"listId":$listId,"name":"Pears","categoryId":0}""", session).statusCode() shouldBe 422
+            // an id of the path that is no number is no resource
+            delete(port, "/api/v1/grocery/lists/$listId/categories/none", session).statusCode() shouldBe 404
+            delete(port, "/api/v1/grocery/lists/$listId/suggestions/none", session).statusCode() shouldBe 404
             // a change of the item without a category takes it away
             put(port, "/api/v1/grocery/items/$apples", """{"name":"Apples"}""", session).json()["categoryId"].toString() shouldBe "null"
             put(port, "/api/v1/grocery/items/$apples/category", """{"categoryId":$snacks}""", session).statusCode() shouldBe 200
@@ -1988,7 +2003,7 @@ class SakAppsTest {
             // an admin of the configuration too, not an address the deployment does not know
             post(port, "/api/v1/users/app-link", """{"email":"second@example.org"}""", admin).statusCode() shouldBe 204
             post(port, "/api/v1/users/app-link", """{"email":"nobody@example.org"}""", admin).let {
-                it.statusCode() shouldBe 404
+                it.statusCode() shouldBe 422
                 it.body() shouldContain "users.not_a_user"
             }
 

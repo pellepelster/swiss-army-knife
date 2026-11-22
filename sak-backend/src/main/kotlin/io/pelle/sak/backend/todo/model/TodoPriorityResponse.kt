@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 // how urgent a task is as it is sent (TODO-5)
 @Serializable
-enum class TodoPriorityValue(
+enum class TodoPriorityResponse(
     val priority: TodoPriority,
 ) {
     @SerialName("high")

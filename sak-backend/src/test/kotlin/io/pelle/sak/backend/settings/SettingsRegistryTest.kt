@@ -32,7 +32,7 @@ class SettingsRegistryTest {
     @Test
     fun `updates the settings named of a scope and answers all of them, masked`() {
         registry.update("test", mapOf("flag" to JsonPrimitive(true), "secret" to JsonPrimitive("the secret")), owner = "admin@example.org") shouldBe
-            UpdateSettingsResult.Updated(mapOf("flag" to JsonPrimitive(true), "secret" to JsonPrimitive("th••••••••")))
+            SettingsUpdateResult.Updated(mapOf("flag" to JsonPrimitive(true), "secret" to JsonPrimitive("th••••••••")))
         test.get(FLAG) shouldBe true
         test.get(SECRET) shouldBe "the secret"
     }
@@ -40,9 +40,9 @@ class SettingsRegistryTest {
     @Test
     fun `sets nothing when any value is not valid, nothing for an unknown scope`() {
         registry.update("test", mapOf("flag" to JsonPrimitive(true), "other" to JsonPrimitive(true)), owner = "admin@example.org") shouldBe
-            UpdateSettingsResult.Invalid(listOf(ErrorMessage(SettingsTexts.UNKNOWN_SETTING, "name" to "other", "scope" to SettingScopeName("test"))))
+            SettingsUpdateResult.Invalid(listOf(ErrorMessage(SettingsTexts.UNKNOWN_SETTING, "name" to "other", "scope" to SettingScopeName("test"))))
         test.get(FLAG) shouldBe false
-        registry.update("other", mapOf("flag" to JsonPrimitive(true)), owner = "admin@example.org") shouldBe UpdateSettingsResult.NotFound
+        registry.update("other", mapOf("flag" to JsonPrimitive(true)), owner = "admin@example.org") shouldBe SettingsUpdateResult.NotFound
     }
 
     @Test

@@ -16,7 +16,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
 import java.nio.file.Path
-import java.security.MessageDigest
 import javax.imageio.ImageIO
 import javax.sound.sampled.UnsupportedAudioFileException
 import io.pelle.sak.model.testing.Media
@@ -37,14 +36,12 @@ class FileServiceTest {
     // where the storage keeps a file on disk: below its resource id (MODEL-8)
     private fun stored(file: StoredFile, name: String = "content") = dir.resolve(file.resourceId.value).resolve(name)
 
-    private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
-
     @Test
     fun `stores a file with its type, size and uploader, its content below its resource id`() {
         val content = Media.JPEG + "a photo".toByteArray()
 
-        val file = service.store(content.inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>().file
-        file shouldBe StoredFile(file.id, file.resourceId, sha256(content), "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), null)
+        val file = service.store(content.inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>().file
+        file shouldBe StoredFile(file.id, file.resourceId, "image/jpeg", content.size.toLong(), "pelle@pelle.io", clock.instant(), null)
         Files.readAllBytes(stored(file)) shouldBe content
         service.content(file)!!.let { it.size shouldBe content.size.toLong(); it.open().use { stream -> stream.readAllBytes() } shouldBe content }
         service.byId("pelle@pelle.io", file.id) shouldBe file
@@ -57,14 +54,13 @@ class FileServiceTest {
     @Test
     fun `every upload is a file of its own, also of the same content`() {
         val content = Media.PNG + "same".toByteArray()
-        val first = (service.store(content.inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
-        val second = (service.store(content.inputStream(), "other@example.org") as StoreFileResult.Stored).file
+        val first = (service.store(content.inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
+        val second = (service.store(content.inputStream(), "other@example.org") as FileStoreResult.Stored).file
         service.byId("pelle@pelle.io", second.id) shouldBe null
         service.byId("other@example.org", second.id) shouldBe second
 
         second.id shouldNotBe first.id
         second.owner shouldBe "other@example.org"
-        second.sha256 shouldBe first.sha256
         second.resourceId shouldNotBe first.resourceId
         Files.readAllBytes(stored(second)) shouldBe content
         // the uploads went, nothing but the two files and the empty staging directory stay
@@ -75,18 +71,18 @@ class FileServiceTest {
 
     @Test
     fun `takes images only, told by their first bytes, and nothing larger than the limit`() {
-        service.store("<html>".toByteArray().inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
-        service.store(ByteArray(0).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
-        service.store((Media.JPEG + ByteArray(1024)).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.TooLarge
-        service.store(Media.image(4, 3, "gif").inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
+        service.store("<html>".toByteArray().inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UnsupportedType
+        service.store(ByteArray(0).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UnsupportedType
+        service.store((Media.JPEG + ByteArray(1024)).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.TooLarge
+        service.store(Media.image(4, 3, "gif").inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>()
             .file.contentType shouldBe "image/gif"
         service.store(Media.webp(4, 3).inputStream(), "pelle@pelle.io")
-            .shouldBeInstanceOf<StoreFileResult.Stored>().file.contentType shouldBe "image/webp"
+            .shouldBeInstanceOf<FileStoreResult.Stored>().file.contentType shouldBe "image/webp"
         // the first bytes of an image are not enough, it has to be one
-        service.store(("GIF89a" + "x").toByteArray().inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
-        service.store(Media.JPEG.copyOf(4).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
+        service.store(("GIF89a" + "x").toByteArray().inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UnsupportedType
+        service.store(Media.JPEG.copyOf(4).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UnsupportedType
         service.store("RIFF\u0000\u0000\u0000\u0000WAVEfmt ".toByteArray().inputStream(), "pelle@pelle.io") shouldBe
-            StoreFileResult.UnsupportedType
+            FileStoreResult.UnsupportedType
         // nothing stays behind of the rejected ones
         Files.list(dir).use { it.toList() }.none { it.fileName.toString().startsWith("upload-") } shouldBe true
         service.byId("pelle@pelle.io", 4711) shouldBe null
@@ -95,7 +91,7 @@ class FileServiceTest {
 
     @Test
     fun `makes a thumbnail of an image when it is first asked for and keeps it`() {
-        val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
 
         val thumbnail = stored(file, "thumbnail-480.jpg")
         service(maxSize = 10_000_000).thumbnail(file)!!.open().use { ImageIO.read(it) }.let {
@@ -110,7 +106,7 @@ class FileServiceTest {
 
     @Test
     fun `small images keep their size, transparent ones get a white background`() {
-        val file = (service(maxSize = 10_000_000).store(Media.image(200, 100, "png").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val file = (service(maxSize = 10_000_000).store(Media.image(200, 100, "png").inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
         service.thumbnail(file)!!.open().use { ImageIO.read(it) }.let {
             it.width shouldBe 200
             it.height shouldBe 100
@@ -119,7 +115,7 @@ class FileServiceTest {
 
     @Test
     fun `an image that can not be read has no thumbnail, it is not read again`() {
-        val file = (service.store(Media.JPEG.inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val file = (service.store(Media.JPEG.inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
         val content = Files.readAllBytes(stored(file))
         Files.write(stored(file), Media.JPEG.copyOf(4))
         service.thumbnail(file) shouldBe null
@@ -131,7 +127,7 @@ class FileServiceTest {
 
     @Test
     fun `makes the thumbnail of a content once when it is asked for many times at once`() {
-        val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
         val start = java.util.concurrent.CountDownLatch(1)
         val pool = java.util.concurrent.Executors.newFixedThreadPool(16)
         try {
@@ -148,10 +144,10 @@ class FileServiceTest {
     @Test
     fun `takes images of at most 2048 pixels on their longer side, as the apps scale them`() {
         val large = service(maxSize = 10_000_000)
-        large.store(Media.image(2048, 10, "png").inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
-        large.store(Media.image(10, 2049, "png").inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
-        large.store(Media.image(2049, 10, "jpg").inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
-        large.store(Media.webp(2049, 10).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.ImageTooLarge
+        large.store(Media.image(2048, 10, "png").inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>()
+        large.store(Media.image(10, 2049, "png").inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.ImageTooLarge
+        large.store(Media.image(2049, 10, "jpg").inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.ImageTooLarge
+        large.store(Media.webp(2049, 10).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.ImageTooLarge
     }
 
     @Test
@@ -171,19 +167,19 @@ class FileServiceTest {
     @Test
     fun `takes recordings of at most five minutes, as the apps record them`() {
         val recordings = service(maxSize = 10_000_000)
-        recordings.store(Media.wav(seconds = 300, rate = 100f).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
-        recordings.store(Media.wav(seconds = 301, rate = 100f).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.RecordingTooLong
+        recordings.store(Media.wav(seconds = 300, rate = 100f).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>()
+        recordings.store(Media.wav(seconds = 301, rate = 100f).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.RecordingTooLong
     }
 
     // the uploader writes the header: a frame of 32767 channels made the waveform block read 1 GB
     @Test
     fun `takes no recording but mono or stereo pcm of 8 or 16 bit`() {
         val recordings = service(maxSize = 10_000_000)
-        recordings.store(wavHeader(channels = 32767).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
-        recordings.store(wavHeader(channels = 3).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
-        recordings.store(wavHeader(channels = 1, bits = 24).inputStream(), "pelle@pelle.io") shouldBe StoreFileResult.UnsupportedType
-        recordings.store(wavHeader(channels = 2).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
-        recordings.store(wavHeader(channels = 1, bits = 8).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<StoreFileResult.Stored>()
+        recordings.store(wavHeader(channels = 32767).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UnsupportedType
+        recordings.store(wavHeader(channels = 3).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UnsupportedType
+        recordings.store(wavHeader(channels = 1, bits = 24).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UnsupportedType
+        recordings.store(wavHeader(channels = 2).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>()
+        recordings.store(wavHeader(channels = 1, bits = 8).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>()
     }
 
     @Test
@@ -222,7 +218,7 @@ class FileServiceTest {
     @Test
     fun `stores wav recordings, their thumbnail is their waveform`() {
         val file =
-            (service(maxSize = 10_000_000).store(Media.wav(seconds = 2).inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+            (service(maxSize = 10_000_000).store(Media.wav(seconds = 2).inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
         file.contentType shouldBe "audio/wav"
 
         service.thumbnail(file)!!.open().use { ImageIO.read(it) }.let {
@@ -241,7 +237,7 @@ class FileServiceTest {
         FileService.subsampling(2048, 480) shouldBe 1
         FileService.subsampling(100, 128) shouldBe 1
 
-        val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as StoreFileResult.Stored).file
+        val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
         FileService.decode(service.content(file)!!, 128)!!.width shouldBe 512
         service.thumbnail(file, 128)!!.open().use { ImageIO.read(it) }.let {
             it.width shouldBe 128

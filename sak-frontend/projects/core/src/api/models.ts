@@ -39,7 +39,7 @@ export type DiscoverTextResponse = Schemas['DiscoverTextResponse'];
 export type User = Schemas['UserResponse'];
 
 // redirects
-export type RedirectTarget = Schemas['RedirectTarget'];
+export type RedirectTarget = Schemas['RedirectTargetResponse'];
 export type Redirect = Schemas['RedirectResponse'];
 export type ResticRepository = Schemas['ResticRepositoryResponse'];
 

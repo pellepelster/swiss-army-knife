@@ -13,42 +13,42 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 private val logger = KotlinLogging.logger {}
 
-sealed interface CreateRedirectResult {
+sealed interface RedirectCreateResult {
     data class Created(
         val redirect: Redirect,
-    ) : CreateRedirectResult
+    ) : RedirectCreateResult
 
     // no valid domain, the source is the target, or a domain the backend or a bucket serves
-    data object InvalidDomain : CreateRedirectResult
+    data object InvalidDomain : RedirectCreateResult
 
-    data object UnknownBucket : CreateRedirectResult
+    data object UnknownBucket : RedirectCreateResult
 
     // the bucket is not served at a domain, there is nothing to redirect to
-    data object BucketNotServed : CreateRedirectResult
+    data object BucketNotServed : RedirectCreateResult
 
-    data object Exists : CreateRedirectResult
+    data object Exists : RedirectCreateResult
 }
 
-sealed interface UpdateRedirectResult {
+sealed interface RedirectUpdateResult {
     data class Updated(
         val redirect: Redirect,
-    ) : UpdateRedirectResult
+    ) : RedirectUpdateResult
 
-    data object NotFound : UpdateRedirectResult
+    data object NotFound : RedirectUpdateResult
 
     // no valid domain or the source itself
-    data object InvalidDomain : UpdateRedirectResult
+    data object InvalidDomain : RedirectUpdateResult
 
-    data object UnknownBucket : UpdateRedirectResult
+    data object UnknownBucket : RedirectUpdateResult
 
     // the bucket is not served at a domain, there is nothing to redirect to
-    data object BucketNotServed : UpdateRedirectResult
+    data object BucketNotServed : RedirectUpdateResult
 }
 
-sealed interface DeleteRedirectResult {
-    data object Deleted : DeleteRedirectResult
+sealed interface RedirectDeleteResult {
+    data object Deleted : RedirectDeleteResult
 
-    data object NotFound : DeleteRedirectResult
+    data object NotFound : RedirectDeleteResult
 }
 
 // the domains caddy redirects, the only way to them; listeners hear of every change
@@ -96,49 +96,49 @@ class RedirectService(
         target: RedirectTarget,
         // who creates it (MODEL-5)
         owner: String,
-    ): CreateRedirectResult {
+    ): RedirectCreateResult {
         val source = sourceDomain.lowercase()
         if (!isValidDomain(source) || domains.isReserved(source) || buckets.bucketOfDomain(source) != null) {
-            return CreateRedirectResult.InvalidDomain
+            return RedirectCreateResult.InvalidDomain
         }
         val normalized =
             when (val checked = check(source, target)) {
                 is CheckedTarget.Valid -> checked.target
-                CheckedTarget.InvalidDomain -> return CreateRedirectResult.InvalidDomain
-                CheckedTarget.UnknownBucket -> return CreateRedirectResult.UnknownBucket
-                CheckedTarget.BucketNotServed -> return CreateRedirectResult.BucketNotServed
+                CheckedTarget.InvalidDomain -> return RedirectCreateResult.InvalidDomain
+                CheckedTarget.UnknownBucket -> return RedirectCreateResult.UnknownBucket
+                CheckedTarget.BucketNotServed -> return RedirectCreateResult.BucketNotServed
             }
 
-        val redirect = repository.insert(source, normalized, owner) ?: return CreateRedirectResult.Exists
+        val redirect = repository.insert(source, normalized, owner) ?: return RedirectCreateResult.Exists
         changed()
-        return CreateRedirectResult.Created(redirect)
+        return RedirectCreateResult.Created(redirect)
     }
 
     // the target is checked as when it is created
     fun update(
         sourceDomain: String,
         target: RedirectTarget,
-    ): UpdateRedirectResult {
+    ): RedirectUpdateResult {
         val source = sourceDomain.lowercase()
-        repository.byId(source) ?: return UpdateRedirectResult.NotFound
+        repository.byId(source) ?: return RedirectUpdateResult.NotFound
         val normalized =
             when (val checked = check(source, target)) {
                 is CheckedTarget.Valid -> checked.target
-                CheckedTarget.InvalidDomain -> return UpdateRedirectResult.InvalidDomain
-                CheckedTarget.UnknownBucket -> return UpdateRedirectResult.UnknownBucket
-                CheckedTarget.BucketNotServed -> return UpdateRedirectResult.BucketNotServed
+                CheckedTarget.InvalidDomain -> return RedirectUpdateResult.InvalidDomain
+                CheckedTarget.UnknownBucket -> return RedirectUpdateResult.UnknownBucket
+                CheckedTarget.BucketNotServed -> return RedirectUpdateResult.BucketNotServed
             }
-        val updated = repository.update(source, normalized) ?: return UpdateRedirectResult.NotFound
+        val updated = repository.update(source, normalized) ?: return RedirectUpdateResult.NotFound
         changed()
-        return UpdateRedirectResult.Updated(updated)
+        return RedirectUpdateResult.Updated(updated)
     }
 
-    fun delete(sourceDomain: String): DeleteRedirectResult {
+    fun delete(sourceDomain: String): RedirectDeleteResult {
         if (!repository.delete(sourceDomain.lowercase())) {
-            return DeleteRedirectResult.NotFound
+            return RedirectDeleteResult.NotFound
         }
         changed()
-        return DeleteRedirectResult.Deleted
+        return RedirectDeleteResult.Deleted
     }
 
     private sealed interface CheckedTarget {

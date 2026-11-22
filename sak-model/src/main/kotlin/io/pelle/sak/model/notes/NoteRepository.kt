@@ -1,8 +1,11 @@
 package io.pelle.sak.model.notes
 
+import io.pelle.sak.model.changesTo
+import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.model.jooq.tables.records.NotesRecord
+import io.pelle.sak.model.jooq.tables.references.FILES
 import io.pelle.sak.model.jooq.tables.references.LABELS
 import io.pelle.sak.model.jooq.tables.references.NOTES
 import io.pelle.sak.model.jooq.tables.references.NOTE_LISTS
@@ -29,6 +32,24 @@ data class NoteRow(
     val createdAt: Instant,
     val updatedAt: Instant?,
 )
+
+// what saving a note gives: the note as it is stored, or what it refers to that is not the owner's
+sealed interface NoteWriteResult {
+    data class Saved(
+        val note: NoteRow,
+    ) : NoteWriteResult
+
+    // a change of a note that is not there
+    data object NotFound : NoteWriteResult
+
+    // a new note in a list that is no live list of the owner
+    data object NoList : NoteWriteResult
+
+    // files that are no live files of the owner
+    data class UnknownFiles(
+        val fileIds: Set<Int>,
+    ) : NoteWriteResult
+}
 
 // the notes and their links to labels and files, for NoteService only; reads and changes the live
 // notes of one owner. A link removed, also of a deleted note, stays with deleted_at set
@@ -121,18 +142,25 @@ class NoteRepository(
         }
     }
 
+    // a new note in the list. The list and the files are checked to be the owner's in the transaction of
+    // the insert (MODEL-6); a label that is not the owner's live one, e.g. deleted in the same moment, is
+    // left out
     fun insert(
         owner: String,
-        // a list of the owner
         listId: Int,
         text: String,
         color: String,
         labelIds: Set<Int>,
         fileIds: List<Int>,
-    ): NoteRow =
+    ): NoteWriteResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
+            if (!dsl.fetchExists(NOTE_LISTS, NOTE_LISTS.ID.eq(listId), NOTE_LISTS.OWNER.eq(owner), NOTE_LISTS.DELETED_AT.isNull)) {
+                return@transactionResult NoteWriteResult.NoList
+            }
+            unknownFiles(dsl, owner, fileIds).takeIf { it.isNotEmpty() }?.let { return@transactionResult NoteWriteResult.UnknownFiles(it) }
+            val labels = ownLabels(dsl, owner, labelIds)
             val note =
                 dsl
                     .insertInto(NOTES)
@@ -143,12 +171,12 @@ class NoteRepository(
                     .set(NOTES.CREATED_AT, now)
                     .returning()
                     .fetchOne()!!
-            labelIds.forEach { insertLabel(dsl, note.id!!, it, now, owner) }
+            labels.forEach { insertLabel(dsl, note.id!!, it, now, owner) }
             fileIds.forEachIndexed { position, fileId -> insertFile(dsl, note.id!!, fileId, position, now, owner) }
-            note.toRow(labelIds, fileIds)
+            NoteWriteResult.Saved(note.toRow(labels, fileIds))
         }
 
-    // the note as it is stored now, null when there is none
+    // the note as it is stored now; the files and the labels are checked as for a new note
     fun update(
         owner: String,
         id: Int,
@@ -156,23 +184,67 @@ class NoteRepository(
         color: String,
         labelIds: Set<Int>,
         fileIds: List<Int>,
-    ): NoteRow? =
+    ): NoteWriteResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
+            unknownFiles(dsl, owner, fileIds).takeIf { it.isNotEmpty() }?.let { return@transactionResult NoteWriteResult.UnknownFiles(it) }
+            val labels = ownLabels(dsl, owner, labelIds)
+            // other labels or files, or the files in another order, change the note as its text does
+            val linksChange = labelIds(dsl, listOf(id))[id].orEmpty() != labels || fileIds(dsl, listOf(id))[id].orEmpty() != fileIds
             val note =
                 dsl
                     .update(NOTES)
                     .set(NOTES.TEXT, text)
                     .set(NOTES.COLOR, color)
-                    .set(NOTES.UPDATED_AT, now)
+                    .set(
+                        NOTES.UPDATED_AT,
+                        changedAt(NOTES.UPDATED_AT, now, NOTES.TEXT.changesTo(text), NOTES.COLOR.changesTo(color), DSL.condition(linksChange)),
+                    )
                     .where(NOTES.ID.eq(id), NOTES.OWNER.eq(owner), NOTES.DELETED_AT.isNull)
                     .returning()
                     .fetchOne()
-                    ?: return@transactionResult null
-            updateLabels(dsl, id, labelIds, now, owner)
+                    ?: return@transactionResult NoteWriteResult.NotFound
+            updateLabels(dsl, id, labels, now, owner)
             updateFiles(dsl, id, fileIds, now, owner)
-            note.toRow(labelIds, fileIds)
+            NoteWriteResult.Saved(note.toRow(labels, fileIds))
+        }
+
+    // the ones among the ids that are live labels of the owner
+    private fun ownLabels(
+        dsl: DSLContext,
+        owner: String,
+        labelIds: Set<Int>,
+    ): Set<Int> =
+        if (labelIds.isEmpty()) {
+            emptySet()
+        } else {
+            dsl
+                .select(LABELS.ID)
+                .from(LABELS)
+                .where(LABELS.ID.`in`(labelIds), LABELS.OWNER.eq(owner), LABELS.DELETED_AT.isNull)
+                .fetchSet(LABELS.ID)
+                .filterNotNull()
+                .toSet()
+        }
+
+    // the ones among the ids that are no live files of the owner
+    private fun unknownFiles(
+        dsl: DSLContext,
+        owner: String,
+        fileIds: List<Int>,
+    ): Set<Int> =
+        if (fileIds.isEmpty()) {
+            emptySet()
+        } else {
+            fileIds.toSet() -
+                dsl
+                    .select(FILES.ID)
+                    .from(FILES)
+                    .where(FILES.ID.`in`(fileIds), FILES.OWNER.eq(owner), FILES.DELETED_AT.isNull)
+                    .fetchSet(FILES.ID)
+                    .filterNotNull()
+                    .toSet()
         }
 
     // false when there was none; its links to its labels and files are deleted with it
@@ -196,8 +268,11 @@ class NoteRepository(
             deleted
         }
 
-    // drops the label from every note
-    fun detachLabel(labelId: Int) = deleteLabels(database.dsl, NOTES_LABELS.LABEL_ID.eq(labelId), clock.instant())
+    // drops the label of the owner from every note of the owner
+    fun detachLabel(
+        owner: String,
+        labelId: Int,
+    ) = deleteLabels(database.dsl, NOTES_LABELS.LABEL_ID.eq(labelId).and(NOTES_LABELS.OWNER.eq(owner)), clock.instant())
 
     // drops every deleted label from the notes, the ones whose detachLabel did not happen, e.g. the
     // process ended between deleting the label and detaching it; does nothing when there are none

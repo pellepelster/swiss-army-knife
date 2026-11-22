@@ -14,7 +14,6 @@ import io.ktor.server.application.ApplicationStopping
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import io.pelle.sak.backend.hosting.BucketLayout
 import io.pelle.sak.backend.hosting.BucketStatisticsCache
 import io.pelle.sak.backend.hosting.InvalidatingS3StorageBackend
 import io.pelle.sak.config.SakConfig
@@ -161,14 +160,12 @@ fun Application.sak(config: SakConfig): SakServices {
             baseDomain = config.baseDomain,
             reservedNames = RESERVED_SITES + RESERVED_BUCKETS,
             domains = domains,
-            free = { bucketBlobs.children(BucketLayout.atResourceId(it)).isEmpty() },
+            storage = bucketBlobs,
         )
-    migrateBucketLayout(bucketService, bucketBlobs, config)
     val storage = bucketStorage(config, bucketBlobs, bucketService::objectsPath)
     val redirectService = RedirectService(database, bucketService, domains = domains)
     val labelService = LabelService(database)
     val fileService = FileService(database, filesDir(config))
-    migrateFileLayout(fileService)
     val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber, notesSettings::aiEnabled)
     val noteService = NoteService(database, labelService, fileService)
     val groceryService = GroceryService(database)
@@ -183,6 +180,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val statistics = BucketStatisticsCache(storage)
     statistics.warm(bucketService.all().map { it.name })
     removeStaleUploads(storage, bucketService, statistics)
+    reportLeftovers(bucketService, fileService)
     reportResticLeftovers(resticStore, resticService)
     resticStore.count(resticService.resourceIds())
 
@@ -256,40 +254,19 @@ private fun Application.removeStaleUploads(
     }
 }
 
-// copies the objects of the buckets to their resource ids before the routes take a request and before
-// caddy is told where they are, and tells the admin of the buckets that have no room for it, of what is
-// left below the names and of the directories without a bucket (MODEL-8). A failure keeps the backend
-// up: a bucket that is not copied yet is served from below its name until a later start copies it
-private fun migrateBucketLayout(
+// tells the admin of the directories of the buckets and of the files that no row has, e.g. left by a
+// restore of the instance (MODEL-8); they are kept, and no new bucket or file gets one of them
+private fun reportLeftovers(
     buckets: S3BucketService,
-    storage: BinaryStorage,
-    config: SakConfig,
+    files: FileService,
 ) {
     try {
-        val result = buckets.migrateLayout(storage, { Files.getFileStore(config.s3DataDir).usableSpace }, config.s3MinFreeBytes)
-        if (result.copied > 0) logger.info { "copied the objects of ${result.copied} buckets to their resource ids" }
-        if (result.noRoom > 0) logger.warn { "${result.noRoom} buckets have no room to be copied to their resource ids, they stay below their names until a start has it" }
-        if (result.oldDirectories > 0) logger.warn { "${result.oldDirectories} directories of buckets below their names are left, no bucket uses them once it is copied, they are kept" }
-        val leftovers = buckets.leftovers(storage)
-        if (leftovers.isNotEmpty()) logger.warn { "${leftovers.size} directories of buckets have no bucket, they are kept" }
+        val ofBuckets = buckets.leftovers()
+        if (ofBuckets.isNotEmpty()) logger.warn { "${ofBuckets.size} directories of buckets have no bucket, they are kept" }
+        val ofFiles = files.leftovers()
+        if (ofFiles.isNotEmpty()) logger.warn { "${ofFiles.size} directories of files have no file, they are kept" }
     } catch (e: Exception) {
-        logger.error(logCause(e)) { "could not copy the objects of the buckets to their resource ids" }
-    }
-}
-
-// moves the content of the files to their resource ids before the routes take a request, and tells the
-// admin of what can not be moved and of the directories without a file (MODEL-8). A failure keeps the
-// backend up, the files not moved yet are not found until the next start moves them
-private fun migrateFileLayout(files: FileService) {
-    try {
-        val result = files.migrateLayout()
-        if (result.migrated > 0) logger.info { "moved the content of ${result.migrated} files to their resource ids" }
-        if (result.missing > 0) logger.warn { "${result.missing} files have no content, neither at their resource id nor at their sha-256" }
-        if (result.oldDirectories > 0) logger.warn { "${result.oldDirectories} directories of files below their sha-256 are left, no file refers to what is in them, they are kept" }
-        val leftovers = files.leftovers()
-        if (leftovers.isNotEmpty()) logger.warn { "${leftovers.size} directories of files have no file, they are kept" }
-    } catch (e: Exception) {
-        logger.error(logCause(e)) { "could not move the content of the files to their resource ids" }
+        logger.warn(logCause(e)) { "could not look for directories of buckets and files without a row" }
     }
 }
 

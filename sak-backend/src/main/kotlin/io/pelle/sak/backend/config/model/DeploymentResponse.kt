@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.config.model
 
+import io.pelle.sak.backend.info.model.DnsModeResponse
+import io.pelle.sak.backend.info.model.UserModeResponse
 import kotlinx.serialization.Serializable
 
 // the settings the deployment was created or deployed with, as far as the backend has them: what
@@ -7,11 +9,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class DeploymentResponse(
     val name: String,
-    // domain or subdomain
-    val dnsMode: String,
+    val dnsMode: DnsModeResponse,
     val rootDomain: String,
-    // multi with a mail server, single without
-    val userMode: String,
+    val userMode: UserModeResponse,
     // the admin who also signs in by e-mail, none without one
     val adminEmail: String?,
     // the mail server of the login links, its password included; none for single user

@@ -14,7 +14,7 @@ data class TodoItemResponse(
     // the day it is to be done by, yyyy-mm-dd; missing for no day (TODO-4)
     val dueDate: String? = null,
     // high, normal or low (TODO-5)
-    val priority: TodoPriorityValue,
+    val priority: TodoPriorityResponse,
     // when it was done, missing while it is open (TODO-3)
     val doneAt: String? = null,
 )

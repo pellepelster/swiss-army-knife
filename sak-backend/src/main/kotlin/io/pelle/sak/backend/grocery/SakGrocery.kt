@@ -19,6 +19,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.utils.io.ExperimentalKtorApi
+import io.pelle.sak.api.ApiTexts
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.idParameter
@@ -32,7 +33,7 @@ import io.pelle.sak.auth.RateLimiter
 import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.files.discoverTextLimiter
 import io.pelle.sak.backend.files.FilesTexts
-import io.pelle.sak.backend.grocery.model.GroceryDiscoveredItem
+import io.pelle.sak.backend.grocery.model.GroceryDiscoveredItemResponse
 import io.pelle.sak.backend.grocery.model.GroceryDiscoveredResponse
 import io.pelle.sak.backend.grocery.model.GrocerySettingsResponse
 import io.pelle.sak.backend.grocery.model.GroceryCategoryOrderRequest
@@ -53,7 +54,7 @@ import io.pelle.sak.model.grocery.GroceryCategory
 import io.pelle.sak.model.grocery.GroceryItem
 import io.pelle.sak.backend.lists.listChanges
 import io.pelle.sak.backend.lists.respondList
-import io.pelle.sak.model.lists.ListDelete
+import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.lists.SakList
 import io.pelle.sak.model.grocery.GrocerySuggestion
 import io.ktor.server.application.ApplicationCall
@@ -82,37 +83,31 @@ private fun GroceryItemRequest.input() = GroceryItemInput(name, amount?.let { Bi
 private fun GroceryNewItemRequest.input() = GroceryItemInput(name, amount?.let { BigDecimal.valueOf(it) }, unit, categoryId)
 
 private suspend fun ApplicationCall.respondCategory(
-    result: GroceryCategoryResult,
+    result: GroceryCategorySaveResult,
     created: Boolean = false,
 ) = when (result) {
-    is GroceryCategoryResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.category.response())
-    is GroceryCategoryResult.Invalid -> respondErrors(result.errors)
-    GroceryCategoryResult.NotFound -> respond(HttpStatusCode.NotFound)
-    GroceryCategoryResult.Exists -> respondErrors(GroceryTexts.CATEGORY_EXISTS, status = HttpStatusCode.Conflict)
+    is GroceryCategorySaveResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.category.response())
+    is GroceryCategorySaveResult.Invalid -> respondErrors(result.errors)
+    GroceryCategorySaveResult.NotFound -> respond(HttpStatusCode.NotFound)
+    GroceryCategorySaveResult.Exists -> respondErrors(GroceryTexts.CATEGORY_EXISTS, status = HttpStatusCode.Conflict)
 }
-
-// the id of the category in the path, a 404 without one
-private suspend fun ApplicationCall.categoryIdParameter(): Int? =
-    parameters["categoryId"]?.toIntOrNull() ?: run {
-        respond(HttpStatusCode.NotFound)
-        null
-    }
 
 private suspend fun ApplicationCall.respondItem(
-    result: GroceryItemResult,
+    result: GroceryItemSaveResult,
     created: Boolean = false,
 ) = when (result) {
-    is GroceryItemResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.item.response())
-    is GroceryItemResult.Invalid -> respondErrors(result.errors)
-    GroceryItemResult.NotFound -> respond(HttpStatusCode.NotFound)
-    GroceryItemResult.UnknownList -> respondErrors(GroceryTexts.UNKNOWN_LIST, status = HttpStatusCode.UnprocessableEntity)
+    is GroceryItemSaveResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.item.response())
+    is GroceryItemSaveResult.Invalid -> respondErrors(result.errors)
+    GroceryItemSaveResult.NotFound -> respond(HttpStatusCode.NotFound)
+    GroceryItemSaveResult.UnknownList -> respondErrors(GroceryTexts.UNKNOWN_LIST, status = HttpStatusCode.UnprocessableEntity)
+    GroceryItemSaveResult.UnknownCategory -> respondErrors(GroceryTexts.UNKNOWN_CATEGORY, status = HttpStatusCode.UnprocessableEntity)
 }
 
-private suspend fun ApplicationCall.respondPhoto(result: GroceryPhotoResult) =
+private suspend fun ApplicationCall.respondPhoto(result: GroceryPhotoSetResult) =
     when (result) {
-        is GroceryPhotoResult.Set -> respond(result.item.response())
-        GroceryPhotoResult.NotFound -> respond(HttpStatusCode.NotFound)
-        GroceryPhotoResult.NotAPhoto -> respondErrors(GroceryTexts.NOT_A_PHOTO)
+        is GroceryPhotoSetResult.Set -> respond(result.item.response())
+        GroceryPhotoSetResult.NotFound -> respond(HttpStatusCode.NotFound)
+        GroceryPhotoSetResult.NotAPhoto -> respondErrors(GroceryTexts.NOT_A_PHOTO, status = HttpStatusCode.UnprocessableEntity)
     }
 
 // the grocery lists of the signed in user and the shared ones of the others, their items and the
@@ -152,7 +147,7 @@ fun Route.grocery(
             }
         when (result) {
             is GroceryDiscoverResult.Discovered ->
-                call.respond(GroceryDiscoveredResponse(result.items.map { GroceryDiscoveredItem(it.name, it.amount?.toDouble(), it.unit) }))
+                call.respond(GroceryDiscoveredResponse(result.items.map { GroceryDiscoveredItemResponse(it.name, it.amount?.toDouble(), it.unit) }))
             GroceryDiscoverResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             GroceryDiscoverResult.NotAPhoto -> call.respondErrors(GroceryTexts.NOT_A_PHOTO)
             GroceryDiscoverResult.NotConfigured -> call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.ServiceUnavailable)
@@ -285,8 +280,8 @@ fun Route.grocery(
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
             when (withContext(Dispatchers.IO) { groceryService.deleteList(call.owner, id) }) {
-                ListDelete.Deleted -> call.respond(HttpStatusCode.NoContent)
-                ListDelete.NotFound -> call.respond(HttpStatusCode.NotFound)
+                ListDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
+                ListDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             }
         }.describe {
             tag(GROCERY_TAG)
@@ -418,13 +413,13 @@ fun Route.grocery(
             val id = call.idParameter() ?: return@put
             val request = call.receive<GroceryCategoryOrderRequest>()
             when (val result = withContext(Dispatchers.IO) { groceryService.orderCategories(call.owner, id, request.ids) }) {
-                is GroceryCategoriesResult.Ordered -> {
+                is GroceryCategoriesOrderResult.Ordered -> {
                     // a page of all of them, as GET /lists/{id}/categories answers
                     val all = PageRequest(limit = GroceryService.MAX_CATEGORIES)
                     call.respond(all.of(all.of(result.categories.map { it.response() })))
                 }
-                is GroceryCategoriesResult.Invalid -> call.respondErrors(result.errors)
-                GroceryCategoriesResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+                is GroceryCategoriesOrderResult.Invalid -> call.respondErrors(result.errors)
+                GroceryCategoriesOrderResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             }
         }.describe {
             tag(GROCERY_TAG)
@@ -447,7 +442,7 @@ fun Route.grocery(
 
         put("/{id}/categories/{categoryId}") {
             val id = call.idParameter() ?: return@put
-            val categoryId = call.categoryIdParameter() ?: return@put
+            val categoryId = call.idParameter("categoryId") ?: return@put
             val request = call.receive<GroceryCategoryRequest>()
             call.respondCategory(withContext(Dispatchers.IO) { groceryService.updateCategory(call.owner, id, categoryId, request.name, request.icon) })
         }.describe {
@@ -475,7 +470,7 @@ fun Route.grocery(
 
         delete("/{id}/categories/{categoryId}") {
             val id = call.idParameter() ?: return@delete
-            val categoryId = call.categoryIdParameter() ?: return@delete
+            val categoryId = call.idParameter("categoryId") ?: return@delete
             val deleted = withContext(Dispatchers.IO) { groceryService.deleteCategory(call.owner, id, categoryId) }
             call.respond(if (deleted) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
         }.describe {
@@ -494,8 +489,8 @@ fun Route.grocery(
 
         delete("/{id}/suggestions/{suggestionId}") {
             val id = call.idParameter() ?: return@delete
-            val suggestionId = call.parameters["suggestionId"]?.toIntOrNull()
-            val forgotten = suggestionId != null && withContext(Dispatchers.IO) { groceryService.forget(call.owner, id, suggestionId) }
+            val suggestionId = call.idParameter("suggestionId") ?: return@delete
+            val forgotten = withContext(Dispatchers.IO) { groceryService.forget(call.owner, id, suggestionId) }
             call.respond(if (forgotten) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
         }.describe {
             tag(GROCERY_TAG)
@@ -535,8 +530,8 @@ fun Route.grocery(
                     description = "The new item"
                     schema = jsonSchema<GroceryItemResponse>()
                 }
-                errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request, e.g. without a list")
-                errors(HttpStatusCode.UnprocessableEntity, "The user sees no such list")
+                errors(HttpStatusCode.BadRequest, "An invalid name, amount or unit, or a malformed request, e.g. without a list")
+                errors(HttpStatusCode.UnprocessableEntity, "The user sees no such list, or the category is none of the list")
             }
         }
 
@@ -577,8 +572,9 @@ fun Route.grocery(
                     description = "The changed item"
                     schema = jsonSchema<GroceryItemResponse>()
                 }
-                errors(HttpStatusCode.BadRequest, "An invalid name, amount, unit or category, or a malformed request")
+                errors(HttpStatusCode.BadRequest, "An invalid name, amount or unit, or a malformed request")
                 errors(HttpStatusCode.NotFound, "The user sees no such item")
+                errors(HttpStatusCode.UnprocessableEntity, "The category is none of the list of the item")
             }
         }
 
@@ -602,8 +598,9 @@ fun Route.grocery(
                     description = "The item with its category"
                     schema = jsonSchema<GroceryItemResponse>()
                 }
-                errors(HttpStatusCode.BadRequest, "No category of the list, or a malformed request")
+                errors(HttpStatusCode.BadRequest, "A malformed request")
                 errors(HttpStatusCode.NotFound, "The user sees no such item")
+                errors(HttpStatusCode.UnprocessableEntity, "The category is none of the list of the item")
             }
         }
 
@@ -627,8 +624,9 @@ fun Route.grocery(
                     description = "The item with its photo"
                     schema = jsonSchema<GroceryItemResponse>()
                 }
-                errors(HttpStatusCode.BadRequest, "The file is no image the user uploaded, or a malformed request")
+                errors(HttpStatusCode.BadRequest, "A malformed request")
                 errors(HttpStatusCode.NotFound, "The user sees no such item")
+                errors(HttpStatusCode.UnprocessableEntity, "The file is no image the user uploaded")
             }
         }
 
@@ -651,10 +649,10 @@ fun Route.grocery(
 
         get("/{id}/photos/{fileId}") {
             val id = call.idParameter() ?: return@get
-            val fileId = call.parameters["fileId"]?.toIntOrNull()
+            val fileId = call.idParameter("fileId") ?: return@get
             val size = call.request.queryParameters["size"]?.let { it.toIntOrNull()?.takeIf { size -> size > 0 } ?: -1 }
-            if (fileId == null || size == -1) {
-                call.respond(HttpStatusCode.BadRequest)
+            if (size == -1) {
+                call.respondErrors(ApiTexts.MALFORMED_REQUEST)
                 return@get
             }
             val content =
@@ -695,7 +693,7 @@ fun Route.grocery(
             }
             responses {
                 HttpStatusCode.OK { description = "The photo, scaled or itself" }
-                HttpStatusCode.BadRequest { description = "No file id or no positive size" }
+                errors(HttpStatusCode.BadRequest, "A size that is no positive number")
                 errors(HttpStatusCode.NotFound, "The user sees no such item, or the file is not its photo")
             }
         }

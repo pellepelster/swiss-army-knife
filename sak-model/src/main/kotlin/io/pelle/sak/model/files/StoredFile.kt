@@ -8,18 +8,10 @@ import java.time.Instant
 data class StoredFile(
     val id: Int,
     val resourceId: ResourceId,
-    val sha256: String,
     val contentType: String,
     val size: Long,
     val owner: String,
     val createdAt: Instant,
     val updatedAt: Instant?,
     val discovered: String? = null,
-)
-
-// where the content of a file is and where it was before the resource ids, of every file, the deleted
-// ones included: for FileLayoutMigration only
-data class FileLocation(
-    val resourceId: ResourceId,
-    val sha256: String,
 )

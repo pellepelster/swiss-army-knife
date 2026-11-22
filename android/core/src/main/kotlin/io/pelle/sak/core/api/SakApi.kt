@@ -81,7 +81,7 @@ const val MAX_PAGES = 1_000
 // the api of one deployment, below its url, e.g. https://api.example.org/v1; token is the session,
 // null before signing in. Cheap to make, the client is shared. The calls every app has; an app adds
 // its own in a subclass. loginClient names the app the signin page of the web app hands a login link on
-// to (LoginClient of sak-auth)
+// to (LoginClientRequest of sak-auth)
 open class SakApi(
     protected val client: HttpClient,
     protected val url: String,

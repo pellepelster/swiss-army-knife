@@ -29,14 +29,14 @@ import io.pelle.sak.backend.todo.model.TodoListRequest
 import io.pelle.sak.backend.todo.model.TodoListResponse
 import io.pelle.sak.backend.todo.model.TodoNewItemRequest
 import io.pelle.sak.backend.todo.model.TodoPriorityRequest
-import io.pelle.sak.backend.todo.model.TodoPriorityValue
+import io.pelle.sak.backend.todo.model.TodoPriorityResponse
 import io.pelle.sak.backend.todo.model.TodoPurgeRequest
 import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.lists.listChanges
 import io.pelle.sak.backend.lists.respondList
 import io.pelle.sak.model.todo.TodoItem
 import io.pelle.sak.model.lists.SakList
-import io.pelle.sak.model.lists.ListDelete
+import io.pelle.sak.model.lists.ListDeleteResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -44,13 +44,13 @@ private const val TODO_TAG = "todo"
 
 private fun SakList.response(user: String): TodoListResponse = TodoListResponse(id, name, shared, owner == user, items, icon, createdAt.apiTime(), updatedAt?.apiTime())
 
-private fun TodoItem.response() = TodoItemResponse(id, listId, title, createdAt.apiTime(), updatedAt?.apiTime(), dueDate?.toString(), TodoPriorityValue.of(priority), doneAt?.apiTime())
+private fun TodoItem.response() = TodoItemResponse(id, listId, title, createdAt.apiTime(), updatedAt?.apiTime(), dueDate?.toString(), TodoPriorityResponse.of(priority), doneAt?.apiTime())
 
-private suspend fun ApplicationCall.respondItem(result: TodoItemResult) =
+private suspend fun ApplicationCall.respondItem(result: TodoItemUpdateResult) =
     when (result) {
-        is TodoItemResult.Saved -> respond(result.item.response())
-        is TodoItemResult.Invalid -> respondErrors(result.errors)
-        TodoItemResult.NotFound -> respond(HttpStatusCode.NotFound)
+        is TodoItemUpdateResult.Saved -> respond(result.item.response())
+        is TodoItemUpdateResult.Invalid -> respondErrors(result.errors)
+        TodoItemUpdateResult.NotFound -> respond(HttpStatusCode.NotFound)
     }
 
 // the todo lists of the signed in user and the shared ones of the others with their tasks, meant to
@@ -148,8 +148,8 @@ fun Route.todo(todoService: TodoService) {
         delete("/{id}") {
             val id = call.idParameter() ?: return@delete
             when (withContext(Dispatchers.IO) { todoService.deleteList(call.owner, id) }) {
-                ListDelete.Deleted -> call.respond(HttpStatusCode.NoContent)
-                ListDelete.NotFound -> call.respond(HttpStatusCode.NotFound)
+                ListDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
+                ListDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             }
         }.describe {
             tag(TODO_TAG)
@@ -217,9 +217,9 @@ fun Route.todo(todoService: TodoService) {
         post {
             val request = call.receive<TodoNewItemRequest>()
             when (val result = withContext(Dispatchers.IO) { todoService.addItem(call.owner, request.listId, request.title, request.dueDate, request.priority) }) {
-                is TodoNewItemResult.Saved -> call.respond(HttpStatusCode.Created, result.item.response())
-                is TodoNewItemResult.Invalid -> call.respondErrors(result.errors)
-                TodoNewItemResult.UnknownList -> call.respondErrors(TodoTexts.UNKNOWN_LIST, status = HttpStatusCode.UnprocessableEntity)
+                is TodoItemAddResult.Saved -> call.respond(HttpStatusCode.Created, result.item.response())
+                is TodoItemAddResult.Invalid -> call.respondErrors(result.errors)
+                TodoItemAddResult.UnknownList -> call.respondErrors(TodoTexts.UNKNOWN_LIST, status = HttpStatusCode.UnprocessableEntity)
             }
         }.describe {
             tag(TODO_TAG)

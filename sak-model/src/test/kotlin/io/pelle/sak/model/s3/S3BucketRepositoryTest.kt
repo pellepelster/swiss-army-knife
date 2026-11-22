@@ -4,13 +4,11 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.migrateIsolated
 import io.pelle.sak.model.jooq.tables.references.S3_BUCKETS
 import io.pelle.sak.model.jooq.tables.references.S3_BUCKETS_DOMAINS
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
-import java.sql.DriverManager
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -30,7 +28,7 @@ class S3BucketRepositoryTest {
 
     @Test
     fun `a new bucket is not updated, changing its domains keeps the ones that stay and frees the others`() {
-        val site = (repository.insert("site", "AKIASITE", "SECRETAKIASITE", listOf("a.example.org", "b.example.org", "c.example.org"), owner = OWNER) as InsertBucketResult.Inserted).bucket
+        val site = (repository.insert("site", "AKIASITE", "SECRETAKIASITE", listOf("a.example.org", "b.example.org", "c.example.org"), owner = OWNER) as BucketInsertResult.Inserted).bucket
         site.updatedAt shouldBe null
         repository.secretAccessKey("AKIASITE") shouldBe "SECRETAKIASITE"
         repository.keyPair("site") shouldBe ("AKIASITE" to "SECRETAKIASITE")
@@ -44,7 +42,7 @@ class S3BucketRepositoryTest {
         // the removed one stays as deleted and is free for another bucket
         database.dsl.fetchCount(S3_BUCKETS_DOMAINS) shouldBe 4
         repository.bucketOfDomain("b.example.org") shouldBe null
-        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("b.example.org"), owner = OWNER).shouldBeInstanceOf<InsertBucketResult.Inserted>()
+        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("b.example.org"), owner = OWNER).shouldBeInstanceOf<BucketInsertResult.Inserted>()
         repository.replaceDomains("site", listOf("b.example.org"), owner = OWNER) shouldBe false
     }
 
@@ -66,8 +64,8 @@ class S3BucketRepositoryTest {
             it.deletedAt shouldBe now
             it.updatedAt shouldBe null
         }
-        repository.insert("site", "AKIAAGAIN", "SECRETAKIAAGAIN", owner = OWNER) shouldBe InsertBucketResult.NameTaken
-        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("example.org"), owner = OWNER).shouldBeInstanceOf<InsertBucketResult.Inserted>()
+        repository.insert("site", "AKIAAGAIN", "SECRETAKIAAGAIN", owner = OWNER) shouldBe BucketInsertResult.NameTaken
+        repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("example.org"), owner = OWNER).shouldBeInstanceOf<BucketInsertResult.Inserted>()
     }
 
     @Test
@@ -75,8 +73,8 @@ class S3BucketRepositoryTest {
         repository.insert("site", "AKIASITE", "SECRETAKIASITE", listOf("example.org"), owner = OWNER)
         // what the service checked before may be taken in between by a bucket created at the same time
         repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("www.example.org", "example.org"), owner = OWNER) shouldBe
-            InsertBucketResult.DomainTaken
-        repository.insert("site", "AKIAAGAIN", "SECRETAKIAAGAIN", listOf("free.example.org"), owner = OWNER) shouldBe InsertBucketResult.NameTaken
+            BucketInsertResult.DomainTaken
+        repository.insert("site", "AKIAAGAIN", "SECRETAKIAAGAIN", listOf("free.example.org"), owner = OWNER) shouldBe BucketInsertResult.NameTaken
         // nothing of a refused bucket stays
         repository.byName("other") shouldBe null
         repository.bucketOfDomain("www.example.org") shouldBe null
@@ -96,18 +94,17 @@ class S3BucketRepositoryTest {
     }
 
     @Test
-    fun `gives every bucket a resource id of its own, its objects are there from the start`() {
-        val site = (repository.insert("site", "AKIASITE", "SECRETAKIASITE", owner = OWNER) as InsertBucketResult.Inserted).bucket
-        val other = (repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", owner = OWNER) as InsertBucketResult.Inserted).bucket
+    fun `gives every bucket a resource id of its own, a deleted bucket has none for a request`() {
+        val site = (repository.insert("site", "AKIASITE", "SECRETAKIASITE", owner = OWNER) as BucketInsertResult.Inserted).bucket
+        val other = (repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", owner = OWNER) as BucketInsertResult.Inserted).bucket
 
         (site.resourceId == other.resourceId) shouldBe false
         repository.byName("site")!!.resourceId shouldBe site.resourceId
-        repository.location("site") shouldBe S3BucketLocation("site", site.resourceId, objectsAtName = false)
+        repository.resourceId("site") shouldBe site.resourceId
         repository.resourceIds() shouldBe setOf(site.resourceId, other.resourceId)
         // a deleted bucket has no place for a request, its resource id stays taken
         repository.delete("site")
-        repository.location("site") shouldBe null
-        repository.locations().map { it.name } shouldBe listOf("other", "site")
+        repository.resourceId("site") shouldBe null
         repository.resourceIds() shouldBe setOf(site.resourceId, other.resourceId)
     }
 
@@ -116,39 +113,8 @@ class S3BucketRepositoryTest {
         val left = ResourceId("leftover0001")
         val taken = S3BucketRepository(database, free = { it != left }, random = draws("leftover0001", "fresh0000001"))
 
-        (taken.insert("site", "AKIASITE", "SECRETAKIASITE", owner = OWNER) as InsertBucketResult.Inserted).bucket.resourceId shouldBe
+        (taken.insert("site", "AKIASITE", "SECRETAKIASITE", owner = OWNER) as BucketInsertResult.Inserted).bucket.resourceId shouldBe
             ResourceId("fresh0000001")
-    }
-
-    @Test
-    fun `the buckets created before the resource ids get one each and have their objects at their name until copied`() {
-        val file = tempDir.resolve("before.db")
-        DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
-            migrateIsolated(connection, "db/changelog/until-0004.yaml")
-            connection.createStatement().use { statement ->
-                listOf("site" to "NULL", "gone" to "'2026-11-02 00:00:00.000'").forEach { (name, deletedAt) ->
-                    statement.executeUpdate(
-                        "INSERT INTO s3_buckets (name, access_key_id, secret_access_key, owner, created_at, deleted_at) " +
-                            "VALUES ('$name', 'AK$name', 'secret', '$OWNER', '2026-11-01 00:00:00.000', $deletedAt)",
-                    )
-                }
-            }
-            // liquibase leaves the connection without auto commit
-            connection.commit()
-        }
-
-        val repository = S3BucketRepository(SakDatabase.open(file))
-        val locations = repository.locations()
-        // the deleted bucket too
-        locations.map { it.name to it.objectsAtName } shouldBe listOf("gone" to true, "site" to true)
-        locations.map { it.resourceId }.toSet().size shouldBe 2
-        repository.location("site") shouldBe locations.last()
-
-        repository.objectsAtResourceId("site")
-
-        repository.location("site") shouldBe locations.last().copy(objectsAtName = false)
-        repository.byName("site")!!.updatedAt shouldBe null
-        repository.locations().first().objectsAtName shouldBe true
     }
 
     // a random that draws the resource ids in the order given

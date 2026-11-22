@@ -6,34 +6,34 @@ import io.pelle.sak.model.labels.Label
 import io.pelle.sak.model.labels.LabelRepository
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
-import io.pelle.sak.model.labels.LabelRename
+import io.pelle.sak.model.labels.LabelNameUpdateResult
 
-sealed interface CreateLabelResult {
+sealed interface LabelCreateResult {
     data class Created(
         val label: Label,
-    ) : CreateLabelResult
+    ) : LabelCreateResult
 
-    data object InvalidName : CreateLabelResult
+    data object InvalidName : LabelCreateResult
 
-    data object Exists : CreateLabelResult
+    data object Exists : LabelCreateResult
 }
 
-sealed interface RenameLabelResult {
+sealed interface LabelRenameResult {
     data class Renamed(
         val label: Label,
-    ) : RenameLabelResult
+    ) : LabelRenameResult
 
-    data object NotFound : RenameLabelResult
+    data object NotFound : LabelRenameResult
 
-    data object InvalidName : RenameLabelResult
+    data object InvalidName : LabelRenameResult
 
-    data object Exists : RenameLabelResult
+    data object Exists : LabelRenameResult
 }
 
-sealed interface DeleteLabelResult {
-    data object Deleted : DeleteLabelResult
+sealed interface LabelDeleteResult {
+    data object Deleted : LabelDeleteResult
 
-    data object NotFound : DeleteLabelResult
+    data object NotFound : LabelDeleteResult
 }
 
 // the only way to the labels of a user (the owner); every app shares them, no other user sees them.
@@ -46,9 +46,9 @@ class LabelService(
         clock: Clock = Clock.systemUTC(),
     ) : this(LabelRepository(database, clock))
 
-    private val deleteListeners = CopyOnWriteArrayList<(Int) -> Unit>()
+    private val deleteListeners = CopyOnWriteArrayList<(owner: String, id: Int) -> Unit>()
 
-    fun onDelete(listener: (id: Int) -> Unit) {
+    fun onDelete(listener: (owner: String, id: Int) -> Unit) {
         deleteListeners.add(listener)
     }
 
@@ -77,25 +77,25 @@ class LabelService(
     fun create(
         owner: String,
         name: String,
-    ): CreateLabelResult {
-        val normalized = normalize(name) ?: return CreateLabelResult.InvalidName
-        val label = repository.insert(owner, normalized) ?: return CreateLabelResult.Exists
-        return CreateLabelResult.Created(label)
+    ): LabelCreateResult {
+        val normalized = normalize(name) ?: return LabelCreateResult.InvalidName
+        val label = repository.insert(owner, normalized) ?: return LabelCreateResult.Exists
+        return LabelCreateResult.Created(label)
     }
 
     fun rename(
         owner: String,
         id: Int,
         name: String,
-    ): RenameLabelResult {
-        val label = repository.byId(owner, id) ?: return RenameLabelResult.NotFound
-        val normalized = normalize(name) ?: return RenameLabelResult.InvalidName
-        if (normalized == label.name) return RenameLabelResult.Renamed(label)
+    ): LabelRenameResult {
+        val label = repository.byId(owner, id) ?: return LabelRenameResult.NotFound
+        val normalized = normalize(name) ?: return LabelRenameResult.InvalidName
+        if (normalized == label.name) return LabelRenameResult.Renamed(label)
         // deleted meanwhile, or another label got the name
         return when (val renamed = repository.rename(owner, id, normalized)) {
-            is LabelRename.Renamed -> RenameLabelResult.Renamed(renamed.label)
-            LabelRename.NotFound -> RenameLabelResult.NotFound
-            LabelRename.NameTaken -> RenameLabelResult.Exists
+            is LabelNameUpdateResult.Renamed -> LabelRenameResult.Renamed(renamed.label)
+            LabelNameUpdateResult.NotFound -> LabelRenameResult.NotFound
+            LabelNameUpdateResult.NameTaken -> LabelRenameResult.Exists
         }
     }
 
@@ -103,10 +103,10 @@ class LabelService(
     fun delete(
         owner: String,
         id: Int,
-    ): DeleteLabelResult {
-        if (!repository.delete(owner, id)) return DeleteLabelResult.NotFound
-        deleteListeners.forEach { it(id) }
-        return DeleteLabelResult.Deleted
+    ): LabelDeleteResult {
+        if (!repository.delete(owner, id)) return LabelDeleteResult.NotFound
+        deleteListeners.forEach { it(owner, id) }
+        return LabelDeleteResult.Deleted
     }
 
     // the names normalized by the caller; the missing labels are created; sorted by name

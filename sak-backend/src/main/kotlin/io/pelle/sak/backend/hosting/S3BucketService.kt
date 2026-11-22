@@ -1,7 +1,10 @@
 package io.pelle.sak.backend.hosting
 
+import io.pelle.sak.backend.isFree
+import io.pelle.sak.backend.blobPath
+import io.pelle.sak.backend.leftovers
 import io.pelle.sak.backend.DomainRegistry
-import io.pelle.sak.model.s3.InsertBucketResult
+import io.pelle.sak.model.s3.BucketInsertResult
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.Secret
 import io.pelle.sak.backend.isValidDomain
@@ -14,46 +17,46 @@ import java.security.SecureRandom
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
 
-sealed interface CreateBucketResult {
+sealed interface BucketCreateResult {
     data class Created(
         val bucket: S3Bucket,
-    ) : CreateBucketResult
+    ) : BucketCreateResult
 
-    data object InvalidName : CreateBucketResult
+    data object InvalidName : BucketCreateResult
 
-    data object NameTaken : CreateBucketResult
+    data object NameTaken : BucketCreateResult
 
     // <name>.<base_domain> is a domain of another bucket, a redirect or the backend
-    data object SubdomainTaken : CreateBucketResult
+    data object SubdomainTaken : BucketCreateResult
 
     // no valid domain, or one the backend serves itself or redirects
-    data object InvalidDomain : CreateBucketResult
+    data object InvalidDomain : BucketCreateResult
 
     // another bucket is served at it
-    data object DomainTaken : CreateBucketResult
+    data object DomainTaken : BucketCreateResult
 }
 
-sealed interface DeleteBucketResult {
-    data object Deleted : DeleteBucketResult
+sealed interface BucketDeleteResult {
+    data object Deleted : BucketDeleteResult
 
-    data object NotFound : DeleteBucketResult
+    data object NotFound : BucketDeleteResult
 
     // redirects lead to it, their source domains
     data class Redirected(
         val sources: List<String>,
-    ) : DeleteBucketResult
+    ) : BucketDeleteResult
 }
 
-sealed interface UpdateDomainsResult {
+sealed interface BucketDomainsUpdateResult {
     data class Updated(
         val bucket: S3Bucket,
-    ) : UpdateDomainsResult
+    ) : BucketDomainsUpdateResult
 
-    data object NotFound : UpdateDomainsResult
+    data object NotFound : BucketDomainsUpdateResult
 
-    data object InvalidDomain : UpdateDomainsResult
+    data object InvalidDomain : BucketDomainsUpdateResult
 
-    data object DomainTaken : UpdateDomainsResult
+    data object DomainTaken : BucketDomainsUpdateResult
 }
 
 // the only way to the buckets, their key pairs and domains; listeners hear of every change of the
@@ -65,17 +68,18 @@ class S3BucketService(
     private val reservedNames: Set<String>,
     // domains no bucket can be served at, the ones of the apps and the redirected ones
     private val domains: DomainRegistry,
+    // the storage of the buckets, none where only their rows are needed
+    private val storage: BinaryStorage? = null,
 ) {
+    // a bucket is never given a resource id whose directory is in the storage (MODEL-8)
     constructor(
         database: SakDatabase,
         clock: Clock = Clock.systemUTC(),
         baseDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
         domains: DomainRegistry = DomainRegistry(database),
-        // whether no directory of the resource id is in the storage of the buckets, e.g. none left from
-        // a restore of the instance: a new bucket gets a free one only (MODEL-8)
-        free: (ResourceId) -> Boolean = { true },
-    ) : this(S3BucketRepository(database, clock, free), baseDomain, reservedNames, domains)
+        storage: BinaryStorage? = null,
+    ) : this(S3BucketRepository(database, clock, free = { storage?.isFree(it) != false }), baseDomain, reservedNames, domains, storage)
 
     private val random = SecureRandom()
 
@@ -93,23 +97,11 @@ class S3BucketService(
 
     // where the bucket is in the storage of the buckets, null for an unknown or deleted one: no
     // request reaches the objects of a deleted bucket
-    fun objectsPath(name: String): BlobPath? = repository.location(name)?.let(BucketLayout::of)
-
-    // copies the objects of the buckets from below their name to their resource ids, once after the
-    // update that brought the resource ids (BucketLayoutMigration); storage is the one of the buckets
-    fun migrateLayout(
-        storage: BinaryStorage,
-        freeBytes: () -> Long,
-        minFreeBytes: Long,
-    ): BucketLayoutMigration.Result =
-        BucketLayoutMigration(storage, repository.locations(), freeBytes, minFreeBytes, repository::objectsAtResourceId).run()
+    fun objectsPath(name: String): BlobPath? = repository.resourceId(name)?.blobPath()
 
     // the directories of the storage that are named as a resource id no bucket has, e.g. left by a
     // restore of the instance (MODEL-8); they are kept, and no new bucket gets one of them
-    fun leftovers(storage: BinaryStorage): List<String> {
-        val known = repository.resourceIds()
-        return storage.children(BlobPath(emptyList())).filter { name -> ResourceId.of(name)?.let { it !in known } == true }
-    }
+    fun leftovers(): List<String> = storage?.leftovers(repository.resourceIds()).orEmpty()
 
     // the secret of the key pair, for sigv4 to verify the requests signed with it
     fun secretAccessKey(accessKeyId: String): Secret? =
@@ -142,31 +134,31 @@ class S3BucketService(
         domains: List<String> = emptyList(),
         // who creates it (MODEL-5)
         owner: String,
-    ): CreateBucketResult {
+    ): BucketCreateResult {
         if (!isValidName(name) || name in reservedNames) {
-            return CreateBucketResult.InvalidName
+            return BucketCreateResult.InvalidName
         }
         if (repository.byName(name) != null) {
-            return CreateBucketResult.NameTaken
+            return BucketCreateResult.NameTaken
         }
         if (subdomain(name)?.let { !available(it) || repository.bucketOfDomain(it) != null } == true) {
-            return CreateBucketResult.SubdomainTaken
+            return BucketCreateResult.SubdomainTaken
         }
         val normalized =
             when (val checked = checkDomains(name, domains)) {
-                DomainCheck.Invalid -> return CreateBucketResult.InvalidDomain
-                DomainCheck.Taken -> return CreateBucketResult.DomainTaken
+                DomainCheck.Invalid -> return BucketCreateResult.InvalidDomain
+                DomainCheck.Taken -> return BucketCreateResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
         // another bucket may have taken the name or a domain since the checks above
         val bucket =
             when (val inserted = repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized, owner)) {
-                is InsertBucketResult.Inserted -> inserted.bucket
-                InsertBucketResult.NameTaken -> return CreateBucketResult.NameTaken
-                InsertBucketResult.DomainTaken -> return CreateBucketResult.DomainTaken
+                is BucketInsertResult.Inserted -> inserted.bucket
+                BucketInsertResult.NameTaken -> return BucketCreateResult.NameTaken
+                BucketInsertResult.DomainTaken -> return BucketCreateResult.DomainTaken
             }
         if (servedDomains(bucket).isNotEmpty()) changed()
-        return CreateBucketResult.Created(bucket)
+        return BucketCreateResult.Created(bucket)
     }
 
     // the old key pair stops working at once, so a leaked one ends without the bucket; null for an
@@ -189,28 +181,28 @@ class S3BucketService(
         domains: List<String>,
         // who adds the new domains
         owner: String,
-    ): UpdateDomainsResult {
-        val bucket = repository.byName(name) ?: return UpdateDomainsResult.NotFound
+    ): BucketDomainsUpdateResult {
+        val bucket = repository.byName(name) ?: return BucketDomainsUpdateResult.NotFound
         val normalized =
             when (val checked = checkDomains(name, domains)) {
-                DomainCheck.Invalid -> return UpdateDomainsResult.InvalidDomain
-                DomainCheck.Taken -> return UpdateDomainsResult.DomainTaken
+                DomainCheck.Invalid -> return BucketDomainsUpdateResult.InvalidDomain
+                DomainCheck.Taken -> return BucketDomainsUpdateResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
         if (!repository.replaceDomains(name, normalized, owner)) {
-            return UpdateDomainsResult.DomainTaken
+            return BucketDomainsUpdateResult.DomainTaken
         }
         changed()
-        return UpdateDomainsResult.Updated(repository.byName(name) ?: bucket.copy(domains = normalized))
+        return BucketDomainsUpdateResult.Updated(repository.byName(name) ?: bucket.copy(domains = normalized))
     }
 
     // not while a redirect leads to it. The bucket stays as deleted, served nowhere, its key pair
     // refused; its name stays taken and its objects stay in the storage until it is purged
-    fun delete(name: String): DeleteBucketResult {
-        domains.redirectsTo(name).takeIf { it.isNotEmpty() }?.let { return DeleteBucketResult.Redirected(it) }
-        if (!repository.delete(name)) return DeleteBucketResult.NotFound
+    fun delete(name: String): BucketDeleteResult {
+        domains.redirectsTo(name).takeIf { it.isNotEmpty() }?.let { return BucketDeleteResult.Redirected(it) }
+        if (!repository.delete(name)) return BucketDeleteResult.NotFound
         changed()
-        return DeleteBucketResult.Deleted
+        return BucketDeleteResult.Deleted
     }
 
     private sealed interface DomainCheck {

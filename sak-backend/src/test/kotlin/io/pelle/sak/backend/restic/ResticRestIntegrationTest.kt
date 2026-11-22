@@ -81,7 +81,7 @@ class ResticRestIntegrationTest {
 
     @Test
     fun `restic backs up into a repository of the instance, checks and restores it`() {
-        val repository = (service.create("anna@example.org", "laptop") as ResticCreate.Created).repository
+        val repository = (service.create("anna@example.org", "laptop") as ResticRepositoryCreateResult.Created).repository
         val token = service.token("anna@example.org", repository.id)!!
         val source = Files.createDirectories(tempDir.resolve("source/documents"))
         source.resolve("letter.txt").writeText("Dear restic")

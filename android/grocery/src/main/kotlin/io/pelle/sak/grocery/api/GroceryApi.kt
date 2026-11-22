@@ -5,7 +5,7 @@ import io.pelle.sak.api.model.FileResponse
 import io.pelle.sak.api.model.GroceryCategoryOrderRequest
 import io.pelle.sak.api.model.GroceryCategoryRequest
 import io.pelle.sak.api.model.GroceryCategoryResponse
-import io.pelle.sak.api.model.GroceryDiscoveredItem
+import io.pelle.sak.api.model.GroceryDiscoveredItemResponse
 import io.pelle.sak.api.model.GroceryDiscoveredResponse
 import io.pelle.sak.api.model.GroceryItemCategoryRequest
 import io.pelle.sak.api.model.GroceryItemRequest
@@ -166,7 +166,7 @@ class GroceryApi(
             .id
 
     // the items the AI discovers in an uploaded photo (GROCERY-16); nothing is added to a list
-    suspend fun discoverItems(fileId: Int): List<GroceryDiscoveredItem> =
+    suspend fun discoverItems(fileId: Int): List<GroceryDiscoveredItemResponse> =
         client
             .post("$url/grocery/discover/$fileId") {
                 session()
@@ -278,7 +278,7 @@ class GroceryApi(
             }.answer(R.string.grocery_category_not_set)
 
     companion object {
-        // the app the signin page of the web app hands a login link on to (LoginClient of sak-auth)
+        // the app the signin page of the web app hands a login link on to (LoginClientRequest of sak-auth)
         val LOGIN_CLIENT = LoginRequest.Client.GROCERY_ANDROID
     }
 }

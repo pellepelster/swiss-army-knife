@@ -92,7 +92,12 @@ class BucketStatisticsCacheTest {
         val etag = backend.uploadPart("bucket1", "b.txt", upload, 1, "part".byteInputStream())
         backend.completeMultipartUpload("bucket1", "b.txt", upload, listOf(PartRef(1, etag)))
         backend.headObject("bucket1", "b.txt")
+        // a part counts into the bytes of the bucket, an aborted upload gives them back
+        val aborted = backend.createMultipartUpload("bucket1", "c.txt", ObjectMetadata())
+        backend.uploadPart("bucket1", "c.txt", aborted, 1, "part".byteInputStream())
+        backend.abortMultipartUpload("bucket1", "c.txt", aborted)
 
-        changed shouldBe listOf("bucket1", "bucket1", "bucket1")
+        // the put, the delete, the part and the completed upload, then the part and the abort
+        changed shouldBe List(6) { "bucket1" }
     }
 }

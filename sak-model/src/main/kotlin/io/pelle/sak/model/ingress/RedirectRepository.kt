@@ -1,5 +1,7 @@
 package io.pelle.sak.model.ingress
 
+import io.pelle.sak.model.changesTo
+import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.RedirectsRecord
 import io.pelle.sak.model.jooq.tables.references.REDIRECTS
@@ -65,17 +67,29 @@ class RedirectRepository(
     fun update(
         sourceDomain: String,
         target: RedirectTarget,
-    ): Redirect? =
-        database.dsl
+    ): Redirect? {
+        val domain = (target as? RedirectTarget.Domain)?.domain
+        val bucket = (target as? RedirectTarget.Bucket)?.bucket
+        return database.dsl
             .update(REDIRECTS)
             .set(REDIRECTS.TARGET_TYPE, target.type())
-            .set(REDIRECTS.TARGET_DOMAIN, (target as? RedirectTarget.Domain)?.domain)
-            .set(REDIRECTS.TARGET_BUCKET, (target as? RedirectTarget.Bucket)?.bucket)
-            .set(REDIRECTS.UPDATED_AT, clock.instant())
+            .set(REDIRECTS.TARGET_DOMAIN, domain)
+            .set(REDIRECTS.TARGET_BUCKET, bucket)
+            .set(
+                REDIRECTS.UPDATED_AT,
+                changedAt(
+                    REDIRECTS.UPDATED_AT,
+                    clock.instant(),
+                    REDIRECTS.TARGET_TYPE.changesTo(target.type()),
+                    REDIRECTS.TARGET_DOMAIN.changesTo(domain),
+                    REDIRECTS.TARGET_BUCKET.changesTo(bucket),
+                ),
+            )
             .where(REDIRECTS.SOURCE_DOMAIN.eq(sourceDomain), REDIRECTS.DELETED_AT.isNull)
             .returning()
             .fetchOne()
             ?.toRedirect()
+    }
 
     // the redirect stays as deleted, its domain can be redirected again; false when there was none
     fun delete(sourceDomain: String): Boolean =

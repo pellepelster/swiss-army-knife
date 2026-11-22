@@ -1,5 +1,7 @@
 package io.pelle.sak.model.lists
 
+import io.pelle.sak.model.changesTo
+import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import org.jooq.Condition
 import org.jooq.DSLContext
@@ -28,29 +30,29 @@ data class SakList(
 )
 
 // what deleting a list came to
-sealed interface ListDelete {
-    data object Deleted : ListDelete
+sealed interface ListDeleteResult {
+    data object Deleted : ListDeleteResult
 
     // the user has no such list of their own
-    data object NotFound : ListDelete
+    data object NotFound : ListDeleteResult
 }
 
 // what changing a list came to
-sealed interface ListUpdate {
+sealed interface ListUpdateResult {
     data class Updated(
         val list: SakList,
         // the owner unshared it: the other users saw it until now (LIST-4)
         val unshared: Boolean = false,
-    ) : ListUpdate
+    ) : ListUpdateResult
 
     // the user sees no such list
-    data object NotFound : ListUpdate
+    data object NotFound : ListUpdateResult
 
     // the owner has another list of the name
-    data object NameTaken : ListUpdate
+    data object NameTaken : ListUpdateResult
 
     // the user is not the owner and would rename, share or unshare it
-    data object NotOwner : ListUpdate
+    data object NotOwner : ListUpdateResult
 }
 
 // the lists of a list-based app, shared by every such app (LIST-1, LIST-2, MODEL-6): a user sees
@@ -172,30 +174,36 @@ class ListTable<R : Record>(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListUpdate =
+    ): ListUpdateResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            val current = dsl.selectFrom(table).where(this.id.eq(id), visible(user)).fetchOne() ?: return@transactionResult ListUpdate.NotFound
+            val current = dsl.selectFrom(table).where(this.id.eq(id), visible(user)).fetchOne() ?: return@transactionResult ListUpdateResult.NotFound
             val isOwner = current.get(owner) == user
             if (!isOwner && (shared != current.get(this.shared) || name != current.get(this.name))) {
-                return@transactionResult ListUpdate.NotOwner
+                return@transactionResult ListUpdateResult.NotOwner
             }
             try {
                 // another user never writes the name or the shared flag, and changes only a list they
                 // still see: one the owner unshared or deleted meanwhile stays as it is
+                val changes =
+                    listOfNotNull(
+                        this.icon.changesTo(icon),
+                        this.name.changesTo(name).takeIf { isOwner },
+                        this.shared.changesTo(shared).takeIf { isOwner },
+                    )
                 val updated =
                     dsl
                         .update(table)
                         .apply { if (isOwner) set(this@ListTable.name, name).set(this@ListTable.shared, shared) }
                         .set(this.icon, icon)
-                        .set(updatedAt, clock.instant())
+                        .set(updatedAt, changedAt(updatedAt, clock.instant(), *changes.toTypedArray()))
                         .where(this.id.eq(id), if (isOwner) own(user) else visible(user))
                         .execute() > 0
                 val unshared = isOwner && current.get(this.shared) == true && !shared
-                if (updated) ListUpdate.Updated(list(dsl, user, id)!!, unshared) else ListUpdate.NotFound
+                if (updated) ListUpdateResult.Updated(list(dsl, user, id)!!, unshared) else ListUpdateResult.NotFound
             } catch (_: IntegrityConstraintViolationException) {
                 // the names are unique among the lists of the owner, only the owner writes one
-                ListUpdate.NameTaken
+                ListUpdateResult.NameTaken
             }
         }
 
@@ -205,13 +213,13 @@ class ListTable<R : Record>(
         user: String,
         id: Int,
         deleted: (DSLContext, Instant) -> Unit,
-    ): ListDelete =
+    ): ListDeleteResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
-            if (dsl.update(table).set(deletedAt, now).where(this.id.eq(id), own(user)).execute() == 0) return@transactionResult ListDelete.NotFound
+            if (dsl.update(table).set(deletedAt, now).where(this.id.eq(id), own(user)).execute() == 0) return@transactionResult ListDeleteResult.NotFound
             deleted(dsl, now)
-            ListDelete.Deleted
+            ListDeleteResult.Deleted
         }
 
     // the live lists the user sees: their own and the shared ones of the others (LIST-2)

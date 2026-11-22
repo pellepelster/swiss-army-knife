@@ -12,6 +12,9 @@ import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.config.model.DeploymentResponse
 import io.pelle.sak.backend.config.model.SmtpConfigResponse
+import io.pelle.sak.backend.info.model.DnsModeResponse
+import io.pelle.sak.backend.info.model.UserModeResponse
+import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.config.SakConfig
 
 private const val DEPLOYMENT_TAG = "config"
@@ -31,10 +34,10 @@ fun Route.deployment(config: SakConfig) {
         call.respond(
             DeploymentResponse(
                 name = config.name,
-                dnsMode = config.dnsMode.value,
+                dnsMode = DnsModeResponse.of(config.dnsMode),
                 rootDomain = config.rootDomain,
-                userMode = if (smtp != null) "multi" else "single",
-                adminEmail = config.auth?.admins?.firstOrNull()?.trim()?.lowercase(),
+                userMode = UserModeResponse.of(smtp != null),
+                adminEmail = config.auth?.admins?.firstOrNull()?.let(UserService::normalize),
                 smtp = smtp?.response(),
                 acmeCa = config.acmeCa,
             ),

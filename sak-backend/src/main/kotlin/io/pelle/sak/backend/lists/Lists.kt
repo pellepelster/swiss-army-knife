@@ -17,7 +17,7 @@ import io.pelle.sak.api.TextKey
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.isOneEmoji
-import io.pelle.sak.model.lists.ListUpdate
+import io.pelle.sak.model.lists.ListUpdateResult
 import io.pelle.sak.model.lists.SakList
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.Dispatchers
@@ -49,21 +49,21 @@ data class ListTexts(
     val onlyOwnerShares: TextKey,
 )
 
-sealed interface ListResult {
+sealed interface ListSaveResult {
     data class Saved(
         val list: SakList,
-    ) : ListResult
+    ) : ListSaveResult
 
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : ListResult
+    ) : ListSaveResult
 
-    data object NotFound : ListResult
+    data object NotFound : ListSaveResult
 
-    data object Exists : ListResult
+    data object Exists : ListSaveResult
 
     // only the owner renames, shares or unshares a list (LIST-2)
-    data object NotOwner : ListResult
+    data object NotOwner : ListSaveResult
 }
 
 // the name and the icon of a list as they are stored: trimmed, an empty icon none
@@ -91,26 +91,26 @@ fun listValues(
     return values to errors
 }
 
-fun ListUpdate.result(): ListResult =
+fun ListUpdateResult.result(): ListSaveResult =
     when (this) {
-        is ListUpdate.Updated -> ListResult.Saved(list)
-        ListUpdate.NotFound -> ListResult.NotFound
-        ListUpdate.NameTaken -> ListResult.Exists
-        ListUpdate.NotOwner -> ListResult.NotOwner
+        is ListUpdateResult.Updated -> ListSaveResult.Saved(list)
+        ListUpdateResult.NotFound -> ListSaveResult.NotFound
+        ListUpdateResult.NameTaken -> ListSaveResult.Exists
+        ListUpdateResult.NotOwner -> ListSaveResult.NotOwner
     }
 
 // 201 for a new list
 suspend fun ApplicationCall.respondList(
-    result: ListResult,
+    result: ListSaveResult,
     texts: ListTexts,
     created: Boolean = false,
     response: (SakList, String) -> Any,
 ) = when (result) {
-    is ListResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, response(result.list, owner))
-    is ListResult.Invalid -> respondErrors(result.errors)
-    ListResult.NotFound -> respond(HttpStatusCode.NotFound)
-    ListResult.Exists -> respondErrors(texts.listExists, status = HttpStatusCode.Conflict)
-    ListResult.NotOwner -> respondErrors(texts.onlyOwnerShares, status = HttpStatusCode.Forbidden)
+    is ListSaveResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, response(result.list, owner))
+    is ListSaveResult.Invalid -> respondErrors(result.errors)
+    ListSaveResult.NotFound -> respond(HttpStatusCode.NotFound)
+    ListSaveResult.Exists -> respondErrors(texts.listExists, status = HttpStatusCode.Conflict)
+    ListSaveResult.NotOwner -> respondErrors(texts.onlyOwnerShares, status = HttpStatusCode.Forbidden)
 }
 
 // the ids of the lists of an app as they change (LIST-4); the backend is one process, so every
@@ -141,8 +141,8 @@ class ListChanges {
     ): Flow<Int> = changed.filter { it.toAll || withContext(Dispatchers.IO) { sees(user, it.listId) } }.map { it.listId }
 
     // an unshared list reaches every user who saw it (LIST-4)
-    fun changed(update: ListUpdate) {
-        if (update is ListUpdate.Updated) changed(update.list.id, toAll = update.unshared)
+    fun changed(update: ListUpdateResult) {
+        if (update is ListUpdateResult.Updated) changed(update.list.id, toAll = update.unshared)
     }
 }
 

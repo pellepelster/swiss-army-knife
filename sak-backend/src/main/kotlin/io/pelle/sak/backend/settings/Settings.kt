@@ -445,18 +445,18 @@ open class StoredSettingsService(
         require(scope.settings.any { it === setting }) { "the setting ${setting.name} is not one of the scope ${scope.name}" }
 }
 
-sealed interface UpdateSettingsResult {
+sealed interface SettingsUpdateResult {
     // every setting of the scope, as after the update
     data class Updated(
         val values: Map<String, JsonPrimitive>,
-    ) : UpdateSettingsResult
+    ) : SettingsUpdateResult
 
     // nothing was set, one sentence for each problem
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : UpdateSettingsResult
+    ) : SettingsUpdateResult
 
-    data object NotFound : UpdateSettingsResult
+    data object NotFound : SettingsUpdateResult
 }
 
 // every scope of settings the generic settings api serves, each scope under its own name; the
@@ -487,13 +487,13 @@ class SettingsRegistry(
         scope: String,
         values: Map<String, JsonElement>,
         owner: String,
-    ): UpdateSettingsResult {
-        val service = service(scope) ?: return UpdateSettingsResult.NotFound
+    ): SettingsUpdateResult {
+        val service = service(scope) ?: return SettingsUpdateResult.NotFound
         return when (val validation = service.validate(values)) {
-            is Validation.Invalid -> UpdateSettingsResult.Invalid(validation.errors)
+            is Validation.Invalid -> SettingsUpdateResult.Invalid(validation.errors)
             is Validation.Valid -> {
                 service.set(validation.values, owner)
-                UpdateSettingsResult.Updated(service.all().json())
+                SettingsUpdateResult.Updated(service.all().json())
             }
         }
     }

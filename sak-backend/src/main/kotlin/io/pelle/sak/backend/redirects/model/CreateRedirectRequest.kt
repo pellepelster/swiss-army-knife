@@ -5,5 +5,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CreateRedirectRequest(
     val sourceDomain: String,
-    val target: RedirectTarget,
+    val target: RedirectTargetRequest,
 )

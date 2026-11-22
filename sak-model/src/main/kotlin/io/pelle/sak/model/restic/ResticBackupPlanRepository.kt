@@ -1,5 +1,7 @@
 package io.pelle.sak.model.restic
 
+import io.pelle.sak.model.changesTo
+import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.ResticBackupPlansRecord
 import io.pelle.sak.model.jooq.tables.references.RESTIC_BACKUP_PLANS
@@ -47,19 +49,19 @@ data class ResticBackupPlan(
 )
 
 // what saving a backup plan came to
-sealed interface ResticBackupPlanSave {
+sealed interface ResticBackupPlanWriteResult {
     data class Saved(
         val plan: ResticBackupPlan,
-    ) : ResticBackupPlanSave
+    ) : ResticBackupPlanWriteResult
 
     // the user has no such backup plan
-    data object NotFound : ResticBackupPlanSave
+    data object NotFound : ResticBackupPlanWriteResult
 
     // the repository the backup plan names is none of the owner (API-6)
-    data object UnknownRepository : ResticBackupPlanSave
+    data object UnknownRepository : ResticBackupPlanWriteResult
 
     // the owner has another backup plan of the name
-    data object NameTaken : ResticBackupPlanSave
+    data object NameTaken : ResticBackupPlanWriteResult
 }
 
 // the backup plans of restic and their paths, for ResticBackupPlanService only. A backup plan belongs to its owner
@@ -88,11 +90,11 @@ class ResticBackupPlanRepository(
     fun insert(
         owner: String,
         values: ResticBackupPlanValues,
-    ): ResticBackupPlanSave =
+    ): ResticBackupPlanWriteResult =
         try {
             database.dsl.transactionResult { configuration ->
                 val dsl = DSL.using(configuration)
-                if (!ownsRepository(dsl, owner, values.repositoryId)) return@transactionResult ResticBackupPlanSave.UnknownRepository
+                if (!ownsRepository(dsl, owner, values.repositoryId)) return@transactionResult ResticBackupPlanWriteResult.UnknownRepository
                 val now = clock.instant()
                 val id =
                     dsl
@@ -107,10 +109,10 @@ class ResticBackupPlanRepository(
                         .fetchOne()!!
                         .value1()!!
                 insertPaths(dsl, id, owner, values.paths, now)
-                ResticBackupPlanSave.Saved(record(dsl, owner, id)!!.toPlan(dsl))
+                ResticBackupPlanWriteResult.Saved(record(dsl, owner, id)!!.toPlan(dsl))
             }
         } catch (_: IntegrityConstraintViolationException) {
-            ResticBackupPlanSave.NameTaken
+            ResticBackupPlanWriteResult.NameTaken
         }
 
     // replaces the values of a backup plan of the owner; its paths are replaced as a whole
@@ -118,20 +120,34 @@ class ResticBackupPlanRepository(
         owner: String,
         id: Int,
         values: ResticBackupPlanValues,
-    ): ResticBackupPlanSave =
+    ): ResticBackupPlanWriteResult =
         try {
             database.dsl.transactionResult { configuration ->
                 val dsl = DSL.using(configuration)
-                record(dsl, owner, id) ?: return@transactionResult ResticBackupPlanSave.NotFound
-                if (!ownsRepository(dsl, owner, values.repositoryId)) return@transactionResult ResticBackupPlanSave.UnknownRepository
+                record(dsl, owner, id) ?: return@transactionResult ResticBackupPlanWriteResult.NotFound
+                if (!ownsRepository(dsl, owner, values.repositoryId)) return@transactionResult ResticBackupPlanWriteResult.UnknownRepository
                 val now = clock.instant()
+                // other paths, or the paths in another order, change the plan as its name does
+                val pathsChange = paths(dsl, id) != values.paths
+                val keepChanges = keepColumns(values.keep).map { (column, value) -> column.changesTo(value) }
                 dsl
                     .update(RESTIC_BACKUP_PLANS)
                     .set(RESTIC_BACKUP_PLANS.NAME, values.name)
                     .set(RESTIC_BACKUP_PLANS.REPOSITORY_ID, values.repositoryId)
                     .set(RESTIC_BACKUP_PLANS.HOST, values.host)
                     .set(keepColumns(values.keep))
-                    .set(RESTIC_BACKUP_PLANS.UPDATED_AT, now)
+                    .set(
+                        RESTIC_BACKUP_PLANS.UPDATED_AT,
+                        changedAt(
+                            RESTIC_BACKUP_PLANS.UPDATED_AT,
+                            now,
+                            RESTIC_BACKUP_PLANS.NAME.changesTo(values.name),
+                            RESTIC_BACKUP_PLANS.REPOSITORY_ID.changesTo(values.repositoryId),
+                            RESTIC_BACKUP_PLANS.HOST.changesTo(values.host),
+                            DSL.condition(pathsChange),
+                            *keepChanges.toTypedArray(),
+                        ),
+                    )
                     .where(RESTIC_BACKUP_PLANS.ID.eq(id), RESTIC_BACKUP_PLANS.OWNER.eq(owner), RESTIC_BACKUP_PLANS.DELETED_AT.isNull)
                     .execute()
                 dsl
@@ -140,10 +156,10 @@ class ResticBackupPlanRepository(
                     .where(RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.eq(id), RESTIC_BACKUP_PLAN_PATHS.DELETED_AT.isNull)
                     .execute()
                 insertPaths(dsl, id, owner, values.paths, now)
-                ResticBackupPlanSave.Saved(record(dsl, owner, id)!!.toPlan(dsl))
+                ResticBackupPlanWriteResult.Saved(record(dsl, owner, id)!!.toPlan(dsl))
             }
         } catch (_: IntegrityConstraintViolationException) {
-            ResticBackupPlanSave.NameTaken
+            ResticBackupPlanWriteResult.NameTaken
         }
 
     private fun ownsRepository(
@@ -184,21 +200,27 @@ class ResticBackupPlanRepository(
             .where(RESTIC_BACKUP_PLANS.ID.eq(id), RESTIC_BACKUP_PLANS.OWNER.eq(owner), RESTIC_BACKUP_PLANS.DELETED_AT.isNull)
             .fetchOne()
 
+    // the live paths of a plan in their order
+    private fun paths(
+        dsl: DSLContext,
+        planId: Int,
+    ): List<String> =
+        dsl
+            .select(RESTIC_BACKUP_PLAN_PATHS.PATH)
+            .from(RESTIC_BACKUP_PLAN_PATHS)
+            .where(RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.eq(planId), RESTIC_BACKUP_PLAN_PATHS.DELETED_AT.isNull)
+            .orderBy(RESTIC_BACKUP_PLAN_PATHS.POSITION)
+            .fetch(RESTIC_BACKUP_PLAN_PATHS.PATH)
+            .map { it!! }
+
     private fun ResticBackupPlansRecord.toPlan(dsl: DSLContext): ResticBackupPlan {
-        val paths =
-            dsl
-                .select(RESTIC_BACKUP_PLAN_PATHS.PATH)
-                .from(RESTIC_BACKUP_PLAN_PATHS)
-                .where(RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.eq(id), RESTIC_BACKUP_PLAN_PATHS.DELETED_AT.isNull)
-                .orderBy(RESTIC_BACKUP_PLAN_PATHS.POSITION)
-                .fetch(RESTIC_BACKUP_PLAN_PATHS.PATH)
-                .map { it!! }
+        val paths = paths(dsl, id!!)
         val keep = ResticKeep(keepLast, keepDaily, keepWeekly, keepMonthly, keepYearly)
         return ResticBackupPlan(id!!, owner!!, name!!, repositoryId!!, host!!, paths, createdAt!!, updatedAt, keep)
     }
 
     // the columns of the keep setting (BACKUP-8)
-    private fun keepColumns(keep: ResticKeep): Map<Field<*>, Int?> =
+    private fun keepColumns(keep: ResticKeep): Map<Field<Int?>, Int?> =
         mapOf(
             RESTIC_BACKUP_PLANS.KEEP_LAST to keep.last,
             RESTIC_BACKUP_PLANS.KEEP_DAILY to keep.daily,

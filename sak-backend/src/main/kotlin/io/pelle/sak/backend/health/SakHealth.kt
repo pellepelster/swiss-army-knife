@@ -13,6 +13,7 @@ import io.pelle.sak.api.Health
 import io.pelle.sak.api.HealthStatus
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.health.model.HealthDetailResponse
+import io.pelle.sak.backend.health.model.HealthStateResponse
 import io.pelle.sak.backend.health.model.HealthStatusResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -26,9 +27,9 @@ private const val HEALTH_TAG = "health"
 fun HealthStatus.response(language: Language) =
     HealthStatusResponse(
         name.render(language),
-        state,
+        HealthStateResponse.of(state),
         message?.render(language),
-        details.map { HealthDetailResponse(it.name, it.state, it.message?.render(language)) },
+        details.map { HealthDetailResponse(it.name, HealthStateResponse.of(it.state), it.message?.render(language)) },
     )
 
 // mounted behind the authentication; every check runs on each request, all at once, and may take a

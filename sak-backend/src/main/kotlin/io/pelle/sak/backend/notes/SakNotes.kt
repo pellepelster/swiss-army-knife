@@ -10,6 +10,7 @@ import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
 import io.pelle.sak.api.idParameter
 import io.pelle.sak.backend.labels.model.LabelResponse
 import io.pelle.sak.backend.labels.response
+import io.pelle.sak.backend.notes.model.NoteColorResponse
 import io.pelle.sak.backend.notes.model.NoteResponse
 import io.pelle.sak.backend.notes.model.NotesSettingsResponse
 import io.pelle.sak.backend.notes.model.PhotoResponse
@@ -34,12 +35,12 @@ import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.owner
-import io.pelle.sak.backend.notes.DeleteNoteResult
+import io.pelle.sak.backend.notes.NoteDeleteResult
 import io.pelle.sak.backend.notes.Note
 import io.pelle.sak.backend.notes.NoteColor
 import io.pelle.sak.backend.notes.NoteProblem
 import io.pelle.sak.backend.notes.NoteService
-import io.pelle.sak.backend.notes.SaveNoteResult
+import io.pelle.sak.backend.notes.NoteSaveResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -49,7 +50,7 @@ private fun Note.response() =
     NoteResponse(
         id,
         text,
-        color,
+        NoteColorResponse.of(color),
         labels.map { it.response() },
         photos.map { PhotoResponse(it, fileUrl(it), thumbnailUrl(it)) },
         recordings.map { RecordingResponse(it, fileUrl(it), thumbnailUrl(it)) },
@@ -73,15 +74,15 @@ private fun NoteProblem.message() =
 private val UNKNOWN_FILES = setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING)
 
 private suspend fun RoutingCall.respondSaved(
-    result: SaveNoteResult,
+    result: NoteSaveResult,
     created: Boolean = false,
 ) =
     when (result) {
-        is SaveNoteResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.note.response())
-        SaveNoteResult.NotFound -> respond(HttpStatusCode.NotFound)
-        SaveNoteResult.NoList -> respondErrors(NotesTexts.NO_LIST, status = HttpStatusCode.UnprocessableEntity)
+        is NoteSaveResult.Saved -> respond(if (created) HttpStatusCode.Created else HttpStatusCode.OK, result.note.response())
+        NoteSaveResult.NotFound -> respond(HttpStatusCode.NotFound)
+        NoteSaveResult.NoList -> respondErrors(NotesTexts.NO_LIST, status = HttpStatusCode.UnprocessableEntity)
         // only photos or recordings that are not there: a 422 (API-6); any other problem a 400
-        is SaveNoteResult.Invalid ->
+        is NoteSaveResult.Invalid ->
             respondErrors(
                 result.problems.sorted().map { it.message() },
                 status = if (result.problems.all { it in UNKNOWN_FILES }) HttpStatusCode.UnprocessableEntity else HttpStatusCode.BadRequest,
@@ -232,8 +233,8 @@ fun Route.notes(
     delete("/{id}") {
         val id = call.idParameter() ?: return@delete
         when (withContext(Dispatchers.IO) { noteService.delete(call.owner, id) }) {
-            DeleteNoteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-            DeleteNoteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            NoteDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
+            NoteDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }
     }.describe {
         tag(NOTES_TAG)

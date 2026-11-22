@@ -27,13 +27,16 @@ class NoteRepositoryTest {
 
     private val later = now.plusSeconds(60)
 
+    // the note of a save that is expected to store it
+    private fun NoteWriteResult.note() = (this as NoteWriteResult.Saved).note
+
     // the list of the owner, the one they get when they sign in
     private fun list(owner: String): Int {
         repository.ensureList(owner, FIRST_LIST)
         return repository.ownList(owner)!!
     }
 
-    private fun file(name: String) = FileRepository(database).insert(name.padEnd(64, '0'), "image/jpeg", 1, "pelle@pelle.io").id
+    private fun file(name: String) = FileRepository(database).insert("image/jpeg", 1, "pelle@pelle.io").id
 
     // the links of the note, the ones not deleted first, each in its order
     private fun links(noteId: Int) =
@@ -64,7 +67,7 @@ class NoteRepositoryTest {
 
     @Test
     fun `deletes notes softly, of their owner only, the row stays`() {
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "milk", "yellow", emptySet(), emptyList())
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "milk", "yellow", emptySet(), emptyList()).note()
 
         repository.delete("other@example.org", note.id) shouldBe false
         repository.delete("pelle@pelle.io", note.id) shouldBe true
@@ -78,10 +81,10 @@ class NoteRepositoryTest {
         val beach = file("beach")
         val sunset = file("sunset")
         val dunes = file("dunes")
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach, sunset))
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach, sunset)).note()
         val (beachLink, sunsetLink) = links(note.id)
 
-        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), listOf(dunes, sunset))!!.fileIds shouldBe listOf(dunes, sunset)
+        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), listOf(dunes, sunset)).note().fileIds shouldBe listOf(dunes, sunset)
 
         repository.byId("pelle@pelle.io", note.id)!!.fileIds shouldBe listOf(dunes, sunset)
         val (dunesLink, movedSunsetLink, deletedBeachLink) = links(note.id)
@@ -93,11 +96,11 @@ class NoteRepositoryTest {
     @Test
     fun `attaches a file removed from a note again with a link of its own`() {
         val beach = file("beach")
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach))
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach)).note()
 
-        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), emptyList())
+        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), emptyList()).note()
         repository.byId("pelle@pelle.io", note.id)!!.fileIds shouldBe emptyList()
-        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), listOf(beach))
+        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), listOf(beach)).note()
 
         repository.byId("pelle@pelle.io", note.id)!!.fileIds shouldBe listOf(beach)
         links(note.id).map { it.fileId to it.deleted } shouldBe listOf(beach to false, beach to true)
@@ -106,7 +109,7 @@ class NoteRepositoryTest {
     @Test
     fun `deletes the files of a deleted note softly with it`() {
         val beach = file("beach")
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach))
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach)).note()
 
         repository.delete("pelle@pelle.io", note.id) shouldBe true
 
@@ -121,14 +124,14 @@ class NoteRepositoryTest {
         // a label of no note, and one of a note deleted, filter nothing
         label("unused")
         val gone = label("gone")
-        val note = repository.insert(owner, list(owner), "shopping", "yellow", setOf(milk, eggs), emptyList())
-        repository.insert(owner, list(owner), "old", "yellow", setOf(gone), emptyList()).let { repository.delete(owner, it.id) }
+        val note = repository.insert(owner, list(owner), "shopping", "yellow", setOf(milk, eggs), emptyList()).note()
+        repository.insert(owner, list(owner), "old", "yellow", setOf(gone), emptyList()).note().let { repository.delete(owner, it.id) }
         // the labels of another user's notes are theirs
-        repository.insert("other@example.org", list("other@example.org"), "theirs", "yellow", setOf(label("theirs")), emptyList())
+        repository.insert("other@example.org", list("other@example.org"), "theirs", "yellow", setOf(label("theirs")), emptyList()).note()
 
         repository.usedLabels(owner).map { it.name } shouldBe listOf("eggs", "milk")
         // removed from its last note, a label filters nothing any more
-        repository.update(owner, note.id, "shopping", "yellow", setOf(eggs), emptyList())
+        repository.update(owner, note.id, "shopping", "yellow", setOf(eggs), emptyList()).note()
         repository.usedLabels(owner).map { it.name } shouldBe listOf("eggs")
     }
 
@@ -136,12 +139,12 @@ class NoteRepositoryTest {
     fun `deletes the labels removed from a note softly, the labels that stay keep their link`() {
         val milk = label("milk")
         val eggs = label("eggs")
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "shopping", "yellow", setOf(milk, eggs), emptyList())
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "shopping", "yellow", setOf(milk, eggs), emptyList()).note()
 
-        repository.update("pelle@pelle.io", note.id, "shopping", "yellow", setOf(eggs), emptyList())
+        repository.update("pelle@pelle.io", note.id, "shopping", "yellow", setOf(eggs), emptyList()).note()
         repository.byId("pelle@pelle.io", note.id)!!.labelIds shouldBe setOf(eggs)
         repository.count("pelle@pelle.io", milk) shouldBe 0
-        repository.update("pelle@pelle.io", note.id, "shopping", "yellow", setOf(eggs, milk), emptyList())
+        repository.update("pelle@pelle.io", note.id, "shopping", "yellow", setOf(eggs, milk), emptyList()).note()
 
         repository.byId("pelle@pelle.io", note.id)!!.labelIds shouldBe setOf(milk, eggs)
         labelLinks(note.id) shouldBe listOf(milk to true, eggs to false, milk to false)
@@ -151,11 +154,11 @@ class NoteRepositoryTest {
     fun `deletes the labels of a deleted note and the links to a deleted label softly`() {
         val milk = label("milk")
         val eggs = label("eggs")
-        val deleted = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "shopping", "yellow", setOf(milk), emptyList())
-        val kept = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "breakfast", "yellow", setOf(milk, eggs), emptyList())
+        val deleted = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "shopping", "yellow", setOf(milk), emptyList()).note()
+        val kept = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "breakfast", "yellow", setOf(milk, eggs), emptyList()).note()
 
         repository.delete("pelle@pelle.io", deleted.id)
-        repository.detachLabel(eggs)
+        repository.detachLabel("pelle@pelle.io", eggs)
 
         labelLinks(deleted.id) shouldBe listOf(milk to true)
         labelLinks(kept.id) shouldBe listOf(milk to false, eggs to true)
@@ -167,7 +170,7 @@ class NoteRepositoryTest {
     fun `drops the links to labels that were deleted without being detached`() {
         val milk = label("milk")
         val eggs = label("eggs")
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "breakfast", "yellow", setOf(milk, eggs), emptyList())
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "breakfast", "yellow", setOf(milk, eggs), emptyList()).note()
         LabelRepository(database).delete("pelle@pelle.io", eggs)
 
         repository.detachDeletedLabels()
@@ -179,7 +182,7 @@ class NoteRepositoryTest {
     @Test
     fun `the schema attaches a file to a note once among the links that are not deleted only`() {
         val beach = file("beach")
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), emptyList())
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), emptyList()).note()
         fun insert(deletedAt: Instant?) =
             database.dsl
                 .insertInto(NOTES_FILES)
@@ -202,8 +205,8 @@ class NoteRepositoryTest {
     fun `the links of a note are of the owner of the note`() {
         val summer = label("summer")
         val beach = file("beach")
-        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", setOf(summer), listOf(beach))
-        repository.update("pelle@pelle.io", note.id, "holidays", "blue", setOf(summer, label("sea")), listOf(beach, file("dunes")))
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", setOf(summer), listOf(beach)).note()
+        repository.update("pelle@pelle.io", note.id, "holidays", "blue", setOf(summer, label("sea")), listOf(beach, file("dunes"))).note()
 
         database.dsl.select(NOTES_LABELS.OWNER).from(NOTES_LABELS).fetch(NOTES_LABELS.OWNER).toSet() shouldBe setOf("pelle@pelle.io")
         database.dsl.select(NOTES_FILES.OWNER).from(NOTES_FILES).fetch(NOTES_FILES.OWNER).toSet() shouldBe setOf("pelle@pelle.io")
@@ -224,7 +227,7 @@ class NoteRepositoryTest {
             .execute()
         repository.ensureList("other@example.org", FIRST_LIST)
 
-        repository.insert("pelle@pelle.io", first, "milk", "yellow", emptySet(), emptyList()).listId shouldBe first
+        repository.insert("pelle@pelle.io", first, "milk", "yellow", emptySet(), emptyList()).note().listId shouldBe first
         database.dsl
             .select(NOTE_LISTS.OWNER, NOTE_LISTS.NAME, NOTE_LISTS.SHARED)
             .from(NOTE_LISTS)
@@ -244,7 +247,7 @@ class NoteRepositoryTest {
 
     @Test
     fun `the schema keeps the name of a list unique among the lists of an owner that are not deleted only`() {
-        repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "milk", "yellow", emptySet(), emptyList())
+        repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "milk", "yellow", emptySet(), emptyList()).note()
         fun insertDefault() =
             database.dsl
                 .insertInto(NOTE_LISTS)
@@ -257,6 +260,25 @@ class NoteRepositoryTest {
         database.dsl.update(NOTE_LISTS).set(NOTE_LISTS.DELETED_AT, now).execute()
         insertDefault() shouldBe 1
     }
+
+    @Test
+    fun `a note takes only a list and files of its owner, a label that is not the owner's is left out`() {
+        val owner = "pelle@pelle.io"
+        val theirs = list("other@example.org")
+        val photo = file("beach")
+        val milk = label("milk")
+
+        repository.insert(owner, theirs, "x", "yellow", emptySet(), emptyList()) shouldBe NoteWriteResult.NoList
+        repository.insert("other@example.org", theirs, "x", "yellow", emptySet(), listOf(photo)) shouldBe NoteWriteResult.UnknownFiles(setOf(photo))
+        // the label of another user, e.g. one deleted and made again in the same moment, is not linked
+        repository.insert("other@example.org", theirs, "x", "yellow", setOf(milk), emptyList()).note().labelIds shouldBe emptySet()
+
+        val note = repository.insert(owner, list(owner), "x", "yellow", setOf(milk), listOf(photo)).note()
+        repository.update(owner, note.id, "x", "yellow", emptySet(), listOf(photo, 4711)) shouldBe NoteWriteResult.UnknownFiles(setOf(4711))
+        repository.update(owner, 4711, "x", "yellow", emptySet(), emptyList()) shouldBe NoteWriteResult.NotFound
+        repository.byId(owner, note.id)!!.fileIds shouldBe listOf(photo)
+    }
+
 }
 
 private const val FIRST_LIST = "My Notes"

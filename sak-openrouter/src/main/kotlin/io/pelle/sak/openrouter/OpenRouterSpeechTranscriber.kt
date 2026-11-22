@@ -2,6 +2,7 @@ package io.pelle.sak.openrouter
 
 import io.pelle.sak.openrouter.SpeechTranscriber
 import io.pelle.sak.openrouter.TextRecognitionException
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -25,7 +26,7 @@ class OpenRouterSpeechTranscriber(
     url: String,
     private val apiToken: String,
     private val model: String,
-    private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build(),
+    private val httpClient: HttpClient = openRouterHttpClient(),
     private val timeout: Duration = Duration.ofSeconds(90),
 ) : SpeechTranscriber {
     private val url = url.trimEnd('/')
@@ -35,32 +36,8 @@ class OpenRouterSpeechTranscriber(
         contentType: String,
     ): String {
         val format = FORMATS[contentType] ?: throw TextRecognitionException("recordings of type $contentType can not be transcribed")
-        val response =
-            try {
-                httpClient.send(
-                    HttpRequest
-                        .newBuilder(URI.create("$url/audio/transcriptions"))
-                        .timeout(timeout)
-                        .header("Authorization", "Bearer $apiToken")
-                        .header("Content-Type", "application/json")
-                        .POST(base64Body(request(format).toString(), audio))
-                        .build(),
-                    HttpResponse.BodyHandlers.ofString(),
-                )
-            } catch (e: IOException) {
-                throw TextRecognitionException("openrouter is not reachable: ${e.message}", e)
-            }
-        val body =
-            try {
-                Json.parseToJsonElement(response.body()).jsonObject
-            } catch (e: IllegalArgumentException) {
-                throw TextRecognitionException("openrouter answered ${response.statusCode()} without json", e)
-            }
-        if (response.statusCode() !in 200..299 || "error" in body) {
-            val message = body["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
-            throw TextRecognitionException("openrouter answered ${response.statusCode()}: ${message ?: "no message"}")
-        }
-        return body["text"]?.jsonPrimitive?.contentOrNull?.trim() ?: throw TextRecognitionException("openrouter answered without a text")
+        val body = postJson(httpClient, "$url/audio/transcriptions", apiToken, timeout, request(format).toString(), audio)
+        return (body["text"] as? JsonPrimitive)?.contentOrNull?.trim() ?: throw TextRecognitionException("openrouter answered without a text")
     }
 
     private fun request(format: String): JsonObject =

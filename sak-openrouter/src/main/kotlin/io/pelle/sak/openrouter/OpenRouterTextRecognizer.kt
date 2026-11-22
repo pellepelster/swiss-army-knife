@@ -18,7 +18,7 @@ class OpenRouterTextRecognizer(
     url: String,
     private val apiToken: String,
     private val model: String,
-    private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build(),
+    private val httpClient: HttpClient = openRouterHttpClient(),
     private val timeout: Duration = Duration.ofSeconds(60),
 ) : TextRecognizer {
     private val url = url.trimEnd('/')

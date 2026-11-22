@@ -48,7 +48,7 @@ data class PartRef(
 
 class NoSuchBucketException(
     val bucket: String,
-) : RuntimeException("invalid bucket name '$bucket'")
+) : RuntimeException("no such bucket '$bucket'")
 
 class NoSuchUploadException(
     val uploadId: String,

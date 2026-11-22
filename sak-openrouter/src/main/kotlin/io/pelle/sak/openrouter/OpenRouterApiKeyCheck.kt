@@ -25,7 +25,7 @@ fun interface ApiKeyCheck {
 // asks openrouter for the key itself (GET /key), which sends nothing but the key
 class OpenRouterApiKeyCheck(
     url: String,
-    private val httpClient: HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build(),
+    private val httpClient: HttpClient = openRouterHttpClient(),
     private val timeout: Duration = Duration.ofSeconds(10),
 ) : ApiKeyCheck {
     private val url = url.trimEnd('/')

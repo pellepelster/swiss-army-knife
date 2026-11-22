@@ -1,9 +1,11 @@
 package io.pelle.sak.model.todo
 
+import io.pelle.sak.model.changesTo
+import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.lists.ListDelete
+import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.lists.ListTable
-import io.pelle.sak.model.lists.ListUpdate
+import io.pelle.sak.model.lists.ListUpdateResult
 import io.pelle.sak.model.lists.SakList
 import io.pelle.sak.model.jooq.tables.records.TodoItemsRecord
 import io.pelle.sak.model.jooq.tables.references.TODO_ITEMS
@@ -116,13 +118,13 @@ class TodoRepository(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListUpdate = lists.update(user, id, name, shared, icon)
+    ): ListUpdateResult = lists.update(user, id, name, shared, icon)
 
     // a list of the user's own, the last one too (LIST-1); it and its tasks stay as deleted
     fun deleteList(
         user: String,
         id: Int,
-    ): ListDelete =
+    ): ListDeleteResult =
         lists.delete(user, id) { dsl, now ->
             dsl
                 .update(TODO_ITEMS)
@@ -194,7 +196,8 @@ class TodoRepository(
         return database.dsl
             .update(TODO_ITEMS)
             .set(TODO_ITEMS.DONE_AT, if (done) DSL.coalesce(TODO_ITEMS.DONE_AT, DSL.`val`(now, TODO_ITEMS.DONE_AT)) else DSL.`val`(null, TODO_ITEMS.DONE_AT))
-            .set(TODO_ITEMS.UPDATED_AT, now)
+            // done again or open again is no change
+            .set(TODO_ITEMS.UPDATED_AT, changedAt(TODO_ITEMS.UPDATED_AT, now, if (done) TODO_ITEMS.DONE_AT.isNull else TODO_ITEMS.DONE_AT.isNotNull))
             .where(TODO_ITEMS.ID.eq(id), visibleItem(user))
             .returning()
             .fetchOne()
@@ -211,7 +214,7 @@ class TodoRepository(
         database.dsl
             .update(TODO_ITEMS)
             .set(TODO_ITEMS.PRIORITY, priority.key)
-            .set(TODO_ITEMS.UPDATED_AT, clock.instant())
+            .set(TODO_ITEMS.UPDATED_AT, changedAt(TODO_ITEMS.UPDATED_AT, clock.instant(), TODO_ITEMS.PRIORITY.changesTo(priority.key)))
             .where(TODO_ITEMS.ID.eq(id), visibleItem(user))
             .returning()
             .fetchOne()
@@ -227,7 +230,7 @@ class TodoRepository(
         database.dsl
             .update(TODO_ITEMS)
             .set(TODO_ITEMS.DUE_DATE, dueDate)
-            .set(TODO_ITEMS.UPDATED_AT, clock.instant())
+            .set(TODO_ITEMS.UPDATED_AT, changedAt(TODO_ITEMS.UPDATED_AT, clock.instant(), TODO_ITEMS.DUE_DATE.changesTo(dueDate)))
             .where(TODO_ITEMS.ID.eq(id), visibleItem(user))
             .returning()
             .fetchOne()

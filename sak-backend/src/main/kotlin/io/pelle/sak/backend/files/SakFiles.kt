@@ -28,10 +28,10 @@ import io.pelle.sak.backend.API_VERSION
 import io.pelle.sak.backend.files.model.DiscoverTextResponse
 import io.pelle.sak.backend.files.model.FileResponse
 import io.pelle.sak.api.idParameter
-import io.pelle.sak.backend.files.DiscoverTextResult
+import io.pelle.sak.backend.files.FileTextDiscoverResult
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService
-import io.pelle.sak.backend.files.StoreFileResult
+import io.pelle.sak.backend.files.FileStoreResult
 import io.pelle.sak.model.files.StoredFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -66,13 +66,13 @@ fun Route.files(
     post {
         val result = withContext(Dispatchers.IO) { call.receiveStream().use { fileService.store(it, call.owner) } }
         when (result) {
-            is StoreFileResult.Stored -> call.respond(HttpStatusCode.Created, result.file.response())
-            StoreFileResult.TooLarge ->
+            is FileStoreResult.Stored -> call.respond(HttpStatusCode.Created, result.file.response())
+            FileStoreResult.TooLarge ->
                 call.respondErrors(Text(FilesTexts.TOO_LARGE, "max" to fileService.maxSize / (1024 * 1024)), status = HttpStatusCode.PayloadTooLarge)
-            StoreFileResult.UnsupportedType -> call.respondErrors(FilesTexts.UNSUPPORTED_TYPE)
-            StoreFileResult.ImageTooLarge ->
+            FileStoreResult.UnsupportedType -> call.respondErrors(FilesTexts.UNSUPPORTED_TYPE)
+            FileStoreResult.ImageTooLarge ->
                 call.respondErrors(Text(FilesTexts.IMAGE_TOO_LARGE, "max" to FileService.MAX_IMAGE_SIZE))
-            StoreFileResult.RecordingTooLong ->
+            FileStoreResult.RecordingTooLong ->
                 call.respondErrors(Text(FilesTexts.RECORDING_TOO_LONG, "max" to FileService.MAX_RECORDING_SECONDS / 60))
         }
     }.describe {
@@ -101,16 +101,16 @@ fun Route.files(
         val owner = call.owner
         // only a request that goes to OpenRouter takes from the limit
         when (val result = withContext(Dispatchers.IO) { fileTextService.discover(owner, id) { discoverTextLimiter.tryAcquire(owner) } }) {
-            is DiscoverTextResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
-            DiscoverTextResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            DiscoverTextResult.Unsupported -> call.respondErrors(FilesTexts.NOT_DISCOVERABLE)
-            DiscoverTextResult.NotConfigured ->
+            is FileTextDiscoverResult.Discovered -> call.respond(DiscoverTextResponse(result.text))
+            FileTextDiscoverResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            FileTextDiscoverResult.Unsupported -> call.respondErrors(FilesTexts.NOT_DISCOVERABLE)
+            FileTextDiscoverResult.NotConfigured ->
                 call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.ServiceUnavailable)
-            DiscoverTextResult.Disabled ->
+            FileTextDiscoverResult.Disabled ->
                 call.respondErrors(FilesTexts.AI_OFF, status = HttpStatusCode.Conflict)
-            DiscoverTextResult.Limited ->
+            FileTextDiscoverResult.Limited ->
                 call.respondErrors(FilesTexts.TOO_MANY_DISCOVERIES, status = HttpStatusCode.TooManyRequests)
-            is DiscoverTextResult.Failed -> {
+            is FileTextDiscoverResult.Failed -> {
                 // not the causes: a json error names what the model answered, the text of the user
                 logger.warn { "could not discover the text in file $id: ${logText(result.cause.message ?: result.cause.javaClass.name)}" }
                 call.respondErrors(FilesTexts.DISCOVERY_FAILED, status = HttpStatusCode.BadGateway)

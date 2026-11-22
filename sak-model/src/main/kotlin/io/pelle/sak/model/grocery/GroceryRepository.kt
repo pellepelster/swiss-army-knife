@@ -1,11 +1,13 @@
 package io.pelle.sak.model.grocery
 
+import io.pelle.sak.model.changesTo
+import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.model.files.toFile
-import io.pelle.sak.model.lists.ListDelete
+import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.lists.ListTable
-import io.pelle.sak.model.lists.ListUpdate
+import io.pelle.sak.model.lists.ListUpdateResult
 import io.pelle.sak.model.lists.SakList
 import io.pelle.sak.model.jooq.tables.records.GroceryCategoriesRecord
 import io.pelle.sak.model.jooq.tables.records.GroceryItemsRecord
@@ -39,32 +41,32 @@ data class GroceryCategoryValues(
 )
 
 // what changing the categories of a list came to
-sealed interface GroceryCategoryChange {
+sealed interface GroceryCategoryWriteResult {
     data class Saved(
         val category: GroceryCategory,
-    ) : GroceryCategoryChange
+    ) : GroceryCategoryWriteResult
 
     // the user sees no such list, or it has no such category
-    data object NotFound : GroceryCategoryChange
+    data object NotFound : GroceryCategoryWriteResult
 
     // the list has another category of the name
-    data object NameTaken : GroceryCategoryChange
+    data object NameTaken : GroceryCategoryWriteResult
 
     // the list has as many categories as it may have
-    data object TooMany : GroceryCategoryChange
+    data object TooMany : GroceryCategoryWriteResult
 }
 
 // what ordering the categories of a list came to
-sealed interface GroceryCategoryOrder {
+sealed interface GroceryCategoryReorderResult {
     data class Ordered(
         val categories: List<GroceryCategory>,
-    ) : GroceryCategoryOrder
+    ) : GroceryCategoryReorderResult
 
     // the user sees no such list
-    data object NotFound : GroceryCategoryOrder
+    data object NotFound : GroceryCategoryReorderResult
 
     // the ids are not the ones of the categories of the list, each once
-    data object Mismatch : GroceryCategoryOrder
+    data object Mismatch : GroceryCategoryReorderResult
 }
 
 // what is to buy, how much of it and in which category; a bought item is checked and stays as the
@@ -180,14 +182,14 @@ class GroceryRepository(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListUpdate = lists.update(user, id, name, shared, icon)
+    ): ListUpdateResult = lists.update(user, id, name, shared, icon)
 
     // a list of the user's own, the last one too (LIST-1); it, its items and its categories stay as
     // deleted
     fun deleteList(
         user: String,
         id: Int,
-    ): ListDelete =
+    ): ListDeleteResult =
         lists.delete(user, id) { dsl, now ->
             dsl
                 .update(GROCERY_ITEMS)
@@ -305,14 +307,25 @@ class GroceryRepository(
                     .where(GROCERY_ITEMS.ID.eq(id), visibleItem(user))
                     .fetchOne()
                     ?.value1() ?: return@transactionResult null
+            val categoryId = categoryOf(dsl, listId, values.categoryId)
             dsl
                 .update(GROCERY_ITEMS)
                 .set(GROCERY_ITEMS.NAME, values.name)
                 .set(GROCERY_ITEMS.NAME_KEY, groceryNameKey(values.name))
                 .set(GROCERY_ITEMS.AMOUNT, values.amount)
                 .set(GROCERY_ITEMS.UNIT, values.unit)
-                .set(GROCERY_ITEMS.CATEGORY_ID, categoryOf(dsl, listId, values.categoryId))
-                .set(GROCERY_ITEMS.UPDATED_AT, clock.instant())
+                .set(GROCERY_ITEMS.CATEGORY_ID, categoryId)
+                .set(
+                    GROCERY_ITEMS.UPDATED_AT,
+                    changedAt(
+                        GROCERY_ITEMS.UPDATED_AT,
+                        clock.instant(),
+                        GROCERY_ITEMS.NAME.changesTo(values.name),
+                        GROCERY_ITEMS.AMOUNT.changesTo(values.amount),
+                        GROCERY_ITEMS.UNIT.changesTo(values.unit),
+                        GROCERY_ITEMS.CATEGORY_ID.changesTo(categoryId),
+                    ),
+                )
                 .where(GROCERY_ITEMS.ID.eq(id))
                 .returning()
                 .fetchOne()!!
@@ -334,7 +347,7 @@ class GroceryRepository(
             dsl
                 .update(GROCERY_ITEMS)
                 .set(GROCERY_ITEMS.CATEGORY_ID, categoryId)
-                .set(GROCERY_ITEMS.UPDATED_AT, clock.instant())
+                .set(GROCERY_ITEMS.UPDATED_AT, changedAt(GROCERY_ITEMS.UPDATED_AT, clock.instant(), GROCERY_ITEMS.CATEGORY_ID.changesTo(categoryId)))
                 .where(GROCERY_ITEMS.ID.eq(id))
                 .returning()
                 .fetchOne()!!
@@ -345,14 +358,16 @@ class GroceryRepository(
     fun categories(
         user: String,
         listId: Int,
-    ): List<GroceryCategory>? {
-        if (!database.dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return null
-        return database.dsl
-            .selectFrom(GROCERY_CATEGORIES)
-            .where(GROCERY_CATEGORIES.LIST_ID.eq(listId), GROCERY_CATEGORIES.DELETED_AT.isNull)
-            .orderBy(GROCERY_CATEGORIES.POSITION, GROCERY_CATEGORIES.ID)
-            .fetch { it.toCategory() }
-    }
+    ): List<GroceryCategory>? =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            if (!sees(dsl, user, listId)) return@transactionResult null
+            dsl
+                .selectFrom(GROCERY_CATEGORIES)
+                .where(GROCERY_CATEGORIES.LIST_ID.eq(listId), GROCERY_CATEGORIES.DELETED_AT.isNull)
+                .orderBy(GROCERY_CATEGORIES.POSITION, GROCERY_CATEGORIES.ID)
+                .fetch { it.toCategory() }
+        }
 
     // a category of a list the user sees (LIST-2), the last one; at most max of them
     fun insertCategory(
@@ -360,12 +375,12 @@ class GroceryRepository(
         listId: Int,
         values: GroceryCategoryValues,
         max: Int,
-    ): GroceryCategoryChange =
+    ): GroceryCategoryWriteResult =
         try {
             database.dsl.transactionResult { configuration ->
                 val dsl = DSL.using(configuration)
                 if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) {
-                    return@transactionResult GroceryCategoryChange.NotFound
+                    return@transactionResult GroceryCategoryWriteResult.NotFound
                 }
                 // one statement: the count and the place are checked where the row goes in, two
                 // categories added at the same time can not both pass the limit
@@ -395,12 +410,12 @@ class GroceryRepository(
                                     DSL.`val`(clock.instant(), GROCERY_CATEGORIES.CREATED_AT),
                                 ).where(DSL.field(DSL.selectCount().from(GROCERY_CATEGORIES).where(live)).lt(max)),
                         ).execute()
-                if (inserted == 0) return@transactionResult GroceryCategoryChange.TooMany
+                if (inserted == 0) return@transactionResult GroceryCategoryWriteResult.TooMany
                 // the live name is unique on the list
-                GroceryCategoryChange.Saved(dsl.selectFrom(GROCERY_CATEGORIES).where(live, GROCERY_CATEGORIES.NAME_KEY.eq(key)).fetchOne()!!.toCategory())
+                GroceryCategoryWriteResult.Saved(dsl.selectFrom(GROCERY_CATEGORIES).where(live, GROCERY_CATEGORIES.NAME_KEY.eq(key)).fetchOne()!!.toCategory())
             }
         } catch (_: IntegrityConstraintViolationException) {
-            GroceryCategoryChange.NameTaken
+            GroceryCategoryWriteResult.NameTaken
         }
 
     // the name and the icon of a category of a list the user sees; TooMany never
@@ -409,20 +424,28 @@ class GroceryRepository(
         listId: Int,
         id: Int,
         values: GroceryCategoryValues,
-    ): GroceryCategoryChange =
+    ): GroceryCategoryWriteResult =
         try {
             database.dsl
                 .update(GROCERY_CATEGORIES)
                 .set(GROCERY_CATEGORIES.NAME, values.name)
                 .set(GROCERY_CATEGORIES.NAME_KEY, groceryNameKey(values.name))
                 .set(GROCERY_CATEGORIES.ICON, values.icon)
-                .set(GROCERY_CATEGORIES.UPDATED_AT, clock.instant())
+                .set(
+                    GROCERY_CATEGORIES.UPDATED_AT,
+                    changedAt(
+                        GROCERY_CATEGORIES.UPDATED_AT,
+                        clock.instant(),
+                        GROCERY_CATEGORIES.NAME.changesTo(values.name),
+                        GROCERY_CATEGORIES.ICON.changesTo(values.icon),
+                    ),
+                )
                 .where(visibleCategory(user, listId, id))
                 .returning()
                 .fetchOne()
-                ?.let { GroceryCategoryChange.Saved(it.toCategory()) } ?: GroceryCategoryChange.NotFound
+                ?.let { GroceryCategoryWriteResult.Saved(it.toCategory()) } ?: GroceryCategoryWriteResult.NotFound
         } catch (_: IntegrityConstraintViolationException) {
-            GroceryCategoryChange.NameTaken
+            GroceryCategoryWriteResult.NameTaken
         }
 
     // the items of the list lose it, the checked ones too, so its suggestions do (GROCERY-13); it
@@ -458,17 +481,17 @@ class GroceryRepository(
         user: String,
         listId: Int,
         ids: List<Int>,
-    ): GroceryCategoryOrder =
+    ): GroceryCategoryReorderResult =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
-            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult GroceryCategoryOrder.NotFound
+            if (!dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))) return@transactionResult GroceryCategoryReorderResult.NotFound
             val live =
                 dsl
                     .select(GROCERY_CATEGORIES.ID)
                     .from(GROCERY_CATEGORIES)
                     .where(GROCERY_CATEGORIES.LIST_ID.eq(listId), GROCERY_CATEGORIES.DELETED_AT.isNull)
                     .fetch { it.value1()!! }
-            if (ids.size != live.size || ids.toSet() != live.toSet()) return@transactionResult GroceryCategoryOrder.Mismatch
+            if (ids.size != live.size || ids.toSet() != live.toSet()) return@transactionResult GroceryCategoryReorderResult.Mismatch
             val now = clock.instant()
             ids.forEachIndexed { position, id ->
                 dsl
@@ -478,7 +501,7 @@ class GroceryRepository(
                     .where(GROCERY_CATEGORIES.ID.eq(id), GROCERY_CATEGORIES.POSITION.ne(position))
                     .execute()
             }
-            GroceryCategoryOrder.Ordered(
+            GroceryCategoryReorderResult.Ordered(
                 dsl
                     .selectFrom(GROCERY_CATEGORIES)
                     .where(GROCERY_CATEGORIES.LIST_ID.eq(listId), GROCERY_CATEGORIES.DELETED_AT.isNull)
@@ -511,7 +534,7 @@ class GroceryRepository(
             dsl
                 .update(GROCERY_ITEMS)
                 .set(GROCERY_ITEMS.PHOTO_FILE_ID, fileId)
-                .set(GROCERY_ITEMS.UPDATED_AT, clock.instant())
+                .set(GROCERY_ITEMS.UPDATED_AT, changedAt(GROCERY_ITEMS.UPDATED_AT, clock.instant(), GROCERY_ITEMS.PHOTO_FILE_ID.changesTo(fileId)))
                 .where(GROCERY_ITEMS.ID.eq(id), visibleItem(user))
                 .returning()
                 .fetchOne()
@@ -540,12 +563,16 @@ class GroceryRepository(
     fun checkItem(
         user: String,
         id: Int,
-    ): Boolean =
-        database.dsl
+    ): Boolean {
+        val now = clock.instant()
+        return database.dsl
             .update(GROCERY_ITEMS)
-            .set(GROCERY_ITEMS.CHECKED_AT, clock.instant())
+            .set(GROCERY_ITEMS.CHECKED_AT, now)
+            // only an item to buy is checked, so this is a change of it
+            .set(GROCERY_ITEMS.UPDATED_AT, now)
             .where(GROCERY_ITEMS.ID.eq(id), itemToBuy(user))
             .execute() > 0
+    }
 
     // an item, to buy or bought, gone for good, e.g. one added by mistake: no list shows it, no
     // suggestion counts it; false when the user does not see it. It stays as deleted
@@ -569,14 +596,15 @@ class GroceryRepository(
         text: String,
         offset: Long,
         limit: Int,
-    ): List<GrocerySuggestion>? {
-        if (!sees(user, listId)) return null
-        val (items, latest) = suggestionItems(listId, text)
-        val id = items.field(GROCERY_ITEMS.ID)!!
-        val createdAt = items.field(GROCERY_ITEMS.CREATED_AT)!!
-        val times = items.field(SUGGESTION_TIMES_USED, Int::class.java)!!
-        return database.dsl
-            .select(
+    ): List<GrocerySuggestion>? =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            if (!sees(dsl, user, listId)) return@transactionResult null
+            val (items, latest) = suggestionItems(listId, text)
+            val id = items.field(GROCERY_ITEMS.ID)!!
+            val createdAt = items.field(GROCERY_ITEMS.CREATED_AT)!!
+            val times = items.field(SUGGESTION_TIMES_USED, Int::class.java)!!
+            dsl.select(
                 id,
                 items.field(GROCERY_ITEMS.NAME)!!,
                 items.field(GROCERY_ITEMS.AMOUNT)!!,
@@ -592,7 +620,7 @@ class GroceryRepository(
             .fetch { (id, name, amount, unit, categoryId, times, createdAt) ->
                 GrocerySuggestion(id!!, listId, name!!, amount, unit, categoryId, times!!, createdAt!!)
             }
-    }
+        }
 
     // how many suggestions the list has for the text, as suggestions counts them; null when the user
     // does not see the list
@@ -600,16 +628,20 @@ class GroceryRepository(
         user: String,
         listId: Int,
         text: String,
-    ): Long? {
-        if (!sees(user, listId)) return null
-        val (items, latest) = suggestionItems(listId, text)
-        return database.dsl.selectCount().from(items).where(latest).fetchOne(0, Long::class.java) ?: 0
-    }
+    ): Long? =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            if (!sees(dsl, user, listId)) return@transactionResult null
+            val (items, latest) = suggestionItems(listId, text)
+            dsl.selectCount().from(items).where(latest).fetchOne(0, Long::class.java) ?: 0
+        }
 
+    // in the transaction of the read that follows, so no change comes between them (MODEL-6)
     private fun sees(
+        dsl: DSLContext,
         user: String,
         listId: Int,
-    ) = database.dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))
+    ) = dsl.fetchExists(GROCERY_LISTS, GROCERY_LISTS.ID.eq(listId), visibleList(user))
 
     // the items of the list whose name contains the text, the ones to buy left out, numbered latest
     // first within their name and counted by it; the condition keeps the latest of each name

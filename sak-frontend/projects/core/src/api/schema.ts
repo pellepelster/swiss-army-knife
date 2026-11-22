@@ -2709,7 +2709,7 @@ export interface paths {
             'application/json': components['schemas']['GroceryItemResponse'];
           };
         };
-        /** @description An invalid name, amount, unit or category, or a malformed request, e.g. without a list */
+        /** @description An invalid name, amount or unit, or a malformed request, e.g. without a list */
         400: {
           headers: {
             [name: string]: unknown;
@@ -2718,7 +2718,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user sees no such list */
+        /** @description The user sees no such list, or the category is none of the list */
         422: {
           headers: {
             [name: string]: unknown;
@@ -2804,7 +2804,7 @@ export interface paths {
             'application/json': components['schemas']['GroceryItemResponse'];
           };
         };
-        /** @description An invalid name, amount, unit or category, or a malformed request */
+        /** @description An invalid name, amount or unit, or a malformed request */
         400: {
           headers: {
             [name: string]: unknown;
@@ -2815,6 +2815,15 @@ export interface paths {
         };
         /** @description The user sees no such item */
         404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The category is none of the list of the item */
+        422: {
           headers: {
             [name: string]: unknown;
           };
@@ -2901,7 +2910,7 @@ export interface paths {
             'application/json': components['schemas']['GroceryItemResponse'];
           };
         };
-        /** @description No category of the list, or a malformed request */
+        /** @description A malformed request */
         400: {
           headers: {
             [name: string]: unknown;
@@ -2912,6 +2921,15 @@ export interface paths {
         };
         /** @description The user sees no such item */
         404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The category is none of the list of the item */
+        422: {
           headers: {
             [name: string]: unknown;
           };
@@ -2965,7 +2983,7 @@ export interface paths {
             'application/json': components['schemas']['GroceryItemResponse'];
           };
         };
-        /** @description The file is no image the user uploaded, or a malformed request */
+        /** @description A malformed request */
         400: {
           headers: {
             [name: string]: unknown;
@@ -2976,6 +2994,15 @@ export interface paths {
         };
         /** @description The user sees no such item */
         404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description The file is no image the user uploaded */
+        422: {
           headers: {
             [name: string]: unknown;
           };
@@ -3062,12 +3089,14 @@ export interface paths {
           };
           content?: never;
         };
-        /** @description No file id or no positive size */
+        /** @description A size that is no positive number */
         400: {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
         };
         /** @description The user sees no such item, or the file is not its photo */
         404: {
@@ -4403,8 +4432,8 @@ export interface paths {
           };
           content?: never;
         };
-        /** @description The address is no user or admin of the deployment */
-        404: {
+        /** @description The deployment has no mail server */
+        409: {
           headers: {
             [name: string]: unknown;
           };
@@ -4412,8 +4441,8 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The deployment has no mail server */
-        409: {
+        /** @description The address is no user or admin of the deployment */
+        422: {
           headers: {
             [name: string]: unknown;
           };
@@ -5145,8 +5174,8 @@ export interface components {
       path: string;
       status?: number | null;
     };
-    /** RedirectTarget.Bucket */
-    'RedirectTarget.Bucket': {
+    /** RedirectTargetResponse.Bucket */
+    'RedirectTargetResponse.Bucket': {
       /**
        * @description discriminator enum property added by openapi-typescript
        * @enum {string}
@@ -5154,8 +5183,8 @@ export interface components {
       type: 'bucket';
       bucket: string;
     };
-    /** RedirectTarget.Domain */
-    'RedirectTarget.Domain': {
+    /** RedirectTargetResponse.Domain */
+    'RedirectTargetResponse.Domain': {
       /**
        * @description discriminator enum property added by openapi-typescript
        * @enum {string}
@@ -5163,26 +5192,48 @@ export interface components {
       type: 'domain';
       domain: string;
     };
-    /** RedirectTarget */
-    RedirectTarget:
-      | components['schemas']['RedirectTarget.Bucket']
-      | components['schemas']['RedirectTarget.Domain'];
+    /** RedirectTargetResponse */
+    RedirectTargetResponse:
+      | components['schemas']['RedirectTargetResponse.Bucket']
+      | components['schemas']['RedirectTargetResponse.Domain'];
     /** RedirectResponse */
     RedirectResponse: {
       sourceDomain: string;
-      target: components['schemas']['RedirectTarget'];
+      target: components['schemas']['RedirectTargetResponse'];
       location?: string | null;
       createdAt: string;
       updatedAt?: string | null;
     };
+    /** RedirectTargetRequest.Bucket */
+    'RedirectTargetRequest.Bucket': {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'bucket';
+      bucket: string;
+    };
+    /** RedirectTargetRequest.Domain */
+    'RedirectTargetRequest.Domain': {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'domain';
+      domain: string;
+    };
+    /** RedirectTargetRequest */
+    RedirectTargetRequest:
+      | components['schemas']['RedirectTargetRequest.Bucket']
+      | components['schemas']['RedirectTargetRequest.Domain'];
     /** CreateRedirectRequest */
     CreateRedirectRequest: {
       sourceDomain: string;
-      target: components['schemas']['RedirectTarget'];
+      target: components['schemas']['RedirectTargetRequest'];
     };
     /** UpdateRedirectRequest */
     UpdateRedirectRequest: {
-      target: components['schemas']['RedirectTarget'];
+      target: components['schemas']['RedirectTargetRequest'];
     };
     /** LabelResponse */
     LabelResponse: {
@@ -5235,15 +5286,15 @@ export interface components {
     GrocerySettingsResponse: {
       discoverItems: boolean;
     };
-    /** GroceryDiscoveredItem */
-    GroceryDiscoveredItem: {
+    /** GroceryDiscoveredItemResponse */
+    GroceryDiscoveredItemResponse: {
       name: string;
       amount?: number | null;
       unit?: string | null;
     };
     /** GroceryDiscoveredResponse */
     GroceryDiscoveredResponse: {
-      items: components['schemas']['GroceryDiscoveredItem'][];
+      items: components['schemas']['GroceryDiscoveredItemResponse'][];
     };
     /** GroceryListResponse */
     GroceryListResponse: {
@@ -5502,9 +5553,11 @@ export interface components {
     /** DeploymentResponse */
     DeploymentResponse: {
       name: string;
-      dnsMode: string;
+      /** @enum {string} */
+      dnsMode: 'domain' | 'subdomain';
       rootDomain: string;
-      userMode: string;
+      /** @enum {string} */
+      userMode: 'single' | 'multi';
       adminEmail?: string | null;
       smtp?: components['schemas']['SmtpConfigResponse'];
       acmeCa?: string | null;

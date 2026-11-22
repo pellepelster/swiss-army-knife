@@ -22,6 +22,10 @@ import java.util.concurrent.TimeUnit
 
 const val S3_PATH_PREFIX = "/s3"
 
+// every host of the backend is https only, for a year
+private const val HSTS_HEADER = "Strict-Transport-Security"
+private const val HSTS_ONE_YEAR = "max-age=31536000"
+
 // the names no bucket may have: the REST backend of restic is below /restic of the api host (SERVER-7)
 val RESERVED_BUCKETS = setOf(RESTIC_PATH_PREFIX.removePrefix("/"))
 
@@ -32,7 +36,7 @@ const val RESTIC_MAX_BODY_SIZE = ResticStore.MAX_FILE_BYTES + 1024L * 1024
 // the binary storage of the buckets, s3DataDir
 fun bucketBlobs(config: SakConfig): BinaryStorage = FilesystemBinaryStorage(config.s3DataDir)
 
-// the buckets on their binary storage: resolver tells where each bucket is in it (BucketLayout), what
+// the buckets on their binary storage: resolver tells where each bucket is in it (its resource id), what
 // is below that only sak-s3 knows
 fun bucketStorage(
     config: SakConfig,
@@ -93,7 +97,7 @@ fun caddyConfig(
                 route {
                     host(config.frontendHost)
                     logField(SITE_LOG_FIELD, FRONTEND_SITE)
-                    responseHeader("Strict-Transport-Security", "max-age=31536000")
+                    responseHeader(HSTS_HEADER, HSTS_ONE_YEAR)
                     maxRequestBodySize(APPS_MAX_BODY_SIZE)
                     reverseProxy("localhost:$port")
                     terminal()
@@ -105,7 +109,7 @@ fun caddyConfig(
                     host(config.apiHost)
                     path(API_VERSION, "$API_VERSION/*")
                     logField(SITE_LOG_FIELD, API_SITE)
-                    responseHeader("Strict-Transport-Security", "max-age=31536000")
+                    responseHeader(HSTS_HEADER, HSTS_ONE_YEAR)
                     maxRequestBodySize(APPS_MAX_BODY_SIZE)
                     rewrite("$API_PATH_PREFIX{http.request.uri}")
                     reverseProxy("localhost:$port")
@@ -119,7 +123,7 @@ fun caddyConfig(
                     host(config.apiHost)
                     path(RESTIC_PATH_PREFIX, "$RESTIC_PATH_PREFIX/*")
                     logField(SITE_LOG_FIELD, API_SITE)
-                    responseHeader("Strict-Transport-Security", "max-age=31536000")
+                    responseHeader(HSTS_HEADER, HSTS_ONE_YEAR)
                     maxRequestBodySize(RESTIC_MAX_BODY_SIZE)
                     reverseProxy("localhost:$port")
                     terminal()
@@ -132,7 +136,7 @@ fun caddyConfig(
             route {
                 host(config.apiHost)
                 logField(SITE_LOG_FIELD, API_SITE)
-                responseHeader("Strict-Transport-Security", "max-age=31536000")
+                responseHeader(HSTS_HEADER, HSTS_ONE_YEAR)
                 maxRequestBodySize(S3_MAX_BODY_SIZE)
                 rewrite("$S3_PATH_PREFIX{http.request.uri}")
                 reverseProxy("localhost:$port")

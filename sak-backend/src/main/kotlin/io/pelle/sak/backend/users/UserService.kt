@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.users
 
+import io.pelle.sak.auth.normalizeEmail
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
@@ -16,20 +17,20 @@ data class UserEntry(
     val configured: Boolean,
 )
 
-sealed interface AddUserResult {
+sealed interface UserAddResult {
     data class Added(
         val user: User,
-    ) : AddUserResult
+    ) : UserAddResult
 
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : AddUserResult
+    ) : UserAddResult
 
     // an added user of the address exists
-    data object Exists : AddUserResult
+    data object Exists : UserAddResult
 
     // the address is an admin of the configuration, never also a user
-    data object Admin : AddUserResult
+    data object Admin : UserAddResult
 }
 
 // who may sign in besides the admins of the configuration: the users an admin adds by address, with
@@ -55,17 +56,18 @@ class UserService(
         owner: String,
         email: String,
         name: String?,
-    ): AddUserResult {
-        val address = normalize(email)
+    ): UserAddResult {
+        // as the login takes it: an address the login refuses would never get a link
+        val address = normalizeEmail(email)
         val named = name?.trim()?.ifEmpty { null }
         val errors =
             listOfNotNull(
-                ErrorMessage(UsersTexts.INVALID_EMAIL).takeUnless { isEmail(address) },
+                ErrorMessage(UsersTexts.INVALID_EMAIL).takeIf { address == null },
                 ErrorMessage(UsersTexts.INVALID_NAME, "max" to MAX_NAME_LENGTH).takeIf { named != null && (named.length > MAX_NAME_LENGTH || named.any { it.isISOControl() }) },
             )
-        if (errors.isNotEmpty()) return AddUserResult.Invalid(errors)
-        if (address in admins) return AddUserResult.Admin
-        return repository.insert(owner, address, named)?.let { AddUserResult.Added(it) } ?: AddUserResult.Exists
+        if (address == null || errors.isNotEmpty()) return UserAddResult.Invalid(errors)
+        if (address in admins) return UserAddResult.Admin
+        return repository.insert(owner, address, named)?.let { UserAddResult.Added(it) } ?: UserAddResult.Exists
     }
 
     // false when there is no such user
@@ -78,17 +80,10 @@ class UserService(
     fun name(email: String): String? = repository.byEmail(normalize(email))?.name
 
     companion object {
-        const val MAX_EMAIL_LENGTH = 254
-
         const val MAX_NAME_LENGTH = 64
 
         // as the configuration compares them: trimmed, without case
         fun normalize(email: String) = email.trim().lowercase()
-
-        // one @ with something before it, a domain with a dot after it, no spaces
-        fun isEmail(email: String) = email.length <= MAX_EMAIL_LENGTH && EMAIL.matches(email)
-
-        private val EMAIL = Regex("""[^\s@]+@[^\s@]+\.[^\s@]+""")
     }
 }
 

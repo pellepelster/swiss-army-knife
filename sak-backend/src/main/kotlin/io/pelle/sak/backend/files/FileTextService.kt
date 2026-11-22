@@ -7,29 +7,29 @@ import io.pelle.sak.openrouter.TextRecognizer
 import io.pelle.sak.storage.BlobContent
 import java.io.IOException
 
-sealed interface DiscoverTextResult {
+sealed interface FileTextDiscoverResult {
     data class Discovered(
         val text: String,
-    ) : DiscoverTextResult
+    ) : FileTextDiscoverResult
 
-    data object NotFound : DiscoverTextResult
+    data object NotFound : FileTextDiscoverResult
 
     // only the text in images and recordings is discovered
-    data object Unsupported : DiscoverTextResult
+    data object Unsupported : FileTextDiscoverResult
 
     // nothing is set up to discover the text in files of the type, e.g. no api key
-    data object NotConfigured : DiscoverTextResult
+    data object NotConfigured : FileTextDiscoverResult
 
     // the AI features are turned off in the settings (NotesSettingsService.AI and what it requires)
-    data object Disabled : DiscoverTextResult
+    data object Disabled : FileTextDiscoverResult
 
     // the file would go to the AI provider, but the owner asked for too many texts lately
-    data object Limited : DiscoverTextResult
+    data object Limited : FileTextDiscoverResult
 
     // the model failed, or the content of the file could not be read
     data class Failed(
         val cause: Exception,
-    ) : DiscoverTextResult
+    ) : FileTextDiscoverResult
 }
 
 // discovers the text in the images and recordings of the file storage; a file never changes under
@@ -53,33 +53,33 @@ class FileTextService(
         owner: String,
         id: Int,
         mayAsk: () -> Boolean = { true },
-    ): DiscoverTextResult {
-        val file = files.byId(owner, id) ?: return DiscoverTextResult.NotFound
+    ): FileTextDiscoverResult {
+        val file = files.byId(owner, id) ?: return FileTextDiscoverResult.NotFound
         val image =
             when {
                 file.contentType.startsWith("image/") -> true
                 file.contentType.startsWith("audio/") -> false
-                else -> return DiscoverTextResult.Unsupported
+                else -> return FileTextDiscoverResult.Unsupported
             }
-        file.discovered?.let { return DiscoverTextResult.Discovered(it) }
-        if (!aiEnabled()) return DiscoverTextResult.Disabled
+        file.discovered?.let { return FileTextDiscoverResult.Discovered(it) }
+        if (!aiEnabled()) return FileTextDiscoverResult.Disabled
         val read: (BlobContent) -> String =
             if (image) {
                 recognizer()?.let { { content -> it.recognize(content, file.contentType) } }
             } else {
                 transcriber()?.let { { content -> it.transcribe(content, file.contentType) } }
-            } ?: return DiscoverTextResult.NotConfigured
-        val content = files.content(file) ?: return DiscoverTextResult.Failed(IOException("the content of file ${file.id} is not in the storage"))
-        if (!mayAsk()) return DiscoverTextResult.Limited
+            } ?: return FileTextDiscoverResult.NotConfigured
+        val content = files.content(file) ?: return FileTextDiscoverResult.Failed(IOException("the content of file ${file.id} is not in the storage"))
+        if (!mayAsk()) return FileTextDiscoverResult.Limited
         val text =
             try {
                 read(content).trim()
             } catch (e: TextRecognitionException) {
-                return DiscoverTextResult.Failed(e)
+                return FileTextDiscoverResult.Failed(e)
             } catch (e: IOException) {
-                return DiscoverTextResult.Failed(e)
+                return FileTextDiscoverResult.Failed(e)
             }
         files.setDiscovered(file, text)
-        return DiscoverTextResult.Discovered(text)
+        return FileTextDiscoverResult.Discovered(text)
     }
 }

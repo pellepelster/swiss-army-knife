@@ -6,7 +6,7 @@ import io.pelle.sak.api.Language
 import io.pelle.sak.api.Page
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.files.FileService
-import io.pelle.sak.backend.files.StoreFileResult
+import io.pelle.sak.backend.files.FileStoreResult
 import io.pelle.sak.backend.labels.LabelService
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -42,7 +42,7 @@ class NoteServiceTest {
     private val service by lazy { NoteService(database, labels, files, clock).also { listOf(PELLE, OTHER).forEach { user -> it.signedIn(user, Language.EN) } } }
 
     private fun photo(content: String) =
-        (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as FileStoreResult.Stored).file.id
 
     private fun create(
         text: String,
@@ -51,7 +51,7 @@ class NoteServiceTest {
         owner: String = PELLE,
         photos: List<Int> = emptyList(),
         recordings: List<Int> = emptyList(),
-    ) = service.create(owner, text, color, labelNames, photos, recordings).shouldBeInstanceOf<SaveNoteResult.Saved>().note
+    ) = service.create(owner, text, color, labelNames, photos, recordings).shouldBeInstanceOf<NoteSaveResult.Saved>().note
 
     private fun later(minutes: Long = 1) {
         clock.now = clock.now.plusSeconds(minutes * 60)
@@ -59,7 +59,7 @@ class NoteServiceTest {
 
     @Test
     fun `a user gets their list when they sign in, before that a note can not be created`() {
-        service.create(NEWCOMER, "milk", "yellow", listOf("todo")) shouldBe SaveNoteResult.NoList
+        service.create(NEWCOMER, "milk", "yellow", listOf("todo")) shouldBe NoteSaveResult.NoList
         labels.byName(NEWCOMER, "todo") shouldBe null
         service.signedIn(NEWCOMER, Language.EN)
         service.signedIn(NEWCOMER, Language.EN)
@@ -83,8 +83,8 @@ class NoteServiceTest {
     @Test
     fun `rejects notes with every problem they have and creates no labels for them`() {
         service.create(PELLE, "x".repeat(10_001), "purple", listOf("ok", " ")) shouldBe
-            SaveNoteResult.Invalid(setOf(NoteProblem.TEXT_TOO_LONG, NoteProblem.INVALID_COLOR, NoteProblem.INVALID_LABEL))
-        service.create(PELLE, "fine", "purple", listOf("ok")) shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.INVALID_COLOR))
+            NoteSaveResult.Invalid(setOf(NoteProblem.TEXT_TOO_LONG, NoteProblem.INVALID_COLOR, NoteProblem.INVALID_LABEL))
+        service.create(PELLE, "fine", "purple", listOf("ok")) shouldBe NoteSaveResult.Invalid(setOf(NoteProblem.INVALID_COLOR))
         labels.byName(PELLE, "ok") shouldBe null
         create("x".repeat(10_000))
     }
@@ -93,7 +93,7 @@ class NoteServiceTest {
     fun `a note has at most ten labels, the same one written differently counts once`() {
         val ten = (1..10).map { "label $it" }
         create("ten", labelNames = ten + "LABEL 1").labels.size shouldBe 10
-        service.create(PELLE, "eleven", "yellow", ten + "label 11") shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.TOO_MANY_LABELS))
+        service.create(PELLE, "eleven", "yellow", ten + "label 11") shouldBe NoteSaveResult.Invalid(setOf(NoteProblem.TOO_MANY_LABELS))
         labels.byName(PELLE, "label 11") shouldBe null
     }
 
@@ -123,7 +123,7 @@ class NoteServiceTest {
         later()
 
         val updated = service.update(PELLE, note.id, "milk and bread", "green", listOf("shopping", "weekend"))
-        updated.shouldBeInstanceOf<SaveNoteResult.Saved>().note.let {
+        updated.shouldBeInstanceOf<NoteSaveResult.Saved>().note.let {
             it.text shouldBe "milk and bread"
             it.color shouldBe NoteColor.GREEN
             it.labels.map { label -> label.name } shouldBe listOf("shopping", "weekend")
@@ -133,10 +133,10 @@ class NoteServiceTest {
         service.byId(PELLE, note.id) shouldBe updated.note
         service.page(PELLE, 0, 10, "todo").total shouldBe 0
 
-        service.update(PELLE, note.id, "", "blue", listOf("")) shouldBe SaveNoteResult.Invalid(setOf(NoteProblem.INVALID_LABEL))
-        service.update(PELLE, 4711, "", "blue") shouldBe SaveNoteResult.NotFound
+        service.update(PELLE, note.id, "", "blue", listOf("")) shouldBe NoteSaveResult.Invalid(setOf(NoteProblem.INVALID_LABEL))
+        service.update(PELLE, 4711, "", "blue") shouldBe NoteSaveResult.NotFound
         // a note that is not there creates no label
-        service.update(PELLE, 4711, "", "blue", listOf("ghost")) shouldBe SaveNoteResult.NotFound
+        service.update(PELLE, 4711, "", "blue", listOf("ghost")) shouldBe NoteSaveResult.NotFound
         labels.byName(PELLE, "ghost") shouldBe null
     }
 
@@ -149,8 +149,8 @@ class NoteServiceTest {
         service.page(PELLE, 0, 10).items shouldBe listOf(mine)
         service.page(OTHER, 0, 10, "todo").items shouldBe listOf(theirs)
         service.byId(PELLE, theirs.id) shouldBe null
-        service.update(PELLE, theirs.id, "taken", "pink") shouldBe SaveNoteResult.NotFound
-        service.delete(PELLE, theirs.id) shouldBe DeleteNoteResult.NotFound
+        service.update(PELLE, theirs.id, "taken", "pink") shouldBe NoteSaveResult.NotFound
+        service.delete(PELLE, theirs.id) shouldBe NoteDeleteResult.NotFound
         service.byId(OTHER, theirs.id) shouldBe theirs
     }
 
@@ -160,23 +160,23 @@ class NoteServiceTest {
         val sunset = photo("sunset")
 
         val note = service.create(PELLE, "holidays", "blue", photos = listOf(sunset, beach, sunset))
-        note.shouldBeInstanceOf<SaveNoteResult.Saved>().note.photos shouldBe listOf(sunset, beach)
+        note.shouldBeInstanceOf<NoteSaveResult.Saved>().note.photos shouldBe listOf(sunset, beach)
         service.byId(PELLE, note.note.id)!!.photos shouldBe listOf(sunset, beach)
         service.page(PELLE, 0, 10).items.single().photos shouldBe listOf(sunset, beach)
 
         service.update(PELLE, note.note.id, "holidays", "blue", photos = listOf(beach))
-            .shouldBeInstanceOf<SaveNoteResult.Saved>().note.photos shouldBe listOf(beach)
+            .shouldBeInstanceOf<NoteSaveResult.Saved>().note.photos shouldBe listOf(beach)
         service.byId(PELLE, note.note.id)!!.photos shouldBe listOf(beach)
         service.update(PELLE, note.note.id, "holidays", "blue", photos = listOf(4711)) shouldBe
-            SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO))
+            NoteSaveResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO))
         service.create(PELLE, "many", "blue", photos = (0..NoteService.MAX_PHOTOS).map { photo("photo $it") }) shouldBe
-            SaveNoteResult.Invalid(setOf(NoteProblem.TOO_MANY_PHOTOS))
+            NoteSaveResult.Invalid(setOf(NoteProblem.TOO_MANY_PHOTOS))
     }
 
     @Test
     fun `keeps the recordings of a note apart from its photos, each of its kind`() {
         val beach = photo("beach")
-        val memo = (files.store(Media.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        val memo = (files.store(Media.wav().inputStream(), PELLE) as FileStoreResult.Stored).file.id
 
         val note = create("holidays", photos = listOf(beach), recordings = listOf(memo, memo))
         note.photos shouldBe listOf(beach)
@@ -188,32 +188,32 @@ class NoteServiceTest {
         service.page(PELLE, 0, 10).items.single().recordings shouldBe listOf(memo)
 
         service.update(PELLE, note.id, "holidays", "blue", photos = listOf(beach))
-            .shouldBeInstanceOf<SaveNoteResult.Saved>().note.recordings shouldBe emptyList()
+            .shouldBeInstanceOf<NoteSaveResult.Saved>().note.recordings shouldBe emptyList()
         // a recording is no photo and a photo no recording
         service.update(PELLE, note.id, "holidays", "blue", photos = listOf(memo), recordings = listOf(beach)) shouldBe
-            SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING))
+            NoteSaveResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING))
     }
 
     @Test
     fun `a note only takes the photos and recordings its owner uploaded`() {
         val beach = photo("beach")
-        val memo = (files.store(Media.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        val memo = (files.store(Media.wav().inputStream(), PELLE) as FileStoreResult.Stored).file.id
 
         service.create(OTHER, "mine now", "blue", photos = listOf(beach), recordings = listOf(memo)) shouldBe
-            SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING))
+            NoteSaveResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO, NoteProblem.UNKNOWN_RECORDING))
         val theirs = create("theirs", owner = OTHER)
         service.update(OTHER, theirs.id, "theirs", "blue", photos = listOf(beach)) shouldBe
-            SaveNoteResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO))
+            NoteSaveResult.Invalid(setOf(NoteProblem.UNKNOWN_PHOTO))
     }
 
     @Test
     fun `deletes notes softly`() {
         val note = create("milk")
 
-        service.delete(PELLE, note.id) shouldBe DeleteNoteResult.Deleted
-        service.delete(PELLE, note.id) shouldBe DeleteNoteResult.NotFound
+        service.delete(PELLE, note.id) shouldBe NoteDeleteResult.Deleted
+        service.delete(PELLE, note.id) shouldBe NoteDeleteResult.NotFound
         service.byId(PELLE, note.id) shouldBe null
-        service.update(PELLE, note.id, "again", "yellow") shouldBe SaveNoteResult.NotFound
+        service.update(PELLE, note.id, "again", "yellow") shouldBe NoteSaveResult.NotFound
         service.page(PELLE, 0, 10).total shouldBe 0
     }
 

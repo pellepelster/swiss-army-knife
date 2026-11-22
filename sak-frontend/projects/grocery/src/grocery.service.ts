@@ -25,7 +25,7 @@ export type GroceryItemValues = Omit<GroceryNewItem, 'listId'>;
 
 // (GROCERY-16)
 export type GrocerySettings = components['schemas']['GrocerySettingsResponse'];
-export type GroceryDiscoveredItem = components['schemas']['GroceryDiscoveredItem'];
+export type GroceryDiscoveredItem = components['schemas']['GroceryDiscoveredItemResponse'];
 
 // how many suggestions the field of a new item shows at most
 const SUGGESTIONS = 10;

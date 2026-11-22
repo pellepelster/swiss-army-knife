@@ -6,7 +6,8 @@ import io.pelle.sak.s3.storage.PutResult
 import io.pelle.sak.s3.storage.S3StorageBackend
 import java.io.InputStream
 
-// the s3 backend that drops the statistics of a bucket on every write to it
+// the s3 backend that drops the statistics of a bucket on every write to it, the parts of an upload
+// included: they count into its bytes until the upload is completed or aborted (HOSTING-3)
 class InvalidatingS3StorageBackend(
     private val delegate: S3StorageBackend,
     private val changed: (bucket: String) -> Unit,
@@ -28,6 +29,29 @@ class InvalidatingS3StorageBackend(
         key: String,
     ) = try {
         delegate.deleteObject(bucket, key)
+    } finally {
+        changed(bucket)
+    }
+
+    override fun uploadPart(
+        bucket: String,
+        key: String,
+        uploadId: String,
+        partNumber: Int,
+        content: InputStream,
+    ): String =
+        try {
+            delegate.uploadPart(bucket, key, uploadId, partNumber, content)
+        } finally {
+            changed(bucket)
+        }
+
+    override fun abortMultipartUpload(
+        bucket: String,
+        key: String,
+        uploadId: String,
+    ) = try {
+        delegate.abortMultipartUpload(bucket, key, uploadId)
     } finally {
         changed(bucket)
     }

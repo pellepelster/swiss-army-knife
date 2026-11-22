@@ -18,6 +18,8 @@ import io.pelle.sak.openrouter.ApiKeyStatus
 import io.pelle.sak.openrouter.IngredientRecognizer
 import io.pelle.sak.openrouter.OpenRouterIngredientRecognizer
 import io.pelle.sak.openrouter.OpenRouterApiKeyCheck
+import io.pelle.sak.openrouter.openRouterHttpClient
+import java.net.http.HttpClient
 import io.pelle.sak.openrouter.OpenRouterSpeechTranscriber
 import io.pelle.sak.openrouter.OpenRouterTextRecognizer
 import io.pelle.sak.openrouter.SpeechTranscriber
@@ -28,7 +30,9 @@ import io.pelle.sak.openrouter.TextRecognizer
 class OpenRouterManager(
     private val config: SakConfig.OpenRouterConfig,
     settings: SettingService,
-    private val keyCheck: ApiKeyCheck = OpenRouterApiKeyCheck(config.url),
+    // the one http client of every request to openrouter (EXT-1)
+    private val httpClient: HttpClient = openRouterHttpClient(),
+    private val keyCheck: ApiKeyCheck = OpenRouterApiKeyCheck(config.url, httpClient),
 ) : StoredSettingsService(
         SCOPE,
         settings,
@@ -79,9 +83,9 @@ class OpenRouterManager(
         clients?.takeIf { it.apiKey == apiKey }?.let { return it }
         return Clients(
             apiKey,
-            OpenRouterTextRecognizer(config.url, apiKey, config.model),
-            OpenRouterSpeechTranscriber(config.url, apiKey, config.speechModel),
-            OpenRouterIngredientRecognizer(config.url, apiKey, config.model),
+            OpenRouterTextRecognizer(config.url, apiKey, config.model, httpClient),
+            OpenRouterSpeechTranscriber(config.url, apiKey, config.speechModel, httpClient),
+            OpenRouterIngredientRecognizer(config.url, apiKey, config.model, httpClient),
         ).also { clients = it }
     }
 

@@ -25,11 +25,11 @@ import io.pelle.sak.api.idParameter
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.backend.labels.CreateLabelResult
-import io.pelle.sak.backend.labels.DeleteLabelResult
+import io.pelle.sak.backend.labels.LabelCreateResult
+import io.pelle.sak.backend.labels.LabelDeleteResult
 import io.pelle.sak.model.labels.Label
 import io.pelle.sak.backend.labels.LabelService
-import io.pelle.sak.backend.labels.RenameLabelResult
+import io.pelle.sak.backend.labels.LabelRenameResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -65,9 +65,9 @@ fun Route.labels(labelService: LabelService) {
     post {
         val request = call.receive<LabelRequest>()
         when (val result = withContext(Dispatchers.IO) { labelService.create(call.owner, request.name) }) {
-            is CreateLabelResult.Created -> call.respond(HttpStatusCode.Created, result.label.response())
-            CreateLabelResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
-            CreateLabelResult.Exists -> call.respondErrors(LabelsTexts.EXISTS, status = HttpStatusCode.Conflict)
+            is LabelCreateResult.Created -> call.respond(HttpStatusCode.Created, result.label.response())
+            LabelCreateResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
+            LabelCreateResult.Exists -> call.respondErrors(LabelsTexts.EXISTS, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(LABELS_TAG)
@@ -108,10 +108,10 @@ fun Route.labels(labelService: LabelService) {
         val id = call.idParameter() ?: return@put
         val request = call.receive<LabelRequest>()
         when (val result = withContext(Dispatchers.IO) { labelService.rename(call.owner, id, request.name) }) {
-            is RenameLabelResult.Renamed -> call.respond(result.label.response())
-            RenameLabelResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            RenameLabelResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
-            RenameLabelResult.Exists -> call.respondErrors(LabelsTexts.EXISTS, status = HttpStatusCode.Conflict)
+            is LabelRenameResult.Renamed -> call.respond(result.label.response())
+            LabelRenameResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            LabelRenameResult.InvalidName -> call.respondErrors(INVALID_LABEL_NAME)
+            LabelRenameResult.Exists -> call.respondErrors(LabelsTexts.EXISTS, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(LABELS_TAG)
@@ -136,8 +136,8 @@ fun Route.labels(labelService: LabelService) {
     delete("/{id}") {
         val id = call.idParameter() ?: return@delete
         when (withContext(Dispatchers.IO) { labelService.delete(call.owner, id) }) {
-            DeleteLabelResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-            DeleteLabelResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            LabelDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
+            LabelDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }
     }.describe {
         tag(LABELS_TAG)

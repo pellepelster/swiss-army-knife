@@ -1,7 +1,7 @@
 # the files get a resource id (MODEL-8): their content is on the data volume below files/<resource_id>,
-# no longer below its sha-256. The rows of every file get one, the deleted ones included; FileService
-# moves their content when it starts (FileLayoutMigration). sha256 stays until that migration is
-# removed, it names where the content was
+# no longer below its sha-256. The rows of every file get one, the deleted ones included; the backend
+# of that release moved their content when it started. sha256, which named where the content was,
+# goes with 0006
 databaseChangeLog:
   # sqlite can not add a column without a default to a table that has rows, and other tables refer to
   # files, so it is not rebuilt: the default is only there for the rows that are now, the repository

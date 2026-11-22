@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class RedirectResponse(
     val sourceDomain: String,
-    val target: RedirectTarget,
+    val target: RedirectTargetResponse,
     val location: String?,
     val createdAt: String,
     // missing until it is changed

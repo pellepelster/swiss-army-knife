@@ -136,7 +136,7 @@ class TodoApi(
     override fun changes(opened: suspend () -> Unit): Flow<Int> = listChanges("$url/todo/changes", opened)
 
     companion object {
-        // the signin page of the web app hands a login link on to this app (LoginClient of sak-auth)
+        // the signin page of the web app hands a login link on to this app (LoginClientRequest of sak-auth)
         val LOGIN_CLIENT = LoginRequest.Client.TODO_ANDROID
     }
 }

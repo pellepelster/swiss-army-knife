@@ -41,8 +41,8 @@ class S3BucketServiceTest {
 
     @Test
     fun `creates buckets with a key pair of their own`() {
-        val first = service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
-        val second = service.create("backups", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
+        val first = service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>().bucket
+        val second = service.create("backups", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>().bucket
 
         first.name shouldBe "pelle-io"
         first.createdAt shouldBe clock.instant()
@@ -63,7 +63,7 @@ class S3BucketServiceTest {
     // a leaked key pair ends without the bucket
     @Test
     fun `replaces the key pair of a bucket, the one before stops working`() {
-        val bucket = service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
+        val bucket = service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>().bucket
         val before = service.keyPair("pelle-io")!!
 
         val (accessKeyId, secret) = service.replaceKeyPair("pelle-io")!!
@@ -79,11 +79,11 @@ class S3BucketServiceTest {
 
     @Test
     fun `rejects taken, invalid and reserved names`() {
-        service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>()
+        service.create("pelle-io", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
 
-        service.create("pelle-io", owner = "admin@example.org") shouldBe CreateBucketResult.NameTaken
+        service.create("pelle-io", owner = "admin@example.org") shouldBe BucketCreateResult.NameTaken
         for (name in listOf("ab", "Upper", "-start", "end-", "dot.ted", "a..b", "192.168.0.1", "a".repeat(64), "under_score", "console")) {
-            service.create(name, owner = "admin@example.org") shouldBe CreateBucketResult.InvalidName
+            service.create(name, owner = "admin@example.org") shouldBe BucketCreateResult.InvalidName
         }
         service.all().map { it.name } shouldBe listOf("pelle-io")
     }
@@ -100,8 +100,8 @@ class S3BucketServiceTest {
                 domains = domains(database, "sak.example.org"),
             )
             }
-        val site = buckets.create("site", listOf("example.com"), owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
-        val private = buckets.create("private", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>().bucket
+        val site = buckets.create("site", listOf("example.com"), owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>().bucket
+        val private = buckets.create("private", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>().bucket
 
         buckets.subdomain("site") shouldBe "site.example.org"
         buckets.servedDomains(site) shouldBe listOf("example.com", "site.example.org")
@@ -111,22 +111,22 @@ class S3BucketServiceTest {
         buckets.bucketOfDomain("www.private.example.org") shouldBe null
 
         // the subdomain of another bucket is taken, the own one is no other domain
-        buckets.updateDomains("site", listOf("private.example.org"), owner = "admin@example.org") shouldBe UpdateDomainsResult.DomainTaken
-        buckets.updateDomains("site", listOf("site.example.org"), owner = "admin@example.org").shouldBeInstanceOf<UpdateDomainsResult.Updated>()
+        buckets.updateDomains("site", listOf("private.example.org"), owner = "admin@example.org") shouldBe BucketDomainsUpdateResult.DomainTaken
+        buckets.updateDomains("site", listOf("site.example.org"), owner = "admin@example.org").shouldBeInstanceOf<BucketDomainsUpdateResult.Updated>()
         buckets.servedDomains(buckets.byName("site")!!) shouldBe listOf("site.example.org")
 
         // no name whose subdomain is served already, sak.<base_domain> is the frontend's
-        buckets.create("sak", owner = "admin@example.org") shouldBe CreateBucketResult.InvalidName
-        buckets.create("redirected", owner = "admin@example.org") shouldBe CreateBucketResult.SubdomainTaken
-        buckets.create("other", listOf("taken.example.org"), owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>()
-        buckets.create("taken", owner = "admin@example.org") shouldBe CreateBucketResult.SubdomainTaken
+        buckets.create("sak", owner = "admin@example.org") shouldBe BucketCreateResult.InvalidName
+        buckets.create("redirected", owner = "admin@example.org") shouldBe BucketCreateResult.SubdomainTaken
+        buckets.create("other", listOf("taken.example.org"), owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
+        buckets.create("taken", owner = "admin@example.org") shouldBe BucketCreateResult.SubdomainTaken
     }
 
     @Test
     fun `serves buckets at their domains, in their order`() {
         val bucket = service.create("site", listOf("WWW.example.org", "example.org", "www.example.org"), owner = "admin@example.org")
-        bucket.shouldBeInstanceOf<CreateBucketResult.Created>().bucket.domains shouldBe listOf("www.example.org", "example.org")
-        service.create("private", owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>()
+        bucket.shouldBeInstanceOf<BucketCreateResult.Created>().bucket.domains shouldBe listOf("www.example.org", "example.org")
+        service.create("private", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
 
         service.byName("site")!!.domains shouldBe listOf("www.example.org", "example.org")
         service.all().associate { it.name to it.domains } shouldBe mapOf("private" to emptyList(), "site" to listOf("www.example.org", "example.org"))
@@ -137,13 +137,13 @@ class S3BucketServiceTest {
 
     @Test
     fun `rejects domains that are invalid, reserved or another bucket's`() {
-        service.create("site", listOf("example.org"), owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>()
+        service.create("site", listOf("example.org"), owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
 
-        service.create("other", listOf("example.org"), owner = "admin@example.org") shouldBe CreateBucketResult.DomainTaken
-        service.create("other", listOf("console.example.org"), owner = "admin@example.org") shouldBe CreateBucketResult.InvalidDomain
-        service.create("other", listOf("redirected.example.org"), owner = "admin@example.org") shouldBe CreateBucketResult.InvalidDomain
-        service.create("other", listOf("no domain"), owner = "admin@example.org") shouldBe CreateBucketResult.InvalidDomain
-        service.create("site", listOf("other.example.org"), owner = "admin@example.org") shouldBe CreateBucketResult.NameTaken
+        service.create("other", listOf("example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.DomainTaken
+        service.create("other", listOf("console.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.InvalidDomain
+        service.create("other", listOf("redirected.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.InvalidDomain
+        service.create("other", listOf("no domain"), owner = "admin@example.org") shouldBe BucketCreateResult.InvalidDomain
+        service.create("site", listOf("other.example.org"), owner = "admin@example.org") shouldBe BucketCreateResult.NameTaken
         service.all().map { it.name } shouldBe listOf("site")
     }
 
@@ -153,16 +153,16 @@ class S3BucketServiceTest {
         service.create("other", listOf("other.example.org"), owner = "admin@example.org")
         changes.clear()
 
-        service.updateDomains("site", listOf("www.example.org", "example.org"), owner = "admin@example.org").shouldBeInstanceOf<UpdateDomainsResult.Updated>()
+        service.updateDomains("site", listOf("www.example.org", "example.org"), owner = "admin@example.org").shouldBeInstanceOf<BucketDomainsUpdateResult.Updated>()
             .bucket.domains shouldBe listOf("www.example.org", "example.org")
         service.byName("site")!!.domains shouldBe listOf("www.example.org", "example.org")
 
-        service.updateDomains("site", listOf("other.example.org"), owner = "admin@example.org") shouldBe UpdateDomainsResult.DomainTaken
-        service.updateDomains("site", listOf("console.example.org"), owner = "admin@example.org") shouldBe UpdateDomainsResult.InvalidDomain
-        service.updateDomains("unknown", emptyList(), owner = "admin@example.org") shouldBe UpdateDomainsResult.NotFound
+        service.updateDomains("site", listOf("other.example.org"), owner = "admin@example.org") shouldBe BucketDomainsUpdateResult.DomainTaken
+        service.updateDomains("site", listOf("console.example.org"), owner = "admin@example.org") shouldBe BucketDomainsUpdateResult.InvalidDomain
+        service.updateDomains("unknown", emptyList(), owner = "admin@example.org") shouldBe BucketDomainsUpdateResult.NotFound
         service.byName("site")!!.domains shouldBe listOf("www.example.org", "example.org")
 
-        service.updateDomains("site", emptyList(), owner = "admin@example.org").shouldBeInstanceOf<UpdateDomainsResult.Updated>()
+        service.updateDomains("site", emptyList(), owner = "admin@example.org").shouldBeInstanceOf<BucketDomainsUpdateResult.Updated>()
         service.byName("site")!!.domains shouldBe emptyList()
         changes.size shouldBe 2
     }
@@ -172,14 +172,14 @@ class S3BucketServiceTest {
         service.create("site", listOf("example.com"), owner = "admin@example.org")
         changes.clear()
 
-        service.delete("site") shouldBe DeleteBucketResult.Deleted
-        service.delete("site") shouldBe DeleteBucketResult.NotFound
+        service.delete("site") shouldBe BucketDeleteResult.Deleted
+        service.delete("site") shouldBe BucketDeleteResult.NotFound
         changes shouldBe listOf("changed")
 
         service.byName("site") shouldBe null
         service.all() shouldBe emptyList()
-        service.create("site", owner = "admin@example.org") shouldBe CreateBucketResult.NameTaken
-        service.create("other", listOf("example.com"), owner = "admin@example.org").shouldBeInstanceOf<CreateBucketResult.Created>()
+        service.create("site", owner = "admin@example.org") shouldBe BucketCreateResult.NameTaken
+        service.create("other", listOf("example.com"), owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>()
     }
 
     @Test
@@ -190,12 +190,12 @@ class S3BucketServiceTest {
         redirects.insert("example.net", RedirectTarget.Bucket("site"), owner = "admin@example.org")
         changes.clear()
 
-        service.delete("site") shouldBe DeleteBucketResult.Redirected(listOf("example.net", "www.example.com"))
+        service.delete("site") shouldBe BucketDeleteResult.Redirected(listOf("example.net", "www.example.com"))
         service.byName("site") shouldNotBe null
         changes shouldBe emptyList()
 
         redirects.delete("www.example.com")
         redirects.update("example.net", RedirectTarget.Domain("example.org"))
-        service.delete("site") shouldBe DeleteBucketResult.Deleted
+        service.delete("site") shouldBe BucketDeleteResult.Deleted
     }
 }

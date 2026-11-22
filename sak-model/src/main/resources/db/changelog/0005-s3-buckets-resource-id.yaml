@@ -1,12 +1,11 @@
 # the buckets get a resource id (MODEL-8): their objects are on the data volume below s3/<resource_id>,
 # no longer below buckets/<name>. The rows of every bucket get one, the deleted ones included.
-# objects_at_name tells the buckets whose objects are still below their name: every bucket that is
-# there now, until the backend copied its objects when it starts (BucketLayoutMigration); it goes
-# with that migration in a later release
+# objects_at_name told the buckets whose objects were still below their name: every bucket that was
+# there then, until the backend of that release copied its objects when it started; it goes with 0006
 databaseChangeLog:
   # as for the files (0004): sqlite adds no column without a default to a table that has rows, and
   # s3_buckets_domains refers to the table, so it is not rebuilt. The defaults are only there for the
-  # rows that are now, the repository sets both values of every new row. Should two rows draw the same
+  # rows that are now, the repository sets the resource id of every new row. Should two rows draw the same
   # resource id, the unique index fails, the change set is rolled back and the next start draws again
   - changeSet:
       id: 0005-s3-buckets-resource-id

@@ -42,9 +42,9 @@ class RedirectServiceTest {
     @Test
     fun `redirects to external domains and to the domain a bucket is served at`() {
         val external = service.create("Example.COM", RedirectTarget.Domain("Other.example.net"), owner = "admin@example.org")
-        external.shouldBeInstanceOf<CreateRedirectResult.Created>().redirect shouldBe
+        external.shouldBeInstanceOf<RedirectCreateResult.Created>().redirect shouldBe
             Redirect("example.com", RedirectTarget.Domain("other.example.net"), clock.instant(), null, "admin@example.org")
-        service.create("example.de", RedirectTarget.Bucket("site"), owner = "admin@example.org").shouldBeInstanceOf<CreateRedirectResult.Created>()
+        service.create("example.de", RedirectTarget.Bucket("site"), owner = "admin@example.org").shouldBeInstanceOf<RedirectCreateResult.Created>()
 
         service.all().map { it.sourceDomain to service.location(it.target) } shouldBe
             listOf("example.com" to "other.example.net", "example.de" to "example.org")
@@ -53,17 +53,17 @@ class RedirectServiceTest {
 
     @Test
     fun `rejects invalid, reserved and taken sources and targets that lead nowhere`() {
-        service.create("example.com", RedirectTarget.Domain("example.org"), owner = "admin@example.org").shouldBeInstanceOf<CreateRedirectResult.Created>()
+        service.create("example.com", RedirectTarget.Domain("example.org"), owner = "admin@example.org").shouldBeInstanceOf<RedirectCreateResult.Created>()
         changes.clear()
 
-        service.create("example.com", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe CreateRedirectResult.Exists
+        service.create("example.com", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.Exists
         for (source in listOf("localhost", "-a.com", "a-.com", "a..com", "1.2.3.4", "under_score.com", "console.example.org", "example.org")) {
-            service.create(source, RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe CreateRedirectResult.InvalidDomain
+            service.create(source, RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.InvalidDomain
         }
-        service.create("example.net", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe CreateRedirectResult.InvalidDomain
-        service.create("example.net", RedirectTarget.Domain("no domain"), owner = "admin@example.org") shouldBe CreateRedirectResult.InvalidDomain
-        service.create("example.net", RedirectTarget.Bucket("unknown"), owner = "admin@example.org") shouldBe CreateRedirectResult.UnknownBucket
-        service.create("example.net", RedirectTarget.Bucket("private"), owner = "admin@example.org") shouldBe CreateRedirectResult.BucketNotServed
+        service.create("example.net", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.InvalidDomain
+        service.create("example.net", RedirectTarget.Domain("no domain"), owner = "admin@example.org") shouldBe RedirectCreateResult.InvalidDomain
+        service.create("example.net", RedirectTarget.Bucket("unknown"), owner = "admin@example.org") shouldBe RedirectCreateResult.UnknownBucket
+        service.create("example.net", RedirectTarget.Bucket("private"), owner = "admin@example.org") shouldBe RedirectCreateResult.BucketNotServed
 
         service.all().map { it.sourceDomain } shouldBe listOf("example.com")
         changes shouldBe emptyList()
@@ -76,8 +76,8 @@ class RedirectServiceTest {
         val redirects = RedirectService(database, buckets, clock)
 
         val created = redirects.create("example.de", RedirectTarget.Bucket("private"), owner = "admin@example.org")
-        redirects.location(created.shouldBeInstanceOf<CreateRedirectResult.Created>().redirect.target) shouldBe "private.example.org"
-        redirects.create("private.example.org", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe CreateRedirectResult.InvalidDomain
+        redirects.location(created.shouldBeInstanceOf<RedirectCreateResult.Created>().redirect.target) shouldBe "private.example.org"
+        redirects.create("private.example.org", RedirectTarget.Domain("example.net"), owner = "admin@example.org") shouldBe RedirectCreateResult.InvalidDomain
     }
 
     @Test
@@ -87,18 +87,18 @@ class RedirectServiceTest {
         val later = testClock(TEST_NOW.plusSeconds(60))
         val service = RedirectService(database, buckets, later).apply { onChange { changes.add("changed") } }
 
-        service.update("EXAMPLE.com", RedirectTarget.Bucket("site")).shouldBeInstanceOf<UpdateRedirectResult.Updated>().redirect shouldBe
+        service.update("EXAMPLE.com", RedirectTarget.Bucket("site")).shouldBeInstanceOf<RedirectUpdateResult.Updated>().redirect shouldBe
             Redirect("example.com", RedirectTarget.Bucket("site"), clock.instant(), later.instant(), "admin@example.org")
         service.byId("example.com") shouldBe Redirect("example.com", RedirectTarget.Bucket("site"), clock.instant(), later.instant(), "admin@example.org")
-        service.update("example.com", RedirectTarget.Domain("Example.NET")).shouldBeInstanceOf<UpdateRedirectResult.Updated>()
+        service.update("example.com", RedirectTarget.Domain("Example.NET")).shouldBeInstanceOf<RedirectUpdateResult.Updated>()
         service.byId("example.com")!!.target shouldBe RedirectTarget.Domain("example.net")
         changes.size shouldBe 2
 
-        service.update("example.de", RedirectTarget.Domain("example.net")) shouldBe UpdateRedirectResult.NotFound
-        service.update("example.com", RedirectTarget.Domain("example.com")) shouldBe UpdateRedirectResult.InvalidDomain
-        service.update("example.com", RedirectTarget.Domain("no domain")) shouldBe UpdateRedirectResult.InvalidDomain
-        service.update("example.com", RedirectTarget.Bucket("unknown")) shouldBe UpdateRedirectResult.UnknownBucket
-        service.update("example.com", RedirectTarget.Bucket("private")) shouldBe UpdateRedirectResult.BucketNotServed
+        service.update("example.de", RedirectTarget.Domain("example.net")) shouldBe RedirectUpdateResult.NotFound
+        service.update("example.com", RedirectTarget.Domain("example.com")) shouldBe RedirectUpdateResult.InvalidDomain
+        service.update("example.com", RedirectTarget.Domain("no domain")) shouldBe RedirectUpdateResult.InvalidDomain
+        service.update("example.com", RedirectTarget.Bucket("unknown")) shouldBe RedirectUpdateResult.UnknownBucket
+        service.update("example.com", RedirectTarget.Bucket("private")) shouldBe RedirectUpdateResult.BucketNotServed
         service.byId("example.com")!!.target shouldBe RedirectTarget.Domain("example.net")
         changes.size shouldBe 2
     }
@@ -107,8 +107,8 @@ class RedirectServiceTest {
     fun `deletes redirects`() {
         service.create("example.com", RedirectTarget.Domain("example.org"), owner = "admin@example.org")
 
-        service.delete("EXAMPLE.com") shouldBe DeleteRedirectResult.Deleted
-        service.delete("example.com") shouldBe DeleteRedirectResult.NotFound
+        service.delete("EXAMPLE.com") shouldBe RedirectDeleteResult.Deleted
+        service.delete("example.com") shouldBe RedirectDeleteResult.NotFound
         service.all() shouldBe emptyList()
         changes.size shouldBe 2
     }

@@ -45,7 +45,7 @@ import io.pelle.sak.auth.model.ConnectResponse
 import io.pelle.sak.auth.model.ConnectStatusResponse
 import io.pelle.sak.auth.model.ExchangeRequest
 import io.pelle.sak.auth.model.ExchangeResponse
-import io.pelle.sak.auth.model.LoginClient
+import io.pelle.sak.auth.model.LoginClientRequest
 import io.pelle.sak.auth.model.LoginRequest
 import io.pelle.sak.auth.model.PasswordLoginRequest
 import io.pelle.sak.auth.model.WhoAmIResponse
@@ -144,7 +144,7 @@ fun Route.login(
         }
         // every client but the web app sends a nonce, of 16 to 128 characters
         val nonce = request.nonce
-        if ((request.client != LoginClient.WEB && nonce == null) || (nonce != null && nonce.length !in 16..128)) {
+        if ((request.client != LoginClientRequest.WEB && nonce == null) || (nonce != null && nonce.length !in 16..128)) {
             call.respondErrors(AuthTexts.INVALID_NONCE)
             return@post
         }
@@ -153,13 +153,15 @@ fun Route.login(
             call.respond(HttpStatusCode.TooManyRequests)
             return@post
         }
+        // the address itself: logClient reads no network
+        val logged = logClient(call.clientAddress())
 
         // everything that depends on the address happens after the answer, so neither the answer
         // nor its timing tells whether the address may log in
         val redirect = safeRedirect(request.redirect)
         val language = call.language()
         call.application.launch(Dispatchers.IO) {
-            if (rolesOf(email).isEmpty() || !mayHaveLink(email, client, loginsPerAddress, linksPerHour)) {
+            if (rolesOf(email).isEmpty() || !mayHaveLink(email, client, logged, loginsPerAddress, linksPerHour)) {
                 return@launch
             }
             // the redirect travels in the token, the signin page takes it from the exchange; a link
@@ -474,12 +476,15 @@ fun Route.whoAmI(nameOf: (email: String) -> String? = { null }) {
 // whether another link may be sent; logs when an allowed address asks in vain
 private fun mayHaveLink(
     email: String,
+    // the network of the client, what the limit counts
     client: String,
+    // the client as the logs name it (logClient)
+    logged: String,
     loginsPerAddress: RateLimiter,
     linksPerHour: RateLimiter,
 ): Boolean {
     if (!loginsPerAddress.tryAcquire("$email $client")) {
-        logger.info { "not sending another login link to ${logAddress(email)} for ${logClient(client)} this hour" }
+        logger.info { "not sending another login link to ${logAddress(email)} for $logged this hour" }
         return false
     }
     if (!linksPerHour.tryAcquire("")) {

@@ -31,10 +31,10 @@ import io.pelle.sak.backend.hosting.model.BucketSecretResponse
 import io.pelle.sak.backend.hosting.model.BucketStatisticsResponse
 import io.pelle.sak.backend.hosting.model.CreateBucketRequest
 import io.pelle.sak.backend.hosting.model.UpdateDomainsRequest
-import io.pelle.sak.backend.hosting.CreateBucketResult
+import io.pelle.sak.backend.hosting.BucketCreateResult
 import io.pelle.sak.model.s3.S3Bucket
 import io.pelle.sak.backend.hosting.S3BucketService
-import io.pelle.sak.backend.hosting.UpdateDomainsResult
+import io.pelle.sak.backend.hosting.BucketDomainsUpdateResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -88,15 +88,15 @@ fun Route.buckets(
     post {
         val request = call.receive<CreateBucketRequest>()
         when (val result = withContext(Dispatchers.IO) { bucketService.create(request.name, request.domains, call.owner) }) {
-            is CreateBucketResult.Created -> {
+            is BucketCreateResult.Created -> {
                 statistics.warm(listOf(result.bucket.name))
                 call.respond(HttpStatusCode.Created, result.bucket.response())
             }
-            CreateBucketResult.InvalidName -> call.respondErrors(HostingTexts.INVALID_NAME)
-            CreateBucketResult.InvalidDomain -> call.respondErrors(HostingTexts.INVALID_DOMAIN)
-            CreateBucketResult.NameTaken -> call.respondErrors(HostingTexts.NAME_TAKEN, status = HttpStatusCode.Conflict)
-            CreateBucketResult.SubdomainTaken -> call.respondErrors(HostingTexts.SUBDOMAIN_TAKEN, status = HttpStatusCode.Conflict)
-            CreateBucketResult.DomainTaken -> call.respondErrors(HostingTexts.DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
+            BucketCreateResult.InvalidName -> call.respondErrors(HostingTexts.INVALID_NAME)
+            BucketCreateResult.InvalidDomain -> call.respondErrors(HostingTexts.INVALID_DOMAIN)
+            BucketCreateResult.NameTaken -> call.respondErrors(HostingTexts.NAME_TAKEN, status = HttpStatusCode.Conflict)
+            BucketCreateResult.SubdomainTaken -> call.respondErrors(HostingTexts.SUBDOMAIN_TAKEN, status = HttpStatusCode.Conflict)
+            BucketCreateResult.DomainTaken -> call.respondErrors(HostingTexts.DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(S3_TAG)
@@ -128,9 +128,9 @@ fun Route.buckets(
 
     delete("/{bucket}") {
         when (val result = withContext(Dispatchers.IO) { bucketService.delete(call.parameters["bucket"].orEmpty()) }) {
-            DeleteBucketResult.Deleted -> call.respond(HttpStatusCode.NoContent)
-            DeleteBucketResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            is DeleteBucketResult.Redirected ->
+            BucketDeleteResult.Deleted -> call.respond(HttpStatusCode.NoContent)
+            BucketDeleteResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            is BucketDeleteResult.Redirected ->
                 call.respondErrors(
                     Text(HostingTexts.REDIRECTED, "sources" to result.sources.joinToString(", ")),
                     status = HttpStatusCode.Conflict,
@@ -143,11 +143,7 @@ fun Route.buckets(
             "The bucket is no longer served and its key pair is refused. Its name stays taken and its objects stay " +
             "in the storage until it is purged. A bucket that redirects lead to is not deleted."
         parameters {
-            path("bucket") {
-                description = "The name of the bucket"
-                required = true
-                schema = jsonSchema<String>()
-            }
+            bucketName()
         }
         responses {
             HttpStatusCode.NoContent { description = "The bucket is deleted" }
@@ -160,21 +156,17 @@ fun Route.buckets(
         val request = call.receive<UpdateDomainsRequest>()
         val name = call.parameters["bucket"].orEmpty()
         when (val result = withContext(Dispatchers.IO) { bucketService.updateDomains(name, request.domains, call.owner) }) {
-            is UpdateDomainsResult.Updated -> call.respond(result.bucket.response())
-            UpdateDomainsResult.NotFound -> call.respond(HttpStatusCode.NotFound)
-            UpdateDomainsResult.InvalidDomain -> call.respondErrors(HostingTexts.INVALID_DOMAIN)
-            UpdateDomainsResult.DomainTaken -> call.respondErrors(HostingTexts.DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
+            is BucketDomainsUpdateResult.Updated -> call.respond(result.bucket.response())
+            BucketDomainsUpdateResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            BucketDomainsUpdateResult.InvalidDomain -> call.respondErrors(HostingTexts.INVALID_DOMAIN)
+            BucketDomainsUpdateResult.DomainTaken -> call.respondErrors(HostingTexts.DOMAIN_TAKEN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(S3_TAG)
         summary = "Change the domains of a bucket"
         description = "Serves the bucket at the domains in their order instead of its current ones, none for no domain."
         parameters {
-            path("bucket") {
-                description = "The name of the bucket"
-                required = true
-                schema = jsonSchema<String>()
-            }
+            bucketName()
         }
         requestBody {
             required = true
@@ -202,11 +194,7 @@ fun Route.buckets(
         tag(S3_TAG)
         summary = "A bucket with the number of its objects and its size"
         parameters {
-            path("bucket") {
-                description = "The name of the bucket"
-                required = true
-                schema = jsonSchema<String>()
-            }
+            bucketName()
         }
         responses {
             HttpStatusCode.OK {
@@ -229,11 +217,7 @@ fun Route.buckets(
         tag(S3_TAG)
         summary = "The key pair of a bucket"
         parameters {
-            path("bucket") {
-                description = "The name of the bucket"
-                required = true
-                schema = jsonSchema<String>()
-            }
+            bucketName()
         }
         responses {
             HttpStatusCode.OK {
@@ -257,11 +241,7 @@ fun Route.buckets(
         summary = "Replace the key pair of a bucket"
         description = "A new access key and secret; the ones before stop working at once, e.g. after they leaked."
         parameters {
-            path("bucket") {
-                description = "The name of the bucket"
-                required = true
-                schema = jsonSchema<String>()
-            }
+            bucketName()
         }
         responses {
             HttpStatusCode.OK {
@@ -294,3 +274,10 @@ object HostingTexts : Catalog("hosting") {
     val HEALTH_NAME = text("health.name")
     val HEALTH_WHAT = text("health.what")
 }
+
+private fun io.ktor.openapi.Parameters.Builder.bucketName() =
+    path("bucket") {
+        description = "The name of the bucket"
+        required = true
+        schema = jsonSchema<String>()
+    }

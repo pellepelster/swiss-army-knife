@@ -12,7 +12,7 @@ import io.pelle.sak.config.DnsMode
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.backend.hosting.CreateBucketResult
+import io.pelle.sak.backend.hosting.BucketCreateResult
 import io.pelle.sak.backend.hosting.S3BucketService
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -58,7 +58,7 @@ class SakBackendTest {
         val database = SakDatabase.open(databaseFile(sakConfig()))
         val buckets = S3BucketService(database)
         listOf("bucket1", "bucket2").associateWith {
-            (buckets.create(it, owner = "admin@example.org") as CreateBucketResult.Created).bucket.let { bucket ->
+            (buckets.create(it, owner = "admin@example.org") as BucketCreateResult.Created).bucket.let { bucket ->
                 AwsBasicCredentials.create(bucket.accessKeyId, buckets.keyPair(bucket.name)!!.second.value)
             }
         }
@@ -217,33 +217,6 @@ class SakBackendTest {
     @Test
     fun `serves the s3 api at s3 with the key pair of the bucket and the data dir`() {
         withServer { port -> s3Client("http://localhost:$port/s3").putAndGet() }
-    }
-
-    @Test
-    fun `a start copies the objects of a bucket from before the resource ids and serves them from its resource id`() {
-        withServer { port -> s3Client("http://localhost:$port/s3").putAndGet() }
-        // the bucket as a release before the resource ids left it: its objects below its name
-        val resourceId = S3BucketService(SakDatabase.open(databaseFile(sakConfig()))).byName("bucket1")!!.resourceId
-        val old = dataDir.resolve("s3/buckets/bucket1")
-        Files.createDirectories(old.parent)
-        Files.move(dataDir.resolve("s3/$resourceId"), old)
-        java.sql.DriverManager.getConnection("jdbc:sqlite:${databaseFile(sakConfig())}").use { connection ->
-            connection.createStatement().use { it.executeUpdate("UPDATE s3_buckets SET objects_at_name = 1 WHERE name = 'bucket1'") }
-        }
-
-        withServer { port ->
-            val s3 = s3Client("http://localhost:$port/s3")
-            String(s3.getObject { it.bucket("bucket1").key("dir/hello.txt") }.readAllBytes()) shouldBe "hello sak"
-            s3.deleteObject { it.bucket("bucket1").key("dir/hello.txt") }
-        }
-
-        // the copy is used, what is below the name stays
-        Files.exists(dataDir.resolve("s3/$resourceId/data/dir/hello.txt")) shouldBe false
-        Files.readString(old.resolve("data/dir/hello.txt")) shouldBe "hello sak"
-        // and does not come back with the next start
-        withServer { port ->
-            shouldThrow<S3Exception> { s3Client("http://localhost:$port/s3").getObject { it.bucket("bucket1").key("dir/hello.txt") }.readAllBytes() }
-        }
     }
 
     @Test

@@ -6,44 +6,44 @@ import io.pelle.sak.api.render
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.lists.ListChanges
-import io.pelle.sak.backend.lists.ListResult
+import io.pelle.sak.backend.lists.ListSaveResult
 import io.pelle.sak.backend.lists.ListTexts
 import io.pelle.sak.backend.lists.listValues
 import io.pelle.sak.backend.lists.result
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.todo.TodoItem
 import io.pelle.sak.model.lists.SakList
-import io.pelle.sak.model.lists.ListDelete
+import io.pelle.sak.model.lists.ListDeleteResult
 import io.pelle.sak.model.todo.TodoPriority
 import io.pelle.sak.model.todo.TodoRepository
 import kotlinx.coroutines.flow.Flow
 import java.time.Clock
 import java.time.LocalDate
 
-sealed interface TodoNewItemResult {
+sealed interface TodoItemAddResult {
     data class Saved(
         val item: TodoItem,
-    ) : TodoNewItemResult
+    ) : TodoItemAddResult
 
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : TodoNewItemResult
+    ) : TodoItemAddResult
 
     // the list the new task names is none the user sees (API-6)
-    data object UnknownList : TodoNewItemResult
+    data object UnknownList : TodoItemAddResult
 }
 
-sealed interface TodoItemResult {
+sealed interface TodoItemUpdateResult {
     data class Saved(
         val item: TodoItem,
-    ) : TodoItemResult
+    ) : TodoItemUpdateResult
 
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : TodoItemResult
+    ) : TodoItemUpdateResult
 
     // the user sees no such task
-    data object NotFound : TodoItemResult
+    data object NotFound : TodoItemUpdateResult
 }
 
 // the todo lists and their tasks, the only way to them; it checks the values, TodoRepository checks
@@ -88,10 +88,10 @@ class TodoService(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListResult {
+    ): ListSaveResult {
         val (values, errors) = listValues(name, icon, TodoTexts.LISTS)
-        if (errors.isNotEmpty()) return ListResult.Invalid(errors)
-        return repository.insertList(user, values.name, shared, values.icon)?.let { ListResult.Saved(changed(it)) } ?: ListResult.Exists
+        if (errors.isNotEmpty()) return ListSaveResult.Invalid(errors)
+        return repository.insertList(user, values.name, shared, values.icon)?.let { ListSaveResult.Saved(changed(it)) } ?: ListSaveResult.Exists
     }
 
     fun updateList(
@@ -100,9 +100,9 @@ class TodoService(
         name: String,
         shared: Boolean,
         icon: String? = null,
-    ): ListResult {
+    ): ListSaveResult {
         val (values, errors) = listValues(name, icon, TodoTexts.LISTS)
-        if (errors.isNotEmpty()) return ListResult.Invalid(errors)
+        if (errors.isNotEmpty()) return ListSaveResult.Invalid(errors)
         return repository.updateList(user, id, values.name, shared, values.icon).also(changes::changed).result()
     }
 
@@ -110,7 +110,7 @@ class TodoService(
     fun deleteList(
         user: String,
         id: Int,
-    ): ListDelete = repository.deleteList(user, id).also { if (it == ListDelete.Deleted) changes.changed(id) }
+    ): ListDeleteResult = repository.deleteList(user, id).also { if (it == ListDeleteResult.Deleted) changes.changed(id) }
 
     // the tasks of a list the user sees, done ones in their place, by priority (TODO-3, TODO-5); null
     // for another list
@@ -127,7 +127,7 @@ class TodoService(
         title: String,
         dueDate: String? = null,
         priority: String? = null,
-    ): TodoNewItemResult {
+    ): TodoItemAddResult {
         val normalized = title.trim()
         val day = day(dueDate)
         val errors =
@@ -140,9 +140,9 @@ class TodoService(
                 day.exceptionOrNull()?.let { ErrorMessage(TodoTexts.INVALID_DUE_DATE) },
                 if (priority != null && TodoPriority.of(priority) == null) ErrorMessage(TodoTexts.INVALID_PRIORITY) else null,
             )
-        if (errors.isNotEmpty()) return TodoNewItemResult.Invalid(errors)
+        if (errors.isNotEmpty()) return TodoItemAddResult.Invalid(errors)
         val item = repository.insertItem(user, listId, normalized, day.getOrNull(), priority?.let(TodoPriority::of) ?: TodoPriority.NORMAL)
-        return item?.let { TodoNewItemResult.Saved(changed(it)) } ?: TodoNewItemResult.UnknownList
+        return item?.let { TodoItemAddResult.Saved(changed(it)) } ?: TodoItemAddResult.UnknownList
     }
 
     // done or open again (TODO-3), by any user who sees its list (LIST-2)
@@ -150,15 +150,15 @@ class TodoService(
         user: String,
         id: Int,
         done: Boolean,
-    ): TodoItemResult = saved(repository.setDone(user, id, done))
+    ): TodoItemUpdateResult = saved(repository.setDone(user, id, done))
 
     // high, normal or low (TODO-5), by any user who sees its list (LIST-2)
     fun setPriority(
         user: String,
         id: Int,
         priority: String,
-    ): TodoItemResult {
-        val value = TodoPriority.of(priority) ?: return TodoItemResult.Invalid(listOf(ErrorMessage(TodoTexts.INVALID_PRIORITY)))
+    ): TodoItemUpdateResult {
+        val value = TodoPriority.of(priority) ?: return TodoItemUpdateResult.Invalid(listOf(ErrorMessage(TodoTexts.INVALID_PRIORITY)))
         return saved(repository.setPriority(user, id, value))
     }
 
@@ -167,8 +167,8 @@ class TodoService(
         user: String,
         id: Int,
         dueDate: String?,
-    ): TodoItemResult {
-        val day = day(dueDate).getOrElse { return TodoItemResult.Invalid(listOf(ErrorMessage(TodoTexts.INVALID_DUE_DATE))) }
+    ): TodoItemUpdateResult {
+        val day = day(dueDate).getOrElse { return TodoItemUpdateResult.Invalid(listOf(ErrorMessage(TodoTexts.INVALID_DUE_DATE))) }
         return saved(repository.setDueDate(user, id, day))
     }
 
@@ -183,7 +183,7 @@ class TodoService(
     // yyyy-mm-dd, none or empty for no day; a failure for another text
     private fun day(text: String?): Result<LocalDate?> = text?.trim()?.ifEmpty { null }?.let { runCatching { LocalDate.parse(it) } } ?: Result.success(null)
 
-    private fun saved(item: TodoItem?) = item?.let { TodoItemResult.Saved(changed(it)) } ?: TodoItemResult.NotFound
+    private fun saved(item: TodoItem?) = item?.let { TodoItemUpdateResult.Saved(changed(it)) } ?: TodoItemUpdateResult.NotFound
 
     private fun changed(list: SakList) = list.also { changes.changed(it.id) }
 

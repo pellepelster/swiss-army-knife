@@ -108,9 +108,9 @@ fun Route.settings(registry: SettingsRegistry) {
     put("/{scope}") {
         val request = call.receive<SettingsRequest>()
         when (val result = withContext(Dispatchers.IO) { registry.update(call.parameters["scope"].orEmpty(), request.settings, call.owner) }) {
-            is UpdateSettingsResult.Updated -> call.respond(SettingsResponse(result.values))
-            is UpdateSettingsResult.Invalid -> call.respondErrors(result.errors)
-            UpdateSettingsResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+            is SettingsUpdateResult.Updated -> call.respond(SettingsResponse(result.values))
+            is SettingsUpdateResult.Invalid -> call.respondErrors(result.errors)
+            SettingsUpdateResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }
     }.describe {
         tag(SETTINGS_TAG)

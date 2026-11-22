@@ -113,7 +113,7 @@ private val SecurityHeaders =
 
 // the admin of the password login: the first of the admins, the same user as by e-mail (multi
 // user), or ADMIN_USERNAME without admins (single user)
-fun adminOf(auth: SakConfig.AuthConfig) = auth.admins.firstOrNull()?.trim()?.lowercase() ?: ADMIN_USERNAME
+fun adminOf(auth: SakConfig.AuthConfig) = auth.admins.firstOrNull()?.let(UserService::normalize) ?: ADMIN_USERNAME
 
 // the roles of an address: the admins of the configuration, then the users an admin added (the
 // table, asked on every request of a session and every login of restic: a deleted user's next
@@ -122,7 +122,7 @@ fun rolesOf(
     auth: SakConfig.AuthConfig,
     users: UserService,
 ): (String) -> Set<Role> {
-    val admins = auth.admins.map { it.trim().lowercase() }.toSet() + adminOf(auth)
+    val admins = auth.admins.map(UserService::normalize).toSet() + adminOf(auth)
     return { email ->
         when {
             email in admins -> setOf(Role.ADMIN)

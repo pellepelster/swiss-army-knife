@@ -1,5 +1,8 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.backend.isFree
+import io.pelle.sak.backend.blobPath
+import io.pelle.sak.backend.leftovers
 import io.pelle.sak.api.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.model.ResourceId
@@ -18,7 +21,6 @@ import java.io.BufferedInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.nio.file.Path
-import java.security.MessageDigest
 import java.time.Clock
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -36,22 +38,22 @@ import kotlin.math.abs
 
 private val logger = KotlinLogging.logger {}
 
-sealed interface StoreFileResult {
+sealed interface FileStoreResult {
     data class Stored(
         val file: StoredFile,
-    ) : StoreFileResult
+    ) : FileStoreResult
 
-    data object TooLarge : StoreFileResult
+    data object TooLarge : FileStoreResult
 
     // only the types the storage knows by their first bytes are taken, and only when they can be read
-    data object UnsupportedType : StoreFileResult
+    data object UnsupportedType : FileStoreResult
 
     // an image larger than MAX_IMAGE_SIZE pixels on its longer side
-    data object ImageTooLarge : StoreFileResult
+    data object ImageTooLarge : FileStoreResult
 
 
     // a recording longer than MAX_RECORDING_SECONDS
-    data object RecordingTooLong : StoreFileResult
+    data object RecordingTooLong : FileStoreResult
 }
 
 // the file storage of every app, the only way to the files. Every upload is a file with an id and a
@@ -77,7 +79,7 @@ class FileService(
         storage: BinaryStorage,
         clock: Clock,
         maxSize: Long,
-    ) : this(FileRepository(database, clock, free = { storage.children(directory(it)).isEmpty() }), storage, maxSize)
+    ) : this(FileRepository(database, clock, free = storage::isFree), storage, maxSize)
 
     // the file and size whose thumbnail is being made, by its resource id and the size
     private val thumbnailLocks = ConcurrentHashMap<String, Any>()
@@ -107,16 +109,9 @@ class FileService(
     // the content of a stored file, null when it is not in the storage
     fun content(file: StoredFile): BlobContent? = storage.content(blob(file.resourceId, CONTENT))
 
-    // moves the content of the files from below their sha-256 to their resource ids, once after the
-    // update that brought the resource ids (FileLayoutMigration)
-    fun migrateLayout(): FileLayoutMigration.Result = FileLayoutMigration(storage, repository.locations()).run()
-
     // the directories of the storage that are named as a resource id no file has, e.g. left by a
     // restore of the instance (MODEL-8); they are kept, and no new file gets one of them
-    fun leftovers(): List<String> {
-        val known = repository.resourceIds()
-        return storage.children(BlobPath(emptyList())).filter { name -> ResourceId.of(name)?.let { it !in known } == true }
-    }
+    fun leftovers(): List<String> = storage.leftovers(repository.resourceIds())
 
     // a jpeg of at most size (one of SCALED_SIZES) pixels on the longer side: an image scaled down,
     // a recording as its waveform. Null when the file can not be read; a marker next to it keeps it
@@ -180,15 +175,14 @@ class FileService(
             null
         }
 
-    // reads at most maxSize bytes into a blob of its own while the sha-256 is computed, then moves
-    // it below the resource id of the new file
+    // reads at most maxSize bytes into a blob of its own, then moves it below the resource id of the
+    // new file
     fun store(
         content: InputStream,
         owner: String,
-    ): StoreFileResult {
+    ): FileStoreResult {
         val upload = BlobPath(listOf(UPLOADS, UUID.randomUUID().toString()))
         try {
-            val digest = MessageDigest.getInstance("SHA-256")
             val head = ByteArray(HEAD_SIZE)
             var headLength = 0
             var size = 0L
@@ -205,23 +199,21 @@ class FileService(
                             System.arraycopy(buffer, 0, head, headLength, take)
                             headLength += take
                         }
-                        digest.update(buffer, 0, read)
                         out.write(buffer, 0, read)
                     }
                 }
             } catch (_: TooLargeException) {
-                return StoreFileResult.TooLarge
+                return FileStoreResult.TooLarge
             }
-            val contentType = contentType(head.copyOf(headLength)) ?: return StoreFileResult.UnsupportedType
+            val contentType = contentType(head.copyOf(headLength)) ?: return FileStoreResult.UnsupportedType
             check(storage.content(upload)!!, contentType)?.let { return it }
 
-            val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
             // the content is in place before the file is committed
             val file =
-                repository.insert(sha256, contentType, size, owner) { resourceId ->
+                repository.insert(contentType, size, owner) { resourceId ->
                     checkNotNull(storage.move(upload, blob(resourceId, CONTENT))) { "the upload is gone" }
                 }
-            return StoreFileResult.Stored(file)
+            return FileStoreResult.Stored(file)
         } finally {
             storage.delete(upload)
         }
@@ -265,41 +257,41 @@ class FileService(
         internal fun check(
             content: BlobContent,
             contentType: String,
-        ): StoreFileResult? =
+        ): FileStoreResult? =
             if (contentType.startsWith("audio/")) {
                 val format =
                     try {
                         // the reader marks and resets the stream
                         content.open().use { AudioSystem.getAudioFileFormat(BufferedInputStream(it)) }
                     } catch (_: UnsupportedAudioFileException) {
-                        return StoreFileResult.UnsupportedType
+                        return FileStoreResult.UnsupportedType
                     } catch (_: IOException) {
-                        return StoreFileResult.UnsupportedType
+                        return FileStoreResult.UnsupportedType
                     }
                 val seconds = recordingSeconds(format)
                 when {
-                    !isRecording(format.format) -> StoreFileResult.UnsupportedType
-                    seconds == null -> StoreFileResult.UnsupportedType
-                    seconds > MAX_RECORDING_SECONDS -> StoreFileResult.RecordingTooLong
+                    !isRecording(format.format) -> FileStoreResult.UnsupportedType
+                    seconds == null -> FileStoreResult.UnsupportedType
+                    seconds > MAX_RECORDING_SECONDS -> FileStoreResult.RecordingTooLong
                     else -> null
                 }
             } else {
-                val (width, height) = ImageMetadata.size(content, contentType) ?: return StoreFileResult.UnsupportedType
-                if (maxOf(width, height) > MAX_IMAGE_SIZE) StoreFileResult.ImageTooLarge else null
+                val (width, height) = ImageMetadata.size(content, contentType) ?: return FileStoreResult.UnsupportedType
+                if (maxOf(width, height) > MAX_IMAGE_SIZE) FileStoreResult.ImageTooLarge else null
             }
 
         private const val BUFFER_SIZE = 64 * 1024
 
-        // where an upload is written before its sha-256 is known; no resource id, those have 12 characters
+        // where an upload is written before its type is checked; no resource id, those have 12 characters
         private const val UPLOADS = "uploads"
 
         // the directory of a file: its content and what is kept next to it (e.g. its thumbnails)
-        internal fun directory(resourceId: ResourceId) = BlobPath(listOf(resourceId.value))
+        internal fun directory(resourceId: ResourceId) = resourceId.blobPath()
 
         internal fun blob(
             resourceId: ResourceId,
             name: String,
-        ) = directory(resourceId).resolve(name)
+        ) = resourceId.blobPath(name)
 
         internal const val CONTENT = "content"
 

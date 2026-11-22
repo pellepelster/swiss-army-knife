@@ -4,7 +4,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.testing.testClock
 import io.pelle.sak.backend.files.FileService
-import io.pelle.sak.backend.files.StoreFileResult
+import io.pelle.sak.backend.files.FileStoreResult
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.testing.Media
 import io.pelle.sak.openrouter.Ingredient
@@ -46,7 +46,7 @@ class GroceryDiscoveryTest {
 
     private val discovery by lazy { GroceryDiscovery(files, { recognizer.takeIf { keySet } }) { aiEnabled } }
 
-    private fun photo(content: String = "recipe") = (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as StoreFileResult.Stored).file.id
+    private fun photo(content: String = "recipe") = (files.store((Media.JPEG + content.toByteArray()).inputStream(), PELLE) as FileStoreResult.Stored).file.id
 
     @Test
     fun `the items of a photo of the owner, the limit asked only when the photo goes to the AI provider`() {
@@ -75,7 +75,7 @@ class GroceryDiscoveryTest {
 
     @Test
     fun `a recording is no photo`() {
-        val wav = (files.store(Media.wav().inputStream(), PELLE) as StoreFileResult.Stored).file.id
+        val wav = (files.store(Media.wav().inputStream(), PELLE) as FileStoreResult.Stored).file.id
         discovery.discover(PELLE, wav) shouldBe GroceryDiscoverResult.NotAPhoto
     }
 

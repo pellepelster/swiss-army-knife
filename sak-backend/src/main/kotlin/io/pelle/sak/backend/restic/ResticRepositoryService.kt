@@ -1,11 +1,12 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.backend.isDnsLabel
 import io.pelle.sak.api.Catalog
 import io.pelle.sak.api.Language
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.restic.ResticInsert
+import io.pelle.sak.model.restic.ResticRepositoryInsertResult
 import io.pelle.sak.model.restic.ResticRepository
 import io.pelle.sak.model.restic.ResticRepositoryRepository
 import java.security.MessageDigest
@@ -13,15 +14,15 @@ import java.security.SecureRandom
 import java.time.Clock
 import java.util.Base64
 
-sealed interface ResticCreate {
+sealed interface ResticRepositoryCreateResult {
     data class Created(
         val repository: ResticRepository,
-    ) : ResticCreate
+    ) : ResticRepositoryCreateResult
 
-    data object InvalidName : ResticCreate
+    data object InvalidName : ResticRepositoryCreateResult
 
     // the user has a repository of the name
-    data object Exists : ResticCreate
+    data object Exists : ResticRepositoryCreateResult
 }
 
 // the repositories of restic the instance keeps, the only way to them (BACKUP-1, BACKUP-2)
@@ -61,13 +62,13 @@ class ResticRepositoryService(
     fun create(
         user: String,
         name: String,
-    ): ResticCreate {
+    ): ResticRepositoryCreateResult {
         val trimmed = name.trim()
-        if (!NAME.matches(trimmed)) return ResticCreate.InvalidName
+        if (!isDnsLabel(trimmed)) return ResticRepositoryCreateResult.InvalidName
         val token = newToken()
         return when (val inserted = repository.insert(user, trimmed, token)) {
-            is ResticInsert.Inserted -> ResticCreate.Created(inserted.repository)
-            ResticInsert.NameTaken -> ResticCreate.Exists
+            is ResticRepositoryInsertResult.Inserted -> ResticRepositoryCreateResult.Created(inserted.repository)
+            ResticRepositoryInsertResult.NameTaken -> ResticRepositoryCreateResult.Exists
         }
     }
 
@@ -91,7 +92,6 @@ class ResticRepositoryService(
     companion object {
         const val FIRST_REPOSITORY = "my-backups"
 
-        private val NAME = Regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
     }
 }
 
