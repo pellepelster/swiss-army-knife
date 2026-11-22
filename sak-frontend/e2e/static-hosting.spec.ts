@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { FIXTURE_OBJECT } from '../playwright.config';
-import { signIn } from './apps';
+import { putObject, signIn } from './apps';
 import { deleteAllMails } from './mailpit';
 
 test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
@@ -19,7 +19,6 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await page.getByRole('link', { name: /Static hosting/ }).click();
   await expect(page).toHaveURL('/static-hosting');
 
-  // e2e-hosting holds the object playwright.config.ts put where its data goes, before it exists
   await page.getByRole('link', { name: 'Create static hosting', exact: true }).click();
   await expect(page).toHaveURL('/static-hosting/create');
   await page.getByLabel('Name').fill('e2e-hosting');
@@ -27,8 +26,7 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await page.getByLabel('Domain 1', { exact: true }).fill('hosting.example.org');
   await page.getByRole('button', { name: 'Create static hosting', exact: true }).click();
   await expect(page).toHaveURL('/static-hosting/e2e-hosting/configuration');
-  await expect(page.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
-  await expect(page.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);
+  await expect(page.getByTestId('objects')).toHaveText('0', { timeout: 20_000 });
   // its domain and its subdomain of the root domain
   await expect(page.getByTestId('domains').getByRole('listitem')).toHaveText([
     'https://hosting.example.org/',
@@ -55,6 +53,12 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(accessKeyId);
   await page.getByRole('button', { name: 'Show secret key' }).click();
   await expect(page.getByTestId('secret-key')).toHaveText(/^[A-Za-z0-9+/]{40}$/);
+
+  // an object put with the key pair is counted with its size
+  await putObject(accessKeyId, (await page.getByTestId('secret-key').textContent())!.trim(), 'e2e-hosting', 'fixture.txt', FIXTURE_OBJECT);
+  await page.goto('/static-hosting/e2e-hosting/configuration');
+  await expect(page.getByTestId('objects')).toHaveText('1', { timeout: 20_000 });
+  await expect(page.getByTestId('bytes')).toHaveText(`${FIXTURE_OBJECT.length} B`);
 
   // a taken name is reported
   await page.getByRole('link', { name: 'All buckets' }).click();

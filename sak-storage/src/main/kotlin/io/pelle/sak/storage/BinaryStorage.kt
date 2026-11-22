@@ -44,6 +44,15 @@ interface BinaryStorage {
         to: BlobPath,
     ): BlobInfo?
 
+    // copies every blob below from to below to, each with the time of its last change, and shows them
+    // there at once: there is nothing at to until all are copied, also when the copy stops. What is
+    // at from stays. A BlobPathConflictException when there is something at to already; false when
+    // there is no blob below from, then nothing is at to
+    fun copyTree(
+        from: BlobPath,
+        to: BlobPath,
+    ): Boolean
+
     fun delete(path: BlobPath)
 
     fun deleteTree(path: BlobPath)

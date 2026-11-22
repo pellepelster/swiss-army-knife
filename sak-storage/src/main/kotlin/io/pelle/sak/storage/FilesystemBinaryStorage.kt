@@ -207,6 +207,43 @@ class FilesystemBinaryStorage(
         return info(target)
     }
 
+    override fun copyTree(
+        from: BlobPath,
+        to: BlobPath,
+    ): Boolean {
+        val source = resolve(from)
+        val target = resolve(to)
+        if (target.exists()) throw BlobPathConflictException(to)
+        Files.createDirectories(tmpDir)
+        val staged = tmpDir.resolve(UUID.randomUUID().toString())
+        try {
+            val times = mutableListOf<Pair<Path, java.nio.file.attribute.FileTime>>()
+            walk(source) { file, attributes ->
+                val copy = staged.resolve(source.relativize(file))
+                Files.createDirectories(copy.parent)
+                Files.copy(file, copy)
+                times.add(copy to attributes.lastModifiedTime())
+            }
+            if (times.isEmpty()) {
+                walk(staged, deleteDirectories = true) { file, _ -> Files.deleteIfExists(file) }
+                return false
+            }
+            // the times only now: until then the copies are young, so no storage that starts takes
+            // them for stale (removeStale)
+            times.forEach { (copy, time) ->
+                Files.setLastModifiedTime(copy, time)
+                FileChannel.open(copy, StandardOpenOption.WRITE).use { it.force(true) }
+            }
+            createParent(target, to)
+            Files.move(staged, target, StandardCopyOption.ATOMIC_MOVE)
+        } catch (e: Throwable) {
+            walk(staged, deleteDirectories = true) { file, _ -> Files.deleteIfExists(file) }
+            throw e
+        }
+        fsyncDirectory(target.parent)
+        return true
+    }
+
     override fun delete(path: BlobPath) {
         val file = resolve(path)
         Files.deleteIfExists(file)
@@ -303,10 +340,10 @@ class FilesystemBinaryStorage(
         )
     }
 
-    // the staged files older than staleAfter
+    // the staged files older than staleAfter, and the directories of a copy that are empty without them
     private fun removeStale(staleAfter: Duration) {
         val before = clock.instant().minus(staleAfter)
-        walk(tmpDir) { file, attributes ->
+        walk(tmpDir, deleteDirectories = true) { file, attributes ->
             if (attributes.lastModifiedTime().toInstant().isBefore(before)) Files.deleteIfExists(file)
         }
     }

@@ -249,6 +249,48 @@ class FilesystemBinaryStorageTest {
     }
 
     @Test
+    fun `a copy of a tree has every blob with its time, the tree it was copied from stays`() {
+        write("one", "from", "a", "one")
+        write("two", "from", "two")
+        val time = FileTime.from(Instant.parse("2026-10-01T08:00:00Z"))
+        Files.setLastModifiedTime(root.resolve("from/a/one"), time)
+
+        storage.copyTree(path("from"), path("to", "copy")) shouldBe true
+
+        read("to", "copy", "a", "one") shouldBe "one"
+        read("to", "copy", "two") shouldBe "two"
+        Files.getLastModifiedTime(root.resolve("to/copy/a/one")) shouldBe time
+        read("from", "a", "one") shouldBe "one"
+        read("from", "two") shouldBe "two"
+        staged() shouldBe 0
+    }
+
+    @Test
+    fun `a copy of a tree goes nowhere something is, and a tree without blobs is not copied`() {
+        write("one", "from", "one")
+        write("there", "to", "there")
+
+        shouldThrow<BlobPathConflictException> { storage.copyTree(path("from"), path("to")) }
+        storage.copyTree(path("none"), path("other")) shouldBe false
+
+        storage.list(path("to")).map { it.path } shouldBe listOf("there")
+        Files.exists(root.resolve("other")) shouldBe false
+        staged() shouldBe 0
+    }
+
+    @Test
+    fun `what a copy of a tree left staged long ago goes when the storage starts, with its directories`() {
+        val now = Instant.parse("2026-11-02T12:00:00Z")
+        val staging = Files.createDirectories(root.resolve(BlobPath.STAGING_DIRECTORY))
+        val stale = Files.writeString(Files.createDirectories(staging.resolve("copy/data")).resolve("stale"), "x")
+        Files.setLastModifiedTime(stale, FileTime.from(now.minus(Duration.ofHours(2))))
+
+        FilesystemBinaryStorage(root, Duration.ofHours(1), Clock.fixed(now, ZoneOffset.UTC))
+
+        Files.exists(staging.resolve("copy")) shouldBe false
+    }
+
+    @Test
     fun `the last blobs of a directory can be deleted at the same time`() {
         repeat(100) { round ->
             val names = (0 until 8).map { "b$it" }

@@ -16,11 +16,12 @@ import tools.jackson.databind.ObjectMapper
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
 
-// the buckets in the binary storage, each below its path (by default buckets/<name>): an object is
-// the blob of its key below data/ of the bucket, its metadata a sidecar (<key>.json) below meta/
+// the buckets in the binary storage, each below the path the resolver gives it (none for no bucket):
+// an object is the blob of its key below data/ of the bucket, its metadata a sidecar (<key>.json)
+// below meta/
 class BinaryStorageS3Backend(
     private val storage: BinaryStorage,
-    private val resolver: S3BucketPathResolver = S3BucketPathResolver { bucket -> BlobPath(listOf(BUCKETS, bucket)) },
+    private val resolver: S3BucketPathResolver,
     // the room a write may take, by default from the free bytes of the volume of the storage
     private val guard: WriteGuard = WriteGuard({ usableBytes(storage) }),
 ) : S3StorageBackend {
@@ -409,9 +410,6 @@ class BinaryStorageS3Backend(
 
     companion object {
         private const val DATA = "data"
-
-        // where the buckets are, unless a resolver says otherwise
-        private const val BUCKETS = "buckets"
         private const val META = "meta"
         private const val UPLOADS = "uploads"
 

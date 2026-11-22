@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -14,13 +14,11 @@ export const VICTORIALOGS_URL = 'http://127.0.0.1:19428';
 process.env['SAK_E2E_ACCESS_LOG_DIR'] ??= mkdtempSync(join(tmpdir(), 'sak-frontend-e2e-logs-'));
 export const ACCESS_LOG_DIR = process.env['SAK_E2E_ACCESS_LOG_DIR'];
 
-// the data dir of the controller, with an object in the bucket e2e-hosting before it starts, the
-// buckets are counted at startup; only the static hosting spec creates that bucket
+// the data dir of the controller
 process.env['SAK_E2E_DATA_DIR'] ??= mkdtempSync(join(tmpdir(), 'sak-frontend-e2e-'));
 const DATA_DIR = process.env['SAK_E2E_DATA_DIR'];
+// the object the static hosting spec puts into its bucket through the s3 api
 export const FIXTURE_OBJECT = 'hello world';
-mkdirSync(join(DATA_DIR, 's3/buckets/e2e-hosting/data'), { recursive: true });
-writeFileSync(join(DATA_DIR, 's3/buckets/e2e-hosting/data/fixture.txt'), FIXTURE_OBJECT);
 
 // the images the backend role deploys
 const roleDefaults = readFileSync(resolve(__dirname, '../ansible/roles/backend/defaults/main.yml'), 'utf8');

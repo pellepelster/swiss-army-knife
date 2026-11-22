@@ -14,6 +14,7 @@ import io.ktor.server.application.ApplicationStopping
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.pelle.sak.backend.hosting.BucketLayout
 import io.pelle.sak.backend.hosting.BucketStatisticsCache
 import io.pelle.sak.backend.hosting.InvalidatingS3StorageBackend
 import io.pelle.sak.config.SakConfig
@@ -32,6 +33,7 @@ import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.notes.NoteService
 import io.pelle.sak.backend.grocery.GroceryService
 import io.pelle.sak.backend.todo.TodoService
+import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.storage.FilesystemBinaryStorage
 import io.pelle.sak.s3.storage.WriteGuard
 import io.pelle.sak.backend.restic.resticRest
@@ -143,7 +145,6 @@ fun Application.sak(config: SakConfig): SakServices {
     Files.createDirectories(config.dataDir)
     Files.createDirectories(config.s3DataDir)
 
-    val storage = bucketStorage(config)
     val database = SakDatabase.open(databaseFile(config))
     // the settings, the signing key of the login among them, plain in the database until the
     // whole database is encrypted
@@ -153,7 +154,17 @@ fun Application.sak(config: SakConfig): SakServices {
     val grocerySettings = GrocerySettingsService(settings)
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(database, reservedDomains(config))
-    val bucketService = S3BucketService(database, baseDomain = config.baseDomain, reservedNames = RESERVED_SITES + RESERVED_BUCKETS, domains = domains)
+    val bucketBlobs = bucketBlobs(config)
+    val bucketService =
+        S3BucketService(
+            database,
+            baseDomain = config.baseDomain,
+            reservedNames = RESERVED_SITES + RESERVED_BUCKETS,
+            domains = domains,
+            free = { bucketBlobs.children(BucketLayout.atResourceId(it)).isEmpty() },
+        )
+    migrateBucketLayout(bucketService, bucketBlobs, config)
+    val storage = bucketStorage(config, bucketBlobs, bucketService::objectsPath)
     val redirectService = RedirectService(database, bucketService, domains = domains)
     val labelService = LabelService(database)
     val fileService = FileService(database, filesDir(config))
@@ -242,6 +253,27 @@ private fun Application.removeStaleUploads(
             logger.warn(logCause(e)) { "could not remove the unfinished uploads of the buckets" }
         }
         delay(STALE_UPLOAD_CHECK.toMillis())
+    }
+}
+
+// copies the objects of the buckets to their resource ids before the routes take a request and before
+// caddy is told where they are, and tells the admin of the buckets that have no room for it, of what is
+// left below the names and of the directories without a bucket (MODEL-8). A failure keeps the backend
+// up: a bucket that is not copied yet is served from below its name until a later start copies it
+private fun migrateBucketLayout(
+    buckets: S3BucketService,
+    storage: BinaryStorage,
+    config: SakConfig,
+) {
+    try {
+        val result = buckets.migrateLayout(storage, { Files.getFileStore(config.s3DataDir).usableSpace }, config.s3MinFreeBytes)
+        if (result.copied > 0) logger.info { "copied the objects of ${result.copied} buckets to their resource ids" }
+        if (result.noRoom > 0) logger.warn { "${result.noRoom} buckets have no room to be copied to their resource ids, they stay below their names until a start has it" }
+        if (result.oldDirectories > 0) logger.warn { "${result.oldDirectories} directories of buckets below their names are left, no bucket uses them once it is copied, they are kept" }
+        val leftovers = buckets.leftovers(storage)
+        if (leftovers.isNotEmpty()) logger.warn { "${leftovers.size} directories of buckets have no bucket, they are kept" }
+    } catch (e: Exception) {
+        logger.error(logCause(e)) { "could not copy the objects of the buckets to their resource ids" }
     }
 }
 

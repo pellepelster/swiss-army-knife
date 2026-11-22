@@ -7,6 +7,9 @@ import io.pelle.sak.backend.Secret
 import io.pelle.sak.backend.isValidDomain
 import io.pelle.sak.model.s3.S3Bucket
 import io.pelle.sak.model.s3.S3BucketRepository
+import io.pelle.sak.model.ResourceId
+import io.pelle.sak.storage.BinaryStorage
+import io.pelle.sak.storage.BlobPath
 import java.security.SecureRandom
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
@@ -69,7 +72,10 @@ class S3BucketService(
         baseDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
         domains: DomainRegistry = DomainRegistry(database),
-    ) : this(S3BucketRepository(database, clock), baseDomain, reservedNames, domains)
+        // whether no directory of the resource id is in the storage of the buckets, e.g. none left from
+        // a restore of the instance: a new bucket gets a free one only (MODEL-8)
+        free: (ResourceId) -> Boolean = { true },
+    ) : this(S3BucketRepository(database, clock, free), baseDomain, reservedNames, domains)
 
     private val random = SecureRandom()
 
@@ -84,6 +90,26 @@ class S3BucketService(
     fun byName(name: String): S3Bucket? = repository.byName(name)
 
     fun byAccessKeyId(accessKeyId: String): S3Bucket? = repository.byAccessKeyId(accessKeyId)
+
+    // where the bucket is in the storage of the buckets, null for an unknown or deleted one: no
+    // request reaches the objects of a deleted bucket
+    fun objectsPath(name: String): BlobPath? = repository.location(name)?.let(BucketLayout::of)
+
+    // copies the objects of the buckets from below their name to their resource ids, once after the
+    // update that brought the resource ids (BucketLayoutMigration); storage is the one of the buckets
+    fun migrateLayout(
+        storage: BinaryStorage,
+        freeBytes: () -> Long,
+        minFreeBytes: Long,
+    ): BucketLayoutMigration.Result =
+        BucketLayoutMigration(storage, repository.locations(), freeBytes, minFreeBytes, repository::objectsAtResourceId).run()
+
+    // the directories of the storage that are named as a resource id no bucket has, e.g. left by a
+    // restore of the instance (MODEL-8); they are kept, and no new bucket gets one of them
+    fun leftovers(storage: BinaryStorage): List<String> {
+        val known = repository.resourceIds()
+        return storage.children(BlobPath(emptyList())).filter { name -> ResourceId.of(name)?.let { it !in known } == true }
+    }
 
     // the secret of the key pair, for sigv4 to verify the requests signed with it
     fun secretAccessKey(accessKeyId: String): Secret? =

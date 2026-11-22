@@ -8,6 +8,8 @@ import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.ingress.caddyConfig
 import io.pelle.sak.ingress.model.CaddyConfig
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
+import io.pelle.sak.s3.storage.S3BucketPathResolver
+import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.s3.storage.WriteGuard
 import io.pelle.sak.backend.restic.RESTIC_PATH_PREFIX
 import io.pelle.sak.backend.restic.ResticStore
@@ -27,11 +29,16 @@ val RESERVED_BUCKETS = setOf(RESTIC_PATH_PREFIX.removePrefix("/"))
 // headers
 const val RESTIC_MAX_BODY_SIZE = ResticStore.MAX_FILE_BYTES + 1024L * 1024
 
-// the buckets on the binary storage of s3DataDir; where a bucket is on disk only sak-s3 knows
-fun bucketStorage(config: SakConfig): BinaryStorageS3Backend {
-    val storage = FilesystemBinaryStorage(config.s3DataDir)
-    return BinaryStorageS3Backend(storage, guard = WriteGuard({ Files.getFileStore(config.s3DataDir).usableSpace }, config.s3MinFreeBytes))
-}
+// the binary storage of the buckets, s3DataDir
+fun bucketBlobs(config: SakConfig): BinaryStorage = FilesystemBinaryStorage(config.s3DataDir)
+
+// the buckets on their binary storage: resolver tells where each bucket is in it (BucketLayout), what
+// is below that only sak-s3 knows
+fun bucketStorage(
+    config: SakConfig,
+    storage: BinaryStorage,
+    resolver: S3BucketPathResolver,
+): BinaryStorageS3Backend = BinaryStorageS3Backend(storage, resolver, WriteGuard({ Files.getFileStore(config.s3DataDir).usableSpace }, config.s3MinFreeBytes))
 
 // the most caddy lets through to the s3 api: the largest object or part, with room for the
 // signatures of an aws-chunked body

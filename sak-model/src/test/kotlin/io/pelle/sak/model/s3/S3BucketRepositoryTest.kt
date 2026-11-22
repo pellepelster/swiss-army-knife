@@ -2,12 +2,15 @@ package io.pelle.sak.model.s3
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.migrateIsolated
 import io.pelle.sak.model.jooq.tables.references.S3_BUCKETS
 import io.pelle.sak.model.jooq.tables.references.S3_BUCKETS_DOMAINS
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.sql.DriverManager
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -90,5 +93,70 @@ class S3BucketRepositoryTest {
             .from(S3_BUCKETS_DOMAINS)
             .orderBy(S3_BUCKETS_DOMAINS.POSITION)
             .fetch { it.value1() to it.value2() } shouldBe listOf("a.example.org" to OWNER, "b.example.org" to "other@example.org")
+    }
+
+    @Test
+    fun `gives every bucket a resource id of its own, its objects are there from the start`() {
+        val site = (repository.insert("site", "AKIASITE", "SECRETAKIASITE", owner = OWNER) as InsertBucketResult.Inserted).bucket
+        val other = (repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", owner = OWNER) as InsertBucketResult.Inserted).bucket
+
+        (site.resourceId == other.resourceId) shouldBe false
+        repository.byName("site")!!.resourceId shouldBe site.resourceId
+        repository.location("site") shouldBe S3BucketLocation("site", site.resourceId, objectsAtName = false)
+        repository.resourceIds() shouldBe setOf(site.resourceId, other.resourceId)
+        // a deleted bucket has no place for a request, its resource id stays taken
+        repository.delete("site")
+        repository.location("site") shouldBe null
+        repository.locations().map { it.name } shouldBe listOf("other", "site")
+        repository.resourceIds() shouldBe setOf(site.resourceId, other.resourceId)
+    }
+
+    @Test
+    fun `gives no resource id that is taken beside the database`() {
+        val left = ResourceId("leftover0001")
+        val taken = S3BucketRepository(database, free = { it != left }, random = draws("leftover0001", "fresh0000001"))
+
+        (taken.insert("site", "AKIASITE", "SECRETAKIASITE", owner = OWNER) as InsertBucketResult.Inserted).bucket.resourceId shouldBe
+            ResourceId("fresh0000001")
+    }
+
+    @Test
+    fun `the buckets created before the resource ids get one each and have their objects at their name until copied`() {
+        val file = tempDir.resolve("before.db")
+        DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            migrateIsolated(connection, "db/changelog/until-0004.yaml")
+            connection.createStatement().use { statement ->
+                listOf("site" to "NULL", "gone" to "'2026-11-02 00:00:00.000'").forEach { (name, deletedAt) ->
+                    statement.executeUpdate(
+                        "INSERT INTO s3_buckets (name, access_key_id, secret_access_key, owner, created_at, deleted_at) " +
+                            "VALUES ('$name', 'AK$name', 'secret', '$OWNER', '2026-11-01 00:00:00.000', $deletedAt)",
+                    )
+                }
+            }
+            // liquibase leaves the connection without auto commit
+            connection.commit()
+        }
+
+        val repository = S3BucketRepository(SakDatabase.open(file))
+        val locations = repository.locations()
+        // the deleted bucket too
+        locations.map { it.name to it.objectsAtName } shouldBe listOf("gone" to true, "site" to true)
+        locations.map { it.resourceId }.toSet().size shouldBe 2
+        repository.location("site") shouldBe locations.last()
+
+        repository.objectsAtResourceId("site")
+
+        repository.location("site") shouldBe locations.last().copy(objectsAtName = false)
+        repository.byName("site")!!.updatedAt shouldBe null
+        repository.locations().first().objectsAtName shouldBe true
+    }
+
+    // a random that draws the resource ids in the order given
+    private fun draws(vararg ids: String): java.security.SecureRandom {
+        val alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+        val indexes = ids.flatMap { id -> id.map { alphabet.indexOf(it) } }.iterator()
+        return object : java.security.SecureRandom() {
+            override fun nextInt(bound: Int) = indexes.next()
+        }
     }
 }

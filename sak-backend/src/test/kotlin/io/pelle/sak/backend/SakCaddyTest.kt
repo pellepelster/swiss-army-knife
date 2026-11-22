@@ -6,6 +6,7 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.pelle.sak.config.DnsMode
 import io.pelle.sak.config.SakConfig
+import io.pelle.sak.storage.BlobPath
 import io.pelle.sak.ingress.CaddyJson
 import io.pelle.sak.ingress.CaddyManager
 import kotlinx.serialization.json.Json
@@ -22,6 +23,10 @@ import ch.qos.logback.core.read.ListAppender
 import org.slf4j.LoggerFactory
 import java.net.ServerSocket
 import io.pelle.sak.api.testing.json
+
+// where caddy finds the objects of a bucket, each bucket below a resource id made of its name
+internal fun objectsDir(config: SakConfig): (String) -> Path =
+    bucketStorage(config, bucketBlobs(config)) { bucket -> BlobPath(listOf(bucket.padEnd(12, '0').take(12))) }::objectsDirectory
 
 class SakCaddyTest {
     private val config =
@@ -76,7 +81,7 @@ class SakCaddyTest {
                             { "handler": "log_append", "key": "site", "value": "site" },
                             {
                               "handler": "file_server",
-                              "root": "/data/s3/buckets/site/data",
+                              "root": "/data/s3/site00000000/data",
                               "index_names": ["index.html"]
                             }
                           ],
@@ -109,7 +114,7 @@ class SakCaddyTest {
             }
             """.trimIndent()
 
-        Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, bucketDomains, mapOf("example.com" to "example.org"), 8080, bucketStorage(config)::objectsDirectory))) shouldBe Json.parseToJsonElement(expected)
+        Json.parseToJsonElement(CaddyJson.encodeToString(caddyConfig(config, bucketDomains, mapOf("example.com" to "example.org"), 8080, objectsDir(config)))) shouldBe Json.parseToJsonElement(expected)
     }
 
     @Test
@@ -117,7 +122,7 @@ class SakCaddyTest {
         val withAuth =
             config.copy(auth = SakConfig.AuthConfig(admins = listOf("admin@example.org"), smtp = SakConfig.SmtpConfig(host = "localhost", from = "login@example.org")))
 
-        val routes = (CaddyJson.encodeToString(caddyConfig(withAuth, bucketDomains, emptyMap(), 8080, bucketStorage(withAuth)::objectsDirectory))).json()["apps"]!!
+        val routes = (CaddyJson.encodeToString(caddyConfig(withAuth, bucketDomains, emptyMap(), 8080, objectsDir(withAuth)))).json()["apps"]!!
             .jsonObject["http"]!!
             .jsonObject["servers"]!!
             .jsonObject["sak"]!!
@@ -206,7 +211,7 @@ class SakCaddyTest {
             bucketDomains: Map<String, List<String>>,
             redirects: Map<String, String> = emptyMap(),
             config: SakConfig = withAuth,
-        ) = (CaddyJson.encodeToString(caddyConfig(config, bucketDomains, redirects, 8080, bucketStorage(config)::objectsDirectory))).json()["apps"]!!
+        ) = (CaddyJson.encodeToString(caddyConfig(config, bucketDomains, redirects, 8080, objectsDir(config)))).json()["apps"]!!
             .jsonObject["http"]!!
             .jsonObject["servers"]!!
             .jsonObject["sak"]!!
@@ -258,7 +263,7 @@ class SakCaddyTest {
         val port = admin.address.port
 
         var redirects = emptyMap<String, String>()
-        val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, redirects, 8080, bucketStorage(config)::objectsDirectory) })
+        val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, redirects, 8080, objectsDir(config)) })
         reconciler.reconcile()
         requests shouldBe listOf("POST" to "/config/apps")
         bodies.last() shouldNotContain "example.com"
@@ -280,7 +285,7 @@ class SakCaddyTest {
         try {
             // a free port nothing listens at yet
             val port = ServerSocket(0).use { it.localPort }
-            val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, emptyMap(), 8080, bucketStorage(config)::objectsDirectory) })
+            val reconciler = CaddyReconciler(CaddyManager("http://localhost:$port"), config = { caddyConfig(config, bucketDomains, emptyMap(), 8080, objectsDir(config)) })
 
             reconciler.reconcile()
             reconciler.reconcile()

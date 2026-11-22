@@ -18,9 +18,12 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   [issue #134](https://github.com/pellepelster/swiss-army-knife/issues/134) encrypts them in `sak-storage`
   (`MODEL-7`).
 
-- **Not all data outside the database has a resource id yet.** The objects of a bucket are stored below the name of
-  the bucket, not below a resource id (`MODEL-8`). Accepted until the buckets move to a resource id: a deleted bucket
-  keeps its name, so no other row gets its data.
+- **The objects of the buckets from before the resource ids stay on the data volume a second time.** The first start
+  of the release that brought the resource ids of the buckets copies their objects from below `buckets/<name>` to
+  their resource id (`BucketLayoutMigration`, `MODEL-8`). The copy below the name is the way back right after the
+  update: the backend never changes or deletes it. An object a user deletes later is thus still there, and a backup
+  holds these buckets twice. Accepted: every start warns of the directories that are left, and an admin deletes
+  `buckets/` on the data volume by hand after the update.
 
 - **A backup during the move of the files to their resource ids can miss files.** The first start of the release
   that brought the resource ids of the files moves their content from below its sha-256 (`FileLayoutMigration`).

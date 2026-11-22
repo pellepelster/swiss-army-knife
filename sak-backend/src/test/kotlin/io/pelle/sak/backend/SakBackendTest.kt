@@ -92,7 +92,7 @@ class SakBackendTest {
         putObject({ it.bucket("bucket1").key("dir/hello.txt") }, RequestBody.fromString("hello sak"))
 
         String(getObject { it.bucket("bucket1").key("dir/hello.txt") }.readAllBytes()) shouldBe "hello sak"
-        Files.readString(dataDir.resolve("s3/buckets/bucket1/data/dir/hello.txt")) shouldBe "hello sak"
+        Files.readString(dataDir.resolve("s3/${S3BucketService(SakDatabase.open(dataDir.resolve("sak.db"))).byName("bucket1")!!.resourceId}/data/dir/hello.txt")) shouldBe "hello sak"
     }
 
     @Test
@@ -174,7 +174,7 @@ class SakBackendTest {
         config.version shouldBe "0.1.15"
         // the staging ca of the integration tests, caddy takes it as its issuer
         config.acmeCa shouldBe "https://acme-staging-v02.api.letsencrypt.org/directory"
-        caddyConfig(config, emptyMap(), emptyMap(), 8080, bucketStorage(config)::objectsDirectory).apps!!.tls!!.automation!!.policies.single().issuers.single().ca shouldBe
+        caddyConfig(config, emptyMap(), emptyMap(), 8080, objectsDir(config)).apps!!.tls!!.automation!!.policies.single().issuers.single().ca shouldBe
             "https://acme-staging-v02.api.letsencrypt.org/directory"
         config.frontendUrl shouldBe "https://sak.pelle.io"
         config.auth!!.admins shouldBe listOf("admin@example.org")
@@ -217,6 +217,33 @@ class SakBackendTest {
     @Test
     fun `serves the s3 api at s3 with the key pair of the bucket and the data dir`() {
         withServer { port -> s3Client("http://localhost:$port/s3").putAndGet() }
+    }
+
+    @Test
+    fun `a start copies the objects of a bucket from before the resource ids and serves them from its resource id`() {
+        withServer { port -> s3Client("http://localhost:$port/s3").putAndGet() }
+        // the bucket as a release before the resource ids left it: its objects below its name
+        val resourceId = S3BucketService(SakDatabase.open(databaseFile(sakConfig()))).byName("bucket1")!!.resourceId
+        val old = dataDir.resolve("s3/buckets/bucket1")
+        Files.createDirectories(old.parent)
+        Files.move(dataDir.resolve("s3/$resourceId"), old)
+        java.sql.DriverManager.getConnection("jdbc:sqlite:${databaseFile(sakConfig())}").use { connection ->
+            connection.createStatement().use { it.executeUpdate("UPDATE s3_buckets SET objects_at_name = 1 WHERE name = 'bucket1'") }
+        }
+
+        withServer { port ->
+            val s3 = s3Client("http://localhost:$port/s3")
+            String(s3.getObject { it.bucket("bucket1").key("dir/hello.txt") }.readAllBytes()) shouldBe "hello sak"
+            s3.deleteObject { it.bucket("bucket1").key("dir/hello.txt") }
+        }
+
+        // the copy is used, what is below the name stays
+        Files.exists(dataDir.resolve("s3/$resourceId/data/dir/hello.txt")) shouldBe false
+        Files.readString(old.resolve("data/dir/hello.txt")) shouldBe "hello sak"
+        // and does not come back with the next start
+        withServer { port ->
+            shouldThrow<S3Exception> { s3Client("http://localhost:$port/s3").getObject { it.bucket("bucket1").key("dir/hello.txt") }.readAllBytes() }
+        }
     }
 
     @Test
