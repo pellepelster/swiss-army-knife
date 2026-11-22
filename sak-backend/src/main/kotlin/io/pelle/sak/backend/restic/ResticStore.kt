@@ -6,7 +6,7 @@ import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.leftovers
 import io.pelle.sak.model.ResourceId
-import io.pelle.sak.s3.storage.WriteGuard
+import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.storage.BlobPath
 import java.io.InputStream

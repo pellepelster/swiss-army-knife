@@ -42,8 +42,8 @@ import io.pelle.sak.model.restic.ResticBackupPlan
 import io.pelle.sak.model.restic.ResticBackupPlanValues
 import io.pelle.sak.model.restic.ResticKeep
 import io.pelle.sak.model.restic.ResticRepository
-import io.pelle.sak.s3.storage.EntityTooLargeException
-import io.pelle.sak.s3.storage.InsufficientStorageException
+import io.pelle.sak.storage.EntityTooLargeException
+import io.pelle.sak.storage.InsufficientStorageException
 import io.pelle.sak.storage.BlobChangedException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

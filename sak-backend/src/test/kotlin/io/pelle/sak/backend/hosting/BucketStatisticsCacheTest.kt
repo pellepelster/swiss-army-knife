@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.hosting
 
-import io.pelle.sak.s3.storage.WriteGuard
+import io.pelle.sak.storage.WriteGuard
 import com.github.benmanes.caffeine.cache.Ticker
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend

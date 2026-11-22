@@ -1,5 +1,6 @@
 package io.pelle.sak.s3.storage
 
+import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.storage.BlobPath
 import io.pelle.sak.storage.BlobPathConflictException
@@ -271,7 +272,7 @@ class BinaryStorageS3Backend(
         // the object is written before its parts go, it takes their room once more
         guard.requireRoom()
         conflictsAsKeyConflict(key) {
-            SequenceInputStream(partStreams).use { storage.write(dataPath(bucketPath, key), guard.guarded(it, WriteGuard.MAX_MULTIPART_OBJECT_BYTES)) }
+            SequenceInputStream(partStreams).use { storage.write(dataPath(bucketPath, key), guard.guarded(it, S3Limits.MAX_MULTIPART_OBJECT_BYTES)) }
             writeMeta(bucketPath, key, uploadMeta.meta.copy(etag = etag))
         }
         storage.deleteTree(uploadPath)

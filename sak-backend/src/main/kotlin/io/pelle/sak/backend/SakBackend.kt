@@ -37,7 +37,7 @@ import io.pelle.sak.backend.grocery.GroceryService
 import io.pelle.sak.backend.todo.TodoService
 import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.storage.FilesystemBinaryStorage
-import io.pelle.sak.s3.storage.WriteGuard
+import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.backend.restic.resticRest
 import io.pelle.sak.backend.restic.ResticStore
 import io.pelle.sak.backend.restic.ResticRepositoryService
@@ -139,7 +139,7 @@ fun resticDir(config: SakConfig) = config.dataDir.resolve("restic")
 
 fun resticStore(config: SakConfig): ResticStore {
     Files.createDirectories(resticDir(config))
-    return ResticStore(FilesystemBinaryStorage(resticDir(config)), WriteGuard({ Files.getFileStore(resticDir(config)).usableSpace }, config.s3MinFreeBytes))
+    return ResticStore(FilesystemBinaryStorage(resticDir(config)), WriteGuard({ Files.getFileStore(resticDir(config)).usableSpace }, config.minFreeBytes, ResticStore.MAX_FILE_BYTES))
 }
 
 fun Application.sak(config: SakConfig): SakServices {
@@ -177,7 +177,14 @@ fun Application.sak(config: SakConfig): SakServices {
         )
     val redirectService = RedirectService(database, bucketService, domains = domains)
     val labelService = LabelService(database)
-    val fileService = FileService(database, filesDir(config))
+    // the guard asks the volume of the directory, so it is there before the first upload
+    Files.createDirectories(filesDir(config))
+    val fileService =
+        FileService(
+            database,
+            filesDir(config),
+            guard = WriteGuard({ Files.getFileStore(filesDir(config)).usableSpace }, config.minFreeBytes, FileService.DEFAULT_MAX_SIZE),
+        )
     val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber, notesSettings::aiEnabled)
     val noteService = NoteService(database, labelService, fileService)
     val groceryService = GroceryService(database, fileService)

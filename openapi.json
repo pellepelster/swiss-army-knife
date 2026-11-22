@@ -5541,6 +5541,16 @@
                                 }
                             }
                         }
+                    },
+                    "507": {
+                        "description": "The data volume has no room for more files",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [

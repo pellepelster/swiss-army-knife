@@ -9,10 +9,10 @@ weight: 12
 
 **Created:** 2026-11-22
 
-**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-14`, `BA-16`, `BA-18` to `BA-20`, `BA-22`, `BA-26`,
-`BA-27` to `BA-30`, which are in the history of git; `BA-21` and `BA-23` list what is left of them. Of `BA-22` one
-copy stays on purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an app owns its
-settings endpoint.
+**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-16`, `BA-18` to `BA-20`, `BA-22`, `BA-26`, `BA-27` to
+`BA-30`, which are in the history of git; `BA-21` and `BA-23` list what is left of them. Of `BA-22` one copy stays on
+purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings
+endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -36,15 +36,6 @@ manager (`EXT-1`). All binary data goes through `BinaryStorage`, and files, buck
 found by their resource id only.
 
 ## Could fix: modules
-
-### `BA-15` The guard of the S3 api guards restic, and nothing guards the files
-
-`WriteGuard` and its two exceptions are in `sak-s3` ("the room a write to a bucket may take"). `ResticStore` uses
-them (`backend/restic/ResticStore.kt:58,121,125`, `backend/restic/SakRestic.kt:45-46`) with the setting
-`s3_min_free_bytes` (`backend/SakBackend.kt`, `resticStore`), and its largest file is cut at the largest S3 object.
-`FileService.store` writes with no look at the free bytes. Three stores on one volume guard it in two ways.
-
-Fix: `WriteGuard` and the exceptions move to `sak-storage`, the setting is named after the volume.
 
 ### `BA-17` The backend needs the class behind the interface of the S3 storage
 

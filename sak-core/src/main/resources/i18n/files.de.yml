@@ -1,5 +1,6 @@
 # the texts of the catalog files in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 too_large: "Eine Datei darf höchstens %{max} MB groß sein."
+no_room: "Die SAK-Instanz hat keinen Platz für weitere Dateien."
 unsupported_type: "Nur Bilder als JPEG, PNG, GIF und WebP und Aufnahmen als WAV können gespeichert werden."
 image_too_large: "Ein Bild darf an seiner längeren Seite höchstens %{max} Pixel haben."
 recording_too_long: "Eine Aufnahme darf höchstens %{max} Minuten lang sein."

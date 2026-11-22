@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.storage.InsufficientStorageException
+import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
@@ -46,6 +48,9 @@ sealed interface FileStoreResult {
 
     data object TooLarge : FileStoreResult
 
+    // the data volume has no room for more files
+    data object NoRoom : FileStoreResult
+
     // the file is none the storage takes: what is wrong as the api answers it (API-1)
     data class Invalid(
         val errors: List<ErrorMessage>,
@@ -72,13 +77,16 @@ class FileService(
     private val repository: FileRepository,
     private val storage: BinaryStorage,
     val maxSize: Long,
+    // the room an upload may take on the data volume; none in a test that does not ask for one
+    private val guard: WriteGuard? = null,
 ) {
     constructor(
         database: SakDatabase,
         dir: Path,
         clock: Clock = Clock.systemUTC(),
         maxSize: Long = DEFAULT_MAX_SIZE,
-    ) : this(database, FilesystemBinaryStorage(dir), clock, maxSize)
+        guard: WriteGuard? = null,
+    ) : this(database, FilesystemBinaryStorage(dir), clock, maxSize, guard)
 
     // no resource id of a directory that is there without a file, e.g. from a restore of the instance
     private constructor(
@@ -86,7 +94,8 @@ class FileService(
         storage: BinaryStorage,
         clock: Clock,
         maxSize: Long,
-    ) : this(FileRepository(database, clock, free = storage::isFree), storage, maxSize)
+        guard: WriteGuard?,
+    ) : this(FileRepository(database, clock, free = storage::isFree), storage, maxSize, guard)
 
     // the file and size whose thumbnail is being made, by its resource id and the size
     private val thumbnailLocks = ConcurrentHashMap<String, Any>()
@@ -188,6 +197,12 @@ class FileService(
         content: InputStream,
         owner: String,
     ): FileStoreResult {
+        // an upload is small (maxSize), so one look before it is enough
+        try {
+            guard?.requireRoom()
+        } catch (_: InsufficientStorageException) {
+            return FileStoreResult.NoRoom
+        }
         val upload = BlobPath(listOf(UPLOADS, UUID.randomUUID().toString()))
         try {
             val head = ByteArray(HEAD_SIZE)

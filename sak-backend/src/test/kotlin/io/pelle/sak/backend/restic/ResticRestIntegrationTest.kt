@@ -9,7 +9,7 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.restic.ResticRepository
-import io.pelle.sak.s3.storage.WriteGuard
+import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.storage.FilesystemBinaryStorage
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag

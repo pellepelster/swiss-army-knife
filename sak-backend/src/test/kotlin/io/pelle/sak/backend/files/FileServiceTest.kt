@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.storage.WriteGuard
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
@@ -248,4 +249,15 @@ class FileServiceTest {
 
     private fun service(maxSize: Long) = FileService(database, dir, clock, maxSize)
 
+
+    @Test
+    fun `no file is stored when the data volume has no room`() {
+        var free = 0L
+        val guarded = FileService(database, dir, clock, guard = WriteGuard({ free }, minFreeBytes = 1))
+
+        guarded.store(Media.JPEG.inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.NoRoom
+
+        free = 1
+        guarded.store(Media.JPEG.inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>()
+    }
 }

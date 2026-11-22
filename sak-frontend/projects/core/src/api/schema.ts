@@ -4840,6 +4840,15 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
+        /** @description The data volume has no room for more files */
+        507: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
       };
     };
     delete?: never;

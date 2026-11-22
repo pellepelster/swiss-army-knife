@@ -122,6 +122,9 @@ backend:
         angefordert hast, kannst du diese E-Mail ignorieren.
   files:
     too_large: { en: "A file must have at most %{max} MB.", de: "Eine Datei darf höchstens %{max} MB groß sein." }
+    no_room:
+      en: "The SAK instance has no room for more files."
+      de: "Die SAK-Instanz hat keinen Platz für weitere Dateien."
     unsupported_type:
       en: "Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."
       de: "Nur Bilder als JPEG, PNG, GIF und WebP und Aufnahmen als WAV können gespeichert werden."

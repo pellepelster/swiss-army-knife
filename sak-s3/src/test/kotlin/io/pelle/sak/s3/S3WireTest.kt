@@ -1,6 +1,6 @@
 package io.pelle.sak.s3
 
-import io.pelle.sak.s3.storage.WriteGuard
+import io.pelle.sak.storage.WriteGuard
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue

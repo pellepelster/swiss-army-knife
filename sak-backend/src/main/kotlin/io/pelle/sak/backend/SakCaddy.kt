@@ -1,5 +1,6 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.s3.storage.S3Limits
 import java.time.Duration
 import io.pelle.sak.core.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
@@ -11,7 +12,7 @@ import io.pelle.sak.ingress.model.CaddyConfig
 import io.pelle.sak.s3.storage.BinaryStorageS3Backend
 import io.pelle.sak.s3.storage.S3BucketPathResolver
 import io.pelle.sak.storage.BinaryStorage
-import io.pelle.sak.s3.storage.WriteGuard
+import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.backend.restic.RESTIC_PATH_PREFIX
 import io.pelle.sak.backend.restic.ResticStore
 import io.pelle.sak.storage.FilesystemBinaryStorage
@@ -40,11 +41,11 @@ fun bucketStorage(
     config: SakConfig,
     storage: BinaryStorage,
     resolver: S3BucketPathResolver,
-): BinaryStorageS3Backend = BinaryStorageS3Backend(storage, resolver, WriteGuard({ Files.getFileStore(config.s3DataDir).usableSpace }, config.s3MinFreeBytes))
+): BinaryStorageS3Backend = BinaryStorageS3Backend(storage, resolver, WriteGuard({ Files.getFileStore(config.s3DataDir).usableSpace }, config.minFreeBytes, S3Limits.MAX_OBJECT_BYTES))
 
 // the most caddy lets through to the s3 api: the largest object or part, with room for the
 // signatures of an aws-chunked body
-const val S3_MAX_BODY_SIZE = WriteGuard.MAX_OBJECT_BYTES + 64L * 1024 * 1024
+const val S3_MAX_BODY_SIZE = S3Limits.MAX_OBJECT_BYTES + 64L * 1024 * 1024
 
 // the domains the backend serves itself; no bucket and no redirect takes them
 fun reservedDomains(config: SakConfig): Set<String> = setOf(config.apiHost, config.frontendHost)

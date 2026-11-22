@@ -66,6 +66,7 @@ fun Route.files(
             is FileStoreResult.Stored -> call.respond(HttpStatusCode.Created, result.file.response())
             FileStoreResult.TooLarge ->
                 call.respondErrors(Text(FilesTexts.TOO_LARGE, "max" to fileService.maxSize / (1024 * 1024)), status = HttpStatusCode.PayloadTooLarge)
+            FileStoreResult.NoRoom -> call.respondErrors(FilesTexts.NO_ROOM, status = HttpStatusCode.InsufficientStorage)
             is FileStoreResult.Invalid -> call.respondErrors(result.errors)
         }
     }.describe {
@@ -86,6 +87,7 @@ fun Route.files(
                     "${FileService.MAX_RECORDING_SECONDS / 60} minutes",
             )
             errors(HttpStatusCode.PayloadTooLarge, "A file larger than the storage takes")
+            errors(HttpStatusCode.InsufficientStorage, "The data volume has no room for more files")
         }
     }
 
@@ -199,6 +201,7 @@ private fun Parameters.Builder.fileId() =
 // the texts of the files (backend.files in i18n/texts.yml)
 object FilesTexts : Catalog("files") {
     val TOO_LARGE = text("too_large")
+    val NO_ROOM = text("no_room")
     val UNSUPPORTED_TYPE = text("unsupported_type")
     val IMAGE_TOO_LARGE = text("image_too_large")
     val RECORDING_TOO_LONG = text("recording_too_long")
