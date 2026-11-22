@@ -1,6 +1,7 @@
 package io.pelle.sak.auth
 
-import io.pelle.sak.api.logClient
+import io.pelle.sak.api.clientAddress
+import io.pelle.sak.core.logClient
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.openapi.HttpSecurityScheme

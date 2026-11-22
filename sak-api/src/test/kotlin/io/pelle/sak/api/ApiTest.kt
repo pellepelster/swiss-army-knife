@@ -1,5 +1,8 @@
 package io.pelle.sak.api
 
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Language
+import io.pelle.sak.core.Text
 import io.kotest.matchers.shouldBe
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -24,7 +27,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
 import io.pelle.sak.api.model.ApiErrorMessage
 import io.pelle.sak.api.model.ApiErrorResponse
-import io.pelle.sak.api.testing.catalogProblems
+import io.pelle.sak.core.testing.catalogProblems
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.pelle.sak.api.model.PageResponse

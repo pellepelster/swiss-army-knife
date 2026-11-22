@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.openrouter
 
-import io.pelle.sak.api.Catalog
+import io.pelle.sak.core.Catalog
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.settings.BooleanSetting
 import io.pelle.sak.backend.settings.ReadOnlyValues

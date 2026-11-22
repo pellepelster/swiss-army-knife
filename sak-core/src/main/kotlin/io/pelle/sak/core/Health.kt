@@ -1,4 +1,4 @@
-package io.pelle.sak.api
+package io.pelle.sak.core
 
 import kotlinx.serialization.Serializable
 

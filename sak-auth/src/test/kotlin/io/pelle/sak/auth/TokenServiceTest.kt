@@ -1,5 +1,7 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.core.testing.MutableClock
+import io.pelle.sak.core.RateLimiter
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.auth0.jwt.exceptions.JWTVerificationException
@@ -19,20 +21,6 @@ import java.time.ZoneOffset
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-
-class MutableClock(
-    var now: Instant = Instant.parse("2026-10-26T12:00:00Z"),
-) : Clock() {
-    override fun getZone(): ZoneId = ZoneOffset.UTC
-
-    override fun withZone(zone: ZoneId): Clock = this
-
-    override fun instant(): Instant = now
-
-    fun advance(duration: Duration) {
-        now = now.plus(duration)
-    }
-}
 
 private val ADMIN = setOf(Role.ADMIN)
 

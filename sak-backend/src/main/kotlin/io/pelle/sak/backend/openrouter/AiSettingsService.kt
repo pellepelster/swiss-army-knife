@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.openrouter
 
-import io.pelle.sak.api.TextKey
+import io.pelle.sak.core.TextKey
 import io.pelle.sak.backend.settings.BooleanSetting
 import io.pelle.sak.backend.settings.Requirement
 import io.pelle.sak.backend.settings.SettingName

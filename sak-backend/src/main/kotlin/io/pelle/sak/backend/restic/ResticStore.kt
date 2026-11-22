@@ -1,7 +1,7 @@
 package io.pelle.sak.backend.restic
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.pelle.sak.api.logCause
+import io.pelle.sak.core.logCause
 import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.leftovers

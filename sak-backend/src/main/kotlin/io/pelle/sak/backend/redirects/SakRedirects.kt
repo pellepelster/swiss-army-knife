@@ -2,7 +2,7 @@ package io.pelle.sak.backend.redirects
 
 import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.backend.DeleteResult
-import io.pelle.sak.api.Catalog
+import io.pelle.sak.core.Catalog
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.redirects.model.RedirectTargetRequest

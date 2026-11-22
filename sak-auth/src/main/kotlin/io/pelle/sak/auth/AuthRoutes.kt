@@ -1,16 +1,20 @@
 package io.pelle.sak.auth
 
-import io.pelle.sak.api.logCause
-import io.pelle.sak.api.logClient
+import io.pelle.sak.api.clientAddress
+import io.pelle.sak.api.clientNetwork
+import io.pelle.sak.core.MailSender
+import io.pelle.sak.core.RateLimiter
+import io.pelle.sak.core.logCause
+import io.pelle.sak.core.logClient
 import io.pelle.sak.api.respondStatusError
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Text
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Text
 import io.pelle.sak.api.language
-import io.pelle.sak.api.render
+import io.pelle.sak.core.render
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -49,7 +53,7 @@ import io.pelle.sak.auth.model.LoginClientRequest
 import io.pelle.sak.auth.model.LoginRequest
 import io.pelle.sak.auth.model.PasswordLoginRequest
 import io.pelle.sak.auth.model.WhoAmIResponse
-import io.pelle.sak.api.logAddress
+import io.pelle.sak.core.logAddress
 
 private val logger = KotlinLogging.logger {}
 
@@ -519,29 +523,6 @@ fun safeRedirect(redirect: String?): String {
         return "/"
     }
     return redirect
-}
-
-// the backend is only reachable through caddy, which sets X-Forwarded-For to the client
-internal fun ApplicationCall.clientAddress(): String =
-    request.headers[HttpHeaders.XForwardedFor]?.substringAfterLast(',')?.trim()?.takeIf { it.isNotEmpty() }
-        ?: request.local.remoteAddress
-
-// the client as the limits count it: an IPv6 address by its /64, which one host has whole, an IPv4
-// address by itself
-fun ApplicationCall.clientNetwork(): String = clientNetwork(clientAddress())
-
-internal fun clientNetwork(address: String): String {
-    // only a literal with a colon is parsed, which never asks the dns
-    if (':' !in address) return address
-    val bytes =
-        try {
-            InetAddress.getByName(address).address
-        } catch (_: UnknownHostException) {
-            return address
-        }
-    // an IPv4 address written as IPv6 (::ffff:192.0.2.1)
-    if (bytes.size == 4) return InetAddress.getByAddress(bytes).hostAddress
-    return bytes.copyOf(8).toList().chunked(2).joinToString(":") { (high, low) -> "%x".format(((high.toInt() and 0xFF) shl 8) or (low.toInt() and 0xFF)) } + "::/64"
 }
 
 // the texts of the sign-in (backend.auth in i18n/texts.yml)

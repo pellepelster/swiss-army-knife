@@ -1,8 +1,8 @@
 package io.pelle.sak.backend.settings
 
-import io.pelle.sak.api.render
+import io.pelle.sak.core.render
 import io.pelle.sak.api.language
-import io.pelle.sak.api.Language
+import io.pelle.sak.core.Language
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema

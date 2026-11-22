@@ -4,7 +4,7 @@ import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.leftovers
-import io.pelle.sak.api.logCause
+import io.pelle.sak.core.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase

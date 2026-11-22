@@ -2,7 +2,7 @@ package io.pelle.sak.backend.users
 
 import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.auth.normalizeEmail
-import io.pelle.sak.api.Catalog
+import io.pelle.sak.core.Catalog
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.users.User

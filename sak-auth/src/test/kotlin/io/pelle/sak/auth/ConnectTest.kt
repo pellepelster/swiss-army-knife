@@ -1,5 +1,6 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.core.RateLimiter
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
 import io.ktor.client.HttpClient

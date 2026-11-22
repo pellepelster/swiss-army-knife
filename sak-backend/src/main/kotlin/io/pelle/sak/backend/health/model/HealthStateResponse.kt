@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.health.model
 
-import io.pelle.sak.api.HealthState
+import io.pelle.sak.core.HealthState
 import kotlinx.serialization.Serializable
 
 // what a health check found, as it is answered: by the name of the state

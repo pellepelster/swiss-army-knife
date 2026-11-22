@@ -4,44 +4,31 @@ Read this file first. It contains rules for the complete repository.
 
 ## Prime Directives
 
-- Use ASD-STE100 Simplified Technical English for all new or changed documentation (repository and public
-  documentation!) Find the canonical vocabulary in [`docs/development/GLOSSARY.md`](docs/development/GLOSSARY.md).
-- Every document below `docs/` starts with front matter (`title`, `description`, `weight`, a short
-  `linkTitle` where the title is long), so the site of the documentation (`site/`, `mise run docs:serve`) lists it.
-  A link between documents that does not resolve fails `mise run docs:build`.
-- Never add, change, move or delete a rule on your own. A rule is each entry with an id (e.g. `SECURITY-3`,
-  `UX-7`, `DESKTOP-1`) in `docs/development/architecture/` and in [UI-UX.md](docs/development/UI-UX.md), and each
-  bullet of this file. This applies also to a rule that a change, a review or a fix makes necessary or incorrect.
-  Before each change:
-    1. Show the user the exact new text of the rule, and the old text when the rule changes.
-    2. Wait for the explicit agreement of the user to this text.
-    3. Write exactly the agreed text. A different word, an added sentence or a new id needs a new agreement.
-  An instruction to move or to shorten a rule is not an agreement to its new text: show the text first. The
-  agreement is for one change only. When code and a rule do not agree, stop and ask; do not change the rule to
-  agree with the code.
-- Write reviews (of code, the model, the architecture) to `docs/development/reviews/`, one file for each review. Each
-  finding has an id that is unique among the reviews in the repository, the prefix of its review and a number. A fixed
-  finding is deleted from its review; the fix is in the history of git. When every finding of the review is fixed,
-  the review is deleted, and its prefix may be used again.
-- The nearest applicable `AGENTS.md` controls path-specific guidance. Root rules still apply when nested guidance is
-  more specific.
-- Add code documentation for public APIs and important fields, functions, types, invariants, and lifecycle behavior.
-  Future maintainers must not have to infer this information from call sites.
-- Keep relevant tests and internal documentation current. Change public documentation only when readers must learn or do
-  something differently. For API changes, document the required client migration; keep implementation details and
-  unchanged behavior out. Apply the release-note scope below.
+- Write all new or changed documentation in ASD-STE100 Simplified Technical English, with the vocabulary of
+  [`docs/development/GLOSSARY.md`](docs/development/GLOSSARY.md).
+- Every document below `docs/` starts with front matter (`title`, `description`, `weight`, a short `linkTitle` for a
+  long title). A link between documents that does not resolve fails `mise run docs:build`.
+- Never add, change, move or delete a rule on your own, also when a change, a review or a fix makes it necessary or
+  incorrect. A rule is each entry with an id (e.g. `SECURITY-3`) in `docs/development/architecture/` and in
+  [UI-UX.md](docs/development/UI-UX.md), and each bullet of this file. Show the user the exact new text (and the old
+  text of a changed rule), wait for the explicit agreement, write exactly the agreed text. An agreement is for one
+  change; an instruction to move or to shorten a rule is not an agreement to its new text. When code and a rule do
+  not agree, stop and ask.
+- Write each review to a file of its own in `docs/development/reviews/`. Each finding has an id that is unique among
+  all reviews: the prefix of its review and a number. Delete a fixed finding, and a review without findings; its
+  prefix may then be used again.
+- The nearest `AGENTS.md` adds guidance for its path; the rules of this file still apply.
+- Document public APIs and what is not obvious from the code (invariants, lifecycle). Keep comments terse.
+- Keep the tests and the internal documentation current. Change public documentation only when its readers must
+  learn or do something differently; for an API change, document what a client must change.
 - Run verification that can find regressions in the changed area.
-- Never log PII: no raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider
-  subjects, tokens, passwords, auth codes, reset links, raw IPs of clients or users, or full query strings. The IP
-  addresses of the user's own servers (the server and the primary IPs of a deployment) are no PII: sakadmin may show
-  and log them, e.g. in `list` and while it provisions a server.
-- Encrypt all data at rest: databases, files, volumes, backups and logs. Data that is not encrypted at rest is a
-  defect; record it as a feature or an accepted risk until it is fixed.
-- Protect user privacy when you design or build a feature. Identify each external system that the feature contacts and
-  the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections.
-  A connection that sends data to a third party is off by default: it needs an explicit activation, and the consent of
-  the user before data goes out, with the name of the receiver (architecture/SYSTEM.md, "Privacy").
-- Keep comments terse and condensed, only add comments for non-obvious behavior
+- Never log PII: no names, e-mail addresses, login or provider identifiers, tokens, passwords, codes, reset links,
+  IP addresses of clients, or full query strings. The IP addresses of the user's own servers are no PII.
+- Encrypt all data at rest. Data that is not encrypted is a defect: record it as a feature or an accepted risk until
+  it is fixed.
+- Protect the privacy of the user: identify each external system a feature contacts and the data the connection
+  reveals, the IP address included. A connection that sends data to a third party is off by default and needs an
+  activation and the consent of the user, with the name of the receiver (architecture/SYSTEM.md, "Privacy").
 
 ## UI/UX
 
@@ -65,32 +52,6 @@ Every change keeps to its level and to the levels above; a change that has to br
 the same commit and says why. A rule two components need moves up to components/INDEX.md. A new rule needs the explicit consent
 of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 (refer to SYSTEM.md); refer to a rule by its id.
-
-## Persistence (`sak-model`)
-
-- Every table, link tables included, has `created_at`, `updated_at` and `deleted_at` (`SchemaTest`
-  checks it):
-    - `created_at` is set when the row is inserted, never null;
-    - `updated_at` is null until the row really changes, an insert never sets it;
-    - `deleted_at` is null until the row is deleted.
-- Every table, link tables included, has a not null `owner` (`MODEL-5`, `SchemaTest` checks it): an insert takes it
-  from its caller, a route from `call.owner` (`sak-auth`), the backend on its own `SYSTEM_OWNER`; no update sets it.
-- Soft delete (architecture/SYSTEM.md, "Model"): every read skips the rows with `deleted_at` set, a value unique among
-  the live rows has a partial unique index (`WHERE deleted_at IS NULL`).
-- Access (`MODEL-6`): a repository method on the data of a user takes the user and checks the access in its sql.
-- The repository sets the times, from the `Clock` it is constructed with (the service hands its own on);
-  no repository method takes a time or an entity built outside, inserts and updates take the
-  fields and answer the row as it is stored.
-- `SettingService` hands the values out as they are; the consumer of a setting that is a secret keeps it out of logs,
-  e.g. by wrapping it in `Secret`, whose `toString()` never shows the value. Configuration and value classes holding a
-  secret override `toString()` the same way.
-- A setting an admin changes is a `SettingDefinition<T>` of a `SettingScope`, read and written through the
-  `SettingsService` of its scope (`get(OpenRouterManager.ENABLED)` is a `Boolean?`, null while its scope is
-  turned off); a new scope is a `StoredSettingsService`
-  (or a class extending it, e.g. `OpenRouterManager`) added to the `SettingsRegistry` in `SakBackend.kt`. The api and the settings page follow without changes.
-- `sak-model` holds the schema, the entities and their repositories, nothing else. Database access
-  only in `<entity>Repository`, the only class touching jOOQ and its generated tables;
-  `SakDatabase.dsl` is `internal`, the compiler keeps it in the module.
 
 ## Services (`sak-backend`)
 
@@ -182,6 +143,8 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
 - The boundaries are in architecture/SYSTEM.md, "Privacy". In the code: fonts and libraries are bundled (e.g.
   `@fontsource`, `swagger-ui-dist`), the content security policy is `contentSecurityPolicy` and is never widened
   beyond `<root_domain>`, and calls to openrouter send `provider.data_collection: deny`.
+- A type that holds a secret never shows it as text: its `toString()` (or what the language has for it) leaves the
+  value out, so a secret can not get into a log or an error message by accident.
 
 ## Accepted risks
 

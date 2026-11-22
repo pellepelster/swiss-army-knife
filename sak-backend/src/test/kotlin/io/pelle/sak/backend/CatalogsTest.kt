@@ -1,7 +1,7 @@
 package io.pelle.sak.backend
 
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.api.testing.catalogProblems
+import io.pelle.sak.core.testing.catalogProblems
 import io.pelle.sak.backend.files.FilesTexts
 import io.pelle.sak.backend.grocery.GroceryTexts
 import io.pelle.sak.backend.hosting.HostingTexts

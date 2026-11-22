@@ -1,8 +1,11 @@
-package io.pelle.sak.api
+package io.pelle.sak.core
 
-import io.ktor.http.HttpHeaders
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.config.yaml.YamlConfig
+import org.yaml.snakeyaml.DumperOptions
+import org.yaml.snakeyaml.LoaderOptions
+import org.yaml.snakeyaml.Yaml
+import org.yaml.snakeyaml.constructor.SafeConstructor
+import org.yaml.snakeyaml.representer.Representer
+import org.yaml.snakeyaml.resolver.Resolver
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
@@ -28,8 +31,6 @@ enum class Language(
         }
     }
 }
-
-fun ApplicationCall.language(): Language = Language.of(request.headers[HttpHeaders.AcceptLanguage])
 
 // a text in a catalog: the catalog, e.g. backend, and the path of the text in it, e.g.
 // notes.too_many_photos. Made by a Catalog only, which keeps all its keys
@@ -67,8 +68,7 @@ data class Joined(
 
 // the texts of one module, `i18n/<name>.<language>.yml` on the class path, generated from
 // i18n/texts.yml. Each key is a property made with text(); a test of the module checks the files
-// against them (catalogProblems). Ktor reads $NAME in yaml as an environment variable, so sak-i18n
-// refuses a text with a $
+// against them (catalogProblems)
 abstract class Catalog(
     val name: String,
 ) {
@@ -87,9 +87,18 @@ object Catalogs {
         language: Language,
     ): Map<String, String> =
         loaded.computeIfAbsent(catalog to language) { (name, lang) ->
-            val config = YamlConfig("i18n/$name.${lang.tag}.yml") ?: return@computeIfAbsent emptyMap()
-            flatten(config.toMap())
+            val file = Catalogs::class.java.classLoader.getResourceAsStream("i18n/$name.${lang.tag}.yml") ?: return@computeIfAbsent emptyMap()
+            file.use { flatten(yaml().load<Map<String, Any?>>(it.reader(Charsets.UTF_8)).orEmpty()) }
         }
+
+    // every value is a text: no "yes" that becomes true, no number
+    private fun yaml(): Yaml {
+        val texts =
+            object : Resolver() {
+                override fun addImplicitResolvers() = Unit
+            }
+        return Yaml(SafeConstructor(LoaderOptions()), Representer(DumperOptions()), DumperOptions(), LoaderOptions(), texts)
+    }
 
     // the nested maps of a catalog as paths, e.g. category.bakery
     private fun flatten(
@@ -130,18 +139,4 @@ object Catalogs {
             is Joined -> value.parts.joinToString(value.separator) { renderValue(it, language) }
             else -> value.toString()
         }
-}
-
-// the texts of the api itself, what every route answers alike (backend.api in i18n/texts.yml)
-object ApiTexts : Catalog("api") {
-    val MALFORMED_REQUEST = text("malformed_request")
-    val TOO_LARGE_REQUEST = text("too_large_request")
-    val UNEXPECTED_ERROR = text("unexpected_error")
-    val INVALID_OFFSET = text("invalid_offset")
-    val INVALID_LIMIT = text("invalid_limit")
-    val UNAUTHORIZED = text("unauthorized")
-    val FORBIDDEN = text("forbidden")
-    val NOT_FOUND = text("not_found")
-    val TOO_MANY_REQUESTS = text("too_many_requests")
-    val UNAVAILABLE = text("unavailable")
 }

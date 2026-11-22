@@ -1,9 +1,9 @@
 package io.pelle.sak.backend
 
-import io.pelle.sak.api.Language
+import io.pelle.sak.core.Language
 import io.pelle.sak.dns.model.AddressFamily
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.api.HealthState
+import io.pelle.sak.core.HealthState
 import io.pelle.sak.backend.hosting.HostingHealth
 import io.pelle.sak.backend.hosting.S3BucketService
 import io.pelle.sak.backend.redirects.RedirectService

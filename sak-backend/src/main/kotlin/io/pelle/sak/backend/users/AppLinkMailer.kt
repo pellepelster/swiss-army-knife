@@ -1,13 +1,13 @@
 package io.pelle.sak.backend.users
 
-import io.pelle.sak.api.logCause
-import io.pelle.sak.api.logAddress
+import io.pelle.sak.core.logCause
+import io.pelle.sak.core.logAddress
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.pelle.sak.api.Language
-import io.pelle.sak.api.Text
-import io.pelle.sak.api.render
+import io.pelle.sak.core.Language
+import io.pelle.sak.core.Text
+import io.pelle.sak.core.render
 import io.pelle.sak.auth.LoginApp
-import io.pelle.sak.auth.MailSender
+import io.pelle.sak.core.MailSender
 
 private val logger = KotlinLogging.logger {}
 

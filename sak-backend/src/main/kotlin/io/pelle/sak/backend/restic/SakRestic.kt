@@ -29,8 +29,8 @@ import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.auth.RateLimiter
-import io.pelle.sak.auth.clientNetwork
+import io.pelle.sak.core.RateLimiter
+import io.pelle.sak.api.clientNetwork
 import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.restic.model.ResticBackupPlanRequest
 import io.pelle.sak.backend.restic.model.ResticBackupPlanResponse

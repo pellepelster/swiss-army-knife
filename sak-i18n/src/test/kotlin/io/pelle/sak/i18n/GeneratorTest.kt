@@ -170,19 +170,17 @@ class GeneratorTest {
     }
 
     @Test
-    fun `only android has plurals and the backend no dollar`() {
+    fun `only android has plurals`() {
         val problems =
             problems(
                 """
                 backend:
                   logs:
-                    price: { en: "costs $1", de: "kostet $1" }
                     count:
                       en: { one: "one", other: "%{count}" }
                       de: { one: "eins", other: "%{count}" }
                 """,
             )
-        problems shouldContain "logs.price has a \$, the backend reads it as a variable of the environment"
         problems shouldContain "logs.count is a plural, backend has none: only android has plurals"
     }
 

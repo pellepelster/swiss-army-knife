@@ -1,4 +1,4 @@
-package io.pelle.sak.auth
+package io.pelle.sak.core
 
 import jakarta.mail.Message
 import jakarta.mail.Session

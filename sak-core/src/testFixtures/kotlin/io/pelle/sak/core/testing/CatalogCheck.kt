@@ -1,9 +1,9 @@
-package io.pelle.sak.api.testing
+package io.pelle.sak.core.testing
 
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Catalogs
-import io.pelle.sak.api.Language
-import io.pelle.sak.api.TextKey
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Catalogs
+import io.pelle.sak.core.Language
+import io.pelle.sak.core.TextKey
 
 // what is wrong with a catalog, empty when nothing: no keys, or a key without a text in a
 // language; sak-i18n checks the texts. A catalog may have more texts than keys (the common ones)

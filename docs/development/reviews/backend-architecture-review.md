@@ -9,10 +9,10 @@ weight: 12
 
 **Created:** 2026-11-22
 
-**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-7`, `BA-9` to `BA-14`, `BA-19`, `BA-20`, `BA-22`,
-`BA-26` and `BA-30`, which are in the history of git; `BA-23`, `BA-27`, `BA-28` and `BA-29` list what is left of
-them. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a route `GET /settings` of
-their own, an app owns its settings endpoint.
+**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-7`, `BA-9` to `BA-14`, `BA-16`, `BA-19`, `BA-20`,
+`BA-22`, `BA-26`, `BA-27` and `BA-30`, which are in the history of git; `BA-23`, `BA-28` and `BA-29` list what is
+left of them. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a route
+`GET /settings` of their own, an app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -55,16 +55,6 @@ them (`backend/restic/ResticStore.kt:58,121,125`, `backend/restic/SakRestic.kt:4
 `FileService.store` writes with no look at the free bytes. Three stores on one volume guard it in two ways.
 
 Fix: `WriteGuard` and the exceptions move to `sak-storage`, the setting is named after the volume.
-
-### `BA-16` What a module holds is more than the parts say
-
-- `sak-auth` ("the e-mail login, the session tokens, the signed requests of sakadmin, the roles") holds
-  `RateLimiter`, which also limits OpenRouter and restic, `clientNetwork`, which restic uses, and `MailSender`, which
-  the mail of the app link uses.
-- `sak-api` ("the error answer, pagination, health") holds the texts (`Texts.kt`) and the helpers of the logs
-  (`LogAddress.kt`). `sak-dns` so gets Ktor for `Health`, `Text` and `logCause`.
-
-Fix: `RateLimiter` and `clientNetwork` move next to `logClient`; the row of `sak-api` in the parts names what it has.
 
 ### `BA-17` The backend needs the class behind the interface of the S3 storage
 
@@ -147,13 +137,6 @@ Fix: one line in INDEX.md for the verbs and the answers; `installApi()` once for
 path.
 
 ## Could fix: smells
-
-### `BA-27` Two classes of the settings differ by one letter
-
-`SettingService` (the store of all values) and `SettingsService` (the settings of one scope) are in files of their own
-now, with their names. The bullets of AGENT.md name both classes, so a new name is a change of AGENT.md.
-
-Fix: agree on a name, e.g. `SettingStore` for the store, and change AGENT.md with it.
 
 ### `BA-28` The repository of the groceries reads the table of the files
 

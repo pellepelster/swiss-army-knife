@@ -14,7 +14,7 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.ktor.utils.io.writeStringUtf8
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.api.TextKey
+import io.pelle.sak.core.TextKey
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.isOneEmoji

@@ -1,17 +1,17 @@
 package io.pelle.sak.dns
 
-import io.pelle.sak.api.logCause
+import io.pelle.sak.core.logCause
 import io.pelle.sak.dns.model.DnsAnswer
 import io.pelle.sak.dns.model.DnsState
 import io.pelle.sak.dns.model.DomainDnsResult
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.pelle.sak.api.Health
-import io.pelle.sak.api.HealthDetail
-import io.pelle.sak.api.HealthState
-import io.pelle.sak.api.HealthStatus
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Joined
-import io.pelle.sak.api.Text
+import io.pelle.sak.core.Health
+import io.pelle.sak.core.HealthDetail
+import io.pelle.sak.core.HealthState
+import io.pelle.sak.core.HealthStatus
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Joined
+import io.pelle.sak.core.Text
 
 private val logger = KotlinLogging.logger {}
 

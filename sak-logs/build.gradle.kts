@@ -16,6 +16,7 @@ dependencies {
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(testFixtures(project(":sak-api")))
+    testImplementation(testFixtures(project(":sak-core")))
     // the test engine only hands out a streaming response once its handler ended
     testImplementation(libs.ktor.server.netty)
 }

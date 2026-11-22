@@ -2,9 +2,9 @@ package io.pelle.sak.backend.users
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.pelle.sak.api.Language
+import io.pelle.sak.core.Language
 import io.pelle.sak.auth.LoginApp
-import io.pelle.sak.auth.MailSender
+import io.pelle.sak.core.MailSender
 import io.pelle.sak.model.SakDatabase
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

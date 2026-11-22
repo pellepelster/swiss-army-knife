@@ -6,7 +6,7 @@ import io.pelle.sak.model.testing.Media
 import io.pelle.sak.backend.files.FileStoreResult
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.isOneEmoji
-import io.pelle.sak.api.Language
+import io.pelle.sak.core.Language
 import io.pelle.sak.backend.lists.ListSaveResult
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf

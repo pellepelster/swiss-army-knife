@@ -1,8 +1,8 @@
 package io.pelle.sak.backend.hosting
 
-import io.pelle.sak.api.logCause
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Text
+import io.pelle.sak.core.logCause
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Text
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime

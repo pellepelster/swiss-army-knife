@@ -1,5 +1,6 @@
-package io.pelle.sak.auth
+package io.pelle.sak.core
 
+import io.pelle.sak.core.testing.MutableClock
 import io.kotest.matchers.shouldBe
 import org.junit.jupiter.api.Test
 import java.time.Duration

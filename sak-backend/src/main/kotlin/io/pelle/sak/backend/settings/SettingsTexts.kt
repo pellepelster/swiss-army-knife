@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.settings
 
-import io.pelle.sak.api.Catalog
+import io.pelle.sak.core.Catalog
 
 // the texts of the settings (backend.settings in i18n/texts.yml)
 object SettingsTexts : Catalog("settings") {

@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.hosting
 
-import io.pelle.sak.api.logCause
+import io.pelle.sak.core.logCause
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.Ticker

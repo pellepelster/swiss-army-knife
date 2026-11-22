@@ -2,8 +2,8 @@ package io.pelle.sak.backend.labels
 
 import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.backend.DeleteResult
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Text
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Text
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.labels.model.LabelResponse
 import io.pelle.sak.api.installApi

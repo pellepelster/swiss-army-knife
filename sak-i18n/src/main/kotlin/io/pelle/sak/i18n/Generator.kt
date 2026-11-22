@@ -11,7 +11,7 @@ import kotlin.io.path.readText
 const val SOURCE = "i18n/texts.yml"
 
 // the catalogs of the backend, i18n/<catalog>.<language>.yml on the class path of every module
-const val BACKEND_DIR = "sak-api/src/main/resources/i18n"
+const val BACKEND_DIR = "sak-core/src/main/resources/i18n"
 // the catalogs of the web apps, one for each language (catalog.<language>.ts): the web app loads the one of
 // the browser only
 const val WEB_DIR = "sak-frontend/projects/core/src/i18n"
@@ -81,11 +81,6 @@ class Generator(
         noPlurals("backend", backend)
         noPlurals("web", web)
         for ((name, group) in programs) noPlurals(PROGRAMS.getValue(name).binary, group)
-        for ((path, text) in backend.leaves()) {
-            if (LANGUAGES.any { language -> text.all(language).any { '$' in it } }) {
-                problems += "$path has a \$, the backend reads it as a variable of the environment"
-            }
-        }
         for ((catalog, node) in backend.children) {
             if (node !is Group) problems += "$catalog is a text of the backend, a catalog of the backend has keys"
         }

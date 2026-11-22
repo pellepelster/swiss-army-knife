@@ -6,8 +6,8 @@ import io.pelle.sak.backend.DeleteResult
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.api.Language
-import io.pelle.sak.api.render
+import io.pelle.sak.core.Language
+import io.pelle.sak.core.render
 import io.pelle.sak.api.Page
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.model.labels.Label

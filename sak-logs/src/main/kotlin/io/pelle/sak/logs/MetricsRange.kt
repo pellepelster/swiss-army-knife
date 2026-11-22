@@ -1,6 +1,6 @@
 package io.pelle.sak.logs
 
-import io.pelle.sak.api.Text
+import io.pelle.sak.core.Text
 import java.time.Duration
 import java.time.Instant
 

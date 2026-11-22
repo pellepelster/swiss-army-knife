@@ -1,8 +1,8 @@
 package io.pelle.sak.backend.files
 
-import io.pelle.sak.api.logText
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Text
+import io.pelle.sak.core.logText
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Text
 import io.pelle.sak.api.apiTime
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.api.installApi
@@ -21,7 +21,7 @@ import io.ktor.server.routing.post
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.auth.RateLimiter
+import io.pelle.sak.core.RateLimiter
 import io.pelle.sak.auth.owner
 import io.pelle.sak.backend.API_PATH_PREFIX
 import io.pelle.sak.backend.API_VERSION

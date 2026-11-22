@@ -1,7 +1,7 @@
 package io.pelle.sak.backend.health
 
 import io.pelle.sak.api.language
-import io.pelle.sak.api.Language
+import io.pelle.sak.core.Language
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.response.respond
@@ -9,8 +9,8 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.api.Health
-import io.pelle.sak.api.HealthStatus
+import io.pelle.sak.core.Health
+import io.pelle.sak.core.HealthStatus
 import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.health.model.HealthDetailResponse
 import io.pelle.sak.backend.health.model.HealthStateResponse

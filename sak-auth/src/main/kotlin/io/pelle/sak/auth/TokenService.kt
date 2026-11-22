@@ -14,7 +14,7 @@ import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import io.pelle.sak.api.logAddress
+import io.pelle.sak.core.logAddress
 
 data class LoginClaims(
     val email: String,

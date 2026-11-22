@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.settings
 
-import io.pelle.sak.api.TextKey
+import io.pelle.sak.core.TextKey
 import io.pelle.sak.api.ErrorMessage
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive

@@ -1,7 +1,7 @@
 package io.pelle.sak.backend.users
 
 import io.pelle.sak.backend.respondDeleted
-import io.pelle.sak.api.logCause
+import io.pelle.sak.core.logCause
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
@@ -27,7 +27,7 @@ import io.pelle.sak.backend.users.model.UserRequest
 import io.pelle.sak.backend.users.model.UserResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import io.pelle.sak.api.logAddress
+import io.pelle.sak.core.logAddress
 
 private const val USERS_TAG = "users"
 

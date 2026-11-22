@@ -1,4 +1,4 @@
-package io.pelle.sak.api
+package io.pelle.sak.core
 
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotContain

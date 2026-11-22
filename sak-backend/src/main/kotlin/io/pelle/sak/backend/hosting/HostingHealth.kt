@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.hosting
 
-import io.pelle.sak.api.Text
+import io.pelle.sak.core.Text
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.dns.DomainDnsCheck
 import io.pelle.sak.dns.DomainsHealth

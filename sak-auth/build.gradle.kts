@@ -20,5 +20,6 @@ dependencies {
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(testFixtures(project(":sak-api")))
+    testImplementation(testFixtures(project(":sak-core")))
     testImplementation(libs.greenmail.junit5)
 }

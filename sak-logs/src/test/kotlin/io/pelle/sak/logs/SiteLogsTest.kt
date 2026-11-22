@@ -1,6 +1,6 @@
 package io.pelle.sak.logs
 
-import io.pelle.sak.api.testing.catalogProblems
+import io.pelle.sak.core.testing.catalogProblems
 import java.time.Instant
 import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.throwables.shouldThrow

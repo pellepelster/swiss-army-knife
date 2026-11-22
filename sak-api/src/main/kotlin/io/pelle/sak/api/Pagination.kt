@@ -1,5 +1,6 @@
 package io.pelle.sak.api
 
+import io.pelle.sak.core.Text
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.application.ApplicationCall

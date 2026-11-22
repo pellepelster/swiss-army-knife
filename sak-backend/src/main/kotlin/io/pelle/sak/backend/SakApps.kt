@@ -34,7 +34,7 @@ import io.pelle.sak.auth.AdminPassword
 import io.pelle.sak.auth.passwordLogin
 import io.pelle.sak.auth.SESSION_AUTH
 import io.pelle.sak.auth.SigningKey
-import io.pelle.sak.auth.SmtpMailSender
+import io.pelle.sak.core.SmtpMailSender
 import io.pelle.sak.backend.users.AppLinkMailer
 import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.auth.TokenService

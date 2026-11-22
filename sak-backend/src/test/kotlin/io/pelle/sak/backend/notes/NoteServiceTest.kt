@@ -3,7 +3,7 @@ package io.pelle.sak.backend.notes
 import io.pelle.sak.backend.DeleteResult
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import io.pelle.sak.api.Language
+import io.pelle.sak.core.Language
 import io.pelle.sak.api.Page
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.files.FileService

@@ -7,7 +7,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import io.pelle.sak.auth.RateLimiter
+import io.pelle.sak.core.RateLimiter
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.s3.storage.WriteGuard
 import io.pelle.sak.storage.FilesystemBinaryStorage

@@ -1,7 +1,7 @@
 package io.pelle.sak.auth
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.pelle.sak.api.Language
+import io.pelle.sak.core.Language
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

@@ -1,4 +1,4 @@
-package io.pelle.sak.auth
+package io.pelle.sak.core
 
 import com.icegreen.greenmail.junit5.GreenMailExtension
 import com.icegreen.greenmail.util.GreenMailUtil

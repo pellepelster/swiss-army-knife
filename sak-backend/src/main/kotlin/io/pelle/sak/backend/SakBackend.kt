@@ -3,7 +3,7 @@ package io.pelle.sak.backend
 import io.pelle.sak.auth.Role
 import io.pelle.sak.backend.hosting.removeStaleUploads
 import io.pelle.sak.backend.hosting.STALE_UPLOAD_CHECK
-import io.pelle.sak.api.logCause
+import io.pelle.sak.core.logCause
 import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.backend.hosting.HostingHealth

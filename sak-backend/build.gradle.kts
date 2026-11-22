@@ -26,6 +26,7 @@ dependencies {
     runtimeOnly(libs.logback.classic)
     testImplementation(libs.logback.classic)
     testImplementation(testFixtures(project(":sak-api")))
+    testImplementation(testFixtures(project(":sak-core")))
     testImplementation(testFixtures(project(":sak-model")))
 
     testImplementation(libs.greenmail.junit5)

@@ -4,11 +4,11 @@ import io.pelle.sak.dns.model.AddressFamily
 import io.pelle.sak.dns.model.DnsState
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.pelle.sak.api.HealthDetail
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Text
-import io.pelle.sak.api.testing.catalogProblems
-import io.pelle.sak.api.HealthState
+import io.pelle.sak.core.HealthDetail
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Text
+import io.pelle.sak.core.testing.catalogProblems
+import io.pelle.sak.core.HealthState
 import org.junit.jupiter.api.Test
 import java.net.InetAddress
 

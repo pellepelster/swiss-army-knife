@@ -2,8 +2,8 @@ package io.pelle.sak.backend.restic
 
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.isDnsLabel
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Language
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Language
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase

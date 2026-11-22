@@ -1,6 +1,6 @@
 package io.pelle.sak.logs
 
-import io.pelle.sak.api.logCause
+import io.pelle.sak.core.logCause
 import io.pelle.sak.api.language
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
@@ -10,8 +10,8 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.api.Catalog
-import io.pelle.sak.api.Text
+import io.pelle.sak.core.Catalog
+import io.pelle.sak.core.Text
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Operation

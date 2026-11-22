@@ -1,8 +1,9 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.core.RateLimiter
 import io.kotest.matchers.string.shouldContain
 import io.ktor.http.HttpHeaders
-import io.pelle.sak.api.testing.catalogProblems
+import io.pelle.sak.core.testing.catalogProblems
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
 import io.ktor.client.HttpClient
