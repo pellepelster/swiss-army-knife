@@ -12,7 +12,25 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "ES2022",
-    "module": "preserve"
+    "module": "preserve",
+    // the libraries of projects/, compiled from their sources with the shell (src): core for what
+    // every app needs, testing for the specs, one for each app. An app imports core (and testing
+    // in its specs), the shell imports the apps
+    "paths": {
+      "@sak/core": ["./projects/core/src/index.ts"],
+      "@sak/core/app-download": ["./projects/core/src/shared/app-download.ts"],
+      "@sak/core/catalog.en": ["./projects/core/src/i18n/catalog.en.ts"],
+      "@sak/testing": ["./projects/testing/src/index.ts"],
+      "@sak/backups": ["./projects/backups/src/index.ts"],
+      "@sak/grocery": ["./projects/grocery/src/index.ts"],
+      "@sak/health": ["./projects/health/src/index.ts"],
+      "@sak/hosting": ["./projects/hosting/src/index.ts"],
+      "@sak/notes": ["./projects/notes/src/index.ts"],
+      "@sak/redirects": ["./projects/redirects/src/index.ts"],
+      "@sak/settings": ["./projects/settings/src/index.ts"],
+      "@sak/todo": ["./projects/todo/src/index.ts"],
+      "@sak/users": ["./projects/users/src/index.ts"]
+    }
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

@@ -4,8 +4,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { TEXTS } from './i18n/catalog.en';
-import { translate, TextKey } from './i18n/i18n';
+import { TEXTS } from '@sak/core/catalog.en';
+import { translate, TextKey } from '@sak/core';
 
 function templates(dir: string): string[] {
   return readdirSync(dir).flatMap((name: string) => {
@@ -42,9 +42,13 @@ function shown(element: string): string {
 }
 
 describe('the create buttons', () => {
-  const buttons = templates(dirname(fileURLToPath(import.meta.url))).flatMap((file) =>
-    (readFileSync(file, 'utf8').match(ELEMENTS) ?? []).map((element) => ({ file, element })),
-  );
+  // the shell (src/app) and the libraries (projects)
+  const shell = dirname(fileURLToPath(import.meta.url));
+  const buttons = [shell, join(shell, '..', '..', 'projects')]
+    .flatMap(templates)
+    .flatMap((file) =>
+      (readFileSync(file, 'utf8').match(ELEMENTS) ?? []).map((element) => ({ file, element })),
+    );
 
   it('the main create action of a page starts with the plus sign of sak-theme', () => {
     const creates = buttons.filter(

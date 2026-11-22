@@ -7,6 +7,72 @@
   },
   "newProjectRoot": "projects",
   "projects": {
+    "core": {
+      "projectType": "library",
+      "root": "projects/core",
+      "sourceRoot": "projects/core/src",
+      "prefix": "app"
+    },
+    "testing": {
+      "projectType": "library",
+      "root": "projects/testing",
+      "sourceRoot": "projects/testing/src",
+      "prefix": "app"
+    },
+    "backups": {
+      "projectType": "library",
+      "root": "projects/backups",
+      "sourceRoot": "projects/backups/src",
+      "prefix": "app"
+    },
+    "grocery": {
+      "projectType": "library",
+      "root": "projects/grocery",
+      "sourceRoot": "projects/grocery/src",
+      "prefix": "app"
+    },
+    "health": {
+      "projectType": "library",
+      "root": "projects/health",
+      "sourceRoot": "projects/health/src",
+      "prefix": "app"
+    },
+    "hosting": {
+      "projectType": "library",
+      "root": "projects/hosting",
+      "sourceRoot": "projects/hosting/src",
+      "prefix": "app"
+    },
+    "notes": {
+      "projectType": "library",
+      "root": "projects/notes",
+      "sourceRoot": "projects/notes/src",
+      "prefix": "app"
+    },
+    "redirects": {
+      "projectType": "library",
+      "root": "projects/redirects",
+      "sourceRoot": "projects/redirects/src",
+      "prefix": "app"
+    },
+    "settings": {
+      "projectType": "library",
+      "root": "projects/settings",
+      "sourceRoot": "projects/settings/src",
+      "prefix": "app"
+    },
+    "todo": {
+      "projectType": "library",
+      "root": "projects/todo",
+      "sourceRoot": "projects/todo/src",
+      "prefix": "app"
+    },
+    "users": {
+      "projectType": "library",
+      "root": "projects/users",
+      "sourceRoot": "projects/users/src",
+      "prefix": "app"
+    },
     "sak-frontend": {
       "projectType": "application",
       "schematics": {
@@ -121,6 +187,7 @@
           "builder": "@angular/build:unit-test",
           "options": {
             "reporters": ["default"],
+            "include": ["**/*.spec.ts", "../projects/**/*.spec.ts"],
             "setupFiles": ["src/test-setup.ts"]
           }
         }

@@ -1,10 +1,8 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { APPS } from '../apps';
-import { AuthService } from '../auth/auth.service';
-import { TextKey, TranslatePipe } from '../i18n/i18n';
-import { AndroidApp, apkUrl, RELEASES_URL } from '../shared/app-download';
-import { PageHeader } from '../shared/page-header';
+import { AuthService, PageHeader, TextKey, TranslatePipe } from '@sak/core';
+import { AndroidApp, apkUrl, RELEASES_URL } from '@sak/core/app-download';
 
 // the apps that have an android app, in the order of the index page
 const ANDROID_APPS: readonly AndroidApp[] = ['notes', 'grocery', 'todo'];

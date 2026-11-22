@@ -14,7 +14,7 @@ const val SOURCE = "i18n/texts.yml"
 const val BACKEND_DIR = "sak-api/src/main/resources/i18n"
 // the catalogs of the web apps, one for each language (catalog.<language>.ts): the web app loads the one of
 // the browser only
-const val WEB_DIR = "sak-frontend/src/app/i18n"
+const val WEB_DIR = "sak-frontend/projects/core/src/i18n"
 // the android apps (android/): the texts of no app go to core, the ones of an app to its module; the
 // apps are the lines of android/apps.txt, relative to the repository (sak.root of the tests, the
 // working directory of the run)

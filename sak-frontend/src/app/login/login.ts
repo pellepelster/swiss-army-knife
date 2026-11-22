@@ -3,9 +3,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { appPath } from '../apps';
-import { AuthService, UserMode } from '../auth/auth.service';
-import { TranslatePipe } from '../i18n/i18n';
-import { validLoginEmail } from '../shared/email';
+import { AuthService, TranslatePipe, UserMode, validLoginEmail } from '@sak/core';
 
 type State = 'idle' | 'sending' | 'sent' | 'wrong-password' | 'rate-limited' | 'failed';
 

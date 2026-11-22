@@ -3,10 +3,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { generate } from 'lean-qr';
 import { catchError, exhaustMap, map, merge, of, Subscription, timer } from 'rxjs';
-import { Connect } from '../api/models';
-import { AuthService } from '../auth/auth.service';
-import { TextKey, TranslatePipe } from '../i18n/i18n';
-import { PageHeader } from '../shared/page-header';
+import { AuthService, Connect, PageHeader, TextKey, TranslatePipe } from '@sak/core';
 
 // how often the page asks whether an app used the code
 export const POLL_MS = 2_000;

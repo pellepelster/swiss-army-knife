@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../app.routes';
-import { authInterceptor } from '../auth/auth.interceptor';
+import { authInterceptor } from '@sak/core';
 
 const info = (version: string | null) => ({
   name: 'alpha',

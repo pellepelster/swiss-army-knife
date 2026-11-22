@@ -131,9 +131,9 @@ of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
       with `firstValueFrom`; everything else subscribes.
 
 - The look follows [docs/development/UI-UX.md](docs/development/UI-UX.md); the code rules behind it:
-    - Lists are paginated with the shared `app-pagination` (`shared/pagination.ts`), `PAGE_SIZE`
+    - Lists are paginated with the shared `app-pagination` (`shared/pagination.ts` of `core`), `PAGE_SIZE`
       items a page, the page in the `offset` query parameter; only choices and suggestions (a
-      select, a datalist) load a whole list, page by page with `fetchAll` (`shared/api.ts`).
+      select, a datalist) load a whole list, page by page with `fetchAll` (`shared/api.ts` of `core`).
     - Create on `/<entities>/create`, edit on `/<entities>/<id>/edit`; the tabs of a detail view are
       child routes, a `nav nav-tabs` right above the `<router-outlet />`, and each tab starts with its
       card, so the card is the folder of the active tab; an error of the tab is an alert inside that card.

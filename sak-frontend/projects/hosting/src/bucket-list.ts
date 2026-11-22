@@ -1,0 +1,148 @@
+import { Component, DestroyRef, inject, input } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import {
+  ActionMenu,
+  apiErrorMessage,
+  formatBytes,
+  formatCount,
+  I18n,
+  pagedList,
+  PageHeader,
+  pageOffset,
+  PaginationControl,
+  RowError,
+  TranslatePipe,
+} from '@sak/core';
+import { BucketsService, POLL_INTERVAL_MS, servedDomains } from './buckets.service';
+
+// the buckets, a page at a time; the backend counts objects and size in the background, the list
+// polls while a bucket of the page is counted
+@Component({
+  selector: 'app-bucket-list',
+  imports: [PageHeader, PaginationControl, RouterLink, ActionMenu, TranslatePipe],
+  host: { class: 'd-block container pb-5' },
+  template: `
+    <header appPageHeader back="/" [backLabel]="'shared.all_apps' | t">
+      <h1 class="h3 mb-0 flex-grow-1 text-break">{{ 'app.static_hosting' | t }}</h1>
+      <a
+        class="btn btn-primary"
+        routerLink="/static-hosting/create"
+        [title]="'hosting.create_page.title' | t"
+      >
+        <i class="sak-icon-plus" aria-hidden="true"></i> {{ 'hosting.create_page.title' | t }}
+      </a>
+    </header>
+
+    @if (list.error() ?? strayError(); as error) {
+      <p class="alert alert-danger" role="alert">{{ error }}</p>
+    }
+
+    @if (list.loaded()) {
+      <ul class="list-unstyled vstack gap-2 mb-0" [attr.aria-label]="'hosting.list.buckets' | t">
+        @for (bucket of list.items(); track bucket.name) {
+          <li class="card card-body flex-row flex-wrap align-items-center gap-3">
+            <a
+              class="flex-grow-1 d-flex justify-content-between gap-3 link-body-emphasis text-decoration-none stretched-link"
+              [routerLink]="['/static-hosting', bucket.name]"
+              [attr.data-testid]="'bucket-' + bucket.name"
+            >
+              <span class="vstack gap-1">
+                <span class="fw-semibold font-monospace text-break">{{ bucket.name }}</span>
+                <span class="small text-body-secondary font-monospace text-break">{{
+                  served(bucket).join(', ') || ('hosting.list.not_served' | t)
+                }}</span>
+              </span>
+              <span class="text-end text-nowrap align-self-center">
+                @if (bucket.statistics.failed) {
+                  <span class="text-body-secondary">{{ 'hosting.not_counted' | t }}</span>
+                } @else if (bucket.statistics.computing) {
+                  <span class="text-body-secondary fst-italic">{{ 'hosting.counting' | t }}</span>
+                } @else {
+                  <span data-testid="objects">{{ formatCount(bucket.statistics.objects!) }}</span>
+                  <span class="text-body-secondary"> {{ 'hosting.list.objects' | t }} · </span>
+                  <span data-testid="bytes">{{ formatBytes(bucket.statistics.bytes!) }}</span>
+                }
+              </span>
+            </a>
+            <app-action-menu [name]="bucket.name" deletes (deleted)="delete(bucket.name)">
+              <a
+                class="dropdown-item"
+                role="menuitem"
+                [routerLink]="['/static-hosting', bucket.name, 'edit']"
+                ><i class="fa-solid fa-pen me-2" aria-hidden="true"></i>{{ 'shared.edit' | t }}</a
+              >
+            </app-action-menu>
+            <!-- in the row (UX-15), above its link -->
+            @if (rowError.of(bucket.name); as error) {
+              <p class="alert alert-danger mb-0 w-100 position-relative z-2" role="alert">
+                {{ error }}
+              </p>
+            }
+          </li>
+        } @empty {
+          <li class="card card-body text-center py-4">
+            {{ 'hosting.list.empty' | t }}
+          </li>
+        }
+      </ul>
+      <app-pagination
+        [label]="'hosting.list.pages' | t"
+        [pagination]="list.pagination()"
+        (offsetChange)="list.goTo($event)"
+      />
+    } @else if (!list.error()) {
+      <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
+    }
+  `,
+})
+export class BucketList {
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly service = inject(BucketsService);
+  private readonly i18n = inject(I18n);
+
+  // the offset query parameter
+  readonly offset = input(0, { transform: pageOffset });
+
+  protected readonly list = pagedList({
+    path: '/static-hosting',
+    offset: this.offset,
+    page: (offset) => this.service.page(offset),
+    error: (error) =>
+      apiErrorMessage(error, this.i18n.t('hosting.list.load_failed'), {
+        403: this.i18n.t('hosting.forbidden'),
+      }),
+    again: {
+      while: (buckets) => buckets.some((bucket) => bucket.statistics.computing),
+      ms: POLL_INTERVAL_MS,
+    },
+  });
+
+  protected readonly formatBytes = formatBytes;
+  protected readonly formatCount = formatCount;
+  protected readonly served = servedDomains;
+
+  // by bucket name
+  protected readonly rowError = new RowError<string>();
+  protected strayError(): string | null {
+    return this.rowError.stray((name) => this.list.items().some((bucket) => bucket.name === name));
+  }
+
+  // its objects stay, the name stays taken
+  protected delete(name: string): void {
+    this.rowError.clear();
+    this.service
+      .delete(name)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.list.reload(),
+        error: (error: unknown) =>
+          this.rowError.set(
+            name,
+            apiErrorMessage(error, this.i18n.t('hosting.view.delete_failed', { name }), {
+              403: this.i18n.t('hosting.view.delete_forbidden'),
+            }),
+          ),
+      });
+  }
+}

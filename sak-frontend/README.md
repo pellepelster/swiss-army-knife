@@ -6,7 +6,7 @@ The web apps (notes, grocery lists, todo lists, static hosting, redirects), an A
 ## Service worker
 
 The production build installs the service worker of Angular (`ngsw-config.json`), so the apps start without the
-network. The api requests go past it (`ngsw-bypass`, `shared/api-url.ts`). `ServiceWorkerUpdates` reloads the page
+network. The api requests go past it (`ngsw-bypass`, `projects/core/src/shared/api-url.ts`). `ServiceWorkerUpdates` reloads the page
 when the worker cannot serve the running version, and looks for a new version when the app comes back into view.
 
 If a worker breaks for everyone, one of these removes it from every browser at the next visit:

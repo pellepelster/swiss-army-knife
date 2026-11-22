@@ -2,8 +2,7 @@ import { Location } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AuthService } from '../auth/auth.service';
-import { TranslatePipe } from '../i18n/i18n';
+import { AuthService, TranslatePipe } from '@sak/core';
 
 // the android apps by the client of their login link (LoginClient of sak-auth): the package, also the
 // scheme of the signin link, and the texts of the page that hands the link on
@@ -52,8 +51,9 @@ export function androidAppLink(client: AndroidClient, token: string): string {
             <h1 class="h4 mb-3">{{ 'signin.failed_title' | t }}</h1>
             <p class="alert alert-danger mb-0" role="alert">
               {{ 'login.link_invalid' | t }}
-              <a routerLink="/login">{{ 'signin.request_new' | t }}</a
-              >{{ 'signin.failed_after' | t }}
+              <a routerLink="/login">{{ 'signin.request_new' | t }}</a>{{
+                'signin.failed_after' | t
+              }}
             </p>
           } @else {
             <p class="mb-0">{{ 'login.signing_in' | t }}</p>

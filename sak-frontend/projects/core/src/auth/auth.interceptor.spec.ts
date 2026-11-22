@@ -1,0 +1,74 @@
+import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { signedIn } from '@sak/testing';
+import { authInterceptor } from './auth.interceptor';
+import { AuthService, LEAVE_PAGE } from './auth.service';
+
+describe('authInterceptor', () => {
+  let http: HttpTestingController;
+  let client: HttpClient;
+  // the pages a rejected session loads again
+  let leftTo: string[];
+
+  beforeEach(() => {
+    signedIn();
+    leftTo = [];
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: LEAVE_PAGE, useValue: (url: string) => leftTo.push(url) },
+        provideRouter([]),
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    client = TestBed.inject(HttpClient);
+  });
+
+  afterEach(() => {
+    http.verify();
+    localStorage.clear();
+  });
+
+  it('sends the session token to the api', () => {
+    client.get('/api/v1/auth/who-am-i').subscribe();
+
+    expect(http.expectOne('/api/v1/auth/who-am-i').request.headers.get('Authorization')).toBe(
+      'Bearer session-token',
+    );
+  });
+
+  it('keeps the session token from the public api and other origins', () => {
+    for (const url of [
+      '/api/v1/auth/login/link',
+      '/api/v1/auth/login/exchange',
+      'https://evil.example.com/api/x',
+      '/assets/x',
+    ]) {
+      client.post(url, {}).subscribe();
+      expect(http.expectOne(url).request.headers.has('Authorization')).toBe(false);
+    }
+  });
+
+  // as a new page, nothing of the user before stays in the tab
+  it('ends the session and opens the login as a new page when the api rejects the token', () => {
+    client.get('/api/v1/auth/who-am-i').subscribe({ error: () => undefined });
+    http
+      .expectOne('/api/v1/auth/who-am-i')
+      .flush(null, { status: 401, statusText: 'Unauthorized' });
+
+    expect(TestBed.inject(AuthService).isLoggedIn()).toBe(false);
+    expect(leftTo).toEqual(['/login?redirect=%2F']);
+  });
+
+  it('leads to the login once when several requests are rejected', () => {
+    client.get('/api/v1/notes').subscribe({ error: () => undefined });
+    client.get('/api/v1/labels').subscribe({ error: () => undefined });
+    http.expectOne('/api/v1/notes').flush(null, { status: 401, statusText: 'Unauthorized' });
+    http.expectOne('/api/v1/labels').flush(null, { status: 401, statusText: 'Unauthorized' });
+
+    expect(leftTo).toHaveLength(1);
+  });
+});

@@ -1,0 +1,5 @@
+{
+  "name": "@sak/todo",
+  "private": true,
+  "sideEffects": false
+}

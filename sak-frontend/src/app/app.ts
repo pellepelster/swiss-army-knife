@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ColorSchemeService } from './color-scheme.service';
-import { FaviconService } from './favicon.service';
+import { FaviconService } from '@sak/core';
 import { InstallService } from './install.service';
 import { ManifestService } from './manifest.service';
 

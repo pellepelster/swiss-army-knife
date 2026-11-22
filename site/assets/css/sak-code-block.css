@@ -1,5 +1,5 @@
 /* a command to take over as it is, as a terminal window, the look of app-code-block of the apps
-   (sak-frontend/src/app/hosting/code-block.ts): dark in light and dark mode alike, its name in the
+   (sak-frontend/projects/hosting/src/code-block.ts): dark in light and dark mode alike, its name in the
    bar with a copy pill, a prompt before each command that is not copied */
 .sak-code-block {
   --terminal: #1d1c1a;

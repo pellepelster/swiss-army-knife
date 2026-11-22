@@ -12,15 +12,15 @@ adds to [SYSTEM.md](../SYSTEM.md) and never repeats it; each component adds to t
 
 ## The components
 
-| Component      | Document                     | Backend                                  | Frontend     | Tables                                                                   |
-|----------------|------------------------------|------------------------------------------|--------------|--------------------------------------------------------------------------|
-| Static hosting | [HOSTING.md](HOSTING.md)     | `io.pelle.sak.backend.hosting`, `sak-s3` | `hosting/`   | `s3_buckets`, `s3_buckets_domains`                                       |
-| Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `redirects/` | `redirects`                                                              |
-| Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                     |
-| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                   |
-| Todo           | [TODO.md](TODO.md)           | `io.pelle.sak.backend.todo`              | `todo/`      | `todo_lists`, `todo_items`                                               |
-| Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`, `sak-dns` | `health/`    | none                                                                     |
-| Backup         | [BACKUP.md](BACKUP.md)       | `io.pelle.sak.backend.restic`            | `backups/`   | `restic_repositories`, `restic_backup_plans`, `restic_backup_plan_paths` |
+| Component      | Document                     | Backend                                  | Frontend              | Tables                                                                   |
+|----------------|------------------------------|------------------------------------------|-----------------------|--------------------------------------------------------------------------|
+| Static hosting | [HOSTING.md](HOSTING.md)     | `io.pelle.sak.backend.hosting`, `sak-s3` | `projects/hosting/`   | `s3_buckets`, `s3_buckets_domains`                                       |
+| Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `projects/redirects/` | `redirects`                                                              |
+| Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `projects/notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                     |
+| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `projects/grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                   |
+| Todo           | [TODO.md](TODO.md)           | `io.pelle.sak.backend.todo`              | `projects/todo/`      | `todo_lists`, `todo_items`                                               |
+| Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`, `sak-dns` | `projects/health/`    | none                                                                     |
+| Backup         | [BACKUP.md](BACKUP.md)       | `io.pelle.sak.backend.restic`            | `projects/backups/`   | `restic_repositories`, `restic_backup_plans`, `restic_backup_plan_paths` |
 
 The first five are the apps. The login, the settings, the labels and the file storage are no apps; all apps share
 them (refer to [Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`FRONTEND-1`).

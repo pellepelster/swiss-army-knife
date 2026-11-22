@@ -15,6 +15,8 @@ val npmBuild by tasks.registering(Exec::class) {
     dependsOn(npmCi)
     commandLine("npm", "run", "build")
     inputs.dir("src")
+    // the libraries: core, testing and one for each app
+    inputs.dir("projects")
     inputs.dir("public")
     // the favicons and the icons of the apps (angular.json)
     inputs.dir("../sak-theme/images/web")

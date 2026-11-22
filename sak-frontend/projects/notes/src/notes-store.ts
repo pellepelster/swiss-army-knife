@@ -1,0 +1,673 @@
+import { DOCUMENT } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { firstValueFrom, Subscription } from 'rxjs';
+import {
+  errorMessages,
+  fetchAll,
+  I18n,
+  Keepalive,
+  NoteResponse as ApiNoteResponse,
+  NotesSettings,
+  Page,
+  PAGE_SIZE,
+  Pagination,
+  PendingUndo,
+  PhotoScaler,
+  UNDO_DELETE_MS,
+  whenLeaving,
+} from '@sak/core';
+import { AudioRecorder } from './audio-recorder';
+
+// what was removed and can be brought back: a note, or a photo or recording of a note
+export interface Removal {
+  readonly kind: 'note' | 'photo' | 'recording';
+  readonly noteId: number;
+  // the photo or recording, null for a note
+  readonly fileId: number | null;
+}
+
+export const NOTE_COLORS = [
+  'yellow',
+  'pink',
+  'blue',
+  'green',
+  'orange',
+] as const satisfies readonly NoteResponse['color'][];
+
+type NoteColor = NoteResponse['color'];
+
+// photos and recordings are the ids of files of the backend's file storage, served with the
+// session at /api/v1/files/<id>
+export interface Note {
+  readonly id: number;
+  readonly text: string;
+  readonly color: NoteColor;
+  readonly labels: readonly string[];
+  readonly photos: readonly number[];
+  readonly recordings: readonly number[];
+  readonly created: Date;
+  // null until the note is changed
+  readonly updated: Date | null;
+}
+
+// what the api answers, the labels are the shared ones
+type NoteResponse = ApiNoteResponse;
+
+// the most labels a note has, the backend takes no more
+export const MAX_LABELS = 10;
+
+// how long typing pauses before the text is saved
+export const SAVE_TEXT_AFTER_MS = 600;
+
+// how long the used labels wait for further changes before they are loaded again
+export const LOAD_USED_LABELS_AFTER_MS = 300;
+
+// how long a deleted note, photo or recording can be brought back before the backend removes it
+export { UNDO_DELETE_MS };
+
+// labels are compared without case and surrounding blanks, `Work ` and `work` are one label; the
+// backend stores them the same way
+function normalizeLabel(label: string): string {
+  return label.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+// the notes of the signed in user, kept by the backend; changes show at once and are saved in
+// the background, the text once typing pauses. Photos are scaled down and uploaded to the file
+// storage first, then attached; recordings are uploaded and attached
+@Injectable({ providedIn: 'root' })
+export class NotesStore {
+  private readonly http = inject(HttpClient);
+  private readonly scaler = inject(PhotoScaler);
+  private readonly keepalive = inject(Keepalive);
+  private readonly document = inject(DOCUMENT);
+  private readonly recorder = inject(AudioRecorder);
+  private readonly i18n = inject(I18n);
+
+  private readonly all = signal<readonly Note[]>([]);
+  private readonly shared = signal<readonly string[]>([]);
+  private readonly used = signal<readonly string[]>([]);
+  private loadingUsed?: Subscription;
+  private usedTimer?: ReturnType<typeof setTimeout>;
+  // the notes whose labels changed here and are not saved yet: their save loads the used labels
+  private readonly labelsChanged = new Set<number>();
+  private readonly pendingText = new Map<number, ReturnType<typeof setTimeout>>();
+
+  // the requests saving or deleting a note that are not answered yet, by note
+  private readonly inFlight = new Map<number, number>();
+
+  // while the notes are loaded: the notes changed here meanwhile and the ones whose change was
+  // not saved yet when the loading started; the backend's answer may not know of these changes,
+  // the notes are kept as they are here
+  private changedWhileLoading: Set<number> | null = null;
+
+  private loadingNotes?: Subscription;
+
+  // what was removed last while it can be brought back, removed in the backend after
+  // UNDO_DELETE_MS (with keepalive when the page goes away)
+  private readonly removal = new PendingUndo<Removal>(UNDO_DELETE_MS);
+
+  // the page and label loaded last, e.g. `0|work`
+  private loadedQuery: string | null = null;
+
+  // the page of the notes loaded last, the newest first
+  readonly notes = this.all.asReadonly();
+
+  // where the page is in all the notes (of the label), null until it is loaded
+  readonly pagination = signal<Pagination | null>(null);
+
+  readonly loading = signal(false);
+
+  // the notes a photo is being uploaded for
+  readonly uploading = signal<ReadonlySet<number>>(new Set());
+
+  // what is being recorded for: a note, a new note (`new`) or nothing
+  readonly recordingFor = signal<number | 'new' | null>(null);
+
+  // the photos and recordings whose text is being discovered
+  readonly discovering = signal<ReadonlySet<number>>(new Set());
+  // whether photos and recordings offer to discover their text (GET /notes/settings): the AI
+  // functions are on and a provider is set up; false until it is known
+  readonly discoverAvailable = signal(false);
+
+  // what was removed last while it can be brought back with undoRemove, null otherwise
+  readonly removed = this.removal.current.asReadonly();
+
+  // what went wrong last and where (UX-15); every action clears it when it starts
+  readonly failure = signal<{ at: NoteErrorAt; message: string } | null>(null);
+  readonly error = computed(() => this.failure()?.message ?? null);
+
+  errorAt(at: NoteErrorAt): string | null {
+    const failure = this.failure();
+    return failure !== null && failure.at === at ? failure.message : null;
+  }
+
+  // the labels of the notes loaded, sorted
+  readonly labels = computed(() =>
+    [...new Set(this.all().flatMap((note) => note.labels))].sort((a, b) => a.localeCompare(b)),
+  );
+
+  // the labels of all notes of the user (GET /notes/labels): the ones the notes filter by
+  readonly usedLabels = this.used.asReadonly();
+
+  // the labels of all the apps and of the notes, to suggest them
+  readonly knownLabels = computed(() =>
+    [...new Set([...this.shared(), ...this.labels()])].sort((a, b) => a.localeCompare(b)),
+  );
+
+  constructor() {
+    // unsaved text and the pending removal go out when the page goes away or into the background,
+    // e.g. the installed app is closed right after typing
+    const destroyRef = inject(DestroyRef);
+    whenLeaving(destroyRef, () => this.saveLeaving(), this.document);
+    destroyRef.onDestroy(() => {
+      this.pendingText.forEach((timer) => clearTimeout(timer));
+      this.removal.dispose();
+      this.loadingNotes?.unsubscribe();
+      this.loadingUsed?.unsubscribe();
+      clearTimeout(this.usedTimer);
+    });
+  }
+
+  // cancels a load not answered yet. The notes loaded replace the ones here, except the ones
+  // changed here that the backend may not know of yet; such a note not on the page loaded stays
+  // only when the same page is loaded again
+  load(offset = 0, label: string | null = null): void {
+    this.loadingNotes?.unsubscribe();
+    this.failure.set(null);
+    this.loading.set(true);
+    this.changedWhileLoading = new Set([...this.pendingText.keys(), ...this.inFlight.keys()]);
+    const query = `${offset}|${label ?? ''}`;
+    this.loadingNotes = this.http
+      .get<Page<NoteResponse>>('/api/v1/notes', {
+        params: { offset, limit: PAGE_SIZE, ...(label === null ? {} : { label }) },
+      })
+      .subscribe({
+        next: (page) => {
+          const changed = this.changedWhileLoading ?? new Set<number>();
+          this.changedWhileLoading = null;
+          const sameQuery = this.loadedQuery === query;
+          this.loadedQuery = query;
+          const loaded = page.items.map(toNote);
+          const onPage = new Set(loaded.map((note) => note.id));
+          this.all.update((notes) =>
+            [
+              ...loaded.filter((note) => !changed.has(note.id)),
+              ...notes.filter((note) => changed.has(note.id) && (sameQuery || onPage.has(note.id))),
+            ].sort(newestFirst),
+          );
+          this.pagination.set(page.pagination);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.changedWhileLoading = null;
+          this.loading.set(false);
+          this.fail('page', this.i18n.t('notes.errors.not_loaded'));
+        },
+      });
+    fetchAll<{ name: string }>(this.http, '/api/v1/labels').subscribe({
+      next: (labels) => this.shared.set(labels.map((label) => label.name)),
+      // the labels are only suggestions
+      error: () => this.shared.set([]),
+    });
+    this.loadUsed();
+  }
+
+  // cancels a load not answered yet; a failure keeps the labels as they were
+  private loadUsed(): void {
+    clearTimeout(this.usedTimer);
+    this.loadingUsed?.unsubscribe();
+    this.loadingUsed = fetchAll<{ name: string }>(this.http, '/api/v1/notes/labels').subscribe({
+      next: (labels) => this.used.set(labels.map((label) => label.name)),
+      error: () => undefined,
+    });
+  }
+
+  // debounced, after a row of changes
+  private loadUsedSoon(): void {
+    clearTimeout(this.usedTimer);
+    this.usedTimer = setTimeout(() => this.loadUsed(), LOAD_USED_LABELS_AFTER_MS);
+  }
+
+  // null when it could not be created
+  async add(
+    text = '',
+    color: NoteColor = 'yellow',
+    labels: readonly string[] = [],
+    photos: readonly number[] = [],
+    recordings: readonly number[] = [],
+  ): Promise<Note | null> {
+    this.failure.set(null);
+    try {
+      const response = await firstValueFrom(
+        this.http.post<NoteResponse>('/api/v1/notes', { text, color, labels, photos, recordings }),
+      );
+      const note = toNote(response);
+      this.changedWhileLoading?.add(note.id);
+      // the notes loaded meanwhile may have it already
+      const known = this.all().some((other) => other.id === note.id);
+      this.all.update((notes) => [note, ...notes.filter((other) => other.id !== note.id)]);
+      if (!known) this.countNotes(1);
+      if (labels.length) this.loadUsedSoon();
+      return note;
+    } catch {
+      this.fail('new', this.i18n.t('notes.errors.not_created'));
+      return null;
+    }
+  }
+
+  setText(id: number, text: string): void {
+    if (!this.change(id, (note) => (note.text === text ? note : { ...note, text }))) return;
+    clearTimeout(this.pendingText.get(id));
+    this.pendingText.set(
+      id,
+      setTimeout(() => this.save(id), SAVE_TEXT_AFTER_MS),
+    );
+  }
+
+  setColor(id: number, color: NoteColor): void {
+    if (this.change(id, (note) => (note.color === color ? note : { ...note, color })))
+      this.save(id);
+  }
+
+  // a blank label, one the note has already or one more than MAX_LABELS changes nothing
+  addLabel(id: number, label: string): void {
+    const normalized = normalizeLabel(label);
+    if (!normalized) return;
+    const changed = this.change(id, (note) =>
+      note.labels.includes(normalized) || note.labels.length >= MAX_LABELS
+        ? note
+        : { ...note, labels: [...note.labels, normalized] },
+    );
+    if (changed) {
+      this.labelsChanged.add(id);
+      this.save(id);
+    }
+  }
+
+  removeLabel(id: number, label: string): void {
+    const changed = this.change(id, (note) =>
+      note.labels.includes(label)
+        ? { ...note, labels: note.labels.filter((l) => l !== label) }
+        : note,
+    );
+    if (changed) {
+      this.labelsChanged.add(id);
+      this.save(id);
+    }
+  }
+
+  // a new note with the photo, null when the photo or the note could not be stored
+  async addWithPhoto(photo: Blob, labels: readonly string[] = []): Promise<Note | null> {
+    this.failure.set(null);
+    const fileId = await this.uploadPhoto(photo, 'new');
+    return fileId === null ? null : this.add('', 'yellow', labels, [fileId]);
+  }
+
+  // attached once it is uploaded
+  async addPhoto(id: number, photo: Blob): Promise<void> {
+    this.failure.set(null);
+    this.uploading.update((ids) => new Set([...ids, id]));
+    try {
+      const fileId = await this.uploadPhoto(photo, id);
+      if (fileId === null) return;
+      const changed = this.change(id, (note) =>
+        note.photos.includes(fileId) ? note : { ...note, photos: [...note.photos, fileId] },
+      );
+      if (changed) this.save(id);
+    } finally {
+      this.uploading.update((ids) => new Set([...ids].filter((other) => other !== id)));
+    }
+  }
+
+  // starts recording for the note or for a new note (`new`), a second call stops it
+  async record(target: number | 'new', labels: readonly string[] = []): Promise<Note | null> {
+    if (this.recordingFor() !== null) {
+      this.recorder.stop();
+      return null;
+    }
+    this.failure.set(null);
+    this.recordingFor.set(target);
+    let recording: Blob | null;
+    try {
+      recording = await this.recorder.record();
+    } catch {
+      this.fail(target, this.i18n.t('notes.errors.microphone'));
+      return null;
+    } finally {
+      this.recordingFor.set(null);
+    }
+    // stopped before it ran, there is nothing to keep
+    if (recording === null) return null;
+
+    const id = target === 'new' ? null : target;
+    if (id !== null) this.uploading.update((ids) => new Set([...ids, id]));
+    try {
+      const fileId = await this.uploadFile(
+        recording,
+        this.i18n.t('notes.errors.recording_not_stored'),
+        target,
+      );
+      if (fileId === null) return null;
+      if (id === null) return await this.add('', 'yellow', labels, [], [fileId]);
+      const changed = this.change(id, (current) =>
+        current.recordings.includes(fileId)
+          ? current
+          : { ...current, recordings: [...current.recordings, fileId] },
+      );
+      if (changed) this.save(id);
+      return this.all().find((current) => current.id === id) ?? null;
+    } finally {
+      if (id !== null)
+        this.uploading.update((ids) => new Set([...ids].filter((other) => other !== id)));
+    }
+  }
+
+  // ends the recording, record() keeps it; while the microphone is set up, nothing is recorded
+  stopRecording(): void {
+    this.recorder.stop();
+  }
+
+  // the file stays in the storage, other notes may play it too
+  removeRecording(id: number, fileId: number): void {
+    this.removeFile(id, fileId, 'recording');
+  }
+
+  // what the notes app may do for the signed in user, whatever their role
+  loadSettings(): void {
+    this.http.get<NotesSettings>('/api/v1/notes/settings').subscribe({
+      next: (settings) => this.discoverAvailable.set(settings.discoverText),
+      error: () => this.discoverAvailable.set(false),
+    });
+  }
+
+  // the text the backend discovers in the photo or the recording is added to the text of the note
+  async discoverText(id: number, fileId: number): Promise<void> {
+    this.failure.set(null);
+    const recording = this.all()
+      .find((note) => note.id === id)
+      ?.recordings.includes(fileId);
+    this.discovering.update((photos) => new Set([...photos, fileId]));
+    try {
+      const { text } = await firstValueFrom(
+        this.http.post<{ text: string }>(`/api/v1/files/${fileId}/discover/text`, null),
+      );
+      if (!text) {
+        this.fail(
+          id,
+          this.i18n.t(
+            recording ? 'notes.errors.no_text_in_recording' : 'notes.errors.no_text_in_photo',
+          ),
+        );
+        return;
+      }
+      const changed = this.change(id, (note) => ({
+        ...note,
+        text: note.text.trim() ? `${note.text.trimEnd()}\n\n${text}` : text,
+      }));
+      if (changed) this.save(id);
+    } catch (error: unknown) {
+      this.fail(id, errorMessages(error)[0] ?? this.i18n.t('notes.errors.not_discovered'));
+    } finally {
+      this.discovering.update((photos) => new Set([...photos].filter((photo) => photo !== fileId)));
+    }
+  }
+
+  // the file stays in the storage, other notes may show it too
+  removePhoto(id: number, fileId: number): void {
+    this.removeFile(id, fileId, 'photo');
+  }
+
+  // the note goes at once, the backend deletes it after UNDO_DELETE_MS unless undoRemove brings it
+  // back, and brings it back when it can not delete it
+  delete(id: number): void {
+    this.failure.set(null);
+    const note = this.all().find((n) => n.id === id);
+    if (!note) return;
+    this.commitRemoval();
+    const unsavedText = this.pendingText.has(id);
+    clearTimeout(this.pendingText.get(id));
+    this.pendingText.delete(id);
+    this.changedWhileLoading?.add(id);
+    this.all.update((notes) => notes.filter((n) => n.id !== id));
+    this.countNotes(-1);
+    // a request from now on, notes loaded meanwhile keep it away
+    this.startRequest(id);
+    this.startRemoval(
+      { kind: 'note', noteId: id, fileId: null },
+      (leaving) => {
+        if (leaving) {
+          void this.keepalive.send(`/api/v1/notes/${id}`, 'DELETE');
+          return;
+        }
+        this.http.delete(`/api/v1/notes/${id}`).subscribe({
+          error: () => {
+            this.finishRequest(id);
+            this.restore(note);
+            this.fail(id, this.i18n.t('notes.errors.not_deleted'));
+          },
+          complete: () => {
+            this.finishRequest(id);
+            // its labels may have been the last of their name
+            if (note.labels.length) this.loadUsedSoon();
+          },
+        });
+      },
+      () => {
+        this.finishRequest(id);
+        this.restore(note);
+        if (unsavedText) this.save(id);
+      },
+    );
+  }
+
+  undoRemove(): void {
+    this.removal.undo();
+  }
+
+  // the photo or recording goes from the note at once, the note is saved without it after
+  // UNDO_DELETE_MS unless undoRemove brings it back to its place
+  private removeFile(id: number, fileId: number, kind: 'photo' | 'recording'): void {
+    const key = kind === 'photo' ? 'photos' : 'recordings';
+    const position = this.all()
+      .find((note) => note.id === id)
+      ?.[key].indexOf(fileId);
+    if (position === undefined || position < 0) return;
+    this.failure.set(null);
+    this.commitRemoval();
+    this.change(id, (note) => ({ ...note, [key]: note[key].filter((file) => file !== fileId) }));
+    // a request from now on, notes loaded meanwhile keep the file away
+    this.startRequest(id);
+    this.startRemoval(
+      { kind, noteId: id, fileId },
+      (leaving) => {
+        this.finishRequest(id);
+        if (leaving) this.saveKeepalive(id);
+        else this.save(id);
+      },
+      () => {
+        this.finishRequest(id);
+        this.change(id, (note) => ({
+          ...note,
+          [key]: [...note[key].slice(0, position), fileId, ...note[key].slice(position)],
+        }));
+        // the note may have been saved without the file meanwhile, e.g. its text
+        if (this.savedWhileRemoving.delete(id)) this.save(id);
+      },
+    );
+  }
+
+  // the notes saved while one of their files was removed, so an undo saves them again
+  private readonly savedWhileRemoving = new Set<number>();
+
+  // what was removed before is removed in the backend at once
+  private startRemoval(
+    removal: Removal,
+    commit: (leaving: boolean) => void,
+    undo: () => void,
+  ): void {
+    this.commitRemoval();
+    this.removal.start(removal, commit, undo);
+  }
+
+  private commitRemoval(leaving = false): void {
+    this.savedWhileRemoving.clear();
+    this.removal.commit(leaving);
+  }
+
+  private restore(note: Note): void {
+    this.changedWhileLoading?.add(note.id);
+    this.all.update((notes) => [...notes, note].sort(newestFirst));
+    this.countNotes(1);
+  }
+
+  // saves the note as it is now; the answer brings the time it was saved, what was changed
+  // meanwhile stays and is saved on its own
+  private save(id: number): void {
+    clearTimeout(this.pendingText.get(id));
+    this.pendingText.delete(id);
+    const note = this.all().find((n) => n.id === id);
+    if (!note) return;
+    const pending = this.removal.current();
+    if (pending && pending.kind !== 'note' && pending.noteId === id)
+      this.savedWhileRemoving.add(id);
+    this.startRequest(id);
+    this.http
+      .put<NoteResponse>(`/api/v1/notes/${id}`, {
+        text: note.text,
+        color: note.color,
+        labels: note.labels,
+        photos: note.photos,
+        recordings: note.recordings,
+      })
+      .subscribe({
+        next: (response) => {
+          this.failure.set(null);
+          this.all.update((notes) =>
+            notes.map((n) => (n.id === id ? { ...n, updated: toDate(response.updatedAt) } : n)),
+          );
+          if (this.labelsChanged.delete(id)) this.loadUsedSoon();
+        },
+        error: () => {
+          this.finishRequest(id);
+          this.fail(id, this.i18n.t('notes.errors.not_saved'));
+        },
+        complete: () => this.finishRequest(id),
+      });
+  }
+
+  // sends the unsaved texts and the pending removal with keepalive, without waiting for answers
+  private saveLeaving(): void {
+    this.commitRemoval(true);
+    for (const id of [...this.pendingText.keys()]) {
+      clearTimeout(this.pendingText.get(id));
+      this.pendingText.delete(id);
+      this.saveKeepalive(id);
+    }
+  }
+
+  private saveKeepalive(id: number): void {
+    const note = this.all().find((n) => n.id === id);
+    if (!note) return;
+    void this.keepalive.send(`/api/v1/notes/${id}`, 'PUT', {
+      text: note.text,
+      color: note.color,
+      labels: note.labels,
+      photos: note.photos,
+      recordings: note.recordings,
+    });
+  }
+
+  // the total of the pagination after notes were created or deleted here
+  private countNotes(change: number): void {
+    this.pagination.update((page) =>
+      page ? { ...page, total: Math.max(0, page.total + change) } : page,
+    );
+  }
+
+  private startRequest(id: number): void {
+    this.inFlight.set(id, (this.inFlight.get(id) ?? 0) + 1);
+  }
+
+  private finishRequest(id: number): void {
+    const count = (this.inFlight.get(id) ?? 0) - 1;
+    if (count > 0) this.inFlight.set(id, count);
+    else this.inFlight.delete(id);
+  }
+
+  // the id of the scaled down photo in the file storage, null when it could not be stored; the
+  // error shows at the place the photo was taken for
+  private async uploadPhoto(photo: Blob, at: NoteErrorAt): Promise<number | null> {
+    let scaled: Blob;
+    try {
+      scaled = await this.scaler.scale(photo);
+    } catch {
+      this.fail(at, this.i18n.t('notes.errors.photo_not_stored'));
+      return null;
+    }
+    return this.uploadFile(scaled, this.i18n.t('notes.errors.photo_not_stored'), at);
+  }
+
+  // the id of the file in the file storage, null when it could not be stored
+  private async uploadFile(file: Blob, failure: string, at: NoteErrorAt): Promise<number | null> {
+    try {
+      const stored = await firstValueFrom(
+        this.http.post<{ id: number }>('/api/v1/files', file, {
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        }),
+      );
+      return stored.id;
+    } catch {
+      this.fail(at, failure);
+      return null;
+    }
+  }
+
+  private fail(at: NoteErrorAt, message: string): void {
+    this.failure.set({ at, message });
+  }
+
+  // false when the note is unknown or nothing changed; a change is an action, it clears the error
+  private change(id: number, change: (note: Note) => Note): boolean {
+    let changed = false;
+    this.all.update((notes) =>
+      notes.map((note) => {
+        if (note.id !== id) return note;
+        const result = change(note);
+        changed = result !== note;
+        return result;
+      }),
+    );
+    if (changed) {
+      this.failure.set(null);
+      this.changedWhileLoading?.add(id);
+    }
+    return changed;
+  }
+}
+
+// where an error shows (UX-15): the card of a note by its id, the buttons that create a note, or
+// the place of the notes
+export type NoteErrorAt = number | 'new' | 'page';
+
+// as the backend sorts them
+function newestFirst(a: Note, b: Note): number {
+  return b.created.getTime() - a.created.getTime() || b.id - a.id;
+}
+
+function toNote(response: NoteResponse): Note {
+  return {
+    id: response.id,
+    text: response.text,
+    color: response.color,
+    labels: response.labels.map((label) => label.name),
+    photos: response.photos.map((photo) => photo.id),
+    recordings: response.recordings.map((recording) => recording.id),
+    created: new Date(response.createdAt),
+    updated: toDate(response.updatedAt),
+  };
+}
+
+function toDate(value: string | null | undefined): Date | null {
+  return value == null ? null : new Date(value);
+}

@@ -9,9 +9,7 @@ import {
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
-import { authInterceptor } from './auth/auth.interceptor';
-import { ServiceWorkerUpdates } from './service-worker-updates';
-import { apiUrlInterceptor } from './shared/api-url';
+import { apiUrlInterceptor, authInterceptor, ServiceWorkerUpdates } from '@sak/core';
 
 export const appConfig: ApplicationConfig = {
   providers: [

@@ -4,9 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from '../app.routes';
-import { authInterceptor } from '../auth/auth.interceptor';
-import { LEAVE_PAGE } from '../auth/auth.service';
-import { pageHelpers, signedIn } from '../testing/page';
+import { authInterceptor, LEAVE_PAGE } from '@sak/core';
+import { pageHelpers, signedIn } from '@sak/testing';
 import { connectCode, desktopCallback, desktopRequest } from './connect-desktop-page';
 
 const CHALLENGE = 'ZtNPunH49FD35FWYhT5Tv8I7vRKQJ8uxMaL0_9eHjNA';

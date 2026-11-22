@@ -1,42 +1,33 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './auth/auth.guard';
-import { pageTitle } from './i18n/i18n';
+import { backupsRoute } from '@sak/backups';
+import { authGuard, pageTitle } from '@sak/core';
+import { groceryDownloadRoute, groceryRoute } from '@sak/grocery';
+import { healthRoute } from '@sak/health';
+import { hostingRoute } from '@sak/hosting';
+import { notesDownloadRoute, notesRoute } from '@sak/notes';
+import { redirectsRoute } from '@sak/redirects';
+import { settingsRoute } from '@sak/settings';
+import { todoDownloadRoute, todoRoute } from '@sak/todo';
+import { usersRoute } from '@sak/users';
 import { Home } from './home/home';
-import { hostingRoute } from './hosting/hosting.routes';
-import { redirectsRoute } from './redirects/redirects.routes';
-import { backupsRoute } from './backups/backups.routes';
-import { groceryDownloadRoute, groceryRoute } from './grocery/grocery.routes';
-import { todoDownloadRoute, todoRoute } from './todo/todo.routes';
 import { Login } from './login/login';
 import { Signin } from './signin/signin';
-import { usersRoute } from './users/users.routes';
 
-// every app needs a session, without one the login is shown and leads back afterwards; an app
-// names its favicon in its data, the others show the swiss army knife (FaviconService). Only the
-// home, the login and the sign-in are loaded at the start, every other page on its first visit, so
-// the start bundle stays small
+// the routes of the apps are theirs (projects/<app>), here they are put in their order. Every app
+// needs a session, without one the login is shown and leads back afterwards; an app names its
+// favicon in its data, the others show the swiss army knife (FaviconService). Only the home, the
+// login and the sign-in are loaded at the start, every other page on its first visit, so the start
+// bundle stays small
 export const routes: Routes = [
   { path: '', component: Home, canActivate: [authGuard], title: pageTitle('home.title') },
-  {
-    path: 'notes',
-    loadComponent: () => import('./notes/notes-page').then((m) => m.NotesPage),
-    canActivate: [authGuard],
-    title: pageTitle('app.notes'),
-    data: { favicon: { svg: 'icons/notes.svg', png: 'icons/notes-192.png' } },
-  },
+  notesRoute,
   hostingRoute,
   redirectsRoute,
   backupsRoute,
+  // the downloads of the android apps before the apps, whose login guard would take them otherwise
   groceryDownloadRoute,
   todoDownloadRoute,
-  // the android app of the notes to download, without a session; before the notes, whose login
-  // guard would take it otherwise
-  {
-    path: 'notes/download/app',
-    loadComponent: () => import('./shared/app-download').then((m) => m.AppDownload),
-    title: pageTitle('notes.download.page_title'),
-    data: { app: 'notes', favicon: { svg: 'icons/notes.svg', png: 'icons/notes-192.png' } },
-  },
+  notesDownloadRoute,
   groceryRoute,
   todoRoute,
   // the download links of the android apps, without a session so the link opens on a phone
@@ -45,27 +36,9 @@ export const routes: Routes = [
     loadComponent: () => import('./downloads/downloads-page').then((m) => m.DownloadsPage),
     title: pageTitle('downloads.page_title'),
   },
-  {
-    path: 'health',
-    loadComponent: () => import('./health/health-page').then((m) => m.HealthPage),
-    canActivate: [authGuard],
-    title: pageTitle('health.title'),
-  },
+  healthRoute,
   usersRoute,
-  {
-    path: 'settings',
-    loadComponent: () => import('./settings/settings-page').then((m) => m.SettingsPage),
-    canActivate: [authGuard],
-    title: pageTitle('shared.settings'),
-    // a tab for every scope, the first is opened without one
-    children: [
-      {
-        path: ':scope',
-        loadComponent: () =>
-          import('./settings/settings-scope-tab').then((m) => m.SettingsScopeTab),
-      },
-    ],
-  },
+  settingsRoute,
   // the QR code that connects an app, with the qr generator, which only this page needs
   {
     path: 'connect-app',

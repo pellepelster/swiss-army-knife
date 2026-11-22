@@ -2,11 +2,16 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { APPS } from '../apps';
-import { AuthService, UserMode, WhoAmI } from '../auth/auth.service';
-import { TextKey, TranslatePipe } from '../i18n/i18n';
+import {
+  ActionMenu,
+  AuthService,
+  PageHeader,
+  TextKey,
+  TranslatePipe,
+  UserMode,
+  WhoAmI,
+} from '@sak/core';
 import { InstallService } from '../install.service';
-import { ActionMenu } from '../shared/action-menu';
-import { PageHeader } from '../shared/page-header';
 
 // a maintenance card: a route (path) or a page outside the app (href, swagger ui); only for an
 // admin unless everyone, the users only in the multi user mode

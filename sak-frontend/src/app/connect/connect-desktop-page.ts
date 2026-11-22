@@ -3,8 +3,7 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
-import { AuthService, LEAVE_PAGE } from '../auth/auth.service';
-import { TextKey, TranslatePipe } from '../i18n/i18n';
+import { AuthService, LEAVE_PAGE, TextKey, TranslatePipe } from '@sak/core';
 
 // what the desktop app sends: the port it listens on, its state and the pkce challenge (S256)
 export interface DesktopRequest {

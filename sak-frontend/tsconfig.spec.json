@@ -11,6 +11,8 @@
   "include": [
     "src/**/*.d.ts",
     "src/**/*.spec.ts",
+    "projects/**/*.d.ts",
+    "projects/**/*.spec.ts",
     "src/test-setup.ts"
   ]
 }

@@ -1,0 +1,5 @@
+{
+  "name": "@sak/core",
+  "private": true,
+  "sideEffects": false
+}

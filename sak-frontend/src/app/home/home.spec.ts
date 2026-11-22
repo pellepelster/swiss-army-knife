@@ -3,10 +3,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { signedIn } from '../testing/page';
+import { signedIn } from '@sak/testing';
 import { routes } from '../app.routes';
-import { authInterceptor } from '../auth/auth.interceptor';
-import { LEAVE_PAGE, SESSION_STORAGE_KEY } from '../auth/auth.service';
+import { authInterceptor, LEAVE_PAGE, SESSION_STORAGE_KEY } from '@sak/core';
 
 const signIn = () => signedIn('pelle@pelle.io');
 

@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
-import { innermost } from './favicon.service';
+import { innermost } from '@sak/core';
 
 // what the browser installs as an app: its web manifest and the icon of the home screen of an iphone
 export interface InstallableApp {

@@ -1,4 +1,4 @@
-import { TextKey } from './i18n/i18n';
+import { TextKey } from '@sak/core';
 
 // the apps of the frontend, the index page lists them
 interface AppEntry {

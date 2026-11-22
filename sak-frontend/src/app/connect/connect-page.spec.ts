@@ -5,8 +5,8 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import jsQR from 'jsqr';
 import { routes } from '../app.routes';
-import { authInterceptor } from '../auth/auth.interceptor';
-import { pageHelpers, signedIn } from '../testing/page';
+import { authInterceptor } from '@sak/core';
+import { pageHelpers, signedIn } from '@sak/testing';
 import { POLL_MS } from './connect-page';
 
 const LINK =

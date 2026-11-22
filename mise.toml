@@ -614,7 +614,7 @@ ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}" ./gradlew -I ../gradle/resolve
 """
 
 # the icons of Font Awesome sak-frontend uses (sak-frontend/src/icons): their css and the solid font cut
-# to them, from the names fa-<name> in sak-frontend/src/app; a spec fails while they are not current
+# to them, from the names fa-<name> in sak-frontend/src/app and sak-frontend/projects; a spec fails while they are not current
 [tasks."frontend:icons"]
 description = "Generate the icon css and font of the frontend"
 depends = ["frontend:install"]
