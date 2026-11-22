@@ -54,7 +54,7 @@ class FileRepository(
             .update(FILES)
             .set(FILES.DISCOVERED, text)
             .set(FILES.UPDATED_AT, changedAt(FILES.UPDATED_AT, clock.instant(), FILES.DISCOVERED.changesTo(text)))
-            .where(FILES.ID.eq(id))
+            .where(FILES.ID.eq(id), FILES.DELETED_AT.isNull)
             .returning()
             .fetchOne()
             ?.toFile()

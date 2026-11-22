@@ -5,6 +5,7 @@ import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.leftovers
 import io.pelle.sak.backend.DomainRegistry
+import io.pelle.sak.model.s3.BucketDomainsReplaceResult
 import io.pelle.sak.model.s3.BucketInsertResult
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.Secret
@@ -67,8 +68,9 @@ class S3BucketService(
     private val baseDomain: String?,
     // names that are no buckets, e.g. the backend's own sites
     private val reservedNames: Set<String>,
-    // domains no bucket can be served at, the ones of the apps and the redirected ones
-    private val domains: DomainRegistry,
+    // domains no bucket can be served at, the ones of the apps and the redirected ones; the redirects
+    // register there
+    internal val domains: DomainRegistry,
     // the storage of the buckets, none where only their rows are needed
     private val storage: BinaryStorage? = null,
 ) {
@@ -78,7 +80,7 @@ class S3BucketService(
         clock: Clock = Clock.systemUTC(),
         baseDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
-        domains: DomainRegistry = DomainRegistry(database),
+        domains: DomainRegistry = DomainRegistry(),
         storage: BinaryStorage? = null,
     ) : this(S3BucketRepository(database, clock, free = { storage?.isFree(it) != false }), baseDomain, reservedNames, domains, storage)
 
@@ -151,15 +153,20 @@ class S3BucketService(
                 DomainCheck.Taken -> return BucketCreateResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
-        // another bucket may have taken the name or a domain since the checks above
-        val bucket =
+        // another bucket may have taken the name or a domain since the checks above; an access key id
+        // another bucket has (one in 2^100) is drawn again
+        repeat(KEY_DRAWS) {
             when (val inserted = repository.insert(name, key(ACCESS_KEY_ALPHABET, 20), key(SECRET_ALPHABET, 40), normalized, owner)) {
-                is BucketInsertResult.Inserted -> inserted.bucket
+                is BucketInsertResult.Inserted -> {
+                    if (servedDomains(inserted.bucket).isNotEmpty()) changed()
+                    return BucketCreateResult.Created(inserted.bucket)
+                }
                 BucketInsertResult.NameTaken -> return BucketCreateResult.NameTaken
                 BucketInsertResult.DomainTaken -> return BucketCreateResult.DomainTaken
+                BucketInsertResult.AccessKeyTaken -> Unit
             }
-        if (servedDomains(bucket).isNotEmpty()) changed()
-        return BucketCreateResult.Created(bucket)
+        }
+        error("no free access key id for the bucket $name")
     }
 
     // the old key pair stops working at once, so a leaked one ends without the bucket; null for an
@@ -167,7 +174,7 @@ class S3BucketService(
     fun replaceKeyPair(name: String): Pair<String, Secret>? {
         if (repository.byName(name) == null) return null
         // an access key id another bucket has (one in 2^100) is drawn again
-        repeat(3) {
+        repeat(KEY_DRAWS) {
             val accessKeyId = key(ACCESS_KEY_ALPHABET, 20)
             val secret = key(SECRET_ALPHABET, 40)
             if (repository.replaceKeyPair(name, accessKeyId, secret)) return accessKeyId to Secret(secret)
@@ -190,8 +197,11 @@ class S3BucketService(
                 DomainCheck.Taken -> return BucketDomainsUpdateResult.DomainTaken
                 is DomainCheck.Valid -> checked.domains
             }
-        if (!repository.replaceDomains(name, normalized, owner)) {
-            return BucketDomainsUpdateResult.DomainTaken
+        when (repository.replaceDomains(name, normalized, owner)) {
+            BucketDomainsReplaceResult.Replaced -> Unit
+            // deleted since the read above
+            BucketDomainsReplaceResult.NotFound -> return BucketDomainsUpdateResult.NotFound
+            BucketDomainsReplaceResult.DomainTaken -> return BucketDomainsUpdateResult.DomainTaken
         }
         changed()
         return BucketDomainsUpdateResult.Updated(repository.byName(name) ?: bucket.copy(domains = normalized))
@@ -246,6 +256,9 @@ class S3BucketService(
         private const val ACCESS_KEY_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 
         private const val SECRET_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+        // how often a key pair is drawn until its access key id is free
+        private const val KEY_DRAWS = 3
 
         // the rule of sak-s3, which stores the bucket
         fun isValidName(name: String) = isValidBucketName(name)

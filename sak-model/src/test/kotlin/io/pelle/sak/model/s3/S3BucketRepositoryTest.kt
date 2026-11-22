@@ -33,7 +33,7 @@ class S3BucketRepositoryTest {
         repository.secretAccessKey("AKIASITE") shouldBe "SECRETAKIASITE"
         repository.keyPair("site") shouldBe ("AKIASITE" to "SECRETAKIASITE")
 
-        repository.replaceDomains("site", listOf("c.example.org", "a.example.org", "d.example.org"), owner = OWNER) shouldBe true
+        repository.replaceDomains("site", listOf("c.example.org", "a.example.org", "d.example.org"), owner = OWNER) shouldBe BucketDomainsReplaceResult.Replaced
 
         repository.byName("site")!!.let {
             it.domains shouldBe listOf("c.example.org", "a.example.org", "d.example.org")
@@ -43,7 +43,7 @@ class S3BucketRepositoryTest {
         database.dsl.fetchCount(S3_BUCKETS_DOMAINS) shouldBe 4
         repository.bucketOfDomain("b.example.org") shouldBe null
         repository.insert("other", "AKIAOTHER", "SECRETAKIAOTHER", listOf("b.example.org"), owner = OWNER).shouldBeInstanceOf<BucketInsertResult.Inserted>()
-        repository.replaceDomains("site", listOf("b.example.org"), owner = OWNER) shouldBe false
+        repository.replaceDomains("site", listOf("b.example.org"), owner = OWNER) shouldBe BucketDomainsReplaceResult.DomainTaken
     }
 
     @Test
@@ -115,6 +115,22 @@ class S3BucketRepositoryTest {
 
         (taken.insert("site", "AKIASITE", "SECRETAKIASITE", owner = OWNER) as BucketInsertResult.Inserted).bucket.resourceId shouldBe
             ResourceId("fresh0000001")
+    }
+
+    @Test
+    fun `the domains of a deleted or unknown bucket are not replaced, a taken access key id is told apart`() {
+        repository.insert("site", "AKIASITE", "SECRETAKIASITE", listOf("example.org"), owner = OWNER)
+        repository.delete("site")
+
+        repository.replaceDomains("site", listOf("new.example.org"), owner = OWNER) shouldBe BucketDomainsReplaceResult.NotFound
+        repository.replaceDomains("none", listOf("new.example.org"), owner = OWNER) shouldBe BucketDomainsReplaceResult.NotFound
+        // no domain of a deleted bucket is live, and its row keeps its times
+        repository.bucketOfDomain("new.example.org") shouldBe null
+        database.dsl.selectFrom(S3_BUCKETS).fetchOne()!!.updatedAt shouldBe null
+
+        // the access key id of a bucket stays taken, also of the deleted one
+        repository.insert("other", "AKIASITE", "SECRETAKIAOTHER", owner = OWNER) shouldBe BucketInsertResult.AccessKeyTaken
+        repository.byName("other") shouldBe null
     }
 
     // a random that draws the resource ids in the order given

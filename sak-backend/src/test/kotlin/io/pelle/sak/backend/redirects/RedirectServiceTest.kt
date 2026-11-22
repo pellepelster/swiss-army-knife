@@ -22,7 +22,7 @@ class RedirectServiceTest {
     private val database by lazy { SakDatabase.open(tempDir.resolve("sak.db")) }
 
     private val buckets by lazy {
-        S3BucketService(database).apply {
+        S3BucketService(database, domains = DomainRegistry(setOf("console.example.org"))).apply {
             create("site", listOf("example.org", "www.example.org"), owner = "admin@example.org")
             create("private", owner = "admin@example.org")
         }
@@ -35,7 +35,6 @@ class RedirectServiceTest {
             database,
             buckets,
             clock,
-            domains = DomainRegistry(database, setOf("console.example.org")),
         ).apply { onChange { changes.add("changed") } }
     }
 

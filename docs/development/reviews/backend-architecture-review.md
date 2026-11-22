@@ -10,9 +10,9 @@ weight: 12
 **Created:** 2026-11-22
 
 **Checked again:** 2026-11-22, after the fixes of `BA-1`, `BA-2`, `BA-3`, `BA-6`, `BA-9`, `BA-10`, `BA-11`, `BA-12`,
-`BA-13`, `BA-14`, `BA-19`, `BA-20`, `BA-22` and `BA-30`, which are in the history of git; `BA-23` lists what is left
-of it. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a route `GET /settings` of
-their own, an app owns its settings endpoint.
+`BA-13`, `BA-14`, `BA-19`, `BA-20`, `BA-22` and `BA-30`, and of `BA-4`, which are in the history of git; `BA-7` and
+`BA-23` list what is left of them. Of `BA-22` one copy stays on purpose: the notes and the grocery lists each have a
+route `GET /settings` of their own, an app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -37,14 +37,6 @@ found by their resource id only.
 
 ## Should fix: the code breaks a rule
 
-### `BA-4` A repository is used by a class that is not its service (`LAYER-1`, checked)
-
-`backend/DomainRegistry.kt:12-24` makes its own `RedirectRepository` and asks it; `S3BucketService` reads the
-redirects through it (`backend/hosting/S3BucketService.kt`, `delete`). The check "no redirect leads to the bucket"
-and the delete are two statements on two repositories.
-
-Fix: `DomainRegistry` takes two functions of `RedirectService` in place of the repository.
-
 ### `BA-5` Routes and the start do the work of a service (`LAYER-1`)
 
 - `backend/users/SakUsers.kt:91-110`: the route of the app link normalizes the address, looks for the user, sends the
@@ -59,18 +51,13 @@ Fix: `DomainRegistry` takes two functions of `RedirectService` in place of the r
 Fix: `UserService.sendAppLink`, `GroceryService.photoContent`, a size function on the two services, and a class of
 `hosting/` that starts its own jobs.
 
-### `BA-7` Changes that reach deleted rows (`MODEL-3`, checked)
+### `BA-7` The access key id of a deleted bucket stays taken (`MODEL-3`)
 
-- `model/s3/S3BucketRepository.kt`, `replaceDomains`: it never checks that the bucket is live. A delete between the
-  check of the service and this call leaves live domains on a deleted bucket, which stay taken, and sets `updated_at`
-  of the deleted row. For an unknown name the failed foreign key is answered as "the domain is taken".
-- The same file, `insert`: every failed constraint that is not the name is answered as `DomainTaken`, also the access
-  key id and the resource id. `access_key_id` is unique over the deleted rows too (`0001-initial.yaml:25-30`), though
-  `MODEL-3` keeps only the name of a deleted bucket taken.
-- `model/files/FileRepository.kt:45-56`: `updateDiscovered` changes a deleted file.
+`access_key_id` of `s3_buckets` is unique over the deleted rows too (`0001-initial.yaml:25-30`), though `MODEL-3` keeps
+only the name of a deleted bucket taken. No request can see it: a new key pair that meets one is drawn again
+(`S3BucketService`, one in 2^100).
 
-Fix: check the live bucket in the transaction and answer a result with the cases; a partial index for the access key
-id; `DELETED_AT.isNull` in `updateDiscovered`.
+Fix: a partial index over the live rows, which in sqlite rebuilds the table the domains and the redirects refer to.
 
 ### `BA-8` The compiler does not keep jOOQ in `sak-model` (`MODEL-2`, checked)
 
@@ -175,7 +162,6 @@ Fix: one file `<App>Texts.kt` for each app, the tags named like the paths, the d
 - Done: `PUT /todo/items/{id}/done` with a body answers the item; `POST /grocery/items/{id}/check` without a body
   answers 204.
 - `DELETE /grocery/items/{id}/photo` answers 200 and the item, every other delete 204.
-- No OpenRouter key answers 503, no mail server 409.
 - `…/items/{id}/photo` and `…/items/{id}/photos/{fileId}`; `/grocery/discover/{id}` and `/files/{id}/discover/text`.
 - The paths of the apps are written as text in `backend/SakApps.kt`, again in `backend/files/SakFiles.kt:45` and in
   the descriptions of `sak-auth`, the notes and the groceries.
@@ -232,7 +218,6 @@ Fix: the repository answers the item and a result with the cases; `GroceryServic
 
 ## Not checked
 
-- Nothing was built or run for the review: a finding that names a behaviour (`BA-7`) is from the code.
 - The tests, the frontend, the Android apps, the desktop apps and the roles of ansible.
 - Whether a dependency can go (`BA-18`) was not tried with a build.
 - The line numbers are of the working tree of 2026-11-22.

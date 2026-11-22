@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.redirects
 
+import io.pelle.sak.backend.RedirectedDomains
 import io.pelle.sak.backend.DomainRegistry
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.isValidDomain
@@ -55,15 +56,24 @@ sealed interface RedirectDeleteResult {
 class RedirectService(
     private val repository: RedirectRepository,
     private val buckets: S3BucketService,
-    // the domains the backend serves itself, which can not be redirected
+    // the domains the backend serves itself, which can not be redirected; the one of the buckets, so
+    // they learn of the redirects
     private val domains: DomainRegistry,
-) {
+) : RedirectedDomains {
     constructor(
         database: SakDatabase,
         buckets: S3BucketService,
         clock: Clock = Clock.systemUTC(),
-        domains: DomainRegistry = DomainRegistry(database),
+        domains: DomainRegistry = buckets.domains,
     ) : this(RedirectRepository(database, clock), buckets, domains)
+
+    init {
+        domains.register(this)
+    }
+
+    override fun isRedirected(domain: String): Boolean = repository.byId(domain) != null
+
+    override fun redirectsTo(bucket: String): List<String> = repository.sourcesTo(bucket)
 
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
 

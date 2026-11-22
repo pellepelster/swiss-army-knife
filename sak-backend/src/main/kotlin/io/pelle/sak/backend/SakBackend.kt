@@ -155,7 +155,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val notesSettings = NotesSettingsService(settings)
     val grocerySettings = GrocerySettingsService(settings)
     // a bucket is not served at a redirected domain and the other way round
-    val domains = DomainRegistry(database, reservedDomains(config))
+    val domains = DomainRegistry(reservedDomains(config))
     val bucketBlobs = bucketBlobs(config)
     val bucketService =
         S3BucketService(

@@ -24,6 +24,20 @@ sealed interface BucketInsertResult {
 
     // one of the domains
     data object DomainTaken : BucketInsertResult
+
+    // the access key id, also the one of a deleted bucket: the caller draws another one
+    data object AccessKeyTaken : BucketInsertResult
+}
+
+// what replacing the domains of a bucket gives
+sealed interface BucketDomainsReplaceResult {
+    data object Replaced : BucketDomainsReplaceResult
+
+    // there is no live bucket of the name
+    data object NotFound : BucketDomainsReplaceResult
+
+    // one of the domains belongs to another bucket
+    data object DomainTaken : BucketDomainsReplaceResult
 }
 
 // the buckets and their domains, for S3BucketService only
@@ -101,7 +115,8 @@ class S3BucketRepository(
     fun resourceIds(): Set<ResourceId> = resourceIds.all(database.dsl)
 
     // the unique constraints decide, so a bucket created at the same time is told apart: by the
-    // name taken (deleted buckets included), else a domain
+    // name taken (deleted buckets included), the access key id taken (deleted buckets included), else
+    // a domain
     fun insert(
         name: String,
         accessKeyId: String,
@@ -127,26 +142,29 @@ class S3BucketRepository(
                 BucketInsertResult.Inserted(bucket)
             }
         } catch (_: IntegrityConstraintViolationException) {
-            if (database.dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.NAME.eq(name))) {
-                BucketInsertResult.NameTaken
-            } else {
-                BucketInsertResult.DomainTaken
+            when {
+                database.dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.NAME.eq(name)) -> BucketInsertResult.NameTaken
+                database.dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.ACCESS_KEY_ID.eq(accessKeyId)) -> BucketInsertResult.AccessKeyTaken
+                else -> BucketInsertResult.DomainTaken
             }
         }
 
     // the domains that stay keep their row and take their new position, the ones removed are
-    // deleted, the ones added get a row of their own; false when one of the domains belongs to
-    // another bucket
+    // deleted, the ones added get a row of their own. Only of a live bucket, checked in the
+    // transaction: a bucket deleted meanwhile gets no domain (MODEL-3)
     fun replaceDomains(
         name: String,
         domains: List<String>,
         // who adds the domains that are new
         owner: String,
-    ): Boolean =
+    ): BucketDomainsReplaceResult =
         try {
-            database.dsl.transaction { configuration ->
+            database.dsl.transactionResult { configuration ->
                 val dsl = DSL.using(configuration)
                 val now = clock.instant()
+                if (!dsl.fetchExists(S3_BUCKETS, S3_BUCKETS.NAME.eq(name), S3_BUCKETS.DELETED_AT.isNull)) {
+                    return@transactionResult BucketDomainsReplaceResult.NotFound
+                }
                 val rows =
                     dsl
                         .selectFrom(S3_BUCKETS_DOMAINS)
@@ -170,13 +188,14 @@ class S3BucketRepository(
                     dsl
                         .update(S3_BUCKETS)
                         .set(S3_BUCKETS.UPDATED_AT, now)
-                        .where(S3_BUCKETS.NAME.eq(name))
+                        .where(S3_BUCKETS.NAME.eq(name), S3_BUCKETS.DELETED_AT.isNull)
                         .execute()
                 }
+                BucketDomainsReplaceResult.Replaced
             }
-            true
         } catch (_: IntegrityConstraintViolationException) {
-            false
+            // the bucket is there, so it is the unique index of the live domains
+            BucketDomainsReplaceResult.DomainTaken
         }
 
     // a new key pair of a live bucket, the one before stops working; false when there is no

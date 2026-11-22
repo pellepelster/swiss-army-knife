@@ -4,8 +4,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.ingress.RedirectRepository
 import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.DomainRegistry
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -27,16 +27,21 @@ class S3BucketServiceTest {
             database,
             clock,
             reservedNames = setOf("console"),
-            domains = domains(database, "console.example.org"),
-        ).apply { onChange { changes.add("changed") } }
+            domains = DomainRegistry(setOf("console.example.org")),
+        ).also { redirected(database, it) }.apply { onChange { changes.add("changed") } }
     }
 
-    // the domain reserved for the apps, and redirected.example.org redirected
-    private fun domains(
+    // the redirects of the buckets, with redirected.example.org redirected
+    private fun redirected(
         database: SakDatabase,
-        reserved: String,
-    ) = DomainRegistry(database, setOf(reserved)).also {
-        RedirectRepository(database).insert("redirected.example.org", RedirectTarget.Domain("example.net"), owner = "admin@example.org")
+        buckets: S3BucketService,
+    ) = RedirectService(database, buckets, clock).also {
+        it.create("redirected.example.org", RedirectTarget.Domain("example.net"), owner = "admin@example.org")
+    }
+
+    private val redirects by lazy {
+        service
+        RedirectService(database, service, clock)
     }
 
     @Test
@@ -97,8 +102,8 @@ class S3BucketServiceTest {
                 clock,
                 baseDomain = "example.org",
                 reservedNames = setOf("sak"),
-                domains = domains(database, "sak.example.org"),
-            )
+                domains = DomainRegistry(setOf("sak.example.org")),
+            ).also { redirected(database, it) }
             }
         val site = buckets.create("site", listOf("example.com"), owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>().bucket
         val private = buckets.create("private", owner = "admin@example.org").shouldBeInstanceOf<BucketCreateResult.Created>().bucket
@@ -185,9 +190,8 @@ class S3BucketServiceTest {
     @Test
     fun `a bucket that redirects lead to is not deleted`() {
         service.create("site", listOf("example.com"), owner = "admin@example.org")
-        val redirects = RedirectRepository(database)
-        redirects.insert("www.example.com", RedirectTarget.Bucket("site"), owner = "admin@example.org")
-        redirects.insert("example.net", RedirectTarget.Bucket("site"), owner = "admin@example.org")
+        redirects.create("www.example.com", RedirectTarget.Bucket("site"), owner = "admin@example.org")
+        redirects.create("example.net", RedirectTarget.Bucket("site"), owner = "admin@example.org")
         changes.clear()
 
         service.delete("site") shouldBe BucketDeleteResult.Redirected(listOf("example.net", "www.example.com"))
