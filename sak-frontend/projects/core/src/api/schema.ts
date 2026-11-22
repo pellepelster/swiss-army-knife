@@ -1886,7 +1886,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The AI features of the grocery lists are turned off in the settings */
+        /** @description The AI features of the grocery lists are turned off in the settings, or no OpenRouter API key is set there */
         409: {
           headers: {
             [name: string]: unknown;
@@ -1906,15 +1906,6 @@ export interface paths {
         };
         /** @description OpenRouter could not read the photo */
         502: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ApiErrorResponse'];
-          };
-        };
-        /** @description No OpenRouter API key is set in the settings */
-        503: {
           headers: {
             [name: string]: unknown;
           };
@@ -4909,7 +4900,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The AI features are turned off in the settings */
+        /** @description The AI features are turned off in the settings, or no OpenRouter API key is set there */
         409: {
           headers: {
             [name: string]: unknown;
@@ -4929,15 +4920,6 @@ export interface paths {
         };
         /** @description OpenRouter could not read the file */
         502: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            'application/json': components['schemas']['ApiErrorResponse'];
-          };
-        };
-        /** @description No OpenRouter API key is set in the settings */
-        503: {
           headers: {
             [name: string]: unknown;
           };

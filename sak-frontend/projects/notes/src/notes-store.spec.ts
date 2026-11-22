@@ -215,11 +215,11 @@ describe('NotesStore', () => {
     http
       .expectOne({ method: 'POST' })
       .flush(
-        { errors: [{ message: 'Text discovery is not configured.' }] },
-        { status: 503, statusText: 'Service Unavailable' },
+        { errors: [{ message: 'No OpenRouter API key is set in the settings.' }] },
+        { status: 409, statusText: 'Conflict' },
       );
     await discovered;
-    expect(store.error()).toBe('Text discovery is not configured.');
+    expect(store.error()).toBe('No OpenRouter API key is set in the settings.');
     http.expectNone({ method: 'PUT' });
   });
 

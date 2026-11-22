@@ -443,7 +443,7 @@ class SakAppsTest {
 
             create("""{"sourceDomain":"example.com","target":{"type":"domain","domain":"example.net"}}""").let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"code":"redirects.exists","message":"The domain is redirected already."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"redirects.exists","message":"A redirect of the domain exists."}]}"""
             }
             create("""{"sourceDomain":""").let {
                 it.statusCode() shouldBe 400

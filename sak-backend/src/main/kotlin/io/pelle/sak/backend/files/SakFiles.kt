@@ -105,7 +105,7 @@ fun Route.files(
             FileTextDiscoverResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             FileTextDiscoverResult.Unsupported -> call.respondErrors(FilesTexts.NOT_DISCOVERABLE)
             FileTextDiscoverResult.NotConfigured ->
-                call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.ServiceUnavailable)
+                call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.Conflict)
             FileTextDiscoverResult.Disabled ->
                 call.respondErrors(FilesTexts.AI_OFF, status = HttpStatusCode.Conflict)
             FileTextDiscoverResult.Limited ->
@@ -131,10 +131,9 @@ fun Route.files(
             }
             errors(HttpStatusCode.BadRequest, "The file is neither an image nor a recording")
             errors(HttpStatusCode.NotFound, "The signed in user has no such file")
-            errors(HttpStatusCode.Conflict, "The AI features are turned off in the settings")
+            errors(HttpStatusCode.Conflict, "The AI features are turned off in the settings, or no OpenRouter API key is set there")
             errors(HttpStatusCode.TooManyRequests, "The user had too many texts discovered at OpenRouter lately; a known text does not count")
             errors(HttpStatusCode.BadGateway, "OpenRouter could not read the file")
-            errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter API key is set in the settings")
         }
     }
 }

@@ -66,23 +66,25 @@ backend:
       de: "Das ist gerade nicht verfügbar, bitte versuche es später erneut."
   restic:
     invalid_name:
-      en: "A name has lower case letters, digits and -, at most 63, and starts and ends with a letter or a digit."
-      de: "Ein Name hat Kleinbuchstaben, Ziffern und -, höchstens 63, und beginnt und endet mit einem Buchstaben oder einer Ziffer."
-    repository_exists: { en: "You have a repository of this name.", de: "Du hast ein Repository dieses Namens." }
+      en: "A repository or backup plan name must have 1 to 63 lower case letters, digits and hyphens, and start and end with a letter or digit."
+      de: "Der Name eines Repositorys oder Backup-Plans muss 1 bis 63 Kleinbuchstaben, Ziffern und Bindestriche haben und mit einem Buchstaben oder einer Ziffer beginnen und enden."
+    repository_exists: { en: "A repository of the name exists.", de: "Ein Repository mit diesem Namen gibt es schon." }
     invalid_host:
-      en: "A host name has letters, digits, '.', '-' and '_', at most 253."
-      de: "Ein Hostname hat Buchstaben, Ziffern, '.', '-' und '_', höchstens 253."
-    no_paths: { en: "A backup has at least one path.", de: "Ein Backup hat mindestens einen Pfad." }
-    too_many_paths: { en: "A backup has at most %{max} paths.", de: "Ein Backup hat höchstens %{max} Pfade." }
-    double_path: { en: "A path is in the backup twice.", de: "Ein Pfad ist zweimal im Backup." }
+      en: "A host name must have at most 253 letters, digits, '.', '-' and '_'."
+      de: "Ein Hostname darf höchstens 253 Buchstaben, Ziffern, '.', '-' und '_' haben."
+    no_paths: { en: "A backup plan must have at least one path.", de: "Ein Backup-Plan muss mindestens einen Pfad haben." }
+    too_many_paths: { en: "A backup plan can have at most %{max} paths.", de: "Ein Backup-Plan kann höchstens %{max} Pfade haben." }
+    double_path: { en: "A path must be in a backup plan only once.", de: "Ein Pfad darf nur einmal in einem Backup-Plan sein." }
     invalid_path:
       en: "%{path} is no absolute path like /home/anna/Documents."
       de: "%{path} ist kein absoluter Pfad wie /home/anna/Documents."
-    unknown_repository: { en: "You have no such repository.", de: "Du hast kein solches Repository." }
-    plan_exists: { en: "You have a backup plan of this name.", de: "Du hast einen Backup-Plan dieses Namens." }
+    unknown_repository:
+      en: "There is no such repository, or you can not see it."
+      de: "Dieses Repository gibt es nicht, oder du kannst es nicht sehen."
+    plan_exists: { en: "A backup plan of the name exists.", de: "Einen Backup-Plan mit diesem Namen gibt es schon." }
     invalid_keep:
-      en: "A number of snapshots to keep is from 1 to %{max}, or empty to keep them all."
-      de: "Eine Anzahl zu behaltender Snapshots liegt zwischen 1 und %{max}, oder bleibt leer, um alle zu behalten."
+      en: "A number of snapshots to keep must be from 1 to %{max}, or empty to keep them all."
+      de: "Eine Anzahl zu behaltender Snapshots muss zwischen 1 und %{max} liegen oder leer bleiben, um alle zu behalten."
   auth:
     invalid_email: { en: "No valid e-mail address.", de: "Keine gültige E-Mail-Adresse." }
     invalid_nonce:
@@ -130,8 +132,8 @@ backend:
       en: "A recording must be at most %{max} minutes long."
       de: "Eine Aufnahme darf höchstens %{max} Minuten lang sein."
     too_many_discoveries:
-      en: "Too many texts were discovered, please try again later."
-      de: "Es wurden zu viele Texte erkannt, bitte versuche es später erneut."
+      en: "Too many texts were read, please try again later."
+      de: "Es wurden zu viele Texte gelesen, bitte versuche es später erneut."
     not_discoverable:
       en: "Text is only discovered in images and recordings."
       de: "Text wird nur in Bildern und Aufnahmen erkannt."
@@ -191,10 +193,10 @@ backend:
       de: "\"%{label}\" braucht \"%{required}\" von \"%{scope}\" eingeschaltet."
   users:
     invalid_name:
-      en: "A name must have at most %{max} characters and no control characters."
-      de: "Ein Name darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
+      en: "A user name must have at most %{max} characters and no control characters."
+      de: "Ein Benutzername darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
     exists: { en: "A user of the address exists.", de: "Einen Benutzer mit dieser Adresse gibt es schon." }
-    not_a_user: { en: "The address is no user.", de: "Die Adresse ist kein Benutzer." }
+    not_a_user: { en: "There is no such user.", de: "Diesen Benutzer gibt es nicht." }
     no_mail_server:
       en: "No mail server is set up, no e-mail is sent."
       de: "Es ist kein Mailserver eingerichtet, es werden keine E-Mails verschickt."
@@ -1500,12 +1502,16 @@ grocery:
       en: "A unit must have at most %{max} characters and no control characters."
       de: "Eine Einheit darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
     unit_without_amount: { en: "A unit needs an amount.", de: "Eine Einheit braucht eine Menge." }
-    unknown_category: { en: "The list has no such category.", de: "Die Liste hat keine solche Kategorie." }
+    unknown_category:
+      en: "There is no such category on the list."
+      de: "Diese Kategorie gibt es auf der Liste nicht."
     invalid_category_name:
       en: "A category name must have 1 to %{max} characters and no control characters."
       de: "Ein Kategoriename muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
-    category_exists: { en: "The list has a category of the name.", de: "Die Liste hat schon eine Kategorie mit diesem Namen." }
-    too_many_categories: { en: "A list has at most %{max} categories.", de: "Eine Liste hat höchstens %{max} Kategorien." }
+    category_exists: { en: "A category of the name exists.", de: "Eine Kategorie mit diesem Namen gibt es schon." }
+    too_many_categories:
+      en: "A list can have at most %{max} categories."
+      de: "Eine Liste kann höchstens %{max} Kategorien haben."
     invalid_category_order:
       en: "The order must name every category of the list once."
       de: "Die Reihenfolge muss jede Kategorie der Liste einmal nennen."
@@ -1513,7 +1519,9 @@ grocery:
     unknown_list:
       en: "There is no such list, or you can not see it."
       de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
-    not_a_photo: { en: "The file is no photo you uploaded.", de: "Die Datei ist kein Foto, das du hochgeladen hast." }
+    not_a_photo:
+      en: "There is no such photo, or you can not see it."
+      de: "Dieses Foto gibt es nicht, oder du kannst es nicht sehen."
     too_many_discoveries:
       en: "Too many photos were read, please try again later."
       de: "Es wurden zu viele Fotos gelesen, bitte versuche es später erneut."
@@ -1659,8 +1667,8 @@ health:
 hosting:
   backend:
     invalid_name:
-      en: "The name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, and must not be reserved for the apps or the api."
-      de: "Der Name muss 3 bis 63 Kleinbuchstaben, Ziffern und Bindestriche haben, mit einem Buchstaben oder einer Ziffer beginnen und enden und darf nicht für die Apps oder die API reserviert sein."
+      en: "A bucket name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, and must not be reserved for the apps or the api."
+      de: "Ein Bucketname muss 3 bis 63 Kleinbuchstaben, Ziffern und Bindestriche haben, mit einem Buchstaben oder einer Ziffer beginnen und enden und darf nicht für die Apps oder die API reserviert sein."
     name_taken: { en: "A bucket of the name exists.", de: "Einen Bucket mit diesem Namen gibt es schon." }
     subdomain_taken:
       en: "The subdomain of the name is already a domain of another bucket, a redirect, the apps or the api."
@@ -1834,14 +1842,14 @@ notes:
       en: "A note can have at most %{max} labels."
       de: "Eine Notiz kann höchstens %{max} Labels haben."
     unknown_photo:
-      en: "Every photo must be an image of the file storage."
-      de: "Jedes Foto muss ein Bild aus dem Dateispeicher sein."
+      en: "There is no such photo, or you can not see it."
+      de: "Dieses Foto gibt es nicht, oder du kannst es nicht sehen."
     too_many_photos:
       en: "A note can have at most %{max} photos."
       de: "Eine Notiz kann höchstens %{max} Fotos haben."
     unknown_recording:
-      en: "Every recording must be a recording of the file storage."
-      de: "Jede Aufnahme muss eine Aufnahme aus dem Dateispeicher sein."
+      en: "There is no such recording, or you can not see it."
+      de: "Diese Aufnahme gibt es nicht, oder du kannst sie nicht sehen."
     too_many_recordings:
       en: "A note can have at most %{max} recordings."
       de: "Eine Notiz kann höchstens %{max} Aufnahmen haben."
@@ -2014,7 +2022,7 @@ redirects:
     invalid_domains:
       en: "Both domains must be valid and differ, and the redirected one must be neither one of the apps or the api nor one of a bucket."
       de: "Beide Domains müssen gültig und verschieden sein, und die weitergeleitete darf weder eine der Apps oder der API noch eine eines Buckets sein."
-    exists: { en: "The domain is redirected already.", de: "Die Domain wird schon weitergeleitet." }
+    exists: { en: "A redirect of the domain exists.", de: "Eine Weiterleitung dieser Domain gibt es schon." }
     unknown_bucket: { en: "There is no such bucket.", de: "Diesen Bucket gibt es nicht." }
     bucket_not_served:
       en: "The bucket is not served at a domain."
@@ -2214,8 +2222,8 @@ todo:
       en: "A list name must have 1 to %{max} characters and no control characters."
       de: "Ein Listenname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
     invalid_title:
-      en: "A task must have 1 to %{max} characters and no control characters."
-      de: "Eine Aufgabe muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+      en: "A task title must have 1 to %{max} characters and no control characters."
+      de: "Der Titel einer Aufgabe muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
     invalid_due_date:
       en: "A due date must be a day as yyyy-mm-dd."
       de: "Ein Fälligkeitsdatum muss ein Tag im Format jjjj-mm-tt sein."

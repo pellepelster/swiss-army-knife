@@ -2104,7 +2104,7 @@
                         }
                     },
                     "409": {
-                        "description": "The AI features of the grocery lists are turned off in the settings",
+                        "description": "The AI features of the grocery lists are turned off in the settings, or no OpenRouter API key is set there",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2125,16 +2125,6 @@
                     },
                     "502": {
                         "description": "OpenRouter could not read the photo",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "503": {
-                        "description": "No OpenRouter API key is set in the settings",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -5613,7 +5603,7 @@
                         }
                     },
                     "409": {
-                        "description": "The AI features are turned off in the settings",
+                        "description": "The AI features are turned off in the settings, or no OpenRouter API key is set there",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -5634,16 +5624,6 @@
                     },
                     "502": {
                         "description": "OpenRouter could not read the file",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "503": {
-                        "description": "No OpenRouter API key is set in the settings",
                         "content": {
                             "application/json": {
                                 "schema": {

@@ -150,7 +150,7 @@ fun Route.grocery(
                 call.respond(GroceryDiscoveredResponse(result.items.map { GroceryDiscoveredItemResponse(it.name, it.amount?.toDouble(), it.unit) }))
             GroceryDiscoverResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             GroceryDiscoverResult.NotAPhoto -> call.respondErrors(GroceryTexts.NOT_A_PHOTO)
-            GroceryDiscoverResult.NotConfigured -> call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.ServiceUnavailable)
+            GroceryDiscoverResult.NotConfigured -> call.respondErrors(FilesTexts.NO_API_KEY, status = HttpStatusCode.Conflict)
             GroceryDiscoverResult.Disabled -> call.respondErrors(FilesTexts.AI_OFF, status = HttpStatusCode.Conflict)
             GroceryDiscoverResult.Limited -> call.respondErrors(GroceryTexts.TOO_MANY_DISCOVERIES, status = HttpStatusCode.TooManyRequests)
             is GroceryDiscoverResult.Failed -> {
@@ -181,10 +181,9 @@ fun Route.grocery(
             }
             errors(HttpStatusCode.BadRequest, "The file is no photo the user uploaded")
             errors(HttpStatusCode.NotFound, "The signed in user has no such file")
-            errors(HttpStatusCode.Conflict, "The AI features of the grocery lists are turned off in the settings")
+            errors(HttpStatusCode.Conflict, "The AI features of the grocery lists are turned off in the settings, or no OpenRouter API key is set there")
             errors(HttpStatusCode.TooManyRequests, "The user had too many photos or texts read at OpenRouter lately")
             errors(HttpStatusCode.BadGateway, "OpenRouter could not read the photo")
-            errors(HttpStatusCode.ServiceUnavailable, "No OpenRouter API key is set in the settings")
         }
     }
 

@@ -45,7 +45,7 @@ priority:
 first_list: "My Todos"
 invalid_icon: "An icon must be one emoji."
 invalid_list_name: "A list name must have 1 to %{max} characters and no control characters."
-invalid_title: "A task must have 1 to %{max} characters and no control characters."
+invalid_title: "A task title must have 1 to %{max} characters and no control characters."
 invalid_due_date: "A due date must be a day as yyyy-mm-dd."
 invalid_priority: "A priority must be high, normal or low."
 list_exists: "A list of the name exists."

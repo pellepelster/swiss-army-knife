@@ -45,7 +45,7 @@ priority:
 first_list: "Meine Todos"
 invalid_icon: "Ein Icon muss ein Emoji sein."
 invalid_list_name: "Ein Listenname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
-invalid_title: "Eine Aufgabe muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
+invalid_title: "Der Titel einer Aufgabe muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
 invalid_due_date: "Ein Fälligkeitsdatum muss ein Tag im Format jjjj-mm-tt sein."
 invalid_priority: "Eine Priorität muss hoch, normal oder niedrig sein."
 list_exists: "Eine Liste mit diesem Namen gibt es schon."
