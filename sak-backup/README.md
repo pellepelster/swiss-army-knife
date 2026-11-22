@@ -1,19 +1,21 @@
 # sakbackup
 
-A proposal: the backups of a deployment with [restic](https://restic.net), defined in one YAML file on the server.
-sakbackup reads it, runs restic for each backup on its schedule (systemd timers) and keeps the snapshots as the
-retention says. [`backup.example.yaml`](backup.example.yaml) is a complete example.
+The desktop app of the backups: it runs [restic](https://restic.net) on the computer of the user, into repositories
+the SAK instance keeps. How it is built is in
+[components/BACKUP.md](../docs/development/architecture/components/BACKUP.md); "The window" below says what is there.
 
-It does not replace `sakadmin backup` (`SAKADM-8`), the one file sakadmin pulls through ssh. It adds backups the server
-makes on its own, to repositories the user chooses, without a machine of the user.
+Everything from "The file" on is a proposal that is not built: backups the server makes on its own, defined in one
+YAML file on the server, run by systemd timers, to repositories the user chooses, without a machine of the user.
+[`backup.example.yaml`](backup.example.yaml) is an example of that file. The proposal does not replace
+`sakadmin backup` (`SAKADM-8`), the one file sakadmin pulls through ssh, and it is not what BACKUP.md describes.
 
 ## The window
 
 `sakbackup` is a window for now (`src-tauri/`, `ui/`). It signs in at a SAK instance through the browser
 and shows the backup plans, the repositories and the snapshots on the left; they are empty for now. `mise run backup:run`
-runs it. The architecture is in [components/BACKUP.md](../docs/development/architecture/components/BACKUP.md).
+runs it.
 
-## The file
+## The file (proposal, not built)
 
 `/etc/sak-backup/backup.yaml`, owned by root, `0600`. Two maps: the repositories and the backups. A backup names the
 repositories it goes to, so one copy of the data can go to several places.

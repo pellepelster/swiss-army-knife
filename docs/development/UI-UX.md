@@ -7,8 +7,9 @@ weight: 20
 # UI and UX
 
 How the apps look and behave for the people who use them: the web app, the Android apps, the desktop apps, the
-sakadmin ui and the sakadmin cli. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code does
-it in [AGENT.md](../../AGENT.md).
+sakadmin ui and the sakadmin cli. How the system is built is in [SYSTEM.md](architecture/SYSTEM.md), how the code of
+the web app does it in `FRONTEND-2` to `FRONTEND-6` of
+[the architecture of the components](architecture/components/INDEX.md#web-app).
 
 The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule adds a number, e.g. `UX-4.1`.
 

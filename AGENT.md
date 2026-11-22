@@ -41,102 +41,17 @@ How SAK is built is in three levels below `docs/development/architecture/`, each
 repeating them:
 
 1. [SYSTEM.md](docs/development/architecture/SYSTEM.md): the whole system (its parts, the backend layers, the api
-   contract, the model, the external systems, the server of a deployment, sakadmin, the cloud resources and their
-   labels, privacy, security, the tests).
-2. [components/INDEX.md](docs/development/architecture/components/INDEX.md): what all components share (the shared parts, the
-   list-based apps, the frontend).
+   contract, the model, the external systems, the server of a deployment, the desktop apps, the cloud resources and
+   their labels, privacy, security, the tests).
+2. [components/INDEX.md](docs/development/architecture/components/INDEX.md): what all components share (the shared
+   parts, the list-based apps, the frontend).
 3. `components/<COMPONENT>.md`: each component, e.g. [NOTES.md](docs/development/architecture/components/NOTES.md); the
    `AGENTS.md` of a component's directory links its document.
 
 Every change keeps to its level and to the levels above; a change that has to break a rule changes its document in
-the same commit and says why. A rule two components need moves up to components/INDEX.md. A new rule needs the explicit consent
-of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1`
-(refer to SYSTEM.md); refer to a rule by its id.
-
-## Services (`sak-backend`)
-
-- `<entity>Service` in `io.pelle.sak.backend.<app>`, next to the app's routes; the layers are `LAYER-1`
-  (architecture/SYSTEM.md, "Backend layers").
-
-## API (`/api`)
-
-- The contract (errors, pagination, request and response classes) is in architecture/SYSTEM.md, "API". In the code:
-- Routes install `ApiErrors` (`sak-api`, `io.pelle.sak.api`) next to content negotiation; errors are answered with
-  `call.respondErrors`; the largest `limit` is `MAX_LIMIT` (`sak-api`).
-- A service answers a page as `Page<T>` (`sak-api`, its items and the total); the route answers
-  `page.of(it.map { it.response() })` with the `PageRequest` of the call. A list that is there as a whole is paged
-  with `page.of(all)`.
-- A point in time in a response is a `String` written with `Instant.apiTime()` (`sak-api`), never `toString()`;
-  something that never ends has `null`, not a far away time.
-- Bodies received are `<name>Request`, bodies answered `<name>Response`, also every class nested
-  in them (e.g. `PageResponse`, `SiteMetricsResponse`); the one exception is `ApiErrorMessage`, an error of an
-  `ApiErrorResponse`.
-- Routes of an app in `io.pelle.sak.backend.<app>`, its request/response classes in
-  `io.pelle.sak.backend.<app>.model`, one class per file named like the class. The other modules
-  answering on `/api` keep theirs the same way in `io.pelle.sak.<module>.model` (`sak-api`,
-  `sak-auth`, `sak-logs`).
-
-## Frontend code (`sak-frontend`)
-
-- Async code, the same everywhere:
-    - State lives in signals, the templates read them; a store holds what a page shares with its
-      tabs (`@Injectable()` provided by the page, e.g. `BucketStore`) or what the whole app shares
-      (`providedIn: 'root'`, e.g. `NotesStore`).
-    - Observables (`HttpClient`, `timer`) are subscribed with
-      `.pipe(takeUntilDestroyed(this.destroyRef))`, `destroyRef = inject(DestroyRef)` the first
-      field; no `Subscription` collections, no `DestroyRef.onDestroy(() => ….unsubscribe())`.
-    - A load that replaces the one before (another page, polling) keeps its `Subscription` in one
-      field and unsubscribes it before starting the next.
-    - A load following inputs or signals runs in an `effect`, the load itself `untracked`.
-    - An action whose outcome the caller awaits (e.g. to focus a created note) returns a `Promise`
-      with `firstValueFrom`; everything else subscribes.
-
-- The look follows [docs/development/UI-UX.md](docs/development/UI-UX.md); the code rules behind it:
-    - Lists are paginated with the shared `app-pagination` (`shared/pagination.ts` of `core`), `PAGE_SIZE`
-      items a page, the page in the `offset` query parameter; only choices and suggestions (a
-      select, a datalist) load a whole list, page by page with `fetchAll` (`shared/api.ts` of `core`).
-    - Create on `/<entities>/create`, edit on `/<entities>/<id>/edit`; the tabs of a detail view are
-      child routes, a `nav nav-tabs` right above the `<router-outlet />`, and each tab starts with its
-      card, so the card is the folder of the active tab; an error of the tab is an alert inside that card.
-    - Layout, spacing, forms, buttons, tables, cards, alerts and tabs are bootstrap's classes in the
-      templates, its spacing and corner radius included; a component sets its own layout with
-      `host: { class: '…' }`. Bootstrap and its look come from `sak-theme` (its css listed in
-      `angular.json`): `bootstrap.css` there maps bootstrap onto the tokens, the components read the
-      `--sak-*` tokens directly, `src/styles.scss` keeps the post-it colors. No color literal elsewhere. Custom css only for what
-      bootstrap has no class for (the post-its, the terminal look of `app-code-block`, the charts,
-      the stop button of the recording overlay), in the component's own stylesheet.
-
-## Naming
-
-- Every cloud resource of a deployment is named `sak-<name>`, with a suffix for what it is where a deployment has
-  more than one of a kind: the server, the firewall and the ssh key `sak-<name>`, the data volume `sak-<name>-data`,
-  the primary ips `sak-<name>-ipv4` and `sak-<name>-ipv6`. A name is at most 54 characters, so the longest cloud
-  name stays a dns label of 63. DNS records are named by the dns mode, not by this rule.
-- A class (a struct in rust) that manages resources outside the process, at a cloud provider,
-  a container runtime, a remote api, is called `<name>Manager` after what it manages, e.g.
-  `DeploymentManager` (`sak-admin-cli`, the sak deployments at the providers). A manager is the one
-  place its resources are looked up, created, changed and removed from; the rest of the code
-  asks it and holds no client of its own.
-
-## Cloud resources (`sak-admin-cli/cloud`)
-
-- The labels, the identity and what must stay are in architecture/SYSTEM.md, "Cloud resources". In the code:
-- Whatever creates resources sets the name label and the password hash label on creation, and declares them as the
-  identity (`with_identity`, checked by `api::identity`); a resource of SAK without them is a defect.
-- A registry that may destroy declares its owner labels (`Registry::owned_by`), and only the resources that may be
-  replaced are `Registry::recreatable`.
-- The password hash is `keys::password_hash` in `sak-admin-cli` (30 bytes of the master key as hex); the firewall selects its
-  servers by the name label alone.
-
-## Texts (`i18n/texts.yml`)
-
-- Every text a user reads goes into `i18n/texts.yml`, never into code or a generated file (`I18N-1` in SYSTEM.md);
-  run `mise run i18n:generate` after a change of it.
-- `admin_cli.cli` texts only the sakadmin cli shows, `admin_cli.ui` texts only the sakadmin ui shows, `admin_cli.common` texts both show
-  (the messages of core, the resource kinds and statuses, the actions of a plan), read as `cli.*`, `ui.*` and
-  `common.*`. A text moves to `admin_cli.common` once both use it. `sak-admin-cli/src-tauri/locales/` is generated from it.
-- `sak_backup` has the same parts for sakbackup (`sak-backup/src-tauri/locales/`). `desktop_shared` has the texts of
-  `sak-desktop-shared` (e.g. the sign-in), which each desktop app shows next to its own; a key is in one of them only.
+the same commit and says why. A rule two components need moves up to components/INDEX.md. A new rule needs the
+explicit consent of the user (see "Prime Directives"). Every rule has an id, e.g. `MODEL-1` (refer to SYSTEM.md);
+refer to a rule by its id.
 
 ## Privacy in the code
 

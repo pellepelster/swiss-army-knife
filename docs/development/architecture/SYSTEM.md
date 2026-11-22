@@ -1,7 +1,7 @@
 ---
 title: "System Architecture"
 linkTitle: "System"
-description: "How SAK is built as a whole: its parts, the backend layers, the api, the model, the external systems, the server of a deployment, sakadmin, the cloud resources, privacy, security and the tests."
+description: "How SAK is built as a whole: its parts, the backend layers, the api, the model, the external systems, the server of a deployment, the desktop apps, the cloud resources, privacy, security and the tests."
 weight: 10
 ---
 
@@ -9,17 +9,21 @@ weight: 10
 
 How Swiss Army Knife (SAK) is built as a whole: its parts, how they connect, and the decisions that shape them. This is
 the first of three levels: what all components share is in [the architecture of the components](components/INDEX.md),
-each component in its own document next to it. How to write the code is in [AGENT.md](../../../AGENT.md), how the apps
-look and behave in [UI-UX.md](../UI-UX.md), the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose
-in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md).
+each component in its own document next to it, e.g. sakadmin and its `SAKADM` rules in
+[SAKADMIN.md](components/SAKADMIN.md). The rules of the code are here and in those documents; what an agent does
+before all of them is in [AGENT.md](../../../AGENT.md). How the apps look and behave is in [UI-UX.md](../UI-UX.md),
+the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose in
+[ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md), what is still to do in [ISSUES.md](../ISSUES.md), and how the
+dependencies are updated in [DEPENDENCIES.md](../DEPENDENCIES.md).
 
 A lower level adds to the levels above and never repeats them; a rule two components need moves up to [the architecture
 of the components](components/INDEX.md). Every change keeps to its level and to the levels above; a change that has to
 break a rule changes its document in the same commit and says why.
 
-Every rule has an id: the prefix of its chapter and a number, e.g. `MODEL-1`; the rules of a component have the name of
-the component as their prefix, e.g. `NOTES-1`. An id never changes and is never used again, also when its rule goes; a
-new rule gets the next number of its chapter. Code, documents and reviews refer to a rule by its id.
+Every rule has an id: the prefix of its chapter and a number, e.g. `MODEL-1`; the rules of a component have the name
+of the component as their prefix, e.g. `NOTES-1` (the rules of sakadmin `SAKADM`). An id never changes and is never
+used again, also when its rule goes; a new rule gets the next number of its chapter. Code, documents and reviews refer
+to a rule by its id.
 
 ## Overview
 
@@ -79,17 +83,28 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 - `API-1` **Errors** answer `{"errors": [{"code": "...", "message": "..."}]}`, for each problem its code, the same in
   every language, and one readable sentence in the language of `Accept-Language` (`ApiErrorResponse` with its
   `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an `ErrorMessage` (`sak-api`), a
-  key of a catalog with its values; it becomes an `ApiErrorMessage` only at the api.
+  key of a catalog with its values; it becomes an `ApiErrorMessage` only at the api. A route answers an error with
+  `call.respondErrors`, and every route has `installApi()` (`sak-api`), which gives an error nobody expected the same
+  form.
 - `API-2` **Lists** are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for with
-  `offset` and `limit`; `limit` is 50 by default and at most 100. The exception is the health (`GET /api/v1/health`):
-  the statuses of its few checks are one array, without pages.
+  `offset` and `limit`; `limit` is 50 by default and at most 100 (`DEFAULT_LIMIT`, `MAX_LIMIT` of `sak-api`). A
+  service answers a page as `Page<T>`, its items and the total; the route maps the items to their response classes
+  and answers them with the `PageRequest` of the call. The exception is the health (`GET /api/v1/health`): the
+  statuses of its few checks are one array, without pages.
 - `API-3` **Times** are ISO 8601 in UTC with milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That
   holds for every time the api answers (when something was created, updated or computed, when a session ends, the
-  times of the logs and the metrics). Something that never ends has no time rather than one far away.
+  times of the logs and the metrics). A time in a response is a `String` written with `Instant.apiTime()` (`sak-api`),
+  never with `toString()`. Something that never ends has no time rather than one far away.
 - `API-4` **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
-  response class.
+  response class. A body the api receives is a `<name>Request`, a body it answers a `<name>Response`, and so is every
+  class nested in them (e.g. `PageResponse`). The one exception is `ApiErrorMessage`, an error of an
+  `ApiErrorResponse`.
 - `API-6` **Missing entities.** A 404 is only for the resource of the path. An entity the request refers to that is
   not there, e.g. the list of a new item, a photo of a note or the bucket of a redirect, is a 422 with its message.
+- `API-7` **Where the code of the api is.** The routes of an app are in `io.pelle.sak.backend.<app>`, its request and
+  response classes in `io.pelle.sak.backend.<app>.model`, one class in each file, the file named like the class. The
+  other modules that answer on `/api` (`sak-api`, `sak-auth`, `sak-logs`) keep theirs the same way in
+  `io.pelle.sak.<module>.model`.
 
 ## Model
 
@@ -129,10 +144,11 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 ## External systems
 
-- `EXT-1` **One manager for each external system.** A class that manages resources outside the process, at a cloud
-  provider, in a container runtime or behind a remote api, is the one place they are looked up, created, changed and
-  deleted, and the one place its clients are made; the rest of the code asks it. sakadmin has one for the deployments,
-  the provisioning and the container runtime (e.g. `DeploymentManager`), the backend one for the AI provider
+- `EXT-1` **One manager for each external system.** A class (a struct in rust) that manages resources outside the
+  process, at a cloud provider, in a container runtime or behind a remote api, is called `<name>Manager` after what
+  it manages. It is the one place they are looked up, created, changed and deleted, and the one place its clients are
+  made; the rest of the code asks it and holds no client of its own. sakadmin has one for the deployments, the
+  provisioning and the container runtime (e.g. `DeploymentManager`), the backend one for the AI provider
   (`OpenRouterManager`) and one for the access logs in victorialogs (`AccessLogsManager`).
 
 ## The server of a deployment
@@ -155,44 +171,6 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   backend itself) the api is `/api/v1` of the same origin.
 - `SERVER-7` **The REST backend of restic** is at `api.<base domain>/restic/`, in front of the S3 api; `restic` is no
   name of a bucket.
-
-## sakadmin
-
-- `SAKADM-2` **Local state is encrypted.** sakadmin keeps only two things of a deployment in `~/.sak/<name>/`, readable
-  by the user only: the settings of the last create or deploy (`config.json`, encrypted with age to a key derived from
-  the password) and the backups (`backups/`, `SAKADM-8`). The files of a run are deleted when the run ends. All else is
-  derived from the name and the password, or read from the deployment: a deploy takes its settings from the running
-  deployment, else from `config.json`, else from the DNS records. So two machines with the same password manage the same
-  deployment.
-- `SAKADM-4` **Plan, then apply.** `sak-cloud` declares the resources, compares them with the provider and applies
-  them in the order of their dependencies. A plan stops before any change when a resource belongs to someone else or
-  must be replaced but must stay. Only the server and its ssh key may be replaced.
-- `SAKADM-5` **Provisioning** runs `ansible-playbook` against the server in the tools image. The inventory, the keys,
-  the known host key and `backend.env` (admin password hash, addresses, mail server) are in a private directory of the
-  run. It sets up the base system, the data volume, the backend and the containers next to it.
-- `SAKADM-6` **The provisioning is a resource.** The roles are a resource of the plan, after the server and the data
-  volume. Ansible has no plan, so the server keeps one marker for each role after a successful run: the fingerprint
-  of the files of the role and of its values. The plan reads the markers through ssh and runs the playbook when the
-  server changes, when markers are missing (a run deletes them first) or when a fingerprint differs. An unchanged
-  role runs again only with a forced deploy.
-- `SAKADM-7` **Certificates.** Caddy gets the certificates from its default acme issuers. A test deployment uses the
-  staging ca of Let's Encrypt (a setting of the deployment; sakadmin then trusts its roots), so the tests never reach
-  the limits of the production ca.
-- `SAKADM-8` **Backups through ssh.** The server compresses a backup and encrypts it to the public half of the backup
-  key; sakadmin pulls it through ssh into one file. A restore sends it back decrypted. Backups are user data, not
-  sakadmin state.
-- `SAKADM-9` **One version.** sakadmin, its tools image and the server images share the version of the release. A
-  server runs the images of the sakadmin that deployed it. Tests can set another tag, e.g. `<version>-rc`.
-- `SAKADM-10` **Updates on request.** sakadmin looks for a newer release on GitHub and replaces itself only when the
-  user asks (sakadmin cli, or the footer of the sakadmin ui). Before that, it checks the download against the checksum
-  and the cosign signature of the release workflow at the release tag, offline against the sigstore root built into
-  sakadmin.
-- `SAKADM-12` **Signed images.** The workflow signs each image it pushes with cosign, keyless, as the workflow at its
-  ref (a tag for `<version>` and `<version>-rc`, main for `latest`). sakadmin verifies the signature of each image
-  digest offline, against the sigstore root built into sakadmin, before it runs the image (canary, tools) or gives it
-  to the server by digest (backend, ingress). An image without the signature is not pulled. A tag set with
-  `SAK_DOCKER_IMAGE_TAG` that no workflow pushes is pulled unchecked. Third-party images (victorialogs, vector) are
-  pinned by digest.
 
 ## Desktop apps
 
@@ -218,36 +196,54 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 - `CLOUD-1` **The name label.** Every cloud resource of a deployment (server, volume, primary IP, firewall, ssh key,
   DNS record) carries `sak.pelle.io/name=<name>`. It tells the resources of one deployment from those of another and
-  from everything else in the project.
+  from everything else in the project. The firewall selects its servers by this label alone.
 - `CLOUD-2` **The version label.** Every resource of a deployment also carries `sak.pelle.io/version=<version>`, the
   version of the sakadmin that created it or changed it last. It is an info label: written with the other labels, never
   compared, so another version alone is no change of a resource. The server gets the version after each provisioning,
   so its label is the version it runs.
 - `CLOUD-3` **The password hash label.** Every resource of a deployment, the DNS records included, also carries
-  `sak.pelle.io/password-hash=<hash>`, a hash derived from the password. sakadmin checks a password against it before it
-  changes anything. The password itself is nowhere.
-- `CLOUD-4` **Identity.** The name label and the password hash label are the identity of a resource. Every lookup
-  checks them: a resource of the declared name without them belongs to someone else, and nothing changes or deletes
-  it. A destroy deletes only resources with both labels; a resource without the password hash label is never deleted.
+  `sak.pelle.io/password-hash=<hash>`, a hash derived from the password: 30 bytes of the master key as hex
+  (`keys::password_hash` in `sak-admin-cli`). sakadmin checks a password against it before it changes anything. The
+  password itself is nowhere.
+- `CLOUD-4` **Identity.** The name label and the password hash label are the identity of a resource. Whatever creates
+  a resource sets both labels when it creates it and declares them as its identity (`with_identity`, checked by
+  `api::identity`); a resource of SAK without them is a defect. Every lookup checks them: a resource of the declared
+  name without them belongs to someone else, and nothing changes or deletes it. A destroy deletes only resources with
+  both labels; a resource without the password hash label is never deleted. A registry that may destroy declares its
+  owner labels (`Registry::owned_by`).
 - `CLOUD-6` **Kinds of labels.** The plan compares the identity labels. It never compares the labels that sakadmin
   keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version).
 - `CLOUD-7` **Own prefix.** The labels SAK declares are under `sak.pelle.io/`.
 - `CLOUD-8` **What stays.** A deploy never replaces the data volume or the primary IPs, and a destroy keeps the
-  data volume unless the user asks to delete it.
+  data volume unless the user asks to delete it. Only a resource that may be replaced is `Registry::recreatable`;
+  every other resource stays.
 - `CLOUD-9` **SAK owns all labels.** sakadmin owns every label of a resource of a deployment, not only the ones under
   its prefix. The plan reports a label it did not declare as a change, and the next deploy removes it, because the
   provider replaces the labels of a resource as a whole. A label added by hand, in the console or by another tool, does
   not survive a deploy.
+- `CLOUD-10` **The names of the resources.** Every cloud resource of a deployment is named `sak-<name>`, with a
+  suffix for what it is where a deployment has more than one of a kind: the server, the firewall and the ssh key
+  `sak-<name>`, the data volume `sak-<name>-data`, the primary ips `sak-<name>-ipv4` and `sak-<name>-ipv6`. A name is
+  at most 54 characters, so the longest cloud name stays a dns label of 63. DNS records are named by the dns mode,
+  not by this rule.
 
 ## Texts
 
 - `I18N-1` **One file of texts.** Every text a user reads, in the backend, the web apps, the android apps and the
   desktop apps, is in `i18n/texts.yml` at the root of the repository, in every language, and only there: no text is
-  written into code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`) writes what
-  each part reads from it; the generated files are committed, never edited, and a test fails when they are not up to
-  date. A text of an app is in its section (`<app>.common`, `.backend`, `.web`, `.android`), one of no app in `common`,
-  `backend`, `web` or `android`, one of sakadmin in `admin_cli`, one of sakbackup in `sak_backup`, one both desktop apps
-  show in `desktop_shared`; a text two parts show alike moves to their `common`.
+  written into code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`), run after
+  every change of the file, writes what each part reads from it; the generated files are committed, never edited, and
+  a test fails when they are not up to date. A text of an app is in its section (`<app>.common`, `.backend`, `.web`,
+  `.android`), one of no app in `common`, `backend`, `web` or `android`, one of sakadmin in `admin_cli`, one of
+  sakbackup in `sak_backup`, one both desktop apps show in `desktop_shared`; a text two parts show alike moves to
+  their `common`.
+- `I18N-2` **The texts of a desktop app have three parts.** In `admin_cli`, `cli` has the texts only the sakadmin cli
+  shows, `ui` the texts only the sakadmin ui shows, and `common` the texts both show (the messages of the core, the
+  kinds and statuses of the resources, the actions of a plan). The code reads them as `cli.*`, `ui.*` and `common.*`
+  from `sak-admin-cli/src-tauri/locales/`, which is generated. A text moves to `common` when both faces use it.
+  `sak_backup` has the same parts for sakbackup (`sak-backup/src-tauri/locales/`). `desktop_shared` has the texts of
+  `sak-desktop-shared`, e.g. the sign-in, which each desktop app shows next to its own. A key is in one of these
+  sections only.
 
 ## Privacy
 

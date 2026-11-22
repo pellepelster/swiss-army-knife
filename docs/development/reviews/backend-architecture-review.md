@@ -131,7 +131,7 @@ Fix: one file `<App>Texts.kt` for each app, the tags named like the paths, the d
   the descriptions of `sak-auth`, the notes and the groceries.
 - `installApi()` is called in 20 route functions. `backend/info/SakWellKnown.kt:27` calls it on the root route, so
   the plugins of the api also cover the web app (checked); `servedFiles` and `listChanges` call it not at all and
-  rely on a route next to them.
+  rely on a route next to them, which `API-1` does not allow: every route has `installApi()`.
 
 Fix: one line in INDEX.md for the verbs and the answers; `installApi()` once for `/api/v1` and once for the well-known
 path.

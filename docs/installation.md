@@ -64,11 +64,11 @@ On Windows, sakadmin is two programs in `%LOCALAPPDATA%\Programs\sakadmin`:
 - **`sakadmin.exe`** opens the UI, for example with a double click in the Explorer. It shows no output on the command
   line.
 - **`sakadmin-cli.exe`** is the command line, for PowerShell or the command prompt, for example
-  `& "$env:LOCALAPPDATA\Programs\sakadmin\sakadmin-cli.exe" --help`. Where the docs say `sakadmin`, type `sakadmin-cli.exe`.
-  Without a command, it opens the UI with a console window next to it.
+  `& "$env:LOCALAPPDATA\Programs\sakadmin\sakadmin-cli.exe" --help`. Where the docs say `sakadmin`, type
+  `sakadmin-cli.exe`. Without a command, it opens the UI with a console window next to it.
 
-An update, in the UI or with `sakadmin-cli.exe update`, replaces both programs. If `sakadmin-cli.exe` is missing, run the
-commands above again. The UI needs the Microsoft Edge WebView2 runtime, which Windows 10 and 11 have.
+An update, in the UI or with `sakadmin-cli.exe update`, replaces both programs. If `sakadmin-cli.exe` is missing, run
+the commands above again. The UI needs the Microsoft Edge WebView2 runtime, which Windows 10 and 11 have.
 
 ## Check the signature
 

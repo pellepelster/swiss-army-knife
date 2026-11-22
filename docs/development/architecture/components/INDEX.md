@@ -21,10 +21,12 @@ adds to [SYSTEM.md](../SYSTEM.md) and never repeats it; each component adds to t
 | Todo           | [TODO.md](TODO.md)           | `io.pelle.sak.backend.todo`              | `projects/todo/`      | `todo_lists`, `todo_items`                                               |
 | Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`, `sak-dns` | `projects/health/`    | none                                                                     |
 | Backup         | [BACKUP.md](BACKUP.md)       | `io.pelle.sak.backend.restic`            | `projects/backups/`   | `restic_repositories`, `restic_backup_plans`, `restic_backup_plan_paths` |
+| sakadmin       | [SAKADMIN.md](SAKADMIN.md)   | none                                     | none                  | none                                                                     |
 
 The first five are the apps. The login, the settings, the labels and the file storage are no apps; all apps share
 them (refer to [Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`FRONTEND-1`).
 The backups have a part in the backend, the repositories of restic, and a desktop app, sakbackup, which runs restic.
+sakadmin is no part of the backend: it is the desktop app in `sak-admin-cli` that manages deployments.
 
 ## Shared parts
 
@@ -61,7 +63,28 @@ are such apps.
 ## Web app
 
 - `FRONTEND-1` **One page for each app**, listed on the start page; the maintenance pages (health, settings) are
-  listed below them. The look is in [UI-UX.md](../../UI-UX.md), the rules of the code in
-  [AGENT.md](../../../../AGENT.md).
-- `FRONTEND-2` **The tabs of a detail view are child routes**, for example the tabs of a bucket or the scopes of the
-  settings.
+  listed below them. The look is in [UI-UX.md](../../UI-UX.md), the rules of the code are the ones below.
+- `FRONTEND-2` **Paths and tabs.** A thing is created on `/<entities>/create` and edited on `/<entities>/<id>/edit`
+  (`WEB-3`). The tabs of a detail view are child routes, for example the tabs of a bucket or the scopes of the
+  settings: a `nav nav-tabs` right above the `<router-outlet />`. Each tab starts with its card, so the card is the
+  folder of the active tab (`WEB-2`), and an error of the tab is an alert inside that card.
+- `FRONTEND-3` **State is in signals.** The templates read signals. A store holds what a page shares with its tabs
+  (`@Injectable()`, provided by the page, e.g. `BucketStore`) or what the whole app shares (`providedIn: 'root'`,
+  e.g. `NotesStore`).
+- `FRONTEND-4` **Async code is the same everywhere.** An observable (`HttpClient`, `timer`) is subscribed with
+  `.pipe(takeUntilDestroyed(this.destroyRef))`, and `destroyRef = inject(DestroyRef)` is the first field; there are
+  no collections of `Subscription`s and no `DestroyRef.onDestroy(() => ….unsubscribe())`. A load that replaces the
+  one before (another page, polling) keeps its `Subscription` in one field and unsubscribes it before the next
+  starts. A load that follows inputs or signals runs in an `effect`, the load itself `untracked`. An action whose
+  outcome the caller awaits (e.g. to focus a created note) returns a `Promise` with `firstValueFrom`; everything
+  else subscribes.
+- `FRONTEND-5` **Lists are paginated with the shared pagination** (`WEB-1`): `app-pagination` (`shared/pagination.ts`
+  of `core`), `PAGE_SIZE` items a page, the page in the `offset` query parameter. Only choices and suggestions (a
+  select, a datalist) load a whole list, page by page with `fetchAll` (`shared/api.ts` of `core`).
+- `FRONTEND-6` **The look is Bootstrap on the theme** (`UX-1`). Layout, spacing, forms, buttons, tables, cards, alerts
+  and tabs are the classes of Bootstrap in the templates, its spacing and corner radius included; a component sets
+  its own layout with `host: { class: '…' }`. Bootstrap and its look come from `sak-theme` (its css is listed in
+  `angular.json`): `bootstrap.css` there maps Bootstrap onto the tokens, the components read the `--sak-*` tokens
+  directly, and `src/styles.scss` keeps the colors of the post-its. There is no color literal elsewhere. Custom css
+  is only for what Bootstrap has no class for (the post-its, the terminal look of `app-code-block`, the charts, the
+  stop button of the recording overlay), in the stylesheet of the component.

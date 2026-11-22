@@ -1,12 +1,15 @@
 # Frontend
 
+The rules of the code of the web app are `FRONTEND-1` to `FRONTEND-6` in [components/INDEX.md](../docs/development/architecture/components/INDEX.md#web-app), the texts are `I18N-1` in [SYSTEM.md](../docs/development/architecture/SYSTEM.md#texts). What follows adds to them.
+
 - One Angular application, the shell (`src/app`), and the libraries of `projects/`, compiled from their sources
   with it (`paths` of `tsconfig.json`, no build of their own):
   - `core` (`@sak/core`): what every app needs, the api (`api/`), the session (`auth/`), the texts (`i18n/`) and the
     shared parts of a page (`shared/`).
   - `testing` (`@sak/testing`): what the specs of every app share.
   - one for each app and maintenance page (`@sak/<app>`): `grocery`, `todo`, `notes`, `hosting`, `redirects`,
-    `backups`, `users`, `health`, `settings`. Its `AGENTS.md` links its architecture document.
+    `backups`, `users`, `health`, `settings`. Its `AGENTS.md` links its architecture document, or the architecture
+    of the components where it has none of its own (`users`, `settings`).
   - The shell keeps what is of no app: the home, the login and the sign-in, the downloads, the pages that connect
     an app, the list of the apps (`apps.ts`) and the routes in their order (`app.routes.ts`).
 - Who imports whom, `src/app/boundaries.spec.ts` fails on anything else: an app imports `@sak/core` (and
