@@ -10,7 +10,7 @@ use sak_desktop_shared::api;
 use sak_desktop_shared::session::SessionManager;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, Output, Stdio};
 use std::time::Duration;
 use url::Url;
 
@@ -163,24 +163,28 @@ impl Restic<'_> {
     /// how many snapshots it removed. Only snapshots with the tag of the plan are looked at, as one
     /// group whatever paths they have: those of other plans, of other computers and the ones
     /// without a tag stay
-    pub fn expire(&self, plan: &Plan, keep: &Keep) -> Result<usize, RunError> {
+    /// `run` runs each command and gives its output, e.g. one that a cancel stops (`run::Run`)
+    pub fn expire(
+        &self,
+        plan: &Plan,
+        keep: &Keep,
+        run: &dyn Fn(&mut Command) -> Result<Output, RunError>,
+    ) -> Result<usize, RunError> {
         let options = keep.options();
         if options.is_empty() {
             return Ok(0);
         }
-        let output = self
+        let output = run(self
             .command()
             .args(["forget", "--json", "--group-by", "tags", "--tag"])
             .arg(plan.tag())
-            .args(options)
-            .output()
-            .map_err(failed)?;
+            .args(options))?;
         if !output.status.success() {
             return Err(error_of(&String::from_utf8_lossy(&output.stderr)));
         }
         let removed = removed(&String::from_utf8_lossy(&output.stdout));
         if removed > 0 {
-            let output = self.command().arg("prune").output().map_err(failed)?;
+            let output = run(self.command().arg("prune"))?;
             if !output.status.success() {
                 return Err(error_of(&String::from_utf8_lossy(&output.stderr)));
             }

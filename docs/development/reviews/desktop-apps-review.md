@@ -45,7 +45,10 @@ also for a destroy, and every apply of the window names the plan it showed (`app
 changed since is refused (`SakadminPlanTest`). `DA-28`: `stop_runs` counts its stops, and a provisioning that sees a stop
 since it was handed to its thread starts no container, also when the stop came before its run was tracked. `DA-29`: closed while a SAK instance changes, the window of sakadmin stays and
 asks; a yes stops the work as cancel does and quits. Found on the way: a change of `locales/` alone rebuilt none of the
-three desktop crates, so a build kept old texts; their build scripts name `locales` now.
+three desktop crates, so a build kept old texts; their build scripts name `locales` now. `DA-32`: a backup is one run from its
+start to its end (`Runs::begin`), so a cancel while the instance is asked or the password looked up stops it before
+restic, and one during the expiry kills forget or prune; the snapshot is done then and the expiry says it was
+cancelled.
 
 ## What is good
 
@@ -96,16 +99,6 @@ Hetzner api then prints without its inner cause (DNS, TLS, refused). `config.rs:
 Fix: `sak_desktop_shared::errors::with_causes` in the three helpers.
 
 ### sakbackup
-
-#### `DA-32` Cancel does nothing while a backup prepares or expires (read)
-
-`run::cancel` (`core/run.rs:412-419`) acts only while restic of the backup itself runs (`starting` or a stored child,
-`run.rs:312-321`). Before it, `prepare` (three calls of the api) and `password_of` run (`run.rs:249-258`); after it, the
-expiry (`forget`, `prune`, `run.rs:276-282`). The window shows Cancel the whole time (`run.js:129-190`). The tray's Quit
-during the expiry cancels nothing and exits (`gui/tray.rs:163-164`), leaving `forget`/`prune` behind.
-
-Fix: a cancelled flag for the whole `back_up`, checked after `prepare` and before the expiry, and the child of
-`forget`/`prune` registered in `RunState` too; or no Cancel during the expiry.
 
 #### `DA-33` "One run at a time" covers the backup only, and one process only (read; the lock failures suspected)
 
@@ -411,7 +404,8 @@ Fix: the shared crate's tests in the macOS and windows legs of `desktop-apps`, w
 
 `a_cancelled_run_leaves_a_repository_that_the_next_run_and_a_check_take` (`core/run.rs:775`) failed once under the load
 of the whole suite: `restic check` found a lock 3 s old after the next backup. It passed alone three times and in the
-suite again. Not traced.
+suite again. It failed the same way once more under load after `DA-32`, and passed on the next run. Not traced: the lock
+names the process of the second backup, which had ended.
 
 ## Earlier findings still open
 

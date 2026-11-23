@@ -11,9 +11,10 @@ use sak_desktop_shared::session::SessionManager;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::VecDeque;
+use std::io::Read;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::process::{Child, Stdio};
+use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -31,11 +32,98 @@ impl Runs {
         Busy(self.0.clone())
     }
 
+    /// a backup from its start to its end, what it asks the instance and the expiry included: one at
+    /// a time, and what `cancel` stops (DA-32)
+    pub(crate) fn begin(&self) -> Result<Run, RunError> {
+        let child = self.0.child.lock().unwrap();
+        if child.is_some() || self.0.starting.swap(true, Ordering::SeqCst) {
+            return Err(RunError::Running);
+        }
+        drop(child);
+        self.0.cancelled.store(false, Ordering::SeqCst);
+        Ok(Run(self.clone()))
+    }
+
     /// whether a backup, a restore or a change of the snapshots goes on
     pub fn is_running(&self) -> bool {
         self.0.busy.load(Ordering::SeqCst) > 0
             || self.0.starting.load(Ordering::SeqCst)
             || self.0.child.lock().is_ok_and(|child| child.is_some())
+    }
+}
+
+/// a backup that goes on (`Runs::begin`); it is over when this goes
+pub(crate) struct Run(Runs);
+
+impl Run {
+    fn cancelled(&self) -> bool {
+        self.0.0.cancelled.load(Ordering::SeqCst)
+    }
+
+    /// a command of restic in this run that `cancel` stops, e.g. forget or prune of the expiry: its
+    /// output, or `Cancelled`
+    fn output(&self, command: &mut Command) -> Result<Output, RunError> {
+        if self.cancelled() {
+            return Err(RunError::Cancelled);
+        }
+        let mut child = command
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(failed)?;
+        let read = |pipe: Option<Box<dyn Read + Send>>| {
+            std::thread::spawn(move || {
+                let mut bytes = Vec::new();
+                if let Some(mut pipe) = pipe {
+                    let _ = pipe.read_to_end(&mut bytes);
+                }
+                bytes
+            })
+        };
+        let stdout = read(
+            child
+                .stdout
+                .take()
+                .map(|pipe| Box::new(pipe) as Box<dyn Read + Send>),
+        );
+        let stderr = read(
+            child
+                .stderr
+                .take()
+                .map(|pipe| Box::new(pipe) as Box<dyn Read + Send>),
+        );
+        let child = Arc::new(Mutex::new(child));
+        *self.0.0.child.lock().unwrap() = Some(child.clone());
+        // a cancel that came while it started
+        if self.cancelled() {
+            let _ = child.lock().unwrap().kill();
+        }
+        let status = loop {
+            if let Some(status) = child.lock().unwrap().try_wait().map_err(failed)? {
+                break status;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        };
+        *self.0.0.child.lock().unwrap() = None;
+        let (stdout, stderr) = (
+            stdout.join().unwrap_or_default(),
+            stderr.join().unwrap_or_default(),
+        );
+        if self.cancelled() {
+            return Err(RunError::Cancelled);
+        }
+        Ok(Output {
+            status,
+            stdout,
+            stderr,
+        })
+    }
+}
+
+impl Drop for Run {
+    fn drop(&mut self) {
+        self.0.0.starting.store(false, Ordering::SeqCst);
+        *self.0.0.child.lock().unwrap() = None;
     }
 }
 
@@ -51,7 +139,7 @@ impl Drop for Busy {
 #[derive(Default)]
 struct RunState {
     child: Mutex<Option<Arc<Mutex<Child>>>>,
-    // a run that has not started restic yet, e.g. while it initializes
+    // a backup that goes on (`Run`), from its start to its end, also while no restic runs
     starting: AtomicBool,
     cancelled: AtomicBool,
     // the commands that hold a `Busy`
@@ -246,6 +334,9 @@ pub async fn back_up(
     init: bool,
     on_event: impl Fn(RunEvent) + Send + Sync + Clone + 'static,
 ) -> Result<RunSummary, RunError> {
+    // one run from here: a cancel while the instance is asked or the password is looked up stops it
+    // before restic, one during the expiry stops forget or prune
+    let run = runs.begin()?;
     let prepared = prepare(sessions, id).await?;
     let account = prepared.account.clone();
     let Some(chosen) = password_of(passwords, &account, given.typed).await else {
@@ -256,7 +347,9 @@ pub async fn back_up(
         });
     };
     may_init(prepared.first, chosen.1, init)?;
-    let runs = runs.clone();
+    if run.cancelled() {
+        return Err(RunError::Cancelled);
+    }
     run_with(
         passwords,
         &account,
@@ -264,18 +357,21 @@ pub async fn back_up(
         given.remember,
         move |password| {
             let restic = prepared.restic(password);
-            let mut summary = run_restic(
-                &runs,
+            let mut summary = backup(
+                &run,
                 &restic,
                 &prepared.plan(),
                 prepared.first,
                 on_event.clone(),
             )?;
             // the backup is done; the snapshots the plan no longer keeps go after it (BACKUP-8), but
-            // not after an empty one: it would push out the last ones with data (BK-13)
+            // not after an empty one: it would push out the last ones with data (BK-13). A cancel
+            // stops forget or prune, the snapshot stays
             if !summary.empty && !prepared.keep.options().is_empty() {
                 on_event(RunEvent::Expiring);
-                match restic.expire(&prepared.plan(), &prepared.keep) {
+                match restic.expire(&prepared.plan(), &prepared.keep, &|command| {
+                    run.output(command)
+                }) {
                     Ok(removed) => summary.removed = removed,
                     Err(error) => summary.expire_failed = Some(error),
                 }
@@ -302,6 +398,7 @@ fn may_init(first: bool, source: Source, init: bool) -> Result<(), RunError> {
 
 /// runs restic for one backup plan, initializing the repository first when `init`; one run at a
 /// time, `cancel_backup` stops it. Blocks until restic ended
+#[cfg(test)]
 pub(crate) fn run_restic(
     runs: &Runs,
     restic: &Restic,
@@ -309,17 +406,21 @@ pub(crate) fn run_restic(
     init: bool,
     on_event: impl Fn(RunEvent) + Send + Sync + Clone + 'static,
 ) -> Result<RunSummary, RunError> {
-    {
-        let child = runs.0.child.lock().unwrap();
-        if child.is_some() || runs.0.starting.swap(true, Ordering::SeqCst) {
-            return Err(RunError::Running);
-        }
-    }
-    runs.0.cancelled.store(false, Ordering::SeqCst);
+    backup(&runs.begin()?, restic, plan, init, on_event)
+}
+
+/// restic of the backup in `run`, initializing the repository first when `init`
+fn backup(
+    run: &Run,
+    restic: &Restic,
+    plan: &Plan,
+    init: bool,
+    on_event: impl Fn(RunEvent) + Send + Sync + Clone + 'static,
+) -> Result<RunSummary, RunError> {
+    let runs = &run.0;
     let result = run_restic_now(runs, restic, plan, init, on_event);
-    runs.0.starting.store(false, Ordering::SeqCst);
     *runs.0.child.lock().unwrap() = None;
-    if runs.0.cancelled.load(Ordering::SeqCst) {
+    if run.cancelled() {
         return Err(RunError::Cancelled);
     }
     result
@@ -408,7 +509,7 @@ fn run_restic_now(
     }
 }
 
-/// stops the run that goes on
+/// stops the run that goes on, also before restic started and during the expiry
 pub fn cancel(runs: &Runs) {
     if runs.0.starting.load(Ordering::SeqCst) {
         runs.0.cancelled.store(true, Ordering::SeqCst);
@@ -735,7 +836,12 @@ mod integration {
             last: Some(1),
             ..Keep::default()
         };
-        assert_eq!(restic.expire(&documents, &keep), Ok(2));
+        assert_eq!(
+            restic.expire(&documents, &keep, &|command| command
+                .output()
+                .map_err(failed)),
+            Ok(2)
+        );
         let snapshots = crate::core::snapshots::list(&restic).unwrap();
         let of = |tag: &str| {
             snapshots
@@ -755,7 +861,12 @@ mod integration {
             1
         );
         // a second time there is nothing to remove
-        assert_eq!(restic.expire(&documents, &keep), Ok(0));
+        assert_eq!(
+            restic.expire(&documents, &keep, &|command| command
+                .output()
+                .map_err(failed)),
+            Ok(0)
+        );
 
         // a restore takes the newest of the plan, though the others are newer and have its path
         let chosen = crate::core::restore::newest_of(&snapshots, &documents).unwrap();
@@ -847,6 +958,56 @@ mod integration {
             String::from_utf8_lossy(&check.stderr)
         );
         let _ = std::fs::remove_dir_all(&work);
+    }
+
+    #[test]
+    fn a_cancel_before_restic_is_seen_and_the_run_is_one_until_it_ends() {
+        let runs = Runs::default();
+        let run = runs.begin().unwrap();
+        // the instance is asked, no restic runs yet: a second one is refused, a cancel counts
+        assert!(runs.is_running());
+        assert!(matches!(runs.begin(), Err(RunError::Running)));
+        cancel(&runs);
+        assert!(run.cancelled());
+        assert_eq!(
+            run.output(&mut Command::new("true")).unwrap_err(),
+            RunError::Cancelled
+        );
+        drop(run);
+        assert!(!runs.is_running());
+        // the next run begins without the cancel of the last one
+        assert!(!runs.begin().unwrap().cancelled());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_cancel_stops_a_command_of_the_expiry() {
+        let runs = Runs::default();
+        let run = runs.begin().unwrap();
+        let canceller = std::thread::spawn({
+            let runs = runs.clone();
+            move || {
+                while runs.0.child.lock().unwrap().is_none() {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                cancel(&runs);
+            }
+        });
+        let started = Instant::now();
+        let mut command = Command::new("sleep");
+        command.arg("30");
+        assert_eq!(run.output(&mut command).unwrap_err(), RunError::Cancelled);
+        assert!(started.elapsed() < Duration::from_secs(10));
+        canceller.join().unwrap();
+        assert!(runs.0.child.lock().unwrap().is_none());
+        // without a cancel it gives the output of the command
+        let runs = Runs::default();
+        let run = runs.begin().unwrap();
+        let mut command = Command::new("echo");
+        command.arg("forgotten");
+        let output = run.output(&mut command).unwrap();
+        assert!(output.status.success());
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "forgotten\n");
     }
 
     #[test]
