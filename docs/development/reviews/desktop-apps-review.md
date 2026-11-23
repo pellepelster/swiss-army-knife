@@ -54,7 +54,9 @@ were not tried with a tray, the tests of the window have none. `DA-33`: a backup
 (`Runs::begin`), and each locks its repository for every other sakbackup of the user (a lock file in the config
 directory, `try_lock`), so the command line next to the window is refused with its own text; the snapshots page offers
 no delete while a run goes on. Left: a restore can not be cancelled, and the app has no single instance (the lock makes
-a second window harmless).
+a second window harmless). `DA-43`: a cancel or a sign-out while the token is exchanged ends the sign-in: the
+flag is checked after the exchange and after `who_am_i`, and under the lock of the session after the keychain, which
+forgets the token again when it was stopped; the window remembers the instance with the api the sign-in returns.
 
 ## What is good
 
@@ -168,16 +170,6 @@ AppImage, sees that file. The update then downloads the AppImage asset and renam
 
 Fix: an AppImage only when `current_exe()` lies below `$APPDIR`, the mount the runtime sets; a test with `$APPIMAGE` set
 and the binary in `~/.local/bin`, expecting `Binary`.
-
-#### `DA-43` A sign-in can not be stopped once the browser came back, and a sign-out then is undone (read)
-
-The cancel flag is read only while waiting for the browser (`session.rs:670`). After that, `login_with` exchanges the
-token, stores it in the keychain and sets the session (`session.rs:411-424`) without reading it again; a cancel or a
-sign-out during the exchange (up to twice 15 s) is a no-op and the session appears afterwards. If a sign-out falls in
-that time, `window::login` remembers the instance with the api `""`, and the next start reports `Changed`.
-
-Fix: check the flag after the exchange and after `who_am_i`, before the keychain and the session; `remember` with the
-api of the sign-in's own result; a test that cancels while the exchange is delayed.
 
 #### `DA-44` A late 401 signs out the new session (suspected)
 

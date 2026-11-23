@@ -67,8 +67,8 @@ pub async fn login(
 ) -> Result<User, String> {
     let address = Address::parse(&address).map_err(|error| message(&error))?;
     let pages = pages(&app.package_info().name);
-    let user = sessions
-        .login(address.clone(), pages, |url, code| {
+    let (user, api) = sessions
+        .sign_in(address.clone(), pages, |url, code| {
             on_code
                 .send(code.to_string())
                 .map_err(|error| error.to_string())?;
@@ -88,7 +88,7 @@ pub async fn login(
         }
     }
     // signed in all the same, the address is typed again next time
-    match instances.remember(&address, &sessions.session_api().unwrap_or_default()) {
+    match instances.remember(&address, &api) {
         Ok(dropped) => {
             for address in dropped {
                 sessions.forget(&address).await;

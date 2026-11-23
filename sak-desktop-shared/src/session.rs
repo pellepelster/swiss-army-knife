@@ -378,6 +378,19 @@ impl SessionManager {
         pages: Pages,
         open: impl FnOnce(&str, &str) -> Result<(), String>,
     ) -> Result<User, LoginError> {
+        self.sign_in(address, pages, open)
+            .await
+            .map(|(user, _)| user)
+    }
+
+    /// `login` with the api of the session it made, for what is remembered of it: read from the
+    /// sign-in itself, a sign-out right after it can not leave an empty one (DA-43)
+    pub async fn sign_in(
+        &self,
+        address: Address,
+        pages: Pages,
+        open: impl FnOnce(&str, &str) -> Result<(), String>,
+    ) -> Result<(User, String), LoginError> {
         let cancel = Arc::new(AtomicBool::new(false));
         if let Some(older) = self.pending.lock().unwrap().replace(cancel.clone()) {
             older.store(true, Ordering::SeqCst);
@@ -399,7 +412,7 @@ impl SessionManager {
         pages: Pages,
         open: impl FnOnce(&str, &str) -> Result<(), String>,
         cancel: Arc<AtomicBool>,
-    ) -> Result<User, LoginError> {
+    ) -> Result<(User, String), LoginError> {
         let server = tiny_http::Server::http("127.0.0.1:0")
             .map_err(|error| LoginError::Listener(error.to_string()))?;
         let port = server
@@ -428,6 +441,7 @@ impl SessionManager {
         .map_err(LoginError::Browser)?;
 
         let timeout = self.timeout;
+        let waiting = cancel.clone();
         let token = tokio::task::spawn_blocking(move || {
             wait(
                 &server,
@@ -435,27 +449,47 @@ impl SessionManager {
                 &start_path,
                 &state,
                 &pages,
-                &cancel,
+                &waiting,
                 timeout,
             )
         })
         .await
         .map_err(|error| LoginError::Failed(error.to_string()))??;
 
+        // a cancel or a sign-out while the token is exchanged and the user asked for ends it too: no
+        // session and nothing in the keychain appear after it (DA-43)
+        let cancelled = || cancel.load(Ordering::SeqCst);
         let session_token = self.exchange(&api, &token, &verifier).await?;
+        if cancelled() {
+            return Err(LoginError::Cancelled);
+        }
         let user = self.who_am_i(&api, &session_token).await?;
+        if cancelled() {
+            return Err(LoginError::Cancelled);
+        }
         let kept = session_token.clone();
         self.secret(&address, move |secrets, address| {
             secrets.set(address, &kept)
         })
         .await;
-        *self.session.lock().unwrap() = Some(Session {
-            address,
-            api,
-            token: session_token,
-            user: user.clone(),
-        });
-        Ok(user)
+        {
+            // the check and the session under one lock: a sign-out that comes after sees the session
+            // and removes it, one that came before is seen here
+            let mut session = self.session.lock().unwrap();
+            if !cancelled() {
+                let signed_in = (user.clone(), api.to_string());
+                *session = Some(Session {
+                    address,
+                    api,
+                    token: session_token,
+                    user,
+                });
+                return Ok(signed_in);
+            }
+        }
+        // stopped while the token went to the keychain: it goes again
+        self.forget(&address).await;
+        Err(LoginError::Cancelled)
     }
 
     /// stops the sign-in that waits for the browser
@@ -1473,6 +1507,26 @@ mod tests {
                 Ok(())
             })
             .await
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_sign_out_while_the_token_is_exchanged_leaves_no_session_and_nothing_in_the_keychain()
+    {
+        // the instance takes two seconds for the exchange; the user signs out after one
+        let server = instance(session_token().set_delay(Duration::from_secs(2))).await;
+        let secrets = Arc::new(crate::secrets::Memory::default());
+        let manager = SessionManager::new(secrets.clone(), LOGIN_TIMEOUT);
+        let (result, ()) = tokio::join!(sign_in(&manager, &server), async {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            manager.logout().await;
+        });
+        assert_eq!(result, Err(LoginError::Cancelled));
+        assert_eq!(manager.user(), None);
+        assert_eq!(manager.session_api(), None);
+        assert_eq!(kept(&secrets, &server), None);
+        // a sign-in afterwards is as always
+        sign_in(&manager, &server).await.unwrap();
+        assert_eq!(kept(&secrets, &server).as_deref(), Some("session-token"));
     }
 
     #[tokio::test(flavor = "multi_thread")]
