@@ -194,6 +194,15 @@ depends = ["admin-cli:install", "desktop:ui"]
 dir = "{{config_root}}/sak-backup"
 run = "node ../sak-admin-cli/node_modules/@tauri-apps/cli/tauri.js dev"
 
+# sakbackup of this platform built for release: the binary in src-tauri/target/release/ and the
+# installers (deb, rpm, AppImage; dmg; msi, nsis) in src-tauri/target/release/bundle/. The zip of a
+# release is desktop:build
+[tasks."backup:build"]
+description = "Build sakbackup and its installers"
+depends = ["admin-cli:install", "desktop:ui"]
+dir = "{{config_root}}/sak-backup"
+run = "node ../sak-admin-cli/node_modules/@tauri-apps/cli/tauri.js build -- --locked"
+
 # the installers of this platform (deb, rpm, AppImage; dmg; msi, nsis) in
 # src-tauri/target/release/bundle/
 [tasks."admin-cli:build"]
