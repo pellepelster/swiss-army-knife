@@ -31,6 +31,8 @@ const $ = (id) => document.getElementById(id);
 const progress = $('run-progress');
 const bar = $('run-bar');
 const status = $('run-status');
+// the file restic reads now, apart from the live region: it changes too often to be read out
+const file = $('run-file');
 const skipped = $('run-skipped');
 const close = $('run-close');
 
@@ -111,6 +113,7 @@ async function run(password, init, remember) {
   running = true;
   changed();
   progress.hidden = true;
+  file.hidden = true;
   skipped.replaceChildren();
   close.textContent = text('ui.plans.run_cancel');
   setStatus(status, text('ui.plans.run_starting'));
@@ -124,8 +127,13 @@ async function run(password, init, remember) {
       bar.style.width = `${percent}%`;
       progress.setAttribute('aria-valuenow', String(percent));
       setStatus(status, progressText(event));
+      // the start of a long path goes, its end tells the file (style.css)
+      file.hidden = !event.current_file;
+      file.textContent = event.current_file ? `\u200e${event.current_file}` : '';
+      file.title = event.current_file ?? '';
     } else if (event.kind === 'expiring') {
       progress.hidden = true;
+      file.hidden = true;
       setStatus(status, text('ui.plans.run_expiring'));
     } else if (event.kind === 'skipped') {
       const line = document.createElement('li');
@@ -136,6 +144,7 @@ async function run(password, init, remember) {
   try {
     const summary = await invoke('run_backup', { id: shown.plan.id, password, init, remember, onEvent });
     progress.hidden = true;
+    file.hidden = true;
     const done = text('ui.plans.run_done', {
       new: summary.filesNew,
       changed: summary.filesChanged,
@@ -156,6 +165,7 @@ async function run(password, init, remember) {
     }
   } catch (failure) {
     progress.hidden = true;
+    file.hidden = true;
     setStatus(status, '');
     throw failure;
   } finally {
@@ -218,6 +228,7 @@ async function restore(target, password, remember) {
   running = true;
   changed();
   progress.hidden = true;
+  file.hidden = true;
   skipped.replaceChildren();
   close.textContent = text('ui.plans.run_back');
   setStatus(status, text('ui.plans.restoring', { name: shown.plan.name }));

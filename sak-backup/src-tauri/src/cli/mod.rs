@@ -656,8 +656,8 @@ fn password(new: bool) -> Result<String, String> {
     }
 }
 
-/// the progress of a backup on one line of the terminal, written over at most once a second; none
-/// when stderr is no terminal, e.g. in a log
+/// the progress of a backup on two lines of the terminal, the numbers and the file restic reads,
+/// written over at most once a second; none when stderr is no terminal, e.g. in a log
 #[derive(Clone)]
 struct ProgressLine(Option<std::sync::Arc<std::sync::Mutex<Option<std::time::Instant>>>>);
 
@@ -672,18 +672,60 @@ impl ProgressLine {
         if shown.is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(1)) {
             return;
         }
+        // back to the start of the first line, when there is one; \x1b[K clears what was longer
+        let back = if shown.is_some() { "\x1b[1A\r" } else { "\r" };
         *shown = Some(std::time::Instant::now());
-        // \r back to the start of the line, \x1b[K what was longer before
-        eprint!("\r{}\x1b[K", progress_text(event));
+        let width = terminal_width();
+        let file = match event {
+            RunEvent::Progress {
+                current_file: Some(file),
+                ..
+            } => left_cut(file, width),
+            _ => String::new(),
+        };
+        eprint!(
+            "{back}{}\x1b[K\n{file}\x1b[K",
+            right_cut(&progress_text(event), width)
+        );
     }
 
-    /// the line is gone, for what comes after it
+    /// the lines are gone, for what comes after them
     fn clear(&self) {
         let Some(shown) = &self.0 else { return };
         if shown.lock().unwrap().take().is_some() {
-            eprint!("\r\x1b[K");
+            eprint!("\r\x1b[K\x1b[1A\r\x1b[K");
         }
     }
+}
+
+/// the columns of the terminal as the shell tells them, 80 without; a line must not wrap, or it
+/// is not written over
+fn terminal_width() -> usize {
+    std::env::var("COLUMNS")
+        .ok()
+        .and_then(|columns| columns.parse().ok())
+        .filter(|columns| *columns >= 20)
+        .unwrap_or(80)
+        - 1
+}
+
+/// the text in `width` characters, its end cut
+fn right_cut(text: &str, width: usize) -> String {
+    if text.chars().count() <= width {
+        return text.to_string();
+    }
+    let kept: String = text.chars().take(width - 1).collect();
+    format!("{kept}…")
+}
+
+/// the path in `width` characters, its start cut: its end tells the file
+fn left_cut(path: &str, width: usize) -> String {
+    let count = path.chars().count();
+    if count <= width {
+        return path.to_string();
+    }
+    let kept: String = path.chars().skip(count - (width - 1)).collect();
+    format!("…{kept}")
 }
 
 /// how far a backup is: the files and bytes, how fast restic reads them, and the time left
@@ -696,6 +738,7 @@ fn progress_text(event: &RunEvent) -> String {
         total_bytes,
         bytes_per_second,
         seconds_remaining,
+        ..
     } = event
     else {
         return String::new();
@@ -926,6 +969,7 @@ mod tests {
             total_bytes: 3 * 1024 * 1024,
             bytes_per_second,
             seconds_remaining,
+            current_file: None,
         };
         assert_eq!(
             progress_text(&progress(Some(45 * 1024 * 1024), Some(185))),
@@ -939,6 +983,14 @@ mod tests {
         assert_eq!(size(512), "512 B");
         assert_eq!(duration(42), "42 s");
         assert_eq!(duration(2 * 3600 + 5 * 60), "2 h 5 min");
+    }
+
+    #[test]
+    fn a_line_too_long_for_the_terminal_is_cut() {
+        assert_eq!(left_cut("/home/anna/a.txt", 20), "/home/anna/a.txt");
+        assert_eq!(left_cut("/home/anna/photos/2026/a.jpg", 12), "…/2026/a.jpg");
+        assert_eq!(right_cut("25% · 3 of 12 files", 8), "25% · 3…");
+        assert_eq!(right_cut("short", 8), "short");
     }
 
     #[test]

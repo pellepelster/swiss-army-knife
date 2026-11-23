@@ -76,6 +76,8 @@ pub enum RunEvent {
         bytes_per_second: Option<u64>,
         /// the time left as restic guesses it, none before it knows
         seconds_remaining: Option<u64>,
+        /// a file restic reads now, none between files
+        current_file: Option<String>,
     },
     /// a path restic could not read, e.g. one that is gone; the run goes on
     Skipped { message: String },
@@ -461,6 +463,7 @@ fn parse(line: &str) -> Option<Parsed> {
             total_bytes: number("total_bytes"),
             bytes_per_second: None,
             seconds_remaining: value["seconds_remaining"].as_u64(),
+            current_file: value["current_files"][0].as_str().map(str::to_string),
         })),
         "summary" => Some(Parsed::Summary(RunSummary {
             files_new: number("files_new"),
@@ -541,19 +544,21 @@ mod tests {
 
     #[test]
     fn the_progress_and_the_summary_of_restic_are_read() {
-        let status = r#"{"message_type":"status","percent_done":0.5,"total_files":2,"files_done":1,"total_bytes":300,"bytes_done":150,"seconds_remaining":42}"#;
+        let status = r#"{"message_type":"status","percent_done":0.5,"total_files":2,"files_done":1,"total_bytes":300,"bytes_done":150,"seconds_remaining":42,"current_files":["/home/anna/a.txt","/home/anna/b.txt"]}"#;
         match parse(status) {
             Some(Parsed::Progress(RunEvent::Progress {
                 percent,
                 files_done,
                 total_bytes,
                 seconds_remaining,
+                current_file,
                 ..
             })) => {
                 assert_eq!(
                     (percent, files_done, total_bytes, seconds_remaining),
                     (0.5, 1, 300, Some(42))
-                )
+                );
+                assert_eq!(current_file.as_deref(), Some("/home/anna/a.txt"));
             }
             _ => panic!("no progress"),
         }
