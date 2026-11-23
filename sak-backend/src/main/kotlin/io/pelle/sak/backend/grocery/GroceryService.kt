@@ -181,15 +181,20 @@ class GroceryService(
         id: Int,
     ): DeleteResult = lists.delete(user, id)
 
-    // the items to buy of a list the user sees, with checked also the latest bought item of each name
-    // not to buy (GROCERY-14); null for another list. By the order of their category (GROCERY-13),
-    // those without one last; in a category the ones to buy first as added, then the bought ones,
-    // the last bought first
+    // a page of the items to buy of a list the user sees, with checked also the latest bought item of
+    // each name not to buy (GROCERY-14), read from the database a page at a time; null for another
+    // list. By the order of their category (GROCERY-13), those without one last; in a category the
+    // ones to buy first as added, then the bought ones, the last bought first
     fun items(
         user: String,
         listId: Int,
         checked: Boolean = false,
-    ): List<GroceryItem>? = repository.items(user, listId, checked)
+        offset: Long = 0,
+        limit: Int = Int.MAX_VALUE,
+    ): Page<GroceryItem>? {
+        val total = repository.itemCount(user, listId, checked) ?: return null
+        return Page(repository.items(user, listId, checked, offset, limit).orEmpty(), total)
+    }
 
     // on a list the user sees (LIST-1); it takes the photo and, without one given, the category of
     // the latest item of its name (GROCERY-11). Its category is one of the list (GROCERY-13)

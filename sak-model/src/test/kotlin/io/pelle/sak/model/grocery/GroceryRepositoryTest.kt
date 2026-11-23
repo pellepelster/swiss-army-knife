@@ -387,4 +387,38 @@ class GroceryRepositoryTest {
         shouldThrow<DataAccessException> { repository.insertItem(PELLE, list(PELLE), values("Milk", unit = "l")) }
         repository.insertItem(PELLE, list(PELLE), values("Milk", "1.5", "l")).item!!.amount!!.compareTo(BigDecimal("1.5")) shouldBe 0
     }
+
+    @Test
+    fun `the items of a list are read a page at a time, in their order, with the count of all`() {
+        val own = list(PELLE)
+        val names = (1..7).map { "Item $it" }
+        val items = names.map { repository.insertItem(PELLE, own, values(it)).item!! }
+        // bought: the history has the latest of each name once, a name to buy again is not in it
+        repository.checkItem(PELLE, items[0].id)
+        repository.checkItem(PELLE, items[1].id)
+        repository.insertItem(PELLE, own, values("Item 2"))
+        // a deleted item is neither on a page nor counted
+        repository.deleteItem(PELLE, items[2].id)
+        val toBuy = listOf("Item 4", "Item 5", "Item 6", "Item 7", "Item 2")
+
+        repository.itemCount(PELLE, own) shouldBe 5
+        repository.items(PELLE, own)!!.map { it.name } shouldBe toBuy
+        repository.items(PELLE, own, offset = 0, limit = 2)!!.map { it.name } shouldBe toBuy.take(2)
+        repository.items(PELLE, own, offset = 2, limit = 2)!!.map { it.name } shouldBe toBuy.drop(2).take(2)
+        repository.items(PELLE, own, offset = 4, limit = 2)!!.map { it.name } shouldBe toBuy.drop(4)
+        repository.items(PELLE, own, offset = 5, limit = 2) shouldBe emptyList()
+
+        // with the bought ones after those to buy
+        val all = toBuy + "Item 1"
+        repository.itemCount(PELLE, own, checked = true) shouldBe 6
+        repository.items(PELLE, own, checked = true)!!.map { it.name } shouldBe all
+        repository.items(PELLE, own, checked = true, offset = 4, limit = 4)!!.map { it.name } shouldBe all.drop(4)
+        // every page together is the list, no item twice
+        (0 until 6 step 2).flatMap { repository.items(PELLE, own, checked = true, offset = it.toLong(), limit = 2)!! }.map { it.name } shouldBe all
+
+        // a list the user does not see has neither
+        repository.items(OTHER, own, offset = 0, limit = 2) shouldBe null
+        repository.itemCount(OTHER, own) shouldBe null
+        repository.itemCount(OTHER, own, checked = true) shouldBe null
+    }
 }

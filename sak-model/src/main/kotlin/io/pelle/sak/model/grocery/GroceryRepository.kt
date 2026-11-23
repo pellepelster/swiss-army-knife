@@ -217,39 +217,18 @@ class GroceryRepository(
                 .execute()
         }
 
-    // the items to buy of the list in the order they were added, with checked also the latest bought
-    // item of each name that is not to buy (GROCERY-14); null when the user does not see the list
+    // a page of the items to buy of the list in the order they were added, with checked also the latest
+    // bought item of each name that is not to buy (GROCERY-14); null when the user does not see the list
     fun items(
         user: String,
         listId: Int,
         checked: Boolean = false,
+        offset: Long = 0,
+        limit: Int = Int.MAX_VALUE,
     ): List<GroceryItem>? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             if (!lists.sees(dsl, user, listId)) return@transactionResult null
-            val toBuy = GROCERY_ITEMS.LIST_ID.eq(listId).and(GROCERY_ITEMS.DELETED_AT.isNull).and(GROCERY_ITEMS.CHECKED_AT.isNull)
-            // the latest bought item of each name that is not to buy, so the history shows each name once (GROCERY-14)
-            val bought =
-                if (checked) {
-                    val latestFirst =
-                        DSL
-                            .rowNumber()
-                            .over(DSL.partitionBy(GROCERY_ITEMS.NAME_KEY).orderBy(GROCERY_ITEMS.CHECKED_AT.desc(), GROCERY_ITEMS.ID.desc()))
-                            .`as`("latest_first")
-                    val ranked =
-                        DSL
-                            .select(GROCERY_ITEMS.ID, latestFirst)
-                            .from(GROCERY_ITEMS)
-                            .where(
-                                GROCERY_ITEMS.LIST_ID.eq(listId),
-                                GROCERY_ITEMS.DELETED_AT.isNull,
-                                GROCERY_ITEMS.CHECKED_AT.isNotNull,
-                                GROCERY_ITEMS.NAME_KEY.notIn(DSL.select(GROCERY_ITEMS.NAME_KEY).from(GROCERY_ITEMS).where(toBuy)),
-                            ).asTable("ranked")
-                    GROCERY_ITEMS.ID.`in`(DSL.select(ranked.field(GROCERY_ITEMS.ID)).from(ranked).where(ranked.field(latestFirst)!!.eq(1)))
-                } else {
-                    DSL.falseCondition()
-                }
             // by the order of their category, those without a live one last; in a category the ones
             // to buy first as added, then the bought ones, the last bought first (GROCERY-13)
             dsl
@@ -257,15 +236,55 @@ class GroceryRepository(
                 .from(GROCERY_ITEMS)
                 .leftJoin(GROCERY_CATEGORIES)
                 .on(GROCERY_CATEGORIES.ID.eq(GROCERY_ITEMS.CATEGORY_ID), GROCERY_CATEGORIES.DELETED_AT.isNull)
-                .where(toBuy.or(bought))
+                .where(shown(listId, checked))
                 .orderBy(
                     GROCERY_CATEGORIES.POSITION.asc().nullsLast(),
                     DSL.field(GROCERY_ITEMS.CHECKED_AT.isNotNull).asc(),
                     GROCERY_ITEMS.CHECKED_AT.desc(),
                     GROCERY_ITEMS.ID.asc(),
-                ).fetch()
+                ).limit(limit)
+                .offset(offset)
+                .fetch()
                 .map { it.into(GROCERY_ITEMS).toItem() }
         }
+
+    // how many items the list has, as items has them; null when the user does not see the list
+    fun itemCount(
+        user: String,
+        listId: Int,
+        checked: Boolean = false,
+    ): Long? =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            if (!lists.sees(dsl, user, listId)) return@transactionResult null
+            dsl.fetchCount(GROCERY_ITEMS, shown(listId, checked)).toLong()
+        }
+
+    // the items of a list its page shows: the ones to buy, with checked also the latest bought item of
+    // each name that is not to buy, so the history shows each name once (GROCERY-14)
+    private fun shown(
+        listId: Int,
+        checked: Boolean,
+    ): Condition {
+        val toBuy = GROCERY_ITEMS.LIST_ID.eq(listId).and(GROCERY_ITEMS.DELETED_AT.isNull).and(GROCERY_ITEMS.CHECKED_AT.isNull)
+        if (!checked) return toBuy
+        val latestFirst =
+            DSL
+                .rowNumber()
+                .over(DSL.partitionBy(GROCERY_ITEMS.NAME_KEY).orderBy(GROCERY_ITEMS.CHECKED_AT.desc(), GROCERY_ITEMS.ID.desc()))
+                .`as`("latest_first")
+        val ranked =
+            DSL
+                .select(GROCERY_ITEMS.ID, latestFirst)
+                .from(GROCERY_ITEMS)
+                .where(
+                    GROCERY_ITEMS.LIST_ID.eq(listId),
+                    GROCERY_ITEMS.DELETED_AT.isNull,
+                    GROCERY_ITEMS.CHECKED_AT.isNotNull,
+                    GROCERY_ITEMS.NAME_KEY.notIn(DSL.select(GROCERY_ITEMS.NAME_KEY).from(GROCERY_ITEMS).where(toBuy)),
+                ).asTable("ranked")
+        return toBuy.or(GROCERY_ITEMS.ID.`in`(DSL.select(ranked.field(GROCERY_ITEMS.ID)).from(ranked).where(ranked.field(latestFirst)!!.eq(1))))
+    }
 
     // a live item, to buy or bought; null when the user does not see its list, or it is deleted
     fun item(

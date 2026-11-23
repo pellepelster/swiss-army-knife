@@ -243,21 +243,6 @@ names of a directory as `name + "/"`, else `a/b` comes before `a-b` (`-` is befo
 From the review of the memory of the backend (`docs/development/reviews/memory-review.md`), reviewed again at commit
 db41d795; the review is removed, its findings are these issues.
 
-## `#154` (`MR-6`) Some lists are read whole from the database and then paged
-
-**Created:** 2026-11-13. **Labels:** enhancement, area: backend, area: data model, review, severity: low.
-
-The grocery lists, items, suggestions and categories, the lists and tasks of todo, the users, the labels of the notes,
-the redirects and the buckets are read as a whole and paged in memory (`page.of(all)`). Only the notes and the labels
-(`/api/v1/labels`) are paged in the database. For the data of one household this is small; it grows with the data, not
-with the page.
-
-Fix: when a list can grow without a limit (the items of a grocery list, the tasks of a todo list), page it in its
-repository like `NoteRepository`.
-
-From the review of the memory of the backend (`docs/development/reviews/memory-review.md`), reviewed again at commit
-db41d795; the review is removed, its findings are these issues.
-
 ## `#155` (`SEC-22`) What is used once is forgotten with a restart
 
 **Created:** 2026-11-13. **Labels:** enhancement, area: backend, review, severity: low, security.
