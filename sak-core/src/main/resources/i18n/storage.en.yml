@@ -2,7 +2,7 @@
 settings:
   enabled:
     label: "S3 storage"
-    description: "Configures the access to an external S3 object storage. While it is on, the backups are kept there. Backups made before are not moved."
+    description: "Configures the access to an external S3 object storage."
   endpoint_type:
     label: "Type of endpoint"
     description: "The provider of the S3 storage."

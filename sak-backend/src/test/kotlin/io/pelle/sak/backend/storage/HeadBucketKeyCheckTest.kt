@@ -11,9 +11,9 @@ import io.pelle.sak.s3.S3AccessCallback
 import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.api.s3
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
+import io.pelle.sak.s3.storage.LocalStorageS3Backend
 import io.pelle.sak.storage.BlobPath
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import io.pelle.sak.storage.WriteGuard
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
@@ -99,7 +99,7 @@ class HeadBucketKeyCheckTest {
             embeddedServer(Netty, port = 0) {
                 routing {
                     route("/s3") {
-                        s3(BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)), access)
+                        s3(LocalStorageS3Backend(FilesystemLocalStorage(tempDir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)), access)
                     }
                 }
             }

@@ -15,10 +15,10 @@ The backups of the user, made with restic on the computer of the user, into repo
 ## Data
 
 - `BACKUP-1` **A repository** is a repository of restic that the deployment keeps on its data volume, or in the
-  bucket of the S3 storage while that is turned on in the settings, and serves with the REST protocol of restic,
-  below `api.<base domain>/restic/`. It has a name, unique among the repositories of its owner, and belongs to its
-  owner only. The switch is one for all repositories: a repository is read where the switch points to, and its
-  files are not moved when the switch changes.
+  bucket of the S3 storage while the backups are switched to it in the settings ("Restic backups"), and serves with
+  the REST protocol of restic, below `api.<base domain>/restic/`. It has a name, unique among the repositories of
+  its owner, and belongs to its owner only. The switch is one for all repositories: a repository is read where the
+  switch points to, and its files are not moved when the switch changes.
 - `BACKUP-2` **One token per repository.** The deployment makes a token when it creates a repository; the token is the
   only login of the repository, and whoever has it reads and writes it. The api answers the token only when asked for
   it alone.

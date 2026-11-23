@@ -1750,9 +1750,9 @@ class SakAppsTest {
 
             // the scopes, what the settings page is built from
             val scopes = get(port, "/api/v1/settings", session).json()
-            scopes.getValue("pagination").jsonObject.string("total") shouldBe "4"
+            scopes.getValue("pagination").jsonObject.string("total") shouldBe "5"
             val ai = scopes.getValue("items").jsonArray.first().jsonObject
-            scopes.getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("ai", "notes", "grocery", "storage")
+            scopes.getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("ai", "notes", "grocery", "storage", "restic")
             ai.string("name") shouldBe "ai"
             ai.string("enabledBy") shouldBe "enabled"
             val (enabled, apiKey) = ai.getValue("settings").jsonArray.map { it.jsonObject }
@@ -1809,7 +1809,7 @@ class SakAppsTest {
             }
 
             // the S3 storage: its type and its region are choices, its secret key shows no character
-            val storage = scopes.getValue("items").jsonArray.last().jsonObject
+            val storage = scopes.getValue("items").jsonArray[3].jsonObject
             storage.string("enabledBy") shouldBe "enabled"
             val settings = storage.getValue("settings").jsonArray.map { it.jsonObject }
             settings.map { it.string("name") to it.string("type") } shouldBe
@@ -1836,6 +1836,21 @@ class SakAppsTest {
                 it.body() shouldBe
                     """{"errors":[{"code":"settings.not_choice","message":"\"Region\" must be one of its choices."},""" +
                     """{"code":"storage.bucket_invalid","message":"A bucket name has 3 to 63 characters: lower case letters, digits, hyphens and dots, with a letter or a digit at each end."}]}"""
+            }
+
+            // the backups: kept in the S3 storage only with that turned on
+            val restic = scopes.getValue("items").jsonArray.last().jsonObject
+            restic.string("label") shouldBe "Restic backups"
+            restic.getValue("settings").jsonArray.single().jsonObject.let {
+                it.string("name") shouldBe "s3"
+                it.string("type") shouldBe "boolean"
+                it.getValue("requires").toString() shouldBe """{"scope":"storage","setting":"enabled"}"""
+            }
+            get(port, "/api/v1/settings/restic", session).body() shouldBe """{"s3":false}"""
+            put(port, "/api/v1/settings/restic", """{"s3":true}""", session).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldBe
+                    """{"errors":[{"code":"settings.requires","message":"\"Keep the backups in the S3 storage\" needs \"S3 storage\" of \"Storage\" turned on."}]}"""
             }
 
             get(port, "/api/v1/settings/unknown", session).statusCode() shouldBe 404

@@ -9,3 +9,9 @@ invalid_path: "%{path} ist kein absoluter Pfad wie /home/anna/Documents."
 unknown_repository: "Dieses Repository gibt es nicht, oder du kannst es nicht sehen."
 plan_exists: "Einen Backup-Plan mit diesem Namen gibt es schon."
 invalid_keep: "Eine Anzahl zu behaltender Snapshots muss zwischen 1 und %{max} liegen oder leer bleiben, um alle zu behalten."
+settings:
+  s3:
+    label: "Backups im S3-Speicher ablegen"
+    description: "Ein: Die Backups liegen im Bucket des S3-Speichers. Aus: auf dem Server. Frühere Backups werden nicht verschoben."
+  label: "Restic-Backups"
+  description: "Wo die Restic-Backups liegen"

@@ -5,7 +5,7 @@ import io.pelle.sak.storage.InsufficientStorageException
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.storage.BlobPath
 import io.pelle.sak.storage.model.BlobUsage
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -19,11 +19,11 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.security.MessageDigest
 
-class BinaryStorageS3BackendTest {
+class LocalStorageS3BackendTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val storage by lazy { BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), rootResolver(), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)) }
+    private val storage by lazy { LocalStorageS3Backend(FilesystemLocalStorage(tempDir), rootResolver(), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)) }
 
     private fun rootResolver(root: String = "root1") = S3BucketPathResolver { bucket -> BlobPath(listOf(root, "$bucket-data")) }
 
@@ -65,8 +65,8 @@ class BinaryStorageS3BackendTest {
     fun `a write starts only above the free bytes kept and stops when they are reached while it streams`() {
         var free = 1000L
         val guarded =
-            BinaryStorageS3Backend(
-                FilesystemBinaryStorage(tempDir),
+            LocalStorageS3Backend(
+                FilesystemLocalStorage(tempDir),
                 rootResolver(),
                 WriteGuard({ free }, minFreeBytes = 500, maxBytes = 100, checkEvery = 10),
             )
@@ -413,7 +413,7 @@ class BinaryStorageS3BackendTest {
 
     @Test
     fun `the resolver decides where a bucket is stored`() {
-        val other = BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), rootResolver("root2"), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
+        val other = LocalStorageS3Backend(FilesystemLocalStorage(tempDir), rootResolver("root2"), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
 
         storage.putObject("bucket1", "index.html", "one".byteInputStream(), ObjectMetadata())
         other.putObject("bucket1", "index.html", "two".byteInputStream(), ObjectMetadata())
@@ -430,7 +430,7 @@ class BinaryStorageS3BackendTest {
 
     @Test
     fun `a bucket the resolver does not know does not exist`() {
-        val empty = BinaryStorageS3Backend(FilesystemBinaryStorage(tempDir), { null }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
+        val empty = LocalStorageS3Backend(FilesystemLocalStorage(tempDir), { null }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
 
         shouldThrow<NoSuchBucketException> { empty.putObject("bucket1", "key.txt", "x".byteInputStream(), ObjectMetadata()) }
         shouldThrow<NoSuchBucketException> { empty.headObject("bucket1", "key.txt") }

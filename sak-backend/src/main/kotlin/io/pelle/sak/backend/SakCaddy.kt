@@ -14,13 +14,13 @@ import io.pelle.sak.ingress.CaddyException
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.ingress.caddyConfig
 import io.pelle.sak.ingress.model.CaddyConfig
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
+import io.pelle.sak.s3.storage.LocalStorageS3Backend
 import io.pelle.sak.s3.storage.S3BucketPathResolver
-import io.pelle.sak.storage.BinaryStorage
+import io.pelle.sak.storage.LocalStorage
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.backend.restic.RESTIC_PATH_PREFIX
 import io.pelle.sak.backend.restic.ResticStore
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import java.nio.file.Files
 import java.nio.file.Path
 

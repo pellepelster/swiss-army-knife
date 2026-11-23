@@ -14,8 +14,8 @@ import io.pelle.sak.backend.settings.TextSetting
 import io.pelle.sak.backend.settings.valueOf
 
 // the S3 storage of the deployment, a bucket at a provider (Hetzner Object Storage): its settings
-// and the one place the provider is asked and its client is made (EXT-1). While it is turned on, the
-// repositories of restic are kept in the bucket (ResticStore)
+// and the one place the provider is asked and its client is made (EXT-1). The repositories of restic
+// are kept in the bucket while the settings of the backups say so (ResticSettingsService)
 class S3StorageManager(
     settings: SettingService,
     // the name of the deployment, every object in the bucket is below it

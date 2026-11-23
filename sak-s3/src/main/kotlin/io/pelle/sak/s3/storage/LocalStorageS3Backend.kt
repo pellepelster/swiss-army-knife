@@ -2,7 +2,7 @@ package io.pelle.sak.s3.storage
 
 import java.time.Instant
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.BinaryStorage
+import io.pelle.sak.storage.LocalStorage
 import io.pelle.sak.storage.BlobPath
 import io.pelle.sak.storage.BlobPathConflictException
 import io.pelle.sak.storage.model.BlobUsage
@@ -17,11 +17,11 @@ import tools.jackson.databind.ObjectMapper
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import tools.jackson.module.kotlin.readValue
 
-// the buckets in the binary storage, each below the path the resolver gives it (none for no bucket):
+// the buckets in the local storage, each below the path the resolver gives it (none for no bucket):
 // an object is the blob of its key below data/ of the bucket, its metadata a sidecar (<key>.json)
 // below meta/
-class BinaryStorageS3Backend(
-    private val storage: BinaryStorage,
+class LocalStorageS3Backend(
+    private val storage: LocalStorage,
     private val resolver: S3BucketPathResolver,
     // the room a write may take
     private val guard: WriteGuard,

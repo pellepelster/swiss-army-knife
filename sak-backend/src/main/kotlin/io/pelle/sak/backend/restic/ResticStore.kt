@@ -4,7 +4,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.core.logCause
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.BinaryStorage
+import io.pelle.sak.storage.LocalStorage
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 
@@ -50,14 +50,14 @@ data class ResticFile(
 }
 
 // the files of the repositories of restic, in the storage that is the one now: the bucket of the S3
-// storage while that is turned on in the settings, else the data volume (BACKUP-1). `storage` is asked
+// storage while the settings of the backups say so, else the data volume (BACKUP-1). `storage` is asked
 // for each call; a change of it moves no file, a repository is read where it points to. A file is
 // never replaced, and a reader never sees half of one
 class ResticStore(
     private val storage: () -> ResticFileStorage,
 ) {
     // on the data volume only
-    constructor(storage: BinaryStorage, guard: WriteGuard) : this(BinaryResticFileStorage(storage, guard))
+    constructor(storage: LocalStorage, guard: WriteGuard) : this(LocalResticFileStorage(storage, guard))
 
     constructor(storage: ResticFileStorage) : this({ storage })
 

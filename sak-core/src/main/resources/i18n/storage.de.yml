@@ -2,7 +2,7 @@
 settings:
   enabled:
     label: "S3-Speicher"
-    description: "Richtet den Zugang zu einem externen S3-Objektspeicher ein. Solange er eingeschaltet ist, liegen die Backups dort. Frühere Backups werden nicht verschoben."
+    description: "Richtet den Zugang zu einem externen S3-Objektspeicher ein."
   endpoint_type:
     label: "Art des Endpunkts"
     description: "Der Anbieter des S3-Speichers."

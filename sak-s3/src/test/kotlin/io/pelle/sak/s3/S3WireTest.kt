@@ -11,9 +11,9 @@ import io.ktor.server.netty.Netty
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.s3.api.s3
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
+import io.pelle.sak.s3.storage.LocalStorageS3Backend
 import io.pelle.sak.storage.BlobPath
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -60,7 +60,7 @@ class S3WireTest {
             routing {
                 route("/s3") {
                     s3(
-                        BinaryStorageS3Backend(FilesystemBinaryStorage(rootDir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)),
+                        LocalStorageS3Backend(FilesystemLocalStorage(rootDir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)),
                         accessCallback,
                     )
                 }

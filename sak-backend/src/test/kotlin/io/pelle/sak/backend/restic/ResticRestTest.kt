@@ -10,7 +10,7 @@ import io.ktor.server.routing.routing
 import io.pelle.sak.core.RateLimiter
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -45,7 +45,7 @@ class ResticRestTest {
 
     private val store by lazy {
         ResticStore(
-            FilesystemBinaryStorage(resticDir),
+            FilesystemLocalStorage(resticDir),
             WriteGuard({ if (roomFor-- > 0) Long.MAX_VALUE else 0L }, minFreeBytes = 1, maxBytes = 1024, checkEvery = 100),
         )
     }
@@ -354,7 +354,7 @@ class ResticRestTest {
             send("POST", "/restic/$id/config", login, "other config".toByteArray()).statusCode() shouldBe 403
             store.usage(rid) shouldBe 10
             // a new store counts again
-            ResticStore(FilesystemBinaryStorage(resticDir), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)).usage(rid) shouldBe 1010
+            ResticStore(FilesystemLocalStorage(resticDir), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)).usage(rid) shouldBe 1010
         }
 
     // every file below the directory of the repositories, staged ones included

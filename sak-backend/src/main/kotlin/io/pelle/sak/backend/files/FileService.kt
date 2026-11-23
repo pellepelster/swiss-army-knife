@@ -12,10 +12,10 @@ import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.files.StoredFile
-import io.pelle.sak.storage.BinaryStorage
+import io.pelle.sak.storage.LocalStorage
 import io.pelle.sak.storage.BlobContent
 import io.pelle.sak.storage.BlobPath
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.geom.RoundRectangle2D
@@ -75,7 +75,7 @@ sealed interface FileStoreResult {
 // decoded photo takes up to 17 MB of the heap.
 class FileService(
     private val repository: FileRepository,
-    private val storage: BinaryStorage,
+    private val storage: LocalStorage,
     val maxSize: Long,
     // the room an upload may take on the data volume; none in a test that does not ask for one
     private val guard: WriteGuard? = null,
@@ -86,12 +86,12 @@ class FileService(
         clock: Clock = Clock.systemUTC(),
         maxSize: Long = DEFAULT_MAX_SIZE,
         guard: WriteGuard? = null,
-    ) : this(database, FilesystemBinaryStorage(dir), clock, maxSize, guard)
+    ) : this(database, FilesystemLocalStorage(dir), clock, maxSize, guard)
 
     // no resource id of a directory that is there without a file, e.g. from a restore of the instance
     private constructor(
         database: SakDatabase,
-        storage: BinaryStorage,
+        storage: LocalStorage,
         clock: Clock,
         maxSize: Long,
         guard: WriteGuard?,

@@ -4,7 +4,7 @@ import io.pelle.sak.model.ResourceId
 import java.io.InputStream
 
 // the files of the repositories of restic, wherever they are kept: on the data volume
-// (BinaryResticFileStorage) or in the bucket of the S3 storage (S3ResticFileStorage). ResticStore
+// (LocalResticFileStorage) or in the bucket of the S3 storage (S3ResticFileStorage). ResticStore
 // keeps what does not depend on the place: a file is never replaced, and the bytes of a repository
 interface ResticFileStorage {
     // which storage it is, e.g. "volume": the bytes of a repository are counted for each

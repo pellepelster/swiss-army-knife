@@ -85,6 +85,14 @@ backend:
     invalid_keep:
       en: "A number of snapshots to keep must be from 1 to %{max}, or empty to keep them all."
       de: "Eine Anzahl zu behaltender Snapshots muss zwischen 1 und %{max} liegen oder leer bleiben, um alle zu behalten."
+    settings:
+      s3:
+        label: { en: "Keep the backups in the S3 storage", de: "Backups im S3-Speicher ablegen" }
+        description:
+          en: "On: the backups are kept in the bucket of the S3 storage. Off: on the server. Backups made before are not moved."
+          de: "Ein: Die Backups liegen im Bucket des S3-Speichers. Aus: auf dem Server. Frühere Backups werden nicht verschoben."
+      label: { en: "Restic backups", de: "Restic-Backups" }
+      description: { en: "Where the restic backups are kept", de: "Wo die Restic-Backups liegen" }
   auth:
     invalid_email: { en: "No valid e-mail address.", de: "Keine gültige E-Mail-Adresse." }
     invalid_nonce:
@@ -202,8 +210,8 @@ backend:
       enabled:
         label: { en: "S3 storage", de: "S3-Speicher" }
         description:
-          en: "Configures the access to an external S3 object storage. While it is on, the backups are kept there. Backups made before are not moved."
-          de: "Richtet den Zugang zu einem externen S3-Objektspeicher ein. Solange er eingeschaltet ist, liegen die Backups dort. Frühere Backups werden nicht verschoben."
+          en: "Configures the access to an external S3 object storage."
+          de: "Richtet den Zugang zu einem externen S3-Objektspeicher ein."
       endpoint_type:
         label: { en: "Type of endpoint", de: "Art des Endpunkts" }
         description: { en: "The provider of the S3 storage.", de: "Der Anbieter des S3-Speichers." }

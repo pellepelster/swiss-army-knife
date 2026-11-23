@@ -6,7 +6,7 @@ import io.pelle.sak.s3.S3AccessCallback
 import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.api.s3
-import io.pelle.sak.s3.storage.BinaryStorageS3Backend
+import io.pelle.sak.s3.storage.LocalStorageS3Backend
 import io.pelle.sak.storage.BlobPath
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
@@ -18,7 +18,7 @@ import io.ktor.server.routing.routing
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.restic.ResticRepository
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -40,7 +40,7 @@ class ResticRestIntegrationTest {
 
     private val volume by lazy {
         val dir = Files.createDirectories(tempDir.resolve("restic"))
-        ResticStore(FilesystemBinaryStorage(dir), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
+        ResticStore(FilesystemLocalStorage(dir), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
     }
 
     private fun withServer(
@@ -77,7 +77,7 @@ class ResticRestIntegrationTest {
             embeddedServer(Netty, port = 0) {
                 routing {
                     route("/s3") {
-                        s3(BinaryStorageS3Backend(FilesystemBinaryStorage(dir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)), access)
+                        s3(LocalStorageS3Backend(FilesystemLocalStorage(dir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)), access)
                     }
                 }
             }.start()

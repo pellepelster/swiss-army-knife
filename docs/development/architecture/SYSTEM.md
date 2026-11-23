@@ -134,12 +134,12 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   between the check and the read or the change. The service checks the values, never the access. The exceptions are
   the data of the whole deployment, which only the role `admin` reaches (the buckets, the redirects, the settings),
   and the work the backend does on its own (e.g. the text found in a file).
-- `MODEL-7` **Binary data only through `FilesystemBinaryStorage`.** All binary data the backend stores (the files of the
-  file storage, their thumbnails, the objects of the buckets) is written and read through `FilesystemBinaryStorage`
-  (`sak-storage`); no other code writes binary data to disk. The one exception: caddy serves the objects of a bucket
-  read only from their directory on disk, which `sak-s3` hands out (`objectsDirectory`). The second exception: while
-  the S3 storage is turned on in the settings, the files of the repositories of restic are kept in its bucket
-  (`S3ResticFileStorage`, `BACKUP-1`), not on disk.
+- `MODEL-7` **Local binary data only through `FilesystemLocalStorage`.** All binary data the backend stores on its
+  data volume (the files of the file storage, their thumbnails, the objects of the buckets, the repositories of
+  restic kept there) is written and read through `FilesystemLocalStorage` (`sak-storage`); no other code writes
+  binary data to disk. The one exception: caddy serves the objects of a bucket read only from their directory on
+  disk, which `sak-s3` hands out (`objectsDirectory`). The rule is for the local storage only: what the backend keeps
+  in the S3 storage (`BACKUP-1`) is not on disk and goes through the client of `S3StorageManager`.
 - `MODEL-8` **Data outside the database has a resource id.** A row whose data is kept outside the database (on the data
   volume) has a `resource_id`: 12 random characters `a-z0-9`, set once when the row is inserted, unique among all rows
   of its table, deleted rows included. The paths of that data are made only from the resource id, never from a name, an

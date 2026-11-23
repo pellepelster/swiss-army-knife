@@ -4,7 +4,7 @@ import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.leftovers
 import io.pelle.sak.model.ResourceId
-import io.pelle.sak.storage.BinaryStorage
+import io.pelle.sak.storage.LocalStorage
 import io.pelle.sak.storage.WriteGuard
 import java.io.InputStream
 import java.security.DigestInputStream
@@ -15,8 +15,8 @@ import java.util.UUID
 // the files of the repositories on the data volume, below restic/<resource id> (BACKUP-1, MODEL-8);
 // written through `storage` (MODEL-7), each only while the volume has room. A file is written beside
 // its place and moved there, so a reader never sees half of it
-class BinaryResticFileStorage(
-    private val storage: BinaryStorage,
+class LocalResticFileStorage(
+    private val storage: LocalStorage,
     private val guard: WriteGuard,
 ) : ResticFileStorage {
     override val place = "volume"
