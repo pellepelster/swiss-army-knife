@@ -2288,27 +2288,6 @@ sak_backup:
         en: "Leave out the folders marked as caches (CACHEDIR.TAG)"
         de: "Ordner auslassen, die als Cache markiert sind (CACHEDIR.TAG)"
       import: { en: "Import file…", de: "Datei importieren…" }
-      preview: { en: "Preview what is left out", de: "Vorschau des Ausgelassenen" }
-      preview_running: { en: "Looking through the folders of the plan…", de: "Durchsuche die Ordner des Plans…" }
-      preview_result:
-        en: "A run backs up %{files} files (%{size}) and leaves out:"
-        de: "Ein Lauf sichert %{files} Dateien (%{size}) und lässt aus:"
-      preview_nothing:
-        en: "A run backs up %{files} files (%{size}) and leaves out nothing."
-        de: "Ein Lauf sichert %{files} Dateien (%{size}) und lässt nichts aus."
-      preview_partial:
-        en: "It stopped after a minute or 2 million entries, the numbers are too low."
-        de: "Sie hat nach einer Minute oder 2 Millionen Einträgen aufgehört, die Zahlen sind zu niedrig."
-      preview_skipped: { en: "%{files} files, %{size}", de: "%{files} Dateien, %{size}" }
-      preview_cache_folders: { en: "Folders marked as caches", de: "Als Cache markierte Ordner" }
-      preview_unused:
-        en: "Leave out nothing: is one of them mistyped?"
-        de: "Lassen nichts aus: Ist eines davon vertippt?"
-      preview_missing: { en: "Not on this computer", de: "Nicht auf diesem Computer" }
-      preview_failed: { en: "The preview failed: %{error}", de: "Die Vorschau ist fehlgeschlagen: %{error}" }
-      no_paths:
-        en: "Add a folder or a file to back up first."
-        de: "Füge zuerst einen Ordner oder eine Datei zum Sichern hinzu."
       done: { en: "Done", de: "Fertig" }
       close: { en: "Close", de: "Schließen" }
       file_too_large:
@@ -2546,13 +2525,6 @@ sak_backup:
     excludes_caches_on:
       en: "and the folders marked as caches (CACHEDIR.TAG)"
       de: "und die als Cache markierten Ordner (CACHEDIR.TAG)"
-    preview_backed_up: { en: "A run backs up %{files} files (%{size}).", de: "Ein Lauf sichert %{files} Dateien (%{size})." }
-    preview_skipped: { en: "leaves out %{files} files (%{size})", de: "lässt %{files} Dateien aus (%{size})" }
-    preview_unused: { en: "leaves out nothing", de: "lässt nichts aus" }
-    preview_missing: { en: "is not on this computer", de: "ist nicht auf diesem Computer" }
-    preview_partial:
-      en: "The preview stopped after a minute or 2 million entries, the numbers are too low."
-      de: "Die Vorschau hat nach einer Minute oder 2 Millionen Einträgen aufgehört, die Zahlen sind zu niedrig."
     plan_deleted:
       en: "Deleted the backup plan %{name}. Its repository and its snapshots stay."
       de: "Backup-Plan %{name} gelöscht. Sein Repository und seine Snapshots bleiben."

@@ -33,9 +33,8 @@ checksum (`.sha256`) and its cosign signature (`.sigstore.json`) next to it; ver
 - A backup plan can leave things out, for example caches or `node_modules`. In the form of a plan, **Edit
   excludes…** opens a list of patterns of restic, one a line, with `#` for a comment. Presets for Linux, macOS and
   Windows add common caches, build output and scratch files; a preset is copied into the plan, so you can change it.
-  **Preview what is left out** shows what a run would leave out and how much, before the next backup. On the command
-  line: `sakbackup plan set <plan> --preset caches --exclude node_modules`, `--exclude-file <file>`,
-  `--exclude-caches`, and `sakbackup plan preview <plan>`.
+  On the command line: `sakbackup plan set <plan> --preset caches --exclude node_modules`, `--exclude-file <file>`
+  and `--exclude-caches`.
 - SAK Backup needs [restic](https://restic.net) on your computer. At its start it looks for restic and shows the
   version it found; without restic it shows how to get it and stops.
 - SAK Backup is not signed for macOS and Windows, so they warn on the first start.

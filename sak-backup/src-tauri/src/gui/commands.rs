@@ -5,7 +5,7 @@
 use crate::core::passwords::{Given, PasswordStore};
 use crate::core::run::{RunError, RunEvent, RunSummary, Runs};
 use crate::core::snapshots::Snapshots;
-use crate::core::{api, excludes, passwords, presets, restore, run, snapshots};
+use crate::core::{api, passwords, presets, restore, run, snapshots};
 use rust_i18n::t;
 use sak_desktop_shared::api::ApiError;
 use sak_desktop_shared::checks::{self, CheckEvent};
@@ -172,25 +172,6 @@ pub fn read_excludes(path: String) -> Result<String, String> {
 
 /// the bytes of excludes a backup plan takes (ResticBackupPlanService of sak-backend)
 const MAX_EXCLUDES_BYTES: usize = 65536;
-
-/// what a run of the paths would leave out with the excludes, on this computer, by the rules of
-/// restic; walks the paths on a thread of its own, at most for its limits
-#[tauri::command]
-pub async fn preview_excludes(
-    paths: Vec<String>,
-    excludes: String,
-    exclude_caches: bool,
-) -> Result<excludes::Preview, String> {
-    let excludes = excludes::Excludes {
-        patterns: excludes,
-        caches: exclude_caches,
-    };
-    tauri::async_runtime::spawn_blocking(move || {
-        excludes::preview(&paths, &excludes, excludes::Limits::default())
-    })
-    .await
-    .map_err(|error| error.to_string())
-}
 
 /// starts sakbackup again, the binary it was started from, which an update replaced
 /// (sak_desktop_shared::update). Refused while a backup, a restore or a delete of a snapshot goes

@@ -68,7 +68,7 @@ class SakbackupWindowTest {
     }
 
     @Test
-    fun `the excludes of a plan are edited in their dialog, with presets and a preview, and saved with the plan`() {
+    fun `the excludes of a plan are edited in their dialog, with presets, and saved with the plan`() {
         browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
             val page = context.openWindow()
             page.locator("#nav button[data-page=plans]").click()
@@ -90,23 +90,15 @@ class SakbackupWindowTest {
             assertThat(page.locator("#excludes-count")).hasText("5 patterns")
             page.locator("#excludes-caches").check()
 
-            // the preview walks the paths of the plan with the patterns as they are now
-            page.locator("#excludes-preview").click()
-            assertThat(page.locator("#excludes-preview-status")).containsText("A run backs up 12345 files")
-            assertThat(page.locator("#excludes-preview-list li")).hasCount(2)
-            assertThat(page.locator("#excludes-preview-list li").first()).containsText("\$HOME/.cache")
-            assertThat(page.locator("#excludes-preview-list li").nth(1)).containsText("is one of them mistyped?")
             // a look at the dialog for who changes it, in build/ of sak-e2e
             page.screenshot(com.microsoft.playwright.Page.ScreenshotOptions().setPath(java.nio.file.Paths.get("build/sakbackup-excludes-dialog.png")))
             // every button of the dialog is in the window
-            for (button in listOf("#excludes-import", "#excludes-preview", "#excludes-cancel", "#excludes-done")) {
+            for (button in listOf("#excludes-import", "#excludes-cancel", "#excludes-done")) {
                 page.locator(button).scrollIntoViewIfNeeded()
                 assertThat(page.locator(button)).isInViewport()
             }
             page.locator("#excludes-done").scrollIntoViewIfNeeded()
             page.screenshot(com.microsoft.playwright.Page.ScreenshotOptions().setPath(java.nio.file.Paths.get("build/sakbackup-excludes-dialog-end.png")))
-            val preview = page.evaluate("() => window.__sakCalls.filter((call) => call.command === 'preview_excludes').at(-1).args").toString()
-            check(preview.contains("excludeCaches=true") && preview.contains("/home/anna")) { preview }
 
             // done: the form shows the new summary, save sends them with the plan
             page.locator("#excludes-done").click()

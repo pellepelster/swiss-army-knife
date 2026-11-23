@@ -55,7 +55,6 @@ pub fn run() {
             commands::delete_plan,
             commands::exclude_presets,
             commands::read_excludes,
-            commands::preview_excludes,
             commands::pick_paths,
             commands::pick_folder,
             commands::run_backup,

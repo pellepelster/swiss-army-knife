@@ -376,17 +376,6 @@ mod integration {
         // kept as given, the switch of the caches as a comment
         let excludes = instance.run(&["plan", "excludes", "documents"]);
         assert!(excludes.starts_with("node_modules\n*.log\n#"), "{excludes}");
-        // the preview tells what a run will leave out
-        let preview = instance.run(&["plan", "preview", "documents"]);
-        assert!(
-            preview.contains("node_modules\tleaves out 1 files"),
-            "{preview}"
-        );
-        assert!(preview.contains("*.log\tleaves out 1 files"), "{preview}");
-        assert!(
-            preview.contains("CACHEDIR.TAG\tleaves out 1 files"),
-            "{preview}"
-        );
         instance.run(&["run", "documents", "--init"]);
 
         let elsewhere = instance.work.join("elsewhere");

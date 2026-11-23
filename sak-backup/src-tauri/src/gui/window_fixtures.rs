@@ -63,7 +63,7 @@ fn fixtures(checks: Vec<Value>, passed: bool) -> Value {
 }
 
 /// a signed in user with one backup plan of this computer, `home`, and what the dialog of its
-/// excludes asks: the presets of linux, a preview
+/// excludes asks: the presets of linux
 fn excludes() -> Value {
     let mut answers = fixtures(
         checks(CheckEvent::Passed {
@@ -84,19 +84,6 @@ fn excludes() -> Value {
         "excludes": "node_modules",
         "excludeCaches": false,
     });
-    let preview = crate::core::excludes::Preview {
-        complete: true,
-        included_files: 12_345,
-        included_bytes: 3 << 30,
-        skipped: vec![crate::core::excludes::Skipped {
-            pattern: "$HOME/.cache".into(),
-            files: 4_000,
-            bytes: 1 << 30,
-            examples: vec!["/home/anna/.cache".into()],
-        }],
-        unused: vec!["$HOME/.thumbnails".into()],
-        missing: Vec::new(),
-    };
     let answers_of = answers["answers"].as_object_mut().unwrap();
     for (command, answer) in [
         (
@@ -116,7 +103,6 @@ fn excludes() -> Value {
                 crate::core::presets::System::Linux
             )]),
         ),
-        ("preview_excludes", json!([preview])),
         ("update_plan", json!([plan])),
     ] {
         answers_of.insert(command.to_string(), answer);

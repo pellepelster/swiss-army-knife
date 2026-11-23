@@ -268,11 +268,6 @@ pub enum PlanCommand {
         /// The name of the backup plan
         name: String,
     },
-    /// Tell what a run of a backup plan of this computer would leave out, without restic
-    Preview {
-        /// The name of the backup plan
-        name: String,
-    },
     /// List the presets of excludes of this computer with their patterns
     Presets,
     /// Delete a backup plan of this computer; its repository and its snapshots stay
@@ -438,26 +433,6 @@ async fn command(command: Command) -> Result<(), String> {
             if excludes.caches {
                 println!("# {}", t!("cli.excludes_caches_on"));
             }
-        }
-        Command::Plan(PlanCommand::Preview { name }) => {
-            let plan = by_name(&sessions, PLANS, &name, "cli.unknown_plan").await?;
-            let other = plan["host"].as_str().unwrap_or_default();
-            if other != host() {
-                return Err(t!("cli.other_computer", host = other).to_string());
-            }
-            let paths: Vec<String> = plan["paths"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(text)
-                .collect();
-            let excludes = crate::core::excludes::Excludes::of(&plan);
-            let found = crate::core::excludes::preview(
-                &paths,
-                &excludes,
-                crate::core::excludes::Limits::default(),
-            );
-            print_preview(&found);
         }
         Command::Plan(PlanCommand::Presets) => {
             for preset in crate::core::presets::presets(crate::core::presets::System::this()) {
@@ -683,40 +658,6 @@ fn excludes_message(error: &ApiError, sends_excludes: bool) -> String {
             t!("cli.excludes_unsupported").to_string()
         }
         error => api_message(error),
-    }
-}
-
-/// what a preview found, a line each: what a run backs up, then each pattern with what it leaves
-/// out, the patterns that leave out nothing and the paths that are not here
-fn print_preview(found: &crate::core::excludes::Preview) {
-    let bytes = |bytes: u64| format!("{:.1} MiB", bytes as f64 / (1024.0 * 1024.0));
-    println!(
-        "{}",
-        t!(
-            "cli.preview_backed_up",
-            files = found.included_files,
-            size = bytes(found.included_bytes)
-        )
-    );
-    for skipped in &found.skipped {
-        println!(
-            "{}\t{}",
-            skipped.pattern,
-            t!(
-                "cli.preview_skipped",
-                files = skipped.files,
-                size = bytes(skipped.bytes)
-            )
-        );
-    }
-    for pattern in &found.unused {
-        println!("{pattern}\t{}", t!("cli.preview_unused"));
-    }
-    for path in &found.missing {
-        println!("{path}\t{}", t!("cli.preview_missing"));
-    }
-    if !found.complete {
-        println!("{}", t!("cli.preview_partial"));
     }
 }
 

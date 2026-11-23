@@ -253,7 +253,7 @@ function add(added) {
 
 $('plan-excludes-edit').addEventListener('click', async () => {
   const readOnly = editing !== null && editing.host !== host;
-  const edited = await editExcludes({ name: name.value.trim(), paths, excludes, excludeCaches, readOnly });
+  const edited = await editExcludes({ name: name.value.trim(), excludes, excludeCaches, readOnly });
   if (!edited) return;
   ({ excludes, excludeCaches } = edited);
   showExcludes(readOnly);

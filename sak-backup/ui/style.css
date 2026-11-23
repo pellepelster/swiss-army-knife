@@ -314,24 +314,6 @@ button.row-body:focus-visible {
   white-space: pre;
 }
 
-.excludes-preview-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sak-space-2);
-  max-height: 10rem;
-  overflow-y: auto;
-}
-
-.excludes-preview-item {
-  display: flex;
-  flex-direction: column;
-}
-
-.excludes-preview-examples {
-  white-space: pre;
-  overflow-x: auto;
-}
-
 .excludes-dialog .form-buttons {
   justify-content: space-between;
 }
