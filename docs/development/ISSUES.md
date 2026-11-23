@@ -19,18 +19,6 @@ answered there; when it is work to do, it is moved here and closed there.
 A weakness that is kept on purpose is in [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md), the open findings of the reviews are
 in [the reviews](reviews/).
 
-## `#35` (`B-12`) E-mail addresses in the logs, public openapi document
-
-**Created:** 2026-10-27. **Labels:** area: backend, review, severity: low.
-
-E-mail addresses in the logs, public openapi document: `AuthRoutes.kt:163,165,251,255` log e-mail addresses at info
-(personal data in the logs). `/doc/openapi.json` is public at `apps.<root_domain>`; it exposes only route shapes,
-acceptable.
-
-Finding **B-12** of the code review of 2026-10-27 (`doc/REVIEW.md`), area: Backend (`sak-backend`, `sak-auth`,
-`sak-logs`, `sak-api`, `sak-config`, `sak-ingress`, `sak-s3`), severity: low (judgement call). Other findings refer to
-it by its id.
-
 ## `#129` Ask for consent before text discovery sends a file to OpenRouter
 
 **Created:** 2026-10-29. **Labels:** enhancement, area: backend, area: frontend, security.
