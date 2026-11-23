@@ -2432,6 +2432,11 @@ sak_backup:
       run_progress:
         en: "%{files} of %{total} files, %{done} of %{size}"
         de: "%{files} von %{total} Dateien, %{done} von %{size}"
+      run_rate: { en: "%{rate}/s processed", de: "%{rate}/s verarbeitet" }
+      run_left: { en: "about %{left} left", de: "noch etwa %{left}" }
+      run_seconds: { en: "%{seconds} s", de: "%{seconds} s" }
+      run_minutes: { en: "%{minutes} min", de: "%{minutes} min" }
+      run_hours: { en: "%{hours} h %{minutes} min", de: "%{hours} h %{minutes} min" }
       run_done:
         en: "Backed up: %{new} new and %{changed} changed files, %{added} added."
         de: "Gesichert: %{new} neue und %{changed} geänderte Dateien, %{added} hinzugefügt."
@@ -2509,6 +2514,14 @@ sak_backup:
       en: "Created the backup plan %{name} of %{host} into %{repository}."
       de: "Backup-Plan %{name} von %{host} in %{repository} erstellt."
     initializing: { en: "Initializing the repository…", de: "Initialisiere das Repository…" }
+    progress:
+      en: "%{percent}% · %{files} of %{total} files, %{done} of %{size}"
+      de: "%{percent} % · %{files} von %{total} Dateien, %{done} von %{size}"
+    progress_rate: { en: "%{rate}/s processed", de: "%{rate}/s verarbeitet" }
+    progress_left: { en: "about %{left} left", de: "noch etwa %{left}" }
+    seconds: { en: "%{seconds} s", de: "%{seconds} s" }
+    minutes: { en: "%{minutes} min", de: "%{minutes} min" }
+    hours: { en: "%{hours} h %{minutes} min", de: "%{hours} h %{minutes} min" }
     backed_up:
       en: "Backed up: %{new} new and %{changed} changed files, %{added} bytes added, snapshot %{snapshot}."
       de: "Gesichert: %{new} neue und %{changed} geänderte Dateien, %{added} Bytes hinzugefügt, Snapshot %{snapshot}."

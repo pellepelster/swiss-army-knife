@@ -71,6 +71,27 @@ export function size(bytes) {
   return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: unit === 0 ? 0 : 1 }).format(value)} ${units[unit]}`;
 }
 
+// a time left, in its largest units
+export function duration(seconds) {
+  if (seconds < 60) return text('ui.plans.run_seconds', { seconds });
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return text('ui.plans.run_minutes', { minutes });
+  return text('ui.plans.run_hours', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
+}
+
+// how far a backup is: the files and bytes, how fast restic reads them, and the time left
+function progressText(event) {
+  const parts = [text('ui.plans.run_progress', {
+    files: event.files_done,
+    total: event.total_files,
+    done: size(event.bytes_done),
+    size: size(event.total_bytes),
+  })];
+  if (event.bytes_per_second != null) parts.push(text('ui.plans.run_rate', { rate: size(event.bytes_per_second) }));
+  if (event.seconds_remaining != null && event.percent < 1) parts.push(text('ui.plans.run_left', { left: duration(event.seconds_remaining) }));
+  return parts.join(' · ');
+}
+
 // the page of the run, as it is
 export function showRun() {
   const title = shown.kind === 'restore' ? 'ui.plans.restore_title' : 'ui.plans.run_title';
@@ -102,12 +123,7 @@ async function run(password, init, remember) {
       const percent = Math.round(event.percent * 100);
       bar.style.width = `${percent}%`;
       progress.setAttribute('aria-valuenow', String(percent));
-      setStatus(status, text('ui.plans.run_progress', {
-        files: event.files_done,
-        total: event.total_files,
-        done: size(event.bytes_done),
-        size: size(event.total_bytes),
-      }));
+      setStatus(status, progressText(event));
     } else if (event.kind === 'expiring') {
       progress.hidden = true;
       setStatus(status, text('ui.plans.run_expiring'));

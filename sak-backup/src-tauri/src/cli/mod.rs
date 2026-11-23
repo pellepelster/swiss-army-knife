@@ -476,6 +476,7 @@ async fn command(command: Command) -> Result<(), String> {
         Command::Run { plan, init } => {
             let id = id_of(&sessions, PLANS, &plan, "cli.unknown_plan").await?;
             let runs = Runs::default();
+            let line = ProgressLine::new();
             let summary = with_password(|given, typed_init| {
                 run::back_up(
                     &sessions,
@@ -484,17 +485,29 @@ async fn command(command: Command) -> Result<(), String> {
                     id,
                     given,
                     typed_init || init,
-                    |event| match event {
-                        RunEvent::Initializing => println!("{}", t!("cli.initializing")),
-                        RunEvent::Expiring => println!("{}", t!("cli.expiring")),
-                        RunEvent::Skipped { message } => {
-                            eprintln!("{}", t!("cli.skipped", message = message))
+                    {
+                        let line = line.clone();
+                        move |event| match event {
+                            RunEvent::Initializing => {
+                                line.clear();
+                                println!("{}", t!("cli.initializing"))
+                            }
+                            RunEvent::Expiring => {
+                                line.clear();
+                                println!("{}", t!("cli.expiring"))
+                            }
+                            RunEvent::Skipped { message } => {
+                                line.clear();
+                                eprintln!("{}", t!("cli.skipped", message = message))
+                            }
+                            progress @ RunEvent::Progress { .. } => line.show(&progress),
                         }
-                        RunEvent::Progress { .. } => {}
                     },
                 )
             })
-            .await?;
+            .await;
+            line.clear();
+            let summary = summary?;
             println!(
                 "{}",
                 t!(
@@ -641,6 +654,98 @@ fn password(new: bool) -> Result<String, String> {
     } else {
         Ok(typed)
     }
+}
+
+/// the progress of a backup on one line of the terminal, written over at most once a second; none
+/// when stderr is no terminal, e.g. in a log
+#[derive(Clone)]
+struct ProgressLine(Option<std::sync::Arc<std::sync::Mutex<Option<std::time::Instant>>>>);
+
+impl ProgressLine {
+    fn new() -> ProgressLine {
+        ProgressLine(std::io::stderr().is_terminal().then(Default::default))
+    }
+
+    fn show(&self, event: &RunEvent) {
+        let Some(shown) = &self.0 else { return };
+        let mut shown = shown.lock().unwrap();
+        if shown.is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(1)) {
+            return;
+        }
+        *shown = Some(std::time::Instant::now());
+        // \r back to the start of the line, \x1b[K what was longer before
+        eprint!("\r{}\x1b[K", progress_text(event));
+    }
+
+    /// the line is gone, for what comes after it
+    fn clear(&self) {
+        let Some(shown) = &self.0 else { return };
+        if shown.lock().unwrap().take().is_some() {
+            eprint!("\r\x1b[K");
+        }
+    }
+}
+
+/// how far a backup is: the files and bytes, how fast restic reads them, and the time left
+fn progress_text(event: &RunEvent) -> String {
+    let RunEvent::Progress {
+        percent,
+        files_done,
+        total_files,
+        bytes_done,
+        total_bytes,
+        bytes_per_second,
+        seconds_remaining,
+    } = event
+    else {
+        return String::new();
+    };
+    let mut parts = vec![
+        t!(
+            "cli.progress",
+            percent = (percent * 100.0).round() as u64,
+            files = files_done,
+            total = total_files,
+            done = size(*bytes_done),
+            size = size(*total_bytes)
+        )
+        .to_string(),
+    ];
+    if let Some(rate) = bytes_per_second {
+        parts.push(t!("cli.progress_rate", rate = size(*rate)).to_string());
+    }
+    if let Some(seconds) = seconds_remaining.filter(|_| *percent < 1.0) {
+        parts.push(t!("cli.progress_left", left = duration(seconds)).to_string());
+    }
+    parts.join(" · ")
+}
+
+/// bytes in the largest unit below 1024, as the window shows them
+fn size(bytes: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 1024.0 && unit < UNITS.len() - 1 {
+        value /= 1024.0;
+        unit += 1;
+    }
+    if unit == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{value:.1} {}", UNITS[unit])
+    }
+}
+
+/// a time left, in its largest units
+fn duration(seconds: u64) -> String {
+    if seconds < 60 {
+        return t!("cli.seconds", seconds = seconds).to_string();
+    }
+    let minutes = (seconds + 30) / 60;
+    if minutes < 60 {
+        return t!("cli.minutes", minutes = minutes).to_string();
+    }
+    t!("cli.hours", hours = minutes / 60, minutes = minutes % 60).to_string()
 }
 
 /// the text of a failed save of a plan: a SAK instance from before the excludes can not read a
@@ -809,6 +914,31 @@ mod tests {
             ])
             .is_err()
         );
+    }
+
+    #[test]
+    fn the_progress_line_tells_the_rate_and_the_time_left() {
+        let progress = |bytes_per_second, seconds_remaining| RunEvent::Progress {
+            percent: 0.25,
+            files_done: 3,
+            total_files: 12,
+            bytes_done: 1536,
+            total_bytes: 3 * 1024 * 1024,
+            bytes_per_second,
+            seconds_remaining,
+        };
+        assert_eq!(
+            progress_text(&progress(Some(45 * 1024 * 1024), Some(185))),
+            "25% · 3 of 12 files, 1.5 KiB of 3.0 MiB · 45.0 MiB/s processed · about 3 min left"
+        );
+        // before a second went by, and before restic knows the time left
+        assert_eq!(
+            progress_text(&progress(None, None)),
+            "25% · 3 of 12 files, 1.5 KiB of 3.0 MiB"
+        );
+        assert_eq!(size(512), "512 B");
+        assert_eq!(duration(42), "42 s");
+        assert_eq!(duration(2 * 3600 + 5 * 60), "2 h 5 min");
     }
 
     #[test]

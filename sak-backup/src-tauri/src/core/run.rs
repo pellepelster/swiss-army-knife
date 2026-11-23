@@ -10,12 +10,13 @@ use sak_desktop_shared::api::{self, ApiError};
 use sak_desktop_shared::session::SessionManager;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::VecDeque;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Child, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// the run of restic that goes on, one at a time
 #[derive(Clone, Default)]
@@ -70,6 +71,11 @@ pub enum RunEvent {
         total_files: u64,
         bytes_done: u64,
         total_bytes: u64,
+        /// the bytes restic read and checked a second, over the last seconds; none before a
+        /// second went by. Not what it uploads: a file it already has counts in full
+        bytes_per_second: Option<u64>,
+        /// the time left as restic guesses it, none before it knows
+        seconds_remaining: Option<u64>,
     },
     /// a path restic could not read, e.g. one that is gone; the run goes on
     Skipped { message: String },
@@ -367,9 +373,20 @@ fn run_restic_now(
         }
     });
     let mut summary = None;
+    let mut rate = Rate::default();
     for line in BufReader::new(stdout).lines().map_while(Result::ok) {
         match parse(&line) {
-            Some(Parsed::Progress(event)) => on_event(event),
+            Some(Parsed::Progress(mut event)) => {
+                if let RunEvent::Progress {
+                    bytes_done,
+                    bytes_per_second,
+                    ..
+                } = &mut event
+                {
+                    *bytes_per_second = rate.of(Instant::now(), *bytes_done);
+                }
+                on_event(event)
+            }
             Some(Parsed::Summary(done)) => summary = Some(done),
             None => {}
         }
@@ -405,6 +422,27 @@ pub(crate) fn failed(error: impl std::fmt::Display) -> RunError {
     }
 }
 
+/// how fast `bytes_done` grows, over the last seconds: steady enough to read, and still the speed of
+/// now and not of the whole run
+#[derive(Default)]
+struct Rate(VecDeque<(Instant, u64)>);
+
+impl Rate {
+    const WINDOW: Duration = Duration::from_secs(5);
+
+    /// the bytes a second at `now`, with `bytes` done; none before a second of them
+    fn of(&mut self, now: Instant, bytes: u64) -> Option<u64> {
+        self.0.push_back((now, bytes));
+        // the oldest kept is the last one at least a window back, so the window is full
+        while self.0.len() > 2 && now.duration_since(self.0[1].0) >= Self::WINDOW {
+            self.0.pop_front();
+        }
+        let (since, from) = *self.0.front()?;
+        let elapsed = now.duration_since(since).as_secs_f64();
+        (elapsed >= 1.0).then(|| (bytes.saturating_sub(from) as f64 / elapsed) as u64)
+    }
+}
+
 enum Parsed {
     Progress(RunEvent),
     Summary(RunSummary),
@@ -421,6 +459,8 @@ fn parse(line: &str) -> Option<Parsed> {
             total_files: number("total_files"),
             bytes_done: number("bytes_done"),
             total_bytes: number("total_bytes"),
+            bytes_per_second: None,
+            seconds_remaining: value["seconds_remaining"].as_u64(),
         })),
         "summary" => Some(Parsed::Summary(RunSummary {
             files_new: number("files_new"),
@@ -483,16 +523,37 @@ mod tests {
     }
 
     #[test]
+    fn the_rate_is_the_bytes_a_second_over_the_last_seconds() {
+        let start = Instant::now();
+        let at = |seconds: f64| start + Duration::from_secs_f64(seconds);
+        let mut rate = Rate::default();
+        // nothing before a second went by
+        assert_eq!(rate.of(at(0.0), 0), None);
+        assert_eq!(rate.of(at(0.5), 50), None);
+        assert_eq!(rate.of(at(1.0), 100), Some(100));
+        assert_eq!(rate.of(at(2.0), 300), Some(150));
+        // a run that slows down: after the window only the slow seconds count
+        for second in 3..=10 {
+            rate.of(at(second as f64), 300 + (second - 2) * 10);
+        }
+        assert_eq!(rate.of(at(11.0), 390), Some(10));
+    }
+
+    #[test]
     fn the_progress_and_the_summary_of_restic_are_read() {
-        let status = r#"{"message_type":"status","percent_done":0.5,"total_files":2,"files_done":1,"total_bytes":300,"bytes_done":150}"#;
+        let status = r#"{"message_type":"status","percent_done":0.5,"total_files":2,"files_done":1,"total_bytes":300,"bytes_done":150,"seconds_remaining":42}"#;
         match parse(status) {
             Some(Parsed::Progress(RunEvent::Progress {
                 percent,
                 files_done,
                 total_bytes,
+                seconds_remaining,
                 ..
             })) => {
-                assert_eq!((percent, files_done, total_bytes), (0.5, 1, 300))
+                assert_eq!(
+                    (percent, files_done, total_bytes, seconds_remaining),
+                    (0.5, 1, 300, Some(42))
+                )
             }
             _ => panic!("no progress"),
         }
