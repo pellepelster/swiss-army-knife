@@ -248,21 +248,27 @@ tauri() {
 build() {
   tauri build --no-bundle "$@" -- --locked
 }
-# the file, its address and its sha-256: what tauri downloads for an AppImage, pinned
+# the file, its address and its sha-256s: what tauri downloads for an AppImage, pinned
 appimage_tools() {
   cache="${XDG_CACHE_HOME:-$HOME/.cache}/tauri"
   mkdir -p "$cache"
-  while read -r file url sha256; do
-    if ! echo "$sha256  $cache/$file" | sha256sum --check --status 2>/dev/null; then
+  # the sha-256 of the download, and of the file in the cache: tauri zeroes the magic bytes of
+  # linuxdeploy (8 to 10) after its download, so it runs without fuse; done here the same way
+  while read -r file url downloaded cached; do
+    if ! echo "$cached  $cache/$file" | sha256sum --check --status 2>/dev/null; then
       curl -fsSL -o "$cache/$file.part" "$url"
-      echo "$sha256  $cache/$file.part" | sha256sum --check --quiet
+      echo "$downloaded  $cache/$file.part" | sha256sum --check --quiet
+      if [ "$cached" != "$downloaded" ]; then
+        printf '\000\000\000' | dd of="$cache/$file.part" bs=1 seek=8 conv=notrunc status=none
+        echo "$cached  $cache/$file.part" | sha256sum --check --quiet
+      fi
       chmod +x "$cache/$file.part"
       mv "$cache/$file.part" "$cache/$file"
     fi
   done <<'TOOLS'
-AppRun-x86_64 https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64 f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f
-linuxdeploy-07333c6-x86_64.AppImage https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-07333c6/linuxdeploy-x86_64.AppImage bd9521cd5ff3ca351fecb78cd9b236a4e37b3621014ac05cac0c2d767ffa0474
-linuxdeploy-plugin-appimage.AppImage https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-appimage-x86_64.AppImage 992d502a248e14ab185448ddf6f6e7d25558cb84d4623c354c3af350c25fccb3
+AppRun-x86_64 https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64 f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f
+linuxdeploy-07333c6-x86_64.AppImage https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-07333c6/linuxdeploy-x86_64.AppImage 36a2d7e274d12e1050d0e9ecfe11d339ed54720b2bec464c286d53f8b07f5c62 bd9521cd5ff3ca351fecb78cd9b236a4e37b3621014ac05cac0c2d767ffa0474
+linuxdeploy-plugin-appimage.AppImage https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-appimage-x86_64.AppImage 992d502a248e14ab185448ddf6f6e7d25558cb84d4623c354c3af350c25fccb3 992d502a248e14ab185448ddf6f6e7d25558cb84d4623c354c3af350c25fccb3
 TOOLS
 }
 cd "$app"
