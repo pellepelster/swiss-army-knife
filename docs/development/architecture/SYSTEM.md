@@ -105,6 +105,10 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   response classes in `io.pelle.sak.backend.<app>.model`, one class in each file, the file named like the class. The
   other modules that answer on `/api` (`sak-api`, `sak-auth`, `sak-logs`) keep theirs the same way in
   `io.pelle.sak.<module>.model`.
+- `API-8` **Verbs and answers.** A create is a `POST` and answers 201 and the new thing. A change is a `PUT`, or a
+  `POST` for an action without values (e.g. to check an item), and answers 200 and the thing as it is now. A delete
+  is a `DELETE` and answers 204 without a body. A part of a thing has the same name in every path of it (e.g.
+  `…/items/{id}/photo`).
 
 ## Model
 

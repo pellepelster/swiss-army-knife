@@ -9,10 +9,9 @@ weight: 12
 
 **Created:** 2026-11-22
 
-**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-20`, `BA-22`, `BA-23` and `BA-26` to `BA-30`, which
-are in the history of git; `BA-21`, `BA-24` and `BA-25` list what is left of them. Of `BA-22` one copy stays on
-purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings
-endpoint.
+**Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-20`, `BA-22`, `BA-23` and `BA-25` to `BA-30`, which
+are in the history of git; `BA-21` and `BA-24` list what is left of them. Of `BA-22` one copy stays on purpose: the
+notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -60,15 +59,6 @@ Fix: when the notes get lists in their api, their lists go on `ListTable`.
   and `all()`.
 
 Fix: only with another reason to change that code; a new name of a package or a method touches every caller.
-
-### `BA-25` No rule says which verb a change has and what it answers
-
-The routes agree now: a checked item of a grocery list is answered like a done task, the delete of a photo answers
-204 like every delete, the photo of an item is read below `…/photo/`, and the items of a photo are discovered at
-`…/files/{id}/discover/items` as its text is. The paths of the apps are written once, and the api has its plugins
-once. Nothing tells the next route what to do.
-
-Fix: a rule for the verbs and the answers, e.g. a change answers the thing, a delete answers 204.
 
 ## Not checked
 
