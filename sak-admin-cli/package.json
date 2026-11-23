@@ -5,6 +5,6 @@
   "private": true,
   "packageManager": "npm@12.2.2",
   "devDependencies": {
-    "@tauri-apps/cli": "2.12.4"
+    "@tauri-apps/cli": "2.12.5"
   }
 }
