@@ -886,7 +886,7 @@ mod tests {
         // without excludes it is what the instance said
         assert_eq!(
             excludes_message(&malformed, false),
-            "The SAK instance refused it: The request is malformed."
+            "The request is malformed."
         );
     }
 
