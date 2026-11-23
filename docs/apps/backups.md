@@ -22,13 +22,36 @@ can not be deleted yet.
 
 ## SAK Backup
 
-SAK Backup is a preview. Download the zip file for your computer from the
-[release page](https://github.com/pellepelster/swiss-army-knife/releases): `sak-backup-linux-x86_64-<version>.zip`,
-`sak-backup-macos-universal-<version>.zip` or `sak-backup-windows-x86_64-<version>.zip`. Each zip file has its
-checksum (`.sha256`) and its cosign signature (`.sigstore.json`) next to it; verify them as for sakadmin
-([Check the signature](../installation.md#check-the-signature)).
+SAK Backup is a preview. The commands below download it from the
+[release page](https://github.com/pellepelster/swiss-army-knife/releases), check its SHA-256 checksum and install it.
+Each file has its cosign signature (`.sigstore.json`) next to it; verify it as for sakadmin
+([Check the signature](../installation.md#check-the-signature)), with the name of the SAK Backup file.
 
-- The zip file holds one program, `sakbackup`. Without a command it opens the window; `sakbackup --help` lists the
+On Linux (x86_64), pick one of four. The program, for any distribution with WebKitGTK 4.1:
+
+{{< install app="sakbackup" platform="linux" >}}
+
+A deb package for Debian and Ubuntu:
+
+{{< install app="sakbackup" platform="deb" >}}
+
+An rpm package for Fedora and openSUSE (`sudo zypper install` instead of `dnf` there):
+
+{{< install app="sakbackup" platform="rpm" >}}
+
+An AppImage, which brings everything it needs; start `~/.local/bin/sakbackup.AppImage`:
+
+{{< install app="sakbackup" platform="appimage" >}}
+
+On macOS, then start `~/.local/bin/sakbackup`:
+
+{{< install app="sakbackup" platform="macos" >}}
+
+On Windows, then start `sakbackup.exe` in `%LOCALAPPDATA%\Programs\sakbackup`:
+
+{{< install app="sakbackup" platform="windows" >}}
+
+- SAK Backup is one program, `sakbackup`. Without a command it opens the window; `sakbackup --help` lists the
   commands. On Windows, `sakbackup.exe` is the window and `sakbackup-cli.exe` is the command line.
 - A backup plan can leave things out, for example caches or `node_modules`. In the form of a plan, **Edit
   excludes…** opens a list of patterns of restic, one a line, with `#` for a comment. Presets for Linux, macOS and
@@ -40,8 +63,9 @@ checksum (`.sha256`) and its cosign signature (`.sigstore.json`) next to it; ver
 - SAK Backup is not signed for macOS and Windows, so they warn on the first start.
 - SAK Backup updates only when you ask: click **Check for updates** at the bottom of the window, or run
   `sakbackup update`. It downloads the newest release from GitHub, verifies its checksum and its signature, and
-  replaces itself. `sakbackup update --check` only compares the versions. On Windows, the command is
-  `sakbackup-cli.exe update`.
+  replaces itself; an AppImage replaces its file. Installed from a deb or an rpm, it only tells you that there is a
+  new release: install its package the same way. `sakbackup update --check` only compares the versions. On
+  Windows, the command is `sakbackup-cli.exe update`.
 
 ## Your data stays yours
 

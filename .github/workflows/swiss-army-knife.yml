@@ -357,6 +357,20 @@ jobs:
           pattern: sak-admin-cli-*.sha256
           path: sak-admin-cli/build
           merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: sak-backup-*.sha256
+          path: sak-backup/build
+          merge-multiple: true
+      # the checksums of the deb, the rpm and the AppImage are in the artifact of the packages
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-packages-sak-admin-cli
+          path: sak-admin-cli/build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: linux-packages-sak-backup
+          path: sak-backup/build
       - id: pages
         if: github.ref_type == 'tag'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

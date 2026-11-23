@@ -1,37 +1,62 @@
-{{- /* the commands that download sakadmin for a platform from the github release of its version,
-   check its sha-256 and extract it only when it matches, also when they are pasted line by line; the version, its release
-   (the tag v<version>) and the checksums come from data/sakadmin.yaml (mise run docs:data), a platform without a checksum
-   shows <sha256>. With signature="true" instead the command that verifies the cosign signature of
-   the zip (<zip>.sigstore.json): signed by the workflow of the tag of its release */ -}}
+{{- /* the commands that download sakadmin or sakbackup (app="sakbackup", sakadmin without) for a
+   platform from the github release of its version, check its sha-256 and install it only when it
+   matches, also when they are pasted line by line. The platform is linux, macos or windows for the
+   zip of the binary, or deb, rpm or appimage for the packages of linux. The version, its release
+   (the tag v<version>) and the checksums come from data/sakadmin.yaml (mise run docs:data), a file
+   without a checksum shows <sha256>. With signature="true" instead the command that verifies the
+   cosign signature of the file (<file>.sigstore.json): signed by the workflow of the tag of its
+   release */ -}}
 {{- $platform := .Get "platform" }}
+{{- $app := .Get "app" | default "sakadmin" }}
 {{- $signature := eq (.Get "signature") "true" }}
+{{- $dir := index (dict "sakadmin" "sak-admin-cli" "sakbackup" "sak-backup") $app }}
+{{- if not $dir }}{{ errorf "install: the app %q is not sakadmin or sakbackup" $app }}{{ end }}
 {{- $version := hugo.Data.sakadmin.version | default "latest" }}
 {{- $release := hugo.Data.sakadmin.release | default "latest" }}
-{{- $checksum := (index (hugo.Data.sakadmin.checksums | default dict) $platform) | default "<sha256>" }}
-{{- /* the zip names the architecture too: x86_64, one universal binary for macos */ -}}
-{{- $architecture := index (dict "linux" "x86_64" "macos" "universal" "windows" "x86_64") $platform }}
-{{- $zip := printf "sak-admin-cli-%s-%s-%s.zip" $platform $architecture $version }}
-{{- $url := printf "%s/%s/%s" site.Params.sakadminDownloads $release $zip }}
+{{- $checksums := index (hugo.Data.sakadmin.checksums | default dict) $dir | default dict }}
+{{- $checksum := (index $checksums $platform) | default "<sha256>" }}
+{{- /* the file names the system and the architecture: x86_64, one universal binary for macos */ -}}
+{{- $files := dict
+  "linux" (printf "%s-linux-x86_64-%s.zip" $dir $version)
+  "macos" (printf "%s-macos-universal-%s.zip" $dir $version)
+  "windows" (printf "%s-windows-x86_64-%s.zip" $dir $version)
+  "deb" (printf "%s-linux-x86_64-%s.deb" $dir $version)
+  "rpm" (printf "%s-linux-x86_64-%s.rpm" $dir $version)
+  "appimage" (printf "%s-linux-x86_64-%s.AppImage" $dir $version) }}
+{{- $file := index $files $platform }}
+{{- if not $file }}{{ errorf "install: the platform %q is not linux, macos, windows, deb, rpm or appimage" $platform }}{{ end }}
+{{- $url := printf "%s/%s/%s" site.Params.sakadminDownloads $release $file }}
 {{- $code := "" }}
 {{- $language := "sh" }}
 {{- $identity := printf "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml@refs/tags/%s" $release }}
 {{- $issuer := "https://token.actions.githubusercontent.com" }}
+{{- /* downloaded and checked; macos has shasum, the others sha256sum */ -}}
+{{- $sum := cond (eq $platform "macos") "shasum -a 256" "sha256sum" }}
+{{- $fetch := printf "curl -fsSLO %s && \\\n  echo \"%s  %s\" | %s --check && \\\n" $url $checksum $file $sum }}
 {{- if and $signature (eq $platform "windows") }}
 {{- $language = "powershell" }}
-{{- $code = printf "Invoke-WebRequest %s.sigstore.json -OutFile %s.sigstore.json\ncosign verify-blob --bundle %s.sigstore.json --certificate-identity %s --certificate-oidc-issuer %s %s" $url $zip $zip $identity $issuer $zip }}
+{{- $code = printf "Invoke-WebRequest %s.sigstore.json -OutFile %s.sigstore.json\ncosign verify-blob --bundle %s.sigstore.json --certificate-identity %s --certificate-oidc-issuer %s %s" $url $file $file $identity $issuer $file }}
 {{- else if $signature }}
-{{- $code = printf "curl -fsSLO %s.sigstore.json && \\\n  cosign verify-blob --bundle %s.sigstore.json \\\n  --certificate-identity %s \\\n  --certificate-oidc-issuer %s \\\n  %s" $url $zip $identity $issuer $zip }}
-{{- else if eq $platform "linux" }}
-{{- $code = printf "curl -fsSLO %s && \\\n  echo \"%s  %s\" | sha256sum --check && \\\n  mkdir -p ~/.local/bin && \\\n  unzip -o %s -d ~/.local/bin" $url $checksum $zip $zip }}
-{{- else if eq $platform "macos" }}
-{{- $code = printf "curl -fsSLO %s && \\\n  echo \"%s  %s\" | shasum -a 256 --check && \\\n  mkdir -p ~/.local/bin && \\\n  unzip -o %s -d ~/.local/bin" $url $checksum $zip $zip }}
+{{- $code = printf "curl -fsSLO %s.sigstore.json && \\\n  cosign verify-blob --bundle %s.sigstore.json \\\n  --certificate-identity %s \\\n  --certificate-oidc-issuer %s \\\n  %s" $url $file $identity $issuer $file }}
+{{- else if or (eq $platform "linux") (eq $platform "macos") }}
+{{- $code = printf "%s  mkdir -p ~/.local/bin && \\\n  unzip -o %s -d ~/.local/bin" $fetch $file }}
+{{- else if eq $platform "deb" }}
+{{- $code = printf "%s  sudo apt install ./%s" $fetch $file }}
+{{- else if eq $platform "rpm" }}
+{{- $code = printf "%s  sudo dnf install ./%s" $fetch $file }}
+{{- else if eq $platform "appimage" }}
+{{- $code = printf "%s  chmod +x %s && \\\n  mkdir -p ~/.local/bin && \\\n  mv %s ~/.local/bin/%s.AppImage" $fetch $file $file $app }}
 {{- else if eq $platform "windows" }}
 {{- $language = "powershell" }}
-{{- $code = printf "Invoke-WebRequest %s -OutFile %s\nif ((Get-FileHash %s -Algorithm SHA256).Hash -eq \"%s\") {\n  Expand-Archive %s \"$env:LOCALAPPDATA\\Programs\\sakadmin\" -Force\n} else {\n  Write-Error \"The checksum of %s does not match.\"\n}" $url $zip $zip $checksum $zip $zip }}
-{{- else }}
-{{- errorf "install: the platform %q is not linux, macos or windows" $platform }}
+{{- $code = printf "Invoke-WebRequest %s -OutFile %s\nif ((Get-FileHash %s -Algorithm SHA256).Hash -eq \"%s\") {\n  Expand-Archive %s \"$env:LOCALAPPDATA\\Programs\\%s\" -Force\n} else {\n  Write-Error \"The checksum of %s does not match.\"\n}" $url $file $file $checksum $file $app $file }}
 {{- end }}
-{{- $name := dict "linux" "Linux — Terminal" "macos" "macOS — Terminal" "windows" "Windows — PowerShell" }}
+{{- $name := dict
+  "linux" "Linux — Terminal"
+  "macos" "macOS — Terminal"
+  "windows" "Windows — PowerShell"
+  "deb" "Debian, Ubuntu — Terminal"
+  "rpm" "Fedora, openSUSE — Terminal"
+  "appimage" "Linux AppImage — Terminal" }}
 {{- $prompt := cond (eq $language "powershell") "PS> " "$ " }}
 {{- /* the terminal of the apps (assets/css/sak-code-block.css): a prompt before each line that does
    not continue the one before (after \ or {, or a closing }); only the commands are copied */ -}}

@@ -625,10 +625,12 @@ depends = ["desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli/src-tauri"
 run = "cargo test window_fixtures -- --ignored"
 
-# the version and the checksums of the zips of sakadmin (desktop:build) for the installation page,
-# site/data/sakadmin.yaml; a platform without a zip shows <sha256>
+# the version and the checksums of the files of the release of sakadmin and sakbackup (desktop:build:
+# the zips, the deb, the rpm and the AppImage of linux) for the install shortcode, in
+# site/data/sakadmin.yaml by the directory of the app and the kind (linux, macos, windows for the
+# zips; deb, rpm, appimage); a file that is not there shows <sha256>
 [tasks."docs:data"]
-description = "Write the sakadmin data of the docs"
+description = "Write the release data of the docs"
 dir = "{{config_root}}/site"
 run = """
 set -eu
@@ -638,10 +640,18 @@ mkdir -p data
   # latest has no tag
   [ "$VERSION" = latest ] && echo "release: 'latest'" || echo "release: 'v$VERSION'"
   echo "checksums:"
-  for platform in linux macos windows; do
-    case "$platform" in macos) architecture=universal ;; *) architecture=x86_64 ;; esac
-    checksum="../sak-admin-cli/build/sak-admin-cli-${platform}-${architecture}-${VERSION}.zip.sha256"
-    [ -f "$checksum" ] && echo "  $platform: '$(cut -d ' ' -f 1 "$checksum")'"
+  for app in sak-admin-cli sak-backup; do
+    echo "  $app:"
+    for kind in linux macos windows deb rpm appimage; do
+      case "$kind" in
+        macos) file="$app-macos-universal-${VERSION}.zip" ;;
+        linux|windows) file="$app-$kind-x86_64-${VERSION}.zip" ;;
+        appimage) file="$app-linux-x86_64-${VERSION}.AppImage" ;;
+        *) file="$app-linux-x86_64-${VERSION}.$kind" ;;
+      esac
+      checksum="../$app/build/$file.sha256"
+      [ -f "$checksum" ] && echo "    $kind: '$(cut -d ' ' -f 1 "$checksum")'"
+    done
   done
   true
 } > data/sakadmin.yaml
