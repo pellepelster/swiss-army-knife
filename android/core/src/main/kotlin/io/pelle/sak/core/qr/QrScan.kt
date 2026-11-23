@@ -11,17 +11,22 @@ data class QrScan(
     val error: UiText? = null,
     // the camera was refused: the scan says so and leads to the settings of the app
     val denied: Boolean = false,
-    // signed in already: asked before the code replaces the session
+    // asked for every code before it is exchanged: the SAK instance it signs in to (SECURITY-3)
     val confirm: QrSwitch? = null,
 )
 
-// the session of from replaced by one of to, the SAK addresses; the same deployment signs in again,
-// as the user who shows the code
+// the code signs in to `to`, a SAK address; `from` the one the app has, none before the first sign-in.
+// The same deployment signs in again, as the user who shows the code
 data class QrSwitch(
-    val from: String,
+    val from: String?,
     val to: String,
-    // who is signed in now
-    val user: String,
+    // who is signed in now, none while signed out
+    val user: String?,
 ) {
     val same: Boolean get() = from == to
+
+    val signedIn: Boolean get() = user != null
+
+    // a first sign-in, or one to the deployment the app has while signed out: only the address to check
+    val new: Boolean get() = from == null || (same && !signedIn)
 }

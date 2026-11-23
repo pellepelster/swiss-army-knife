@@ -59,6 +59,10 @@
     <string name="qr_again_title">Neu anmelden?</string>
     <string name="qr_again_text">Du bist bei %1$s als %2$s angemeldet. Der QR-Code meldet dich neu an, als der Benutzer, der ihn zeigt.</string>
     <string name="qr_stay">Angemeldet bleiben</string>
+    <string name="qr_new_title">Bei dieser SAK-Instanz anmelden?</string>
+    <string name="qr_new_text">Der QR-Code meldet dich bei %1$s an. Mach nur weiter, wenn es deine SAK-Instanz ist.</string>
+    <string name="qr_switch_signed_out_text">Die App ist für %1$s eingerichtet. Der QR-Code meldet dich stattdessen bei %2$s an.</string>
+    <string name="qr_cancel">Abbrechen</string>
     <string name="no_lists">Du hast noch keine Liste, erstelle oben mit dem Plus eine.</string>
     <string name="shared_with_all">Mit allen Benutzern geteilt</string>
     <string name="shared_badge">Geteilt</string>

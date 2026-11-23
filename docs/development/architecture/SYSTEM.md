@@ -285,7 +285,8 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 - `SECURITY-3` **An app is connected by a signed in session.** An app never asks for a password. A signed in session
   of the web app hands it a connect token: good for one exchange within 2 minutes, for a session of the same user
   with its own full time and the roles the user has at the exchange. A phone scans the token as a QR code, which
-  shows only while asked for; whoever photographs it signs in as the user until it is used or expired. A desktop app
+  shows only while asked for; whoever photographs it signs in as the user until it is used or expired. Before it
+  signs in, the app names the SAK instance of the code and asks. A desktop app
   gets the token through the browser of the user, after the user confirmed on a page that tells which app asks, and
   the token is of use only to the app that asked. A desktop app keeps its session only in the keychain of the system,
   never in a file. A signed request of sakadmin connects no app.

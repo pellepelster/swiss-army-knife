@@ -126,6 +126,10 @@ class TodoRotationTest {
             scenario.rotate(landscape = false)
             compose.onNodeWithTag("qr-scanner").assertIsDisplayed()
             camera.code = "https://sak.example.org/connect#token=the.token"
+            // asked first, with the address of the code (SECURITY-3)
+            shows("qr-confirm")
+            assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
+            compose.onNodeWithTag("qr-confirm").performClick()
             shows("list-1")
             assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"the.token"}"""))
             compose.onAllNodesWithTag("qr-scanner").assertCountEquals(0)

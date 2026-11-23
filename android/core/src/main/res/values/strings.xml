@@ -60,6 +60,10 @@
     <string name="qr_again_title">Sign in again?</string>
     <string name="qr_again_text">You are signed in to %1$s as %2$s. The QR code signs you in again, as the user who shows it.</string>
     <string name="qr_stay">Stay signed in</string>
+    <string name="qr_new_title">Sign in to this SAK instance?</string>
+    <string name="qr_new_text">The QR code signs you in to %1$s. Go on only if it is your SAK instance.</string>
+    <string name="qr_switch_signed_out_text">The app is set up for %1$s. The QR code signs you in to %2$s instead.</string>
+    <string name="qr_cancel">Cancel</string>
     <string name="no_lists">You have no list yet, create one with the plus at the top.</string>
     <string name="shared_with_all">Shared with all users</string>
     <string name="shared_badge">Shared</string>

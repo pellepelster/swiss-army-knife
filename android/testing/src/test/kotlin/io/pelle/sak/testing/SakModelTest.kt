@@ -332,10 +332,16 @@ class SakModelTest {
             assertEquals(QrScan(), model.scan.value)
             model.signInWithQr(code)
             assertTrue(model.scan.value!!.busy)
-            // the camera reads the code again while it is exchanged: once
+            // the camera reads the code again while it is asked for: once
             model.signInWithQr(code)
             advanceUntilIdle()
-            assertEquals(1, backend.requests.count { it.startsWith("POST /auth/login/connect") })
+            // asked first, with the address of the code (SECURITY-3); nothing is sent before
+            assertEquals(QrSwitch(null, "https://sak.example.org", null), model.scan.value!!.confirm)
+            assertTrue(model.scan.value!!.confirm!!.new)
+            assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
+            model.confirmQr()
+            advanceUntilIdle()
+            assertEquals(1,backend.requests.count { it.startsWith("POST /auth/login/connect") })
             assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"the.connect-token"}"""))
             // the SAK address of the code names its api, which answers as a SAK instance
             assertTrue(backend.requests.contains("GET /.well-known/sak.json"))
@@ -362,6 +368,7 @@ class SakModelTest {
             // the error waits for the user: no other code is taken meanwhile
             model.signInWithQr(code)
             advanceUntilIdle()
+            assertNull(model.scan.value!!.confirm)
             assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
 
             // the error body of the backend, the code is not valid, used or expired
@@ -370,6 +377,10 @@ class SakModelTest {
             model.scanAgain()
             model.signInWithQr(code)
             advanceUntilIdle()
+            // the deployment the app has, signed out: asked with its address only
+            assertTrue(model.scan.value!!.confirm!!.new)
+            model.confirmQr()
+            advanceUntilIdle()
             assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.scan.value!!.error.english())
             assertFalse(model.scan.value!!.busy)
 
@@ -377,11 +388,15 @@ class SakModelTest {
             model.scanAgain()
             model.signInWithQr(code)
             advanceUntilIdle()
+            model.confirmQr()
+            advanceUntilIdle()
             assertEquals("Too many attempts, please try again later.", model.scan.value!!.error.english())
 
             backend.unreachable += "POST /auth/login/connect"
             model.scanAgain()
             model.signInWithQr(code)
+            advanceUntilIdle()
+            model.confirmQr()
             advanceUntilIdle()
             assertEquals("The SAK instance https://sak.example.org could not be reached.", model.scan.value!!.error.english())
 
@@ -391,11 +406,47 @@ class SakModelTest {
             model.scanAgain()
             model.signInWithQr(code)
             advanceUntilIdle()
+            model.confirmQr()
+            advanceUntilIdle()
             assertEquals("The SAK instance https://sak.example.org could not be reached.", model.scan.value!!.error.english())
             // the sign-in stays below the scan
             assertTrue(model.screen.value is Screen.SignIn)
             model.closeScan()
             assertNull(model.scan.value)
+        }
+
+    @Test
+    fun `signed out, a code of another host asks to switch, kept the stored deployment stays, nothing is sent`() =
+        runTest {
+            backend.answers["POST /auth/login/connect"] = HttpStatusCode.OK to session("qr-session", "anna@example.org")
+            // the deployment the app has; no session
+            val store = MemorySessionStore(Stored(apiUrl = "https://api.old.example.org/v1", address = "https://old.example.org"))
+            val before = store.load()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            model.scanQr()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            val confirm = model.scan.value!!.confirm!!
+            assertEquals(QrSwitch("https://old.example.org", "https://sak.example.org", null), confirm)
+            assertFalse(confirm.new)
+            assertFalse(confirm.signedIn)
+
+            // cancelled: the app keeps the deployment it had, nothing went to the host of the code
+            model.closeScan()
+            advanceUntilIdle()
+            assertNull(model.scan.value)
+            assertEquals(before, store.load())
+            assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
+
+            // confirmed: it switches
+            model.scanQr()
+            model.signInWithQr(code)
+            advanceUntilIdle()
+            model.confirmQr()
+            advanceUntilIdle()
+            assertEquals("https://sak.example.org", store.load().address)
+            assertEquals("anna@example.org", (model.screen.value as ThingsScreen).user)
         }
 
     @Test

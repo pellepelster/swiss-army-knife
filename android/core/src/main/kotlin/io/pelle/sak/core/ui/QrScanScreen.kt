@@ -139,23 +139,37 @@ fun QrScanScreen(
     scan.confirm?.let { switch ->
         AlertDialog(
             onDismissRequest = model::closeScan,
-            title = { Text(stringResource(if (switch.same) R.string.qr_again_title else R.string.qr_switch_title)) },
+            // a first sign-in, a switch of the deployment, or the same one again (SECURITY-3)
+            title = {
+                Text(
+                    stringResource(
+                        when {
+                            switch.new -> R.string.qr_new_title
+                            switch.same -> R.string.qr_again_title
+                            else -> R.string.qr_switch_title
+                        },
+                    ),
+                )
+            },
             text = {
                 Text(
-                    if (switch.same) {
-                        stringResource(R.string.qr_again_text, switch.from, switch.user)
-                    } else {
-                        stringResource(R.string.qr_switch_text, switch.from, switch.to)
+                    when {
+                        switch.new -> stringResource(R.string.qr_new_text, switch.to)
+                        switch.same -> stringResource(R.string.qr_again_text, switch.from.orEmpty(), switch.user.orEmpty())
+                        switch.signedIn -> stringResource(R.string.qr_switch_text, switch.from.orEmpty(), switch.to)
+                        else -> stringResource(R.string.qr_switch_signed_out_text, switch.from.orEmpty(), switch.to)
                     },
                 )
             },
             confirmButton = {
                 TextButton(onClick = model::confirmQr, modifier = Modifier.testTag("qr-confirm")) {
-                    Text(stringResource(if (switch.same) R.string.login_sign_in else R.string.qr_switch))
+                    Text(stringResource(if (switch.new || switch.same) R.string.login_sign_in else R.string.qr_switch))
                 }
             },
             dismissButton = {
-                TextButton(onClick = model::closeScan, modifier = Modifier.testTag("qr-stay")) { Text(stringResource(R.string.qr_stay)) }
+                TextButton(onClick = model::closeScan, modifier = Modifier.testTag("qr-stay")) {
+                    Text(stringResource(if (switch.signedIn) R.string.qr_stay else R.string.qr_cancel))
+                }
             },
         )
     }

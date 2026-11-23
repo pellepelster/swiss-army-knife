@@ -83,7 +83,7 @@ person in a browser. Nothing found gives a session to somebody who is not on the
 `SECURITY-1` says the backend has only the hash of the admin password. At rest that is so; but the password that is
 checked is the password of the deployment itself (`keys.rs`, `admin_password_hash`), and the web app and the Android
 apps send it to `POST /api/v1/auth/login/password`. Whoever runs code in the backend or in caddy, or gets the admin
-to type it into a page that is not SAK (`SEC-8`), reads it with the next login. From the name and the password
+to type it into a page that is not SAK, reads it with the next login. From the name and the password
 follow the ssh client key (root on the server, port 22 is open), the api key, the key of every backup, old ones
 included, and the key of the local settings. The purposes of the keys do not help, what they are all derived from is
 handed over. Accepted in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md) until it is fixed; the backup says the server
@@ -120,18 +120,6 @@ attacker's choice inside the app.
 
 Fix: the web app sends a nonce too and keeps it with the request, at the cost that a link opens only in the browser
 that asked; or the page asks ("sign in as …?") when this browser did not ask or another address is signed in.
-
-### `SEC-8` A scanned QR code is trusted without a question when the app is signed out
-
-`signInWithQr` shows the dialog with the two addresses only when a session exists; a signed out app, also one that
-has a deployment stored, exchanges at once with whatever host the code names and stores it as its SAK. A host of an
-attacker accepts any token. What the user then adds goes there; or the host answers 401, the app shows its sign-in
-with the password field for that host, and a user who types the password of the admin has given away the password
-of the deployment (`SEC-3`). The same way a user of the deployment signs a signed out phone into their own account
-with a code of their own.
-
-Fix: always name the host and ask before the exchange; when a deployment is stored and the code names another, the
-dialog that is there for a session.
 
 ## Could fix
 

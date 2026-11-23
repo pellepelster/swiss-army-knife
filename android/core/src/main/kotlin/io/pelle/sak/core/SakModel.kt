@@ -233,7 +233,8 @@ abstract class SakModel<A : SakApi>(
     fun scanAgain() = scanning.update { if (it?.busy == false && it.confirm == null) it.copy(error = null) else it }
 
     // the text of a QR code the camera read: a code of the web app (connectCode) signs in to its
-    // deployment; a session there or elsewhere is replaced only once the user confirmed it. One code at
+    // deployment once the user confirmed it, the address of the code shown: any host can make a code
+    // (SECURITY-3), and a session there or elsewhere is replaced. One code at
     // a time: the camera reads the same code again and again, it is taken while nothing else runs and
     // no error waits for the user (scanAgain)
     fun signInWithQr(text: String) {
@@ -249,13 +250,10 @@ abstract class SakModel<A : SakApi>(
             scope.launch {
                 starting?.join()
                 val stored = store.load()
-                if (signedIn(stored)) {
-                    confirming = code
-                    val from = stored.address ?: stored.apiUrl.orEmpty()
-                    scanning.update { it?.copy(busy = false, confirm = QrSwitch(from, code.address, stored.email.orEmpty())) }
-                } else {
-                    exchange(code)
-                }
+                confirming = code
+                val from = stored.address ?: stored.apiUrl
+                val user = if (signedIn(stored)) stored.email.orEmpty() else null
+                scanning.update { it?.copy(busy = false, confirm = QrSwitch(from, code.address, user)) }
             }
     }
 
