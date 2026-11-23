@@ -1,5 +1,6 @@
-/* the sign-in of ui/login.js: the icon, the title and the form a third down the window. Every
-   color is a var(--sak-…), never a literal */
+/* the sign-in of ui/login.js: the icon, the title and the form a third down the window; its lines
+   and its buttons are .hint and .form-buttons of views.css. Every color is a var(--sak-…), never a
+   literal */
 
 .login {
   display: flex;
@@ -33,19 +34,4 @@
   gap: var(--sak-space-3);
   width: 100%;
   text-align: start;
-}
-
-.login-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--sak-space-2);
-}
-
-.login .hint {
-  color: var(--sak-muted);
-  margin: 0;
-}
-
-.login .status-failed {
-  color: var(--sak-danger-text);
 }

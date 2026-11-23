@@ -13,9 +13,28 @@ export async function loadTexts() {
   }
 }
 
-// `%{name}` placeholders filled from `values`
+// `%{name}` placeholders filled from `values`, in one pass: a value is taken as it is, also one with
+// a `$` or with a placeholder in it (a path, an error)
 export function text(key, values = {}) {
-  return Object.entries(values).reduce((filled, [name, value]) => filled.replaceAll(`%{${name}}`, value), texts[key] ?? key);
+  return fill(texts[key] ?? key, values);
+}
+
+export function fill(template, values) {
+  return template.replace(/%\{(\w+)\}/g, (all, name) => (name in values ? String(values[name]) : all));
+}
+
+// while a form is saved, nothing of it is changed or sent again: every element of it that was
+// enabled is disabled, and enabled again when the save is over
+export function setBusy(form, busy) {
+  for (const element of form.elements) {
+    if (busy && !element.disabled) {
+      element.disabled = true;
+      element.dataset.busy = '';
+    } else if (!busy && 'busy' in element.dataset) {
+      element.disabled = false;
+      delete element.dataset.busy;
+    }
+  }
 }
 
 export function setStatus(element, message) {

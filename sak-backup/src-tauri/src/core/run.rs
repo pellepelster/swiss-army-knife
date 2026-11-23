@@ -20,12 +20,40 @@ use std::time::Duration;
 #[derive(Clone, Default)]
 pub struct Runs(Arc<RunState>);
 
+impl Runs {
+    /// held while a backup, a restore or a change of the snapshots goes on, restic and what comes
+    /// before and after it (the password, the snapshots a plan no longer keeps): sakbackup is not
+    /// restarted meanwhile
+    pub fn busy(&self) -> Busy {
+        self.0.busy.fetch_add(1, Ordering::SeqCst);
+        Busy(self.0.clone())
+    }
+
+    /// whether a backup, a restore or a change of the snapshots goes on
+    pub fn is_running(&self) -> bool {
+        self.0.busy.load(Ordering::SeqCst) > 0
+            || self.0.starting.load(Ordering::SeqCst)
+            || self.0.child.lock().is_ok_and(|child| child.is_some())
+    }
+}
+
+/// what `Runs::busy` hands out; the work is over when it goes
+pub struct Busy(Arc<RunState>);
+
+impl Drop for Busy {
+    fn drop(&mut self) {
+        self.0.busy.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
 #[derive(Default)]
 struct RunState {
     child: Mutex<Option<Arc<Mutex<Child>>>>,
     // a run that has not started restic yet, e.g. while it initializes
     starting: AtomicBool,
     cancelled: AtomicBool,
+    // the commands that hold a `Busy`
+    busy: std::sync::atomic::AtomicUsize,
 }
 
 /// what a run tells the page while it goes on
@@ -61,8 +89,9 @@ pub struct RunSummary {
     pub empty: bool,
     /// the older snapshots of the plan removed after it (BACKUP-8)
     pub removed: usize,
-    /// why they could not be removed; the backup itself is done
-    pub expire_failed: Option<String>,
+    /// why they could not be removed; the backup itself is done. The window and the command line
+    /// say it in their words, as for a run that failed
+    pub expire_failed: Option<RunError>,
 }
 
 /// why a run did not end with a snapshot
@@ -164,9 +193,10 @@ pub(crate) async fn prepare(sessions: &SessionManager, id: u64) -> Result<Prepar
             host: plan["host"].as_str().unwrap_or_default().to_string(),
         });
     }
-    let access =
-        crate::core::restic::access(sessions, plan["repositoryId"].as_u64().unwrap_or_default())
-            .await?;
+    let repository = plan["repositoryId"]
+        .as_u64()
+        .ok_or_else(|| failed("the SAK instance answered a backup plan without a repository"))?;
+    let access = crate::core::restic::access(sessions, repository).await?;
     let paths = plan["paths"]
         .as_array()
         .map(|paths| {
@@ -234,8 +264,7 @@ pub async fn back_up(
                 on_event(RunEvent::Expiring);
                 match restic.expire(&prepared.plan(), &prepared.keep) {
                     Ok(removed) => summary.removed = removed,
-                    Err(RunError::Failed { message }) => summary.expire_failed = Some(message),
-                    Err(error) => summary.expire_failed = Some(format!("{error:?}")),
+                    Err(error) => summary.expire_failed = Some(error),
                 }
             }
             Ok(summary)
@@ -402,6 +431,21 @@ fn parse(line: &str) -> Option<Parsed> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sakbackup_is_busy_while_a_command_holds_it_or_a_run_starts() {
+        let runs = Runs::default();
+        assert!(!runs.is_running());
+        let backup = runs.busy();
+        let restore = runs.busy();
+        assert!(runs.is_running());
+        drop(backup);
+        assert!(runs.is_running());
+        drop(restore);
+        assert!(!runs.is_running());
+        runs.0.starting.store(true, Ordering::SeqCst);
+        assert!(runs.is_running());
+    }
 
     #[test]
     fn a_new_repository_is_initialized_only_when_asked_never_with_a_kept_password() {

@@ -6,7 +6,9 @@ use crate::core::passwords::{Given, PasswordStore};
 use crate::core::run::{RunError, RunEvent, RunSummary, Runs};
 use crate::core::snapshots::Snapshots;
 use crate::core::{api, passwords, restore, run, snapshots};
+use rust_i18n::t;
 use sak_desktop_shared::api::ApiError;
+use sak_desktop_shared::checks::{self, CheckEvent};
 use sak_desktop_shared::session::SessionManager;
 use serde::Serialize;
 use serde_json::Value;
@@ -107,6 +109,8 @@ pub async fn run_backup(
     remember: bool,
     on_event: Channel<RunEvent>,
 ) -> Result<RunSummary, RunError> {
+    // no restart of sakbackup meanwhile (restart)
+    let _busy = runs.busy();
     let given = Given {
         typed: password,
         remember,
@@ -130,6 +134,30 @@ pub fn cancel_backup(runs: State<'_, Runs>) {
     run::cancel(&runs);
 }
 
+/// the checks of core on the splash screen (sak_desktop_shared::checks): each event goes to the
+/// splash screen. A failure shows there, in the row of its check; then the user can only quit
+#[tauri::command]
+pub async fn run_checks(on_event: Channel<CheckEvent<()>>) -> Result<(), String> {
+    let channel = on_event.clone();
+    checks::run_all(crate::core::checks::checks(), move |event| {
+        checks::send(&channel, event)
+    })
+    .await
+    .inspect_err(|text| eprintln!("{text}"))?;
+    checks::send(&on_event, CheckEvent::Finished { next: () })
+}
+
+/// starts sakbackup again, the binary it was started from, which an update replaced
+/// (sak_desktop_shared::update). Refused while a backup, a restore or a delete of a snapshot goes
+/// on (`Runs::busy`), a restart would stop it
+#[tauri::command]
+pub fn restart(app: tauri::AppHandle, runs: State<'_, Runs>) -> Result<(), String> {
+    if runs.is_running() {
+        return Err(t!("ui.update.restart_while_running").to_string());
+    }
+    app.restart()
+}
+
 /// how a restore ended: the files restic could not write, each with why; it restored the others
 #[derive(Clone, Debug, Serialize)]
 pub struct RestoreSummary {
@@ -140,12 +168,15 @@ pub struct RestoreSummary {
 #[tauri::command]
 pub async fn restore_backup(
     sessions: State<'_, SessionManager>,
+    runs: State<'_, Runs>,
     passwords: State<'_, PasswordStore>,
     id: u32,
     target: Option<String>,
     password: Option<String>,
     remember: bool,
 ) -> Result<RestoreSummary, RunError> {
+    // no restart of sakbackup meanwhile (restart)
+    let _busy = runs.busy();
     let target = PathBuf::from(target.unwrap_or_else(|| "/".to_string()));
     let given = Given {
         typed: password,
@@ -174,12 +205,15 @@ pub async fn snapshots(
 #[tauri::command]
 pub async fn delete_snapshot(
     sessions: State<'_, SessionManager>,
+    runs: State<'_, Runs>,
     passwords: State<'_, PasswordStore>,
     repository_id: u64,
     snapshot_id: String,
     password: Option<String>,
     remember: bool,
 ) -> Result<(), RunError> {
+    // no restart of sakbackup meanwhile (restart)
+    let _busy = runs.busy();
     let given = Given {
         typed: password,
         remember,

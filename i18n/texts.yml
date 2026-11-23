@@ -677,10 +677,6 @@ admin_cli:
         en: "%{path} does not decrypt with the password of the SAK instance, or is damaged or not complete: %{error}"
         de: "%{path} lässt sich mit dem Passwort der SAK-Instanz nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
     checks:
-      not_finished: { en: "A check did not finish: %{error}", de: "Eine Prüfung wurde nicht beendet: %{error}" }
-      splash_not_updated:
-        en: "The splash screen could not be updated: %{error}"
-        de: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
       container_runtime:
         name: { en: "Verify container runtime", de: "docker oder podman prüfen" }
         running: { en: "Verifying container runtime…", de: "Prüfe docker oder podman…" }
@@ -1067,47 +1063,6 @@ admin_cli:
       no_restart:
         en: "No service runs old libraries, none was restarted."
         de: "Kein Dienst nutzt alte Bibliotheken, keiner wurde neu gestartet."
-    update:
-      checking:
-        en: "Asking %{receiver} for the newest release of sakadmin…"
-        de: "Frage %{receiver} nach dem neuesten Release von sakadmin…"
-      no_release:
-        en: "This sakadmin (%{version}) is no release, there is no version to compare it with."
-        de: "Dieses sakadmin (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
-      up_to_date: { en: "sakadmin %{version} is up-to-date.", de: "sakadmin %{version} ist aktuell." }
-      newer:
-        en: "sakadmin %{newest} is available, this is %{current}."
-        de: "sakadmin %{newest} ist verfügbar, dies ist %{current}."
-      installing:
-        en: "Downloading sakadmin %{version} from %{receiver}…"
-        de: "Lade sakadmin %{version} von %{receiver}…"
-      installed:
-        en: "sakadmin is updated from %{current} to %{newest}. Start sakadmin again to use it."
-        de: "sakadmin ist von %{current} auf %{newest} aktualisiert. Starte sakadmin erneut, um es zu verwenden."
-      unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
-      failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
-      not_https:
-        en: "%{url} is no https address, sakadmin asks github over https only."
-        de: "%{url} ist keine https-Adresse, sakadmin fragt github nur über https."
-      not_github:
-        en: "%{url} is no address of github, sakadmin downloads from github only."
-        de: "%{url} ist keine Adresse von github, sakadmin lädt nur von github herunter."
-      unreadable:
-        en: "The newest release on %{receiver} could not be read: %{error}"
-        de: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
-      no_asset: { en: "The release %{version} has no %{name}.", de: "Das Release %{version} hat kein %{name}." }
-      checksum_mismatch:
-        en: "The sha-256 of %{name} is not the one of its checksum, nothing was changed."
-        de: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
-      signature_invalid:
-        en: "%{name} is not signed by the release workflow of %{version}, nothing was changed: %{error}"
-        de: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
-      no_binary:
-        en: "%{name} has no %{binary}, nothing was changed."
-        de: "%{name} enthält kein %{binary}, nichts wurde geändert."
-      not_replaced:
-        en: "sakadmin at %{path} could not be replaced: %{error}"
-        de: "sakadmin unter %{path} konnte nicht ersetzt werden: %{error}"
   cli:
     mail:
       reading: { en: "Reading the mail server of %{name}…", de: "Lese den Mailserver von %{name}…" }
@@ -1209,7 +1164,6 @@ admin_cli:
     restore_no_terminal:
       en: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
       de: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
-    update_hint: { en: "Run sakadmin update to install it.", de: "sakadmin update installiert es." }
     maintenance:
       reboot_hint:
         en: "A reboot is pending, run sakadmin maintenance reboot %{name}."
@@ -1233,14 +1187,6 @@ admin_cli:
       smtp_from: { en: "Correct the sender address in the form.", de: "Korrigiere die Absenderadresse im Formular." }
     quit: { en: "Quit", de: "Beenden" }
     update:
-      version: { en: "sakadmin %{version}", de: "sakadmin %{version}" }
-      check: { en: "Check for updates", de: "Nach Updates suchen" }
-      idle:
-        en: "Asks %{receiver} for the newest release of sakadmin."
-        de: "Fragt %{receiver} nach dem neuesten Release von sakadmin."
-      install: { en: "Update to %{version}", de: "Auf %{version} aktualisieren" }
-      restart: { en: "Restart", de: "Neu starten" }
-      restart_hint: { en: "Restart to use sakadmin %{version}.", de: "Starte neu, um sakadmin %{version} zu verwenden." }
       restart_while_running:
         en: "A SAK instance is being changed, restart when it is done."
         de: "Eine SAK-Instanz wird gerade geändert, starte neu, wenn das fertig ist."
@@ -2299,7 +2245,24 @@ todo:
       de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
 
 sak_backup:
+  # the checks at the start of sakbackup (core/checks.rs)
+  common:
+    checks:
+      restic:
+        name: { en: "Find restic", de: "restic suchen" }
+        passed: { en: "restic %{version}", de: "restic %{version}" }
+        missing:
+          en: "SAK Backup needs restic to make backups. Install it, e.g. with the package manager, and start SAK Backup again."
+          de: "SAK Backup braucht restic, um Backups zu machen. Installiere es, z. B. mit dem Paketmanager, und starte SAK Backup erneut."
+        failed:
+          en: "%{program} does not run: %{error}"
+          de: "%{program} läuft nicht: %{error}"
   ui:
+    quit: { en: "Quit", de: "Beenden" }
+    update:
+      restart_while_running:
+        en: "A backup or a restore is running, restart when it is done."
+        de: "Ein Backup oder eine Wiederherstellung läuft gerade, starte neu, wenn das fertig ist."
     title: "SAK Backup"
     intro:
       en: "Sign in at your SAK instance in the browser to manage its backups."
@@ -2512,6 +2475,11 @@ sak_backup:
       en: "The backup is done, but the older snapshots could not be removed: %{error}"
       de: "Das Backup ist fertig, aber die älteren Snapshots konnten nicht entfernt werden: %{error}"
     unknown_snapshot: { en: "The repository has no snapshot of this id.", de: "Das Repository hat keinen Snapshot mit dieser ID." }
+    cancelled: { en: "The run was cancelled.", de: "Der Lauf wurde abgebrochen." }
+    running: { en: "Another backup or restore is running.", de: "Ein anderes Backup oder eine Wiederherstellung läuft gerade." }
+    needs_init:
+      en: "The repository has no backup yet. Run the backup again to create it with a password."
+      de: "Das Repository hat noch kein Backup. Starte das Backup erneut, um es mit einem Passwort anzulegen."
     restored_partly:
       en: "Restored the newest snapshot of %{plan} below %{target}, but %{count} files could not be written."
       de: "Neuesten Snapshot von %{plan} unter %{target} wiederhergestellt, aber %{count} Dateien konnten nicht geschrieben werden."
@@ -2547,7 +2515,65 @@ sak_backup:
       de: "Der Snapshot %{snapshot} hat keine Datei: Ist ein Laufwerk nicht eingehängt? Kein älterer Snapshot wurde entfernt."
 
 desktop_shared:
+  # the checks at the start of a desktop app (checks.rs) and its update (update.rs), %{app} is its
+  # name: sakadmin, sakbackup
+  common:
+    checks:
+      not_finished: { en: "A check did not finish: %{error}", de: "Eine Prüfung wurde nicht beendet: %{error}" }
+      splash_not_updated:
+        en: "The splash screen could not be updated: %{error}"
+        de: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
+    update:
+      checking:
+        en: "Asking %{receiver} for the newest release of %{app}…"
+        de: "Frage %{receiver} nach dem neuesten Release von %{app}…"
+      no_release:
+        en: "This %{app} (%{version}) is no release, there is no version to compare it with."
+        de: "Dieses %{app} (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
+      up_to_date: { en: "%{app} %{version} is up-to-date.", de: "%{app} %{version} ist aktuell." }
+      newer:
+        en: "%{app} %{newest} is available, this is %{current}."
+        de: "%{app} %{newest} ist verfügbar, dies ist %{current}."
+      installing:
+        en: "Downloading %{app} %{version} from %{receiver}…"
+        de: "Lade %{app} %{version} von %{receiver}…"
+      installed:
+        en: "%{app} is updated from %{current} to %{newest}. Start %{app} again to use it."
+        de: "%{app} ist von %{current} auf %{newest} aktualisiert. Starte %{app} erneut, um es zu verwenden."
+      unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
+      failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
+      not_https:
+        en: "%{url} is no https address, %{app} asks github over https only."
+        de: "%{url} ist keine https-Adresse, %{app} fragt github nur über https."
+      not_github:
+        en: "%{url} is no address of github, %{app} downloads from github only."
+        de: "%{url} ist keine Adresse von github, %{app} lädt nur von github herunter."
+      unreadable:
+        en: "The newest release on %{receiver} could not be read: %{error}"
+        de: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
+      no_asset: { en: "The release %{version} has no %{name}.", de: "Das Release %{version} hat kein %{name}." }
+      checksum_mismatch:
+        en: "The sha-256 of %{name} is not the one of its checksum, nothing was changed."
+        de: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
+      signature_invalid:
+        en: "%{name} is not signed by the release workflow of %{version}, nothing was changed: %{error}"
+        de: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
+      no_binary:
+        en: "%{name} has no %{binary}, nothing was changed."
+        de: "%{name} enthält kein %{binary}, nichts wurde geändert."
+      not_replaced:
+        en: "%{app} at %{path} could not be replaced: %{error}"
+        de: "%{app} unter %{path} konnte nicht ersetzt werden: %{error}"
   ui:
+    update:
+      version: { en: "%{app} %{version}", de: "%{app} %{version}" }
+      check: { en: "Check for updates", de: "Nach Updates suchen" }
+      idle:
+        en: "Asks %{receiver} for the newest release of %{app}."
+        de: "Fragt %{receiver} nach dem neuesten Release von %{app}."
+      install: { en: "Update to %{version}", de: "Auf %{version} aktualisieren" }
+      restart: { en: "Restart", de: "Neu starten" }
+      restart_hint: { en: "Restart to use %{app} %{version}.", de: "Starte neu, um %{app} %{version} zu verwenden." }
     login:
       address: { en: "SAK address", de: "SAK-Adresse" }
       address_hint:
@@ -2615,3 +2641,5 @@ desktop_shared:
   cli:
     refused: { en: "The SAK instance refused it (%{status}).", de: "Die SAK-Instanz hat es abgelehnt (%{status})." }
     failed: { en: "It failed: %{error}", de: "Es ist fehlgeschlagen: %{error}" }
+    update:
+      hint: { en: "Run %{app} update to install it.", de: "%{app} update installiert es." }

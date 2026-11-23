@@ -100,9 +100,11 @@ pub async fn all(sessions: &SessionManager, path: &str) -> Result<Vec<Value>, Ap
     }
 }
 
+/// with its causes, so the user reads why the request failed (no name, no certificate, refused);
+/// without the url, it names only the address the user typed anyway
 fn failed(error: reqwest::Error) -> ApiError {
     ApiError::Failed {
-        message: error.without_url().to_string(),
+        message: crate::errors::with_causes(&error.without_url()),
     }
 }
 

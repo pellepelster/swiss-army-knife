@@ -3,23 +3,17 @@
 // keychain, or the dialog (twice on the first backup into a repository, again when it was wrong); the
 // page shows the progress and ends with what restic did, what it skipped, or why it failed (UX-15).
 // One run at a time; it goes on while another page is open, and its row opens its page again
-import { confirmAction } from './confirm-dialog.js';
-import { askPassword } from './password-dialog.js';
+import { withPassword } from './password-dialog.js';
 import { message, signedOut } from './rows.js';
+import { confirmAction } from './shared/confirm-dialog.js';
 import { setFailure, setStatus, text } from './shared/views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
 
-// the text of a password restic refused, by where it came from
-export const WRONG = {
-  wrong_password: 'ui.plans.run_wrong_password',
-  wrong_environment_password: 'ui.plans.run_wrong_environment',
-  wrong_kept_password: 'ui.plans.run_wrong_kept',
-};
-
 // the text of a failure of restic or of the instance (UX-15): its own for the ones the user can
-// act on, else `failed` with what went wrong; null when the session is gone and the sign-in shows
-export function runFailure(failure, shell, failed) {
+// act on, else `failed` with what went wrong; null when the session is gone and the sign-in shows.
+// `repository` is the name of the repository the call was for
+export function runFailure(failure, shell, repository, failed) {
   if (failure?.kind === 'api') return signedOut(failure.error, shell) ? null : failed(message(failure.error));
   const known = {
     no_restic: () => text('ui.plans.run_no_restic'),
@@ -28,7 +22,7 @@ export function runFailure(failure, shell, failed) {
     no_snapshot: () => text('ui.plans.no_snapshot'),
     unknown_snapshot: () => text('ui.snapshots.unknown'),
     other_computer: () => text('ui.plans.run_other_computer', { host: failure.host }),
-    repository_missing: () => text('ui.plans.run_repository_missing', { repository: shown?.repository }),
+    repository_missing: () => text('ui.plans.run_repository_missing', { repository }),
   }[failure?.kind];
   return known ? known() : failed(failure?.message ?? String(failure));
 }
@@ -91,7 +85,7 @@ close.addEventListener('click', () => {
   else shell.open('plans');
 });
 
-// one run of restic; the error it ended with, null when it backed up
+// one run of restic; it throws the error it ended with
 async function run(password, init, remember) {
   running = true;
   changed();
@@ -136,17 +130,18 @@ async function run(password, init, remember) {
     if (summary.empty) {
       setFailure(status, `${done} ${text('ui.plans.run_empty')}`);
     } else if (summary.expireFailed) {
-      setFailure(status, `${done} ${text('ui.plans.run_expire_failed', { error: summary.expireFailed })}`);
+      // null: the session is gone, the sign-in shows
+      const why = runFailure(summary.expireFailed, shell, shown.repository, (error) => error);
+      if (why !== null) setFailure(status, `${done} ${text('ui.plans.run_expire_failed', { error: why })}`);
     } else if (summary.removed > 0) {
       setStatus(status, `${done} ${text('ui.plans.run_removed', { count: summary.removed })}`);
     } else {
       setStatus(status, done);
     }
-    return null;
   } catch (failure) {
     progress.hidden = true;
     setStatus(status, '');
-    return failure;
+    throw failure;
   } finally {
     running = false;
     close.textContent = text('ui.plans.run_back');
@@ -154,90 +149,55 @@ async function run(password, init, remember) {
   }
 }
 
-// runs the backup plan on its page, asking for the password as long as it is needed: first with none,
-// so rust takes the one of SAK_BACKUP_REPO_PASSWORD or the kept one; twice for a new repository.
-// `repository` is the name of its repository
+// a run on its page with the password it needs (`withPassword`): back to the backup plans when the
+// user cancelled, else its failure on the page (UX-15), `failed` is the key of its text
+async function withRunPassword(options, call, failed) {
+  try {
+    const done = await withPassword(options, call);
+    if (done === null) shell.open('plans');
+  } catch (failure) {
+    const said = runFailure(failure, shell, shown.repository, (error) => text(failed, { error }));
+    if (said !== null) setFailure(status, said);
+  }
+}
+
+// runs the backup plan on its page, asking for the password as long as it is needed; twice for a
+// new repository. `repository` is the name of its repository
 export async function startRun(plan, repository) {
   if (running) return;
   shown = { plan, repository, kind: 'backup' };
   showRun();
-  const ask = (options) =>
-    askPassword({ title: text('ui.plans.run'), action: text('ui.plans.run_start'), ...options });
-  let password = null;
-  let init = false;
-  let remember = false;
-  for (;;) {
-    const failure = await run(password, init, remember);
-    if (failure === null) return;
-    let asked;
+  const create = {
+    hint: text('ui.plans.run_init_hint', { repository }),
     // a new repository with the password of SAK_BACKUP_REPO_PASSWORD: only when the user says so (BK-6)
-    if (failure?.kind === 'needs_init_environment') {
-      const confirmed = await confirmAction({
+    confirm: () =>
+      confirmAction({
         title: text('ui.plans.run_init_environment_title', { repository }),
         message: text('ui.plans.run_init_environment', { repository }),
         action: text('ui.plans.run_init_environment_action'),
-      });
-      if (!confirmed) {
-        shell.open('plans');
-        return;
-      }
-      init = true;
-      continue;
-    }
-    if (failure?.kind === 'needs_init') {
-      init = true;
-      asked = await ask({ twice: true, hint: text('ui.plans.run_init_hint', { repository }) });
-    } else if (failure?.kind === 'no_password') {
-      asked = await ask({ twice: init });
-    } else if (WRONG[failure?.kind]) {
-      asked = await ask({ twice: init, failure: text(WRONG[failure.kind]) });
-    } else {
-      const said = runFailure(failure, shell, (error) => text('ui.plans.run_failed', { error }));
-      if (said !== null) setFailure(status, said);
-      return;
-    }
-    // cancelled in the dialog: back to the backup plans
-    if (asked === null) {
-      shell.open('plans');
-      return;
-    }
-    ({ password, remember } = asked);
-  }
+      }),
+  };
+  await withRunPassword(
+    { title: text('ui.plans.run'), action: text('ui.plans.run_start'), create },
+    (password, remember, init) => run(password, init, remember),
+    'ui.plans.run_failed',
+  );
 }
 
 // restores the newest snapshot of the backup plan on its page, below target or where the files were
-// for null; asking for the password as long as it is needed, first with none as for a backup
+// for null; asking for the password as long as it is needed
 export async function startRestore(plan, repository, target) {
   if (running) return;
   shown = { plan, repository, kind: 'restore' };
   showRun();
-  let password = null;
-  let remember = false;
-  for (;;) {
-    const failure = await restore(target, password, remember);
-    if (failure === null) return;
-    if (failure?.kind === 'no_password' || WRONG[failure?.kind]) {
-      const asked = await askPassword({
-        title: text('ui.plans.restore'),
-        action: text('ui.plans.restore'),
-        hint: plan.name,
-        failure: WRONG[failure.kind] ? text(WRONG[failure.kind]) : '',
-      });
-      // cancelled in the dialog: back to the backup plans
-      if (asked === null) {
-        shell.open('plans');
-        return;
-      }
-      ({ password, remember } = asked);
-    } else {
-      const said = runFailure(failure, shell, (error) => text('ui.plans.restore_failed', { error }));
-      if (said !== null) setFailure(status, said);
-      return;
-    }
-  }
+  await withRunPassword(
+    { title: text('ui.plans.restore'), hint: plan.name },
+    (password, remember) => restore(target, password, remember),
+    'ui.plans.restore_failed',
+  );
 }
 
-// one restore of restic; the error it ended with, null when it restored, maybe skipping files
+// one restore of restic, maybe skipping files; it throws the error it ended with
 async function restore(target, password, remember) {
   running = true;
   changed();
@@ -260,10 +220,9 @@ async function restore(target, password, remember) {
       const name = shown.plan.name;
       setStatus(status, target ? text('ui.plans.restored_to', { name, target }) : text('ui.plans.restored', { name }));
     }
-    return null;
   } catch (failure) {
     setStatus(status, '');
-    return failure;
+    throw failure;
   } finally {
     running = false;
     changed();

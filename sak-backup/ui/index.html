@@ -11,13 +11,30 @@
     <link rel="stylesheet" href="theme/tokens.css">
     <link rel="stylesheet" href="theme/bootstrap.css">
     <link rel="stylesheet" href="theme/components.css">
+    <link rel="stylesheet" href="shared/views.css">
     <link rel="stylesheet" href="shared/login.css">
+    <link rel="stylesheet" href="shared/update.css">
+    <link rel="stylesheet" href="shared/checks.css">
     <link rel="stylesheet" href="style.css">
     <script type="module" src="app.js"></script>
   </head>
   <body>
     <!-- one view at a time (show() of shared/views.js), the sign-in is shared/login.js; data-text
          is the key of a text of src-tauri/locales/ -->
+    <!-- the checks at the start (shared/checks.js): the sign-in follows when they pass -->
+    <main class="view splash" id="view-splash">
+      <div class="splash-brand">
+        <img class="splash-icon" src="theme/images/icon.svg" alt="">
+        <h1 class="splash-title" data-text="ui.title"></h1>
+        <div class="splash-checks">
+          <ul class="plain-list checks" id="checks" aria-live="polite"></ul>
+          <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
+        </div>
+      </div>
+      <div class="splash-footer btn-group" role="group">
+        <button type="button" class="btn btn-outline-secondary" id="splash-quit" data-text="ui.quit" disabled></button>
+      </div>
+    </main>
     <div class="view shell" id="view-shell" hidden>
       <nav class="shell-nav" data-text-label="ui.nav.label">
         <div class="shell-brand">
@@ -51,7 +68,7 @@
         <!-- the repositories of the instance (BACKUP-1): their list (UX-11) and the form that creates one -->
         <section class="page" id="page-repositories" hidden>
           <p class="hint" id="repositories-status" aria-live="polite"></p>
-          <ul class="rows" id="repositories-list"></ul>
+          <ul class="plain-list rows" id="repositories-list"></ul>
         </section>
         <section class="page page-fill" id="page-repository" hidden>
           <form class="page-form" id="repository-form" novalidate>
@@ -99,13 +116,13 @@
             </div>
           </form>
           <p class="hint" id="snapshots-status" aria-live="polite"></p>
-          <ul class="rows" id="snapshots-list"></ul>
+          <ul class="plain-list rows" id="snapshots-list"></ul>
         </section>
 
         <!-- the backup plans (BACKUP-5): their list and the form that creates or changes one -->
         <section class="page" id="page-plans" hidden>
           <p class="hint" id="plans-status" aria-live="polite"></p>
-          <ul class="rows" id="plans-list"></ul>
+          <ul class="plain-list rows" id="plans-list"></ul>
         </section>
         <section class="page page-fill" id="page-plan" hidden>
           <form class="page-form" id="plan-form" novalidate>
@@ -122,7 +139,7 @@
             </div>
             <fieldset>
               <legend class="form-label" data-text="ui.plans.paths"></legend>
-              <ul class="paths" id="plan-paths"></ul>
+              <ul class="plain-list paths" id="plan-paths"></ul>
               <div class="btn-group path-buttons" role="group">
                 <button type="button" class="btn btn-outline-secondary" id="plan-add-folder" data-text="ui.plans.add_folder"></button>
                 <button type="button" class="btn btn-outline-secondary" id="plan-add-file" data-text="ui.plans.add_file"></button>
@@ -170,23 +187,10 @@
     </div>
 
     <!-- the password of a repository, asked for when restic needs it and no variable gives it
-         (password-dialog.js); it goes to rust for one call, never into the page beyond it -->
-    <!-- the question before an action that changes files of this computer (confirm-dialog.js) -->
-    <dialog class="password-dialog" id="confirm-dialog" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message">
-      <form method="dialog" class="page-form" id="confirm-dialog-form" novalidate>
-        <h2 class="h5 mb-0" id="confirm-dialog-title"></h2>
-        <p id="confirm-dialog-message"></p>
-        <div class="form-buttons">
-          <div class="btn-group" role="group">
-            <button type="button" class="btn btn-outline-secondary" id="confirm-dialog-cancel" data-text="ui.cancel"></button>
-            <button type="submit" class="btn btn-primary" id="confirm-dialog-submit"></button>
-          </div>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog class="password-dialog" id="password-dialog" aria-labelledby="password-dialog-title">
-      <form method="dialog" class="page-form" id="password-dialog-form" novalidate>
+         (password-dialog.js); it goes to rust for one call, never into the page beyond it. The
+         question before an action (shared/confirm-dialog.js) builds its own dialog -->
+    <dialog class="dialog" id="password-dialog" aria-labelledby="password-dialog-title">
+      <form method="dialog" id="password-dialog-form" novalidate>
         <h2 class="h5 mb-0" id="password-dialog-title"></h2>
         <p class="hint" id="password-dialog-hint"></p>
         <div>
@@ -205,7 +209,7 @@
           </div>
           <div class="form-text" id="password-dialog-remember-hint" data-text="ui.plans.remember_hint"></div>
         </div>
-        <div class="field-error" id="password-dialog-error"></div>
+        <div class="field-error" id="password-dialog-error" role="alert"></div>
         <div class="form-buttons">
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-outline-secondary" id="password-dialog-cancel" data-text="ui.cancel"></button>
@@ -214,5 +218,11 @@
         </div>
       </form>
     </dialog>
+    <!-- the version of sakbackup and its update (shared/update.js), below every view -->
+    <footer class="app-footer">
+      <span id="update-version"></span>
+      <button type="button" class="btn btn-outline-secondary btn-sm" id="update-button"></button>
+      <span class="hint update-status" id="update-status" aria-live="polite"></span>
+    </footer>
   </body>
 </html>

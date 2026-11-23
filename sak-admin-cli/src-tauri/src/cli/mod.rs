@@ -15,6 +15,7 @@ mod server;
 #[cfg(test)]
 mod tests;
 
+use crate::core::APP;
 use crate::core::backup;
 use crate::core::checks::{self, CheckEvent, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
@@ -27,7 +28,6 @@ use crate::core::deployments::{
 };
 use crate::core::error::{EXIT_OK, EXIT_UPDATE_AVAILABLE, EXIT_USAGE, SakadminError};
 use crate::core::providers::ProviderType;
-use crate::core::update::{self, RECEIVER, Status};
 use anstyle::{AnsiColor, Style};
 use args::*;
 pub use args::{Cli, Command};
@@ -38,6 +38,7 @@ use mail::*;
 use rust_i18n::t;
 use sak_cloud::hetzner::api::Location;
 use sak_cloud::hetzner::deployment::DnsMode;
+use sak_desktop_shared::update;
 use secrets::*;
 use server::*;
 use std::collections::HashMap;
@@ -75,37 +76,15 @@ pub fn run(command: Command) -> i32 {
     }
 }
 
-/// compares sakadmin with the newest release on github.com and, unless `check`, installs a newer one.
-/// With `check` a newer release ends with `EXIT_UPDATE_AVAILABLE`
+/// compares sakadmin with the newest release on github.com and, unless `check`, installs a newer one
+/// (sak_desktop_shared::update). With `check` a newer release ends with `EXIT_UPDATE_AVAILABLE`
 async fn update(check: bool) -> Result<i32, SakadminError> {
-    if !update::is_release() {
-        log(Level::Info, Status::NoRelease.message());
-        return Ok(EXIT_OK);
-    }
-    log(
-        Level::Info,
-        t!("common.update.checking", receiver = RECEIVER),
-    );
-    let status = update::check().await?;
-    log(Level::Info, status.message());
-    let Status::Newer { newest, .. } = status else {
-        return Ok(EXIT_OK);
-    };
-    if check {
-        log(Level::Info, t!("cli.update_hint"));
-        return Ok(EXIT_UPDATE_AVAILABLE);
-    }
-    log(
-        Level::Info,
-        t!(
-            "common.update.installing",
-            version = newest,
-            receiver = RECEIVER
-        ),
-    );
-    let installed = update::install().await?;
-    log(Level::Info, installed.installed_message());
-    Ok(EXIT_OK)
+    let available = update::run(&APP, check, &|line| log(Level::Info, line)).await?;
+    Ok(if available {
+        EXIT_UPDATE_AVAILABLE
+    } else {
+        EXIT_OK
+    })
 }
 
 /// the startup checks of the window, each one logged, with the token of the command

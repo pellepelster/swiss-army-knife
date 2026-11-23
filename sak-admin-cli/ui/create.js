@@ -4,7 +4,8 @@
 // one with deployments in dns mode `subdomain` allows only that mode
 import { openedDeployment } from './password.js';
 import { runDestroy, showPlan } from './run.js';
-import { navigate, setFailure, setStatus, show, text } from './shared/views.js';
+import { confirmAction } from './shared/confirm-dialog.js';
+import { navigate, setBusy, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -23,7 +24,6 @@ const domainModeInput = document.getElementById('create-dns-mode-domain');
 const deleteDataGroup = document.getElementById('create-delete-data-group');
 const deleteDataInput = document.getElementById('create-delete-data');
 const createView = document.getElementById('view-create');
-const confirmDialog = document.getElementById('destroy-confirm');
 const adminEmailInput = document.getElementById('create-admin-email');
 const sourceHint = document.getElementById('create-source');
 // a destroy uses the password the deployment was opened with
@@ -61,16 +61,15 @@ function showDeleteData() {
 
 deleteDataInput.addEventListener('change', showDeleteData);
 
-// true to continue; Escape cancels
+// true to continue; Escape cancels. A destroy that deletes the data volume shows red as the form
 function confirmDestroy(name) {
   const withData = deleteDataInput.checked;
-  document.getElementById('destroy-confirm-title').textContent = text('ui.confirm.title', { name });
-  document.getElementById('destroy-confirm-text').textContent = text(withData ? 'ui.confirm.text_with_data' : 'ui.confirm.text');
-  confirmDialog.classList.toggle('danger-zone', withData);
-  confirmDialog.returnValue = '';
-  confirmDialog.showModal();
-  return new Promise((resolve) => {
-    confirmDialog.addEventListener('close', () => resolve(confirmDialog.returnValue === 'destroy'), { once: true });
+  return confirmAction({
+    title: text('ui.confirm.title', { name }),
+    message: text(withData ? 'ui.confirm.text_with_data' : 'ui.confirm.text'),
+    action: text('ui.plan.destroy'),
+    danger: true,
+    className: withData ? 'danger-zone' : '',
   });
 }
 const dnsModeHint = document.getElementById('create-dns-mode-hint');
@@ -359,10 +358,8 @@ const planButton = document.getElementById('create-plan');
 
 
 // after the plan, the fields that the intent or the root domain disable stay disabled
-function setBusy(busy) {
-  for (const element of form.elements) {
-    element.disabled = busy;
-  }
+function setFormBusy(busy) {
+  setBusy(form, busy);
   if (!busy) {
     locationInput.disabled = Boolean(existing);
     dnsModeGroup.disabled = intent === 'destroy';
@@ -485,7 +482,7 @@ form.addEventListener('submit', async (event) => {
       return;
     }
     // cancel is busy too, so a cancel cannot slip in between the plan and the run
-    setBusy(true);
+    setFormBusy(true);
     setStatus(status, text('ui.create.planning'));
     let plan;
     const deployment = newDeployment();
@@ -495,13 +492,13 @@ form.addEventListener('submit', async (event) => {
       setFailure(status, String(error));
       return;
     } finally {
-      setBusy(false);
+      setFormBusy(false);
     }
     setStatus(status, '');
     runDestroy(plan, deployment);
     return;
   }
-  setBusy(true);
+  setFormBusy(true);
   setStatus(status, text('ui.create.planning'));
   try {
     const deployment = newDeployment();
@@ -511,7 +508,7 @@ form.addEventListener('submit', async (event) => {
   } catch (error) {
     setFailure(status, String(error));
   } finally {
-    setBusy(false);
+    setFormBusy(false);
   }
 });
 

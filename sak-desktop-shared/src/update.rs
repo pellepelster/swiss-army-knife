@@ -1,40 +1,61 @@
-//! the update of sakadmin to the newest release on github. Only on request: github sees the address
-//! of the machine (architecture/SYSTEM.md, "Privacy"), so the ui names it (`RECEIVER`) before it
-//! asks. The zip is checked against the sha-256 of the release and its cosign signature by the
-//! release workflow at the tag (`signer`), offline against the trusted root of sigstore built into
-//! sakadmin, so no host but github sees the update. A build that is no release (`latest`) asks
-//! nothing
+//! the update of a desktop app (sakadmin, sakbackup: its `App`) to the newest release on github.
+//! Only on request: github sees the address of the machine (architecture/SYSTEM.md, "Privacy"), so
+//! the ui names it (`RECEIVER`) before it asks. The zip is checked against the sha-256 of the release
+//! and its cosign signature by the release workflow at the tag (`sigstore::signer_at_tag`), offline
+//! against the trusted root of sigstore built into the app, so no host but github sees the update. A build that
+//! is no release (`latest`) asks nothing. The command line of an app runs `run`, its window the
+//! commands `version`, `check_update` and `install_update` (ui/update.js)
 
-use crate::core::VERSION;
-use crate::core::config::with_causes;
+use crate::encoding::{hex, random_hex};
+use crate::errors::with_causes;
+use crate::sigstore::{self, Identity, SIGNER_ISSUER, Signed};
 use reqwest::Client;
-use reqwest::redirect::{Attempt, Policy};
 use rust_i18n::t;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Cursor, Read};
 use std::path::Path;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 pub const RECEIVER: &str = "github.com";
+
+/// a desktop app as its release has it; an app keeps one and hands it to its window (`manage`).
+/// Its version is the one of the build (`crate::VERSION`)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct App {
+    /// the name of the program, as the texts say it: sakadmin
+    pub name: &'static str,
+    /// how its zips start: `<zip>-<system>-<architecture>-<version>.zip`, e.g. sak-admin-cli
+    pub zip: &'static str,
+}
+
+impl App {
+    pub const fn new(name: &'static str, zip: &'static str) -> Self {
+        App { name, zip }
+    }
+
+    /// the binaries in the zip, the update replaces all: on windows the window (`<name>.exe`,
+    /// without a console) and the command line (`<name>-cli.exe`, the feature `console`,
+    /// desktop:build)
+    pub fn binaries(&self) -> Vec<String> {
+        if cfg!(windows) {
+            vec![
+                format!("{}.exe", self.name),
+                format!("{}-cli.exe", self.name),
+            ]
+        } else {
+            vec![self.name.to_string()]
+        }
+    }
+}
 
 /// the releases of the repository; `releases/latest` is the newest one that is neither a draft nor
 /// a pre-release
 const API: &str = "https://api.github.com/repos/pellepelster/swiss-army-knife";
 
-/// who signs the zips of a release (`mise run admin-cli:release`): the release workflow, with a
-/// certificate of sigstore for its id token
-const SIGNER_WORKFLOW: &str =
-    "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml";
-const SIGNER_ISSUER: &str = "https://token.actions.githubusercontent.com";
-
-/// the workflow at the tag of `version`, so a signed zip of another release or branch fails
-fn signer(version: &Version) -> String {
-    format!("{SIGNER_WORKFLOW}@refs/tags/v{version}")
-}
-
-/// `<system>-<architecture>` of `sak-admin-cli-<system>-<architecture>-<version>.zip`; `macos-universal`
+/// `<system>-<architecture>` of `<zip>-<system>-<architecture>-<version>.zip`; `macos-universal`
 /// for both macOS architectures. An architecture the release does not build finds no zip
 fn platform() -> String {
     match std::env::consts::OS {
@@ -43,30 +64,26 @@ fn platform() -> String {
     }
 }
 
-/// the binaries in the zip, the update replaces all: on windows the window (sakadmin.exe, without a
-/// console) and the command line (sakadmin-cli.exe, the feature `console`)
-#[cfg(windows)]
-const BINARIES: &[&str] = &["sakadmin.exe", "sakadmin-cli.exe"];
-#[cfg(not(windows))]
-const BINARIES: &[&str] = &["sakadmin"];
-
 /// the binary of the zip that runs: by the name of this program, the first when it was renamed
-fn running() -> &'static str {
+fn running(binaries: &[String]) -> String {
     let name = std::env::current_exe().ok().and_then(|path| {
         path.file_name()
             .map(|name| name.to_string_lossy().to_string())
     });
-    BINARIES
+    binaries
         .iter()
-        .find(|binary| name.as_deref() == Some(**binary))
-        .unwrap_or(&BINARIES[0])
+        .find(|binary| name.as_deref() == Some(binary.as_str()))
+        .unwrap_or(&binaries[0])
+        .clone()
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum Status {
-    /// nothing was asked
-    NoRelease,
+    /// nothing was asked: `current` is the version of a build that is no release, e.g. latest
+    NoRelease {
+        current: String,
+    },
     /// this version is the newest release, or newer
     UpToDate {
         current: String,
@@ -77,32 +94,46 @@ pub enum Status {
     },
 }
 
+/// whether this build is a release, which an update compares with the newest one
 pub fn is_release() -> bool {
-    Version::parse(VERSION).is_ok()
+    Version::parse(crate::VERSION).is_ok()
 }
 
 impl Status {
-    pub fn message(&self) -> String {
+    pub fn message(&self, app: &App) -> String {
         match self {
-            Status::NoRelease => t!("common.update.no_release", version = VERSION).to_string(),
-            Status::UpToDate { current } => {
-                t!("common.update.up_to_date", version = current).to_string()
-            }
-            Status::Newer { current, newest } => {
-                t!("common.update.newer", current = current, newest = newest).to_string()
-            }
-        }
-    }
-
-    pub fn installed_message(&self) -> String {
-        match self {
+            Status::NoRelease { current } => t!(
+                "common.update.no_release",
+                app = app.name,
+                version = current
+            )
+            .to_string(),
+            Status::UpToDate { current } => t!(
+                "common.update.up_to_date",
+                app = app.name,
+                version = current
+            )
+            .to_string(),
             Status::Newer { current, newest } => t!(
-                "common.update.installed",
+                "common.update.newer",
+                app = app.name,
                 current = current,
                 newest = newest
             )
             .to_string(),
-            status => status.message(),
+        }
+    }
+
+    pub fn installed_message(&self, app: &App) -> String {
+        match self {
+            Status::Newer { current, newest } => t!(
+                "common.update.installed",
+                app = app.name,
+                current = current,
+                newest = newest
+            )
+            .to_string(),
+            status => status.message(app),
         }
     }
 }
@@ -129,15 +160,84 @@ struct LatestRelease {
     assets: Vec<Asset>,
 }
 
-pub async fn check() -> Result<Status, String> {
-    Updater::github().check().await
+pub async fn check(app: &App) -> Result<Status, String> {
+    Updater::github(*app).check().await
 }
 
-/// replaces this sakadmin with the newest release when it is newer; it runs from the next start
-pub async fn install() -> Result<Status, String> {
-    Updater::github()
+/// replaces this app with the newest release when it is newer; it runs from the next start
+pub async fn install(app: &App) -> Result<Status, String> {
+    Updater::github(*app)
         .install(&|binary| self_replace::self_replace(binary))
         .await
+}
+
+/// what the command `update` of an app does: compares the app with the newest release on github.com
+/// and, unless `check_only`, installs a newer one; each step is a line for `log`. True when a newer
+/// release is there and was not installed (`check_only`)
+pub async fn run(app: &App, check_only: bool, log: &dyn Fn(String)) -> Result<bool, String> {
+    Updater::github(*app).run(check_only, log).await
+}
+
+/// the version in the footer of the window, the name of the app and who a check asks
+#[derive(Serialize)]
+pub struct VersionResponse {
+    pub app: &'static str,
+    pub version: &'static str,
+    pub receiver: &'static str,
+}
+
+/// what a check or an install found: the message to show, the newer version when there is one,
+/// and whether an install replaced the app, so a restart starts the new version
+#[derive(Serialize)]
+pub struct UpdateResponse {
+    message: String,
+    newest: Option<String>,
+    installed: bool,
+}
+
+/// the commands of the footer of the window (ui/update.js), for the `App` the window manages; the
+/// footer asks github only when the user clicks, its button names github first. The restart after
+/// an install is the app's own command `restart`: it knows what must not be stopped
+#[tauri::command]
+pub fn version(app: tauri::State<'_, App>) -> VersionResponse {
+    version_of(&app)
+}
+
+pub fn version_of(app: &App) -> VersionResponse {
+    VersionResponse {
+        app: app.name,
+        version: crate::VERSION,
+        receiver: RECEIVER,
+    }
+}
+
+#[tauri::command]
+pub async fn check_update(app: tauri::State<'_, App>) -> Result<UpdateResponse, String> {
+    let status = check(&app).await?;
+    Ok(UpdateResponse {
+        message: status.message(&app),
+        newest: newer(&status),
+        installed: false,
+    })
+}
+
+/// the new version runs from the next start of the app
+#[tauri::command]
+pub async fn install_update(app: tauri::State<'_, App>) -> Result<UpdateResponse, String> {
+    let status = install(&app).await?;
+    let newest = newer(&status);
+    Ok(UpdateResponse {
+        message: status.installed_message(&app),
+        installed: newest.is_some(),
+        newest,
+    })
+}
+
+fn newer(status: &Status) -> Option<String> {
+    match status {
+        Status::Newer { newest, .. } => Some(newest.clone()),
+        _ => None,
+    }
 }
 
 /// checks the zip `name` of the release `version` against its cosign signature
@@ -147,20 +247,51 @@ type SignatureCheck =
 /// the tests use a mock server over plain http and a signature check that needs no zip signed by
 /// the release workflow
 struct Updater {
-    api: String,
+    app: App,
+    /// the version of the app, `crate::VERSION` but in the tests
     current: &'static str,
+    api: String,
     https_only: bool,
     signature: SignatureCheck,
+    /// the client of all requests of this update, built with the first one (`client`)
+    client: OnceLock<Client>,
 }
 
 impl Updater {
-    fn github() -> Self {
+    fn github(app: App) -> Self {
+        Updater::new(app, crate::VERSION, API.to_string(), true, verify_signature)
+    }
+
+    fn new(
+        app: App,
+        current: &'static str,
+        api: String,
+        https_only: bool,
+        signature: SignatureCheck,
+    ) -> Self {
         Updater {
-            api: API.to_string(),
-            current: VERSION,
-            https_only: true,
-            signature: verify_signature,
+            app,
+            current,
+            api,
+            https_only,
+            signature,
+            client: OnceLock::new(),
         }
+    }
+
+    /// https only (plain http for the tests), redirects only to github and its storage, where
+    /// github sends the download of an asset
+    fn client(&self) -> Result<&Client, String> {
+        if let Some(client) = self.client.get() {
+            return Ok(client);
+        }
+        let client = sigstore::github_client(
+            &format!("{}/{}", self.app.name, self.current),
+            Duration::from_secs(300),
+            self.https_only,
+            is_github,
+        )?;
+        Ok(self.client.get_or_init(|| client))
     }
 
     /// none for a build that is no release
@@ -168,9 +299,51 @@ impl Updater {
         Version::parse(self.current).ok()
     }
 
+    fn no_release(&self) -> Status {
+        Status::NoRelease {
+            current: self.current.to_string(),
+        }
+    }
+
+    /// what the command `update` of the app does (`run`)
+    async fn run(&self, check_only: bool, log: &dyn Fn(String)) -> Result<bool, String> {
+        let app = &self.app;
+        if self.current().is_none() {
+            log(self.no_release().message(app));
+            return Ok(false);
+        }
+        log(t!(
+            "common.update.checking",
+            app = app.name,
+            receiver = RECEIVER
+        )
+        .to_string());
+        let status = self.check().await?;
+        log(status.message(app));
+        let Status::Newer { newest, .. } = status else {
+            return Ok(false);
+        };
+        if check_only {
+            log(t!("cli.update.hint", app = app.name).to_string());
+            return Ok(true);
+        }
+        log(t!(
+            "common.update.installing",
+            app = app.name,
+            version = newest,
+            receiver = RECEIVER
+        )
+        .to_string());
+        log(self
+            .install(&|binary| self_replace::self_replace(binary))
+            .await?
+            .installed_message(app));
+        Ok(false)
+    }
+
     async fn check(&self) -> Result<Status, String> {
         let Some(current) = self.current() else {
-            return Ok(Status::NoRelease);
+            return Ok(self.no_release());
         };
         Ok(status(&current, &self.latest().await?.version))
     }
@@ -182,7 +355,7 @@ impl Updater {
         replace: &(dyn Fn(&Path) -> std::io::Result<()> + Sync),
     ) -> Result<Status, String> {
         let Some(current) = self.current() else {
-            return Ok(Status::NoRelease);
+            return Ok(self.no_release());
         };
         let release = self.latest().await?;
         let status = status(&current, &release.version);
@@ -196,17 +369,18 @@ impl Updater {
         verify(&zip, &checksum, &release.zip.name)?;
         let bundle = self.download(&release.bundle.browser_download_url).await?;
         (self.signature)(&zip, &bundle, &release.zip.name, &release.version)?;
-        let binaries = BINARIES
+        let names = self.app.binaries();
+        let binaries = names
             .iter()
-            .map(|binary| Ok((*binary, unzip(&zip, &release.zip.name, binary)?)))
+            .map(|binary| Ok((binary, unzip(&zip, &release.zip.name, binary)?)))
             .collect::<Result<Vec<_>, String>>()?;
         // the others next to this one first, the running one last
-        let running = running();
-        for (name, binary) in binaries.iter().filter(|(name, _)| *name != running) {
-            write_beside(name, binary)?;
+        let running = running(&names);
+        for (name, binary) in binaries.iter().filter(|(name, _)| **name != running) {
+            write_beside(&self.app, name, binary)?;
         }
-        if let Some((_, binary)) = binaries.iter().find(|(name, _)| *name == running) {
-            write_and_replace(binary, replace)?;
+        if let Some((_, binary)) = binaries.iter().find(|(name, _)| **name == running) {
+            write_and_replace(&self.app, binary, replace)?;
         }
         Ok(status)
     }
@@ -230,7 +404,7 @@ impl Updater {
             )
             .to_string()
         })?;
-        let zip_name = format!("sak-admin-cli-{}-{version}.zip", platform());
+        let zip_name = format!("{}-{}-{version}.zip", self.app.zip, platform());
         let asset = |name: &str| {
             latest
                 .assets
@@ -269,9 +443,10 @@ impl Updater {
 
     async fn get(&self, url: &str) -> Result<reqwest::Response, String> {
         if self.https_only {
-            to_github(url)?;
+            to_github(url, &self.app)?;
         }
-        let response = client(self.https_only)?
+        let response = self
+            .client()?
             .get(url)
             .header(reqwest::header::ACCEPT, "application/vnd.github+json")
             .send()
@@ -311,38 +486,16 @@ fn status(current: &Version, newest: &Version) -> Status {
     }
 }
 
-/// https only (plain http for the tests), redirects only to github and its storage, where github
-/// sends the download of an asset
-fn client(https_only: bool) -> Result<Client, String> {
-    Client::builder()
-        .user_agent(concat!("sakadmin/", env!("SAK_VERSION")))
-        .timeout(Duration::from_secs(300))
-        .redirect(Policy::custom(follow_to_github))
-        .https_only(https_only)
-        .build()
-        .map_err(|error| error.to_string())
-}
-
-fn follow_to_github(attempt: Attempt) -> reqwest::redirect::Action {
-    let allowed =
-        attempt.url().scheme() == "https" && attempt.url().host_str().is_some_and(is_github);
-    if allowed && attempt.previous().len() < 5 {
-        attempt.follow()
-    } else {
-        attempt.stop()
-    }
-}
-
-/// the first url as `follow_to_github` checks the redirects
-fn to_github(url: &str) -> Result<(), String> {
+/// the first url as the client checks the redirects (`sigstore::github_client`)
+fn to_github(url: &str, app: &App) -> Result<(), String> {
     if !url.starts_with("https://") {
-        return Err(t!("common.update.not_https", url = url).to_string());
+        return Err(t!("common.update.not_https", app = app.name, url = url).to_string());
     }
     let host = reqwest::Url::parse(url)
         .ok()
         .and_then(|url| url.host_str().map(str::to_string));
     if !host.as_deref().is_some_and(is_github) {
-        return Err(t!("common.update.not_github", url = url).to_string());
+        return Err(t!("common.update.not_github", app = app.name, url = url).to_string());
     }
     Ok(())
 }
@@ -358,7 +511,7 @@ fn verify(zip: &[u8], checksum: &[u8], name: &str) -> Result<(), String> {
         .next()
         .unwrap_or_default()
         .to_ascii_lowercase();
-    let actual = crate::core::encoding::hex(&Sha256::digest(zip));
+    let actual = hex(&Sha256::digest(zip));
     if expected == actual {
         Ok(())
     } else {
@@ -366,31 +519,28 @@ fn verify(zip: &[u8], checksum: &[u8], name: &str) -> Result<(), String> {
     }
 }
 
-/// signed by the release workflow at the tag of `version` (`signer`)
+/// signed by the release workflow at the tag of `version` (`sigstore::signer_at_tag`)
 fn verify_signature(
     zip: &[u8],
     bundle: &[u8],
     name: &str,
     version: &Version,
 ) -> Result<(), String> {
-    let identity = sigstore_verify::IdentityMatcher::Uri(signer(version));
+    let identity = Identity::Uri(sigstore::signer_at_tag(version));
     verify_signed_by(zip, bundle, name, version, identity, SIGNER_ISSUER)
 }
 
-/// the certificate for `identity` of `issuer`, the signature and the entry in the transparency
-/// log, all against the trusted root of sigstore built into sakadmin
+/// the zip `name` of the release `version` is signed by `identity` of `issuer` (`sigstore::verify`),
+/// or the text that says it is not
 fn verify_signed_by(
     zip: &[u8],
     bundle: &[u8],
     name: &str,
     version: &Version,
-    identity: sigstore_verify::IdentityMatcher,
+    identity: Identity,
     issuer: &str,
 ) -> Result<(), String> {
-    use sigstore_verify::VerificationPolicy;
-    use sigstore_verify::trust_root::{SIGSTORE_PRODUCTION_TRUSTED_ROOT, TrustedRoot};
-    use sigstore_verify::types::Bundle;
-    let invalid = |error: String| {
+    sigstore::verify(Signed::Content(zip), bundle, identity, issuer).map_err(|error| {
         t!(
             "common.update.signature_invalid",
             name = name,
@@ -398,17 +548,7 @@ fn verify_signed_by(
             error = error
         )
         .to_string()
-    };
-    let root = TrustedRoot::from_json(SIGSTORE_PRODUCTION_TRUSTED_ROOT)
-        .map_err(|error| invalid(error.to_string()))?;
-    let bundle = std::str::from_utf8(bundle)
-        .map_err(|error| error.to_string())
-        .and_then(|json| Bundle::from_json(json).map_err(|error| error.to_string()))
-        .map_err(invalid)?;
-    let policy = VerificationPolicy::new(identity, issuer);
-    sigstore_verify::verify(zip, &bundle, &policy, &root)
-        .map(|_| ())
-        .map_err(|error| invalid(error.to_string()))
+    })
 }
 
 fn unzip(zip: &[u8], name: &str, binary: &str) -> Result<Vec<u8>, String> {
@@ -423,13 +563,11 @@ fn unzip(zip: &[u8], name: &str, binary: &str) -> Result<Vec<u8>, String> {
 
 /// writes the binary to a temporary executable file that `replace` puts in place of the running one
 fn write_and_replace(
+    app: &App,
     binary: &[u8],
     replace: &(dyn Fn(&Path) -> std::io::Result<()> + Sync),
 ) -> Result<(), String> {
-    let path = std::env::temp_dir().join(format!(
-        "sakadmin-update-{}",
-        crate::core::encoding::random_hex::<16>()?
-    ));
+    let path = std::env::temp_dir().join(format!("{}-update-{}", app.name, random_hex::<16>()?));
     let result = (|| {
         std::fs::write(&path, binary)?;
         #[cfg(unix)]
@@ -444,6 +582,7 @@ fn write_and_replace(
         let target = std::env::current_exe().unwrap_or_default();
         t!(
             "common.update.not_replaced",
+            app = app.name,
             path = target.display().to_string(),
             error = error.to_string()
         )
@@ -453,7 +592,7 @@ fn write_and_replace(
 
 /// a binary that does not run: written beside it and renamed over it, so a failed write leaves the
 /// old one
-fn write_beside(name: &str, binary: &[u8]) -> Result<(), String> {
+fn write_beside(app: &App, name: &str, binary: &[u8]) -> Result<(), String> {
     let target = std::env::current_exe()
         .map(|path| path.with_file_name(name))
         .unwrap_or_else(|_| std::path::PathBuf::from(name));
@@ -465,6 +604,7 @@ fn write_beside(name: &str, binary: &[u8]) -> Result<(), String> {
     result.map_err(|error| {
         t!(
             "common.update.not_replaced",
+            app = app.name,
             path = target.display().to_string(),
             error = error.to_string()
         )
@@ -476,19 +616,49 @@ fn write_beside(name: &str, binary: &[u8]) -> Result<(), String> {
 mod tests {
     use super::*;
 
+    /// sakadmin as a release of the tests has it
+    const APP: App = App::new("sakadmin", "sak-admin-cli");
+
+    /// sakbackup, an app with zips and binaries of its own
+    const BACKUP: App = App::new("sakbackup", "sak-backup");
+
+    /// the binary of the zip of `APP` on this platform
+    fn binary() -> String {
+        APP.binaries()[0].clone()
+    }
+
+    /// the name of the zip of `app` of the release `version` on this platform
+    fn zip_name(app: &App, version: &str) -> String {
+        format!("{}-{}-{version}.zip", app.zip, platform())
+    }
+
     #[test]
     fn the_zip_of_a_release_names_the_system_and_the_architecture() {
-        let platform = platform();
-        if cfg!(target_os = "macos") {
-            assert_eq!(platform, "macos-universal");
+        // the platforms desktop:build makes zips of
+        let expected = if cfg!(target_os = "macos") {
+            Some("macos-universal")
+        } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+            Some("linux-x86_64")
+        } else if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+            Some("windows-x86_64")
         } else {
+            None
+        };
+        if let Some(expected) = expected {
+            assert_eq!(platform(), expected);
             assert_eq!(
-                platform,
-                format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH)
+                zip_name(&BACKUP, "0.2.0"),
+                format!("sak-backup-{expected}-0.2.0.zip")
             );
         }
-        if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
-            assert_eq!(platform, "linux-x86_64");
+    }
+
+    #[test]
+    fn the_zip_of_an_app_has_its_binaries() {
+        if cfg!(windows) {
+            assert_eq!(BACKUP.binaries(), ["sakbackup.exe", "sakbackup-cli.exe"]);
+        } else {
+            assert_eq!(BACKUP.binaries(), ["sakbackup"]);
         }
     }
     use std::io::Write;
@@ -505,7 +675,7 @@ mod tests {
     }
 
     fn sha256_of(bytes: &[u8]) -> String {
-        crate::core::encoding::hex(&Sha256::digest(bytes))
+        hex(&Sha256::digest(bytes))
     }
 
     /// a github with the release `tag`, its zip of this platform, the sha-256 `checksum` and a
@@ -528,7 +698,7 @@ mod tests {
     async fn github_signed(tag: &str, zip: Vec<u8>, checksum: &str, bundle: &[u8]) -> MockServer {
         let server = MockServer::start().await;
         let version = tag.trim_start_matches('v');
-        let name = format!("sak-admin-cli-{}-{version}.zip", platform());
+        let name = zip_name(&APP, version);
         Mock::given(method("GET"))
             .and(path("/releases/latest"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -562,12 +732,7 @@ mod tests {
     }
 
     fn updater(server: &MockServer, current: &'static str) -> Updater {
-        Updater {
-            api: server.uri(),
-            current,
-            https_only: false,
-            signature: fake_signature,
-        }
+        Updater::new(APP, current, server.uri(), false, fake_signature)
     }
 
     /// the binaries handed to `replace`, never the binary of the test
@@ -603,18 +768,72 @@ mod tests {
         let server = MockServer::start().await;
         assert_eq!(
             updater(&server, "latest").check().await,
-            Ok(Status::NoRelease)
+            Ok(Status::NoRelease {
+                current: "latest".into()
+            })
         );
         assert_eq!(
             updater(&server, "latest").install(&|_| Ok(())).await,
-            Ok(Status::NoRelease)
+            Ok(Status::NoRelease {
+                current: "latest".into()
+            })
         );
         assert!(server.received_requests().await.unwrap().is_empty());
     }
 
     #[tokio::test]
+    async fn the_command_of_a_build_that_is_no_release_says_so_and_asks_nothing() {
+        let lines = Mutex::new(Vec::new());
+        let available = updater(&MockServer::start().await, "latest")
+            .run(true, &|line| lines.lock().unwrap().push(line))
+            .await;
+        assert_eq!(available, Ok(false));
+        assert_eq!(
+            *lines.lock().unwrap(),
+            vec![
+                "This sakadmin (latest) is no release, there is no version to compare it with."
+                    .to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn the_texts_and_the_footer_name_the_app() {
+        let newer = Status::Newer {
+            current: "0.1.1".into(),
+            newest: "0.2.0".into(),
+        };
+        assert_eq!(
+            newer.message(&BACKUP),
+            "sakbackup 0.2.0 is available, this is 0.1.1."
+        );
+        assert_eq!(
+            newer.installed_message(&BACKUP),
+            "sakbackup is updated from 0.1.1 to 0.2.0. Start sakbackup again to use it."
+        );
+        // the tests are built without VERSION, as every build that is no release
+        assert_eq!(crate::VERSION, "latest");
+        assert!(!is_release());
+        let version = version_of(&BACKUP);
+        assert_eq!(
+            (version.app, version.version, version.receiver),
+            ("sakbackup", "latest", "github.com")
+        );
+    }
+
+    #[tokio::test]
+    async fn the_zip_of_a_release_is_the_one_of_the_app() {
+        // a release that has the zip of sakadmin only
+        let zip = zip_of(&binary(), b"the new sakadmin");
+        let server = github("v0.2.0", zip.clone(), &sha256_of(&zip)).await;
+        let backup = Updater::new(BACKUP, "0.1.1", server.uri(), false, fake_signature);
+        let error = backup.check().await.unwrap_err();
+        assert!(error.contains(&zip_name(&BACKUP, "0.2.0")), "{error}");
+    }
+
+    #[tokio::test]
     async fn the_update_replaces_the_binary_with_the_one_of_the_zip() {
-        let zip = zip_of(BINARIES[0], b"the new sakadmin");
+        let zip = zip_of(&binary(), b"the new sakadmin");
         let checksum = sha256_of(&zip);
         let server = github("v0.2.0", zip, &checksum).await;
         let replaced = Mutex::new(Vec::new());
@@ -654,7 +873,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_wrong_checksum_or_a_zip_without_the_binary_replaces_nothing() {
-        let wrong = zip_of(BINARIES[0], b"the new sakadmin");
+        let wrong = zip_of(&binary(), b"the new sakadmin");
         let without = zip_of("README", b"no binary");
         for (zip, checksum) in [
             (wrong.clone(), sha256_of(b"something else")),
@@ -672,7 +891,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_zip_without_the_signature_of_the_release_workflow_replaces_nothing() {
-        let zip = zip_of(BINARIES[0], b"the new sakadmin");
+        let zip = zip_of(&binary(), b"the new sakadmin");
         let checksum = sha256_of(&zip);
         let server = github_signed("v0.2.0", zip, &checksum, b"signed by someone else").await;
         let replaced = Mutex::new(Vec::new());
@@ -687,7 +906,7 @@ mod tests {
     #[tokio::test]
     async fn a_release_without_a_signature_downloads_nothing() {
         let server = MockServer::start().await;
-        let name = format!("sak-admin-cli-{}-0.2.0.zip", platform());
+        let name = zip_name(&APP, "0.2.0");
         Mock::given(method("GET"))
             .and(path("/releases/latest"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -716,7 +935,6 @@ mod tests {
 
     #[test]
     fn a_signature_is_verified_for_its_signer_against_the_trusted_root_of_sigstore() {
-        use sigstore_verify::IdentityMatcher;
         let version = Version::new(0, 2, 0);
         let check = |blob: &[u8], bundle: &[u8], signer: &str, issuer: &str| {
             verify_signed_by(
@@ -724,7 +942,7 @@ mod tests {
                 bundle,
                 "blob",
                 &version,
-                IdentityMatcher::Email(signer.to_string()),
+                Identity::Email(signer.to_string()),
                 issuer,
             )
         };
@@ -747,16 +965,16 @@ mod tests {
     #[test]
     fn the_trusted_root_of_the_repository_is_the_one_sakadmin_embeds() {
         assert_eq!(
-            include_str!("../../trusted_root.json"),
+            include_str!("../../sak-admin-cli/src-tauri/trusted_root.json"),
             sigstore_verify::trust_root::SIGSTORE_PRODUCTION_TRUSTED_ROOT,
-            "trusted_root.json next to Cargo.toml is not the trusted root of sigstore-verify, copy it from the crate"
+            "sak-admin-cli/src-tauri/trusted_root.json is not the trusted root of sigstore-verify, copy it from the crate"
         );
     }
 
     #[test]
     fn the_zips_of_a_release_are_signed_by_the_workflow_at_its_tag() {
         assert_eq!(
-            signer(&Version::new(1, 2, 3)),
+            sigstore::signer_at_tag(&Version::new(1, 2, 3)),
             "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml@refs/tags/v1.2.3"
         );
     }
@@ -773,10 +991,7 @@ mod tests {
             .mount(&server)
             .await;
         let error = updater(&server, "0.1.1").check().await.unwrap_err();
-        assert!(
-            error.contains(&format!("sak-admin-cli-{}-0.2.0.zip", platform())),
-            "{error}"
-        );
+        assert!(error.contains(&zip_name(&APP, "0.2.0")), "{error}");
     }
 
     #[tokio::test]
@@ -797,23 +1012,25 @@ mod tests {
 
     #[tokio::test]
     async fn github_is_asked_over_https_only() {
-        let updater = Updater {
-            api: "http://api.github.com/repos/x".into(),
-            current: "0.1.1",
-            https_only: true,
-            signature: verify_signature,
-        };
-        assert!(updater.check().await.is_err());
+        let updater = Updater::new(
+            APP,
+            "0.1.1",
+            "http://api.github.com/repos/x".into(),
+            true,
+            verify_signature,
+        );
+        assert_eq!(
+            updater.check().await,
+            Err(
+                "http://api.github.com/repos/x/releases/latest is no https address, sakadmin asks github over https only."
+                    .into()
+            )
+        );
     }
 
     #[tokio::test]
     async fn a_download_is_asked_of_github_only() {
-        let updater = Updater {
-            api: API.into(),
-            current: "0.1.1",
-            https_only: true,
-            signature: verify_signature,
-        };
+        let updater = Updater::new(APP, "0.1.1", API.into(), true, verify_signature);
         let error = updater
             .download("https://example.org/sak-admin-cli.zip")
             .await
@@ -823,10 +1040,13 @@ mod tests {
             "https://example.org/sak-admin-cli.zip is no address of github, sakadmin downloads from github only."
         );
         assert_eq!(
-            to_github("https://github.com.example.org/x"),
+            to_github("https://github.com.example.org/x", &APP),
             Err("https://github.com.example.org/x is no address of github, sakadmin downloads from github only.".into())
         );
-        assert_eq!(to_github("https://objects.githubusercontent.com/x"), Ok(()));
-        assert_eq!(to_github(API), Ok(()));
+        assert_eq!(
+            to_github("https://objects.githubusercontent.com/x", &APP),
+            Ok(())
+        );
+        assert_eq!(to_github(API, &APP), Ok(()));
     }
 }

@@ -41,7 +41,7 @@ for its `ui/style.css`.
 
 - **sakadmin:** `mise run desktop:ui` runs `npm ci` here and copies bootstrap and the files into `sak-admin-cli/ui/theme/`
   (not committed, tauri bundles it). `index.html` links them before its own `style.css`, which has only the layout.
-  `admin-cli:run`, `admin-cli:build` and `admin-cli:test:unit` copy first.
+  `admin-cli:run`, `backup:run`, `admin-cli:build`, `desktop:build` and `admin-cli:test:unit` copy first.
 - **sak-frontend:** builds a bootstrap subset from the scss here (`sak-frontend/src/bootstrap.scss`, only the
   components and utilities its pages use), then lists `fonts.css`, `tokens.css`, `bootstrap.css` and
   `components.css` in the `styles` of its `angular.json`. The post-it colors are its own.

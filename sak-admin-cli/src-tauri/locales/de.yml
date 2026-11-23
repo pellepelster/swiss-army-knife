@@ -6,8 +6,6 @@ common:
     not_read: "%{path} konnte nicht gelesen werden: %{error}"
     not_decrypted: "%{path} lässt sich mit dem Passwort der SAK-Instanz nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
   checks:
-    not_finished: "Eine Prüfung wurde nicht beendet: %{error}"
-    splash_not_updated: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
     container_runtime:
       name: "docker oder podman prüfen"
       running: "Prüfe docker oder podman…"
@@ -198,23 +196,6 @@ common:
     restart_failed: "Neustart fehlgeschlagen: %{services}"
     restart_skipped: "Nicht neu gestartet, nur ein Neustart des Servers erneuert sie: %{services}"
     no_restart: "Kein Dienst nutzt alte Bibliotheken, keiner wurde neu gestartet."
-  update:
-    checking: "Frage %{receiver} nach dem neuesten Release von sakadmin…"
-    no_release: "Dieses sakadmin (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
-    up_to_date: "sakadmin %{version} ist aktuell."
-    newer: "sakadmin %{newest} ist verfügbar, dies ist %{current}."
-    installing: "Lade sakadmin %{version} von %{receiver}…"
-    installed: "sakadmin ist von %{current} auf %{newest} aktualisiert. Starte sakadmin erneut, um es zu verwenden."
-    unreachable: "%{url} ist nicht erreichbar: %{error}"
-    failed: "%{url} hat %{status} geantwortet."
-    not_https: "%{url} ist keine https-Adresse, sakadmin fragt github nur über https."
-    not_github: "%{url} ist keine Adresse von github, sakadmin lädt nur von github herunter."
-    unreadable: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
-    no_asset: "Das Release %{version} hat kein %{name}."
-    checksum_mismatch: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
-    signature_invalid: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
-    no_binary: "%{name} enthält kein %{binary}, nichts wurde geändert."
-    not_replaced: "sakadmin unter %{path} konnte nicht ersetzt werden: %{error}"
 cli:
   mail:
     reading: "Lese den Mailserver von %{name}…"
@@ -264,7 +245,6 @@ cli:
   plan_no_terminal: "Kein Terminal, um einen Plan zu bestätigen, der löscht oder neu anlegt: gib --yes an, um ihn auf %{name} anzuwenden."
   restore_confirm: "Die Daten von %{name} werden durch die Sicherung %{path} ersetzt. Gib den Namen ein, um fortzufahren: "
   restore_no_terminal: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
-  update_hint: "sakadmin update installiert es."
   maintenance:
     reboot_hint: "Ein Neustart steht an, führe sakadmin maintenance reboot %{name} aus."
 ui:
@@ -278,12 +258,6 @@ ui:
     smtp_from: "Korrigiere die Absenderadresse im Formular."
   quit: "Beenden"
   update:
-    version: "sakadmin %{version}"
-    check: "Nach Updates suchen"
-    idle: "Fragt %{receiver} nach dem neuesten Release von sakadmin."
-    install: "Auf %{version} aktualisieren"
-    restart: "Neu starten"
-    restart_hint: "Starte neu, um sakadmin %{version} zu verwenden."
     restart_while_running: "Eine SAK-Instanz wird gerade geändert, starte neu, wenn das fertig ist."
   providers:
     title: "Provider-Tokens"

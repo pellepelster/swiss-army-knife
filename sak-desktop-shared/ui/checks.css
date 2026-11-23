@@ -1,0 +1,102 @@
+/* the splash screen of a desktop app with the checks at its start (checks.js) */
+
+.splash {
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* the middle of the icon and the title a third down the window, whatever their size; the checks
+   hang below them and grow towards the bottom */
+.splash-brand {
+  position: absolute;
+  top: calc(100% / 3);
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sak-space-5);
+}
+
+.splash-checks {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sak-space-3);
+  padding-top: var(--sak-space-5);
+}
+
+.splash-footer {
+  position: absolute;
+  right: var(--sak-space-5);
+  bottom: var(--sak-space-5);
+}
+
+.splash-icon {
+  width: 128px;
+  height: 128px;
+}
+
+.splash-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.checks {
+  width: min(28rem, 100% - 3rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  column-gap: 0.6rem;
+  row-gap: 0.2rem;
+  align-items: center;
+}
+
+.check-state {
+  grid-row: 1;
+  justify-self: center;
+}
+
+.check-name {
+  font-weight: 600;
+}
+
+.check[data-state="pending"] .check-name {
+  color: var(--sak-muted);
+}
+
+.check-progress,
+.check-detail {
+  grid-column: 2;
+}
+
+.check-progress {
+  width: 100%;
+  height: 0.4rem;
+  accent-color: var(--sak-accent);
+}
+
+.check-detail {
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
+  overflow-wrap: anywhere;
+}
+
+.check-detail:empty {
+  display: none;
+}
+
+.check[data-state="failed"] .check-detail {
+  color: var(--sak-danger-text);
+}

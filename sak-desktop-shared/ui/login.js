@@ -36,7 +36,7 @@ function build() {
     ]),
     status,
     // the buttons of a form, bottom right (UX-9)
-    element('div', { class: 'login-buttons' }, [cancel, submit]),
+    element('div', { class: 'form-buttons' }, [cancel, submit]),
   ]);
   const title = element('h1', { class: 'login-title' });
   const intro = element('p', { class: 'hint' });

@@ -16,7 +16,7 @@ import {
   unavailableDelete,
 } from './rows.js';
 import { runFailure } from './run.js';
-import { setFailure, setStatus, text } from './shared/views.js';
+import { setBusy, setFailure, setStatus, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -66,7 +66,7 @@ function repositoryRow(repository) {
       disableForget(forget);
       setStatus(status, text('ui.repositories.forgot', { name: repository.name }));
     } catch (failure) {
-      const said = runFailure(failure, shell, (error) => error);
+      const said = runFailure(failure, shell, repository.name, (error) => error);
       if (said !== null) setFailure(status, said);
     }
   });
@@ -111,7 +111,7 @@ const FIELD_OF = {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!checkName()) return;
-  submit.disabled = true;
+  setBusy(form, true);
   setStatus(formStatus, text('ui.saving'));
   try {
     await invoke('create_repository', { name: name.value.trim() });
@@ -119,8 +119,9 @@ form.addEventListener('submit', async (event) => {
   } catch (error) {
     if (signedOut(error, shell)) return;
     setStatus(formStatus, '');
-    submit.disabled = false;
     saveFailed(error, FIELD_OF, () => nameError, formStatus);
+  } finally {
+    setBusy(form, false);
   }
 });
 

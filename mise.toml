@@ -202,54 +202,74 @@ depends = ["admin-cli:install", "desktop:ui", "tools:image:build", "canary:image
 dir = "{{config_root}}/sak-admin-cli"
 run = "npx --no-install tauri build"
 
-# admin-cli:build:<platform>, on that platform (workflow job sakadmin): the binary zipped to
-# sak-admin-cli/build/sak-admin-cli-<platform>-<architecture>-<VERSION>.zip and its <zip>.sha256; x86_64, a
-# universal binary for macOS
-[tasks."admin-cli:build:linux"]
-description = "Build sakadmin for linux"
-depends = ["admin-cli:install", "desktop:ui"]
-dir = "{{config_root}}/sak-admin-cli"
-run = """
-npx --no-install tauri build --no-bundle
-mkdir -p build
-rm -f "build/sak-admin-cli-linux-x86_64-${VERSION}.zip"
-zip -j "build/sak-admin-cli-linux-x86_64-${VERSION}.zip" src-tauri/target/release/sakadmin
-(cd build && sha256sum "sak-admin-cli-linux-x86_64-${VERSION}.zip" > "sak-admin-cli-linux-x86_64-${VERSION}.zip.sha256")
-"""
+# every build and test of the desktop apps runs cargo with --locked: each of their crates has a
+# Cargo.lock of its own, and one that is not current fails here instead of being resolved anew
 
-[tasks."admin-cli:build:macos"]
-description = "Build sakadmin for macOS"
+# a desktop app for a platform, on that platform (workflow job desktop-apps), e.g.
+# `mise run desktop:build sak-backup linux`: its binary, the window and the command line in one,
+# zipped to <app>/build/<app>-<platform>-<architecture>-<VERSION>.zip with its <zip>.sha256; x86_64,
+# a universal binary for macOS. On windows two programs are in the zip: <binary>.exe, the window
+# without a console, and <binary>-cli.exe, the same built with the feature console as a console
+# program, whose commands print to the terminal. Both apps build with the tauri command line of
+# sak-admin-cli/package.json (admin-cli:install). bash on windows too (git bash), which has no zip
+# but 7-Zip
+[tasks."desktop:build"]
+description = "Build a desktop app for a platform"
+usage = '''
+arg "<app>" help="the directory of the app: sak-admin-cli (sakadmin) or sak-backup (sakbackup)"
+arg "<platform>" help="the platform the task runs on: linux, macos or windows"
+'''
 depends = ["admin-cli:install", "desktop:ui"]
-dir = "{{config_root}}/sak-admin-cli"
-run = """
-rustup target add aarch64-apple-darwin x86_64-apple-darwin
-npx --no-install tauri build --target universal-apple-darwin --no-bundle
-mkdir -p build
-rm -f "build/sak-admin-cli-macos-universal-${VERSION}.zip"
-zip -j "build/sak-admin-cli-macos-universal-${VERSION}.zip" src-tauri/target/universal-apple-darwin/release/sakadmin
-(cd build && shasum -a 256 "sak-admin-cli-macos-universal-${VERSION}.zip" > "sak-admin-cli-macos-universal-${VERSION}.zip.sha256")
-"""
-
-# git bash has no zip but 7-Zip; -e stops at a failed step like sh does elsewhere. Two programs in
-# the zip: sakadmin.exe, the window without a console, and sakadmin-cli.exe, the same built with the
-# feature console as a console program, whose commands print to the terminal
-[tasks."admin-cli:build:windows"]
-description = "Build sakadmin for windows"
-depends = ["admin-cli:install", "desktop:ui"]
-dir = "{{config_root}}/sak-admin-cli"
+dir = "{{config_root}}"
 shell = "bash -e -c"
-run = """
+run = '''
+app="$usage_app"
+platform="$usage_platform"
+case "$app" in
+  sak-admin-cli) binary=sakadmin ;;
+  sak-backup) binary=sakbackup ;;
+  *) echo "no desktop app $app: sak-admin-cli or sak-backup" >&2; exit 1 ;;
+esac
+build() {
+  node "{{config_root}}/sak-admin-cli/node_modules/@tauri-apps/cli/tauri.js" build --no-bundle "$@" -- --locked
+}
+cd "$app"
 mkdir -p build
-npx --no-install tauri build --no-bundle --features console
-cp src-tauri/target/release/sakadmin.exe build/sakadmin-cli.exe
-npx --no-install tauri build --no-bundle
-rm -f "build/sak-admin-cli-windows-x86_64-${VERSION}.zip"
-7z a -tzip "build/sak-admin-cli-windows-x86_64-${VERSION}.zip" ./src-tauri/target/release/sakadmin.exe ./build/sakadmin-cli.exe
-(cd build && sha256sum "sak-admin-cli-windows-x86_64-${VERSION}.zip" > "sak-admin-cli-windows-x86_64-${VERSION}.zip.sha256")
-"""
+case "$platform" in
+  linux)
+    build
+    archive="$app-linux-x86_64-${VERSION}.zip"
+    rm -f "build/$archive"
+    zip -j "build/$archive" "src-tauri/target/release/$binary"
+    ;;
+  macos)
+    rustup target add aarch64-apple-darwin x86_64-apple-darwin
+    build --target universal-apple-darwin
+    archive="$app-macos-universal-${VERSION}.zip"
+    rm -f "build/$archive"
+    zip -j "build/$archive" "src-tauri/target/universal-apple-darwin/release/$binary"
+    ;;
+  windows)
+    build --features console
+    cp "src-tauri/target/release/$binary.exe" "build/$binary-cli.exe"
+    build
+    archive="$app-windows-x86_64-${VERSION}.zip"
+    rm -f "build/$archive"
+    7z a -tzip "build/$archive" "./src-tauri/target/release/$binary.exe" "./build/$binary-cli.exe"
+    ;;
+  *) echo "no platform $platform: linux, macos or windows" >&2; exit 1 ;;
+esac
+cd build
+# macOS has shasum, the others sha256sum
+if command -v sha256sum >/dev/null; then
+  sha256sum "$archive" > "$archive.sha256"
+else
+  shasum -a 256 "$archive" > "$archive.sha256"
+fi
+'''
 
-# the zips of admin-cli:build:<platform> and their checksums as the github release v<VERSION>, where the
-# installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job release).
+# the zips of desktop:build of both apps and of the three platforms and their checksums as the
+# github release v<VERSION>, where the installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job release).
 # Each zip signed with cosign, keyless: a short-lived certificate of sigstore for the workflow run
 # of the tag (its id token, permission id-token: write), the signature and the certificate in
 # <zip>.sigstore.json. Each signature is verified for the identity the installation names and
@@ -257,25 +277,27 @@ rm -f "build/sak-admin-cli-windows-x86_64-${VERSION}.zip"
 # one sakadmin update verifies with), so a root cosign knows but sakadmin does not fails the release
 # here, not the users
 [tasks."admin-cli:release"]
-description = "Publish the GitHub release of sakadmin"
-dir = "{{config_root}}/sak-admin-cli"
+description = "Publish the GitHub release of sakadmin and sakbackup"
+dir = "{{config_root}}"
 run = """
 set -eu
 identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}"
 files=""
-for platform in linux-x86_64 macos-universal windows-x86_64; do
-  zip="build/sak-admin-cli-${platform}-${VERSION}.zip"
-  [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
-  cosign sign-blob --yes --bundle "$zip.sigstore.json" "$zip"
-  cosign verify-blob --bundle "$zip.sigstore.json" --certificate-identity "$identity" \
-    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-    --trusted-root {{config_root}}/sak-admin-cli/src-tauri/trusted_root.json "$zip"
-  files="$files $zip $zip.sha256 $zip.sigstore.json"
+for app in sak-admin-cli sak-backup; do
+  for platform in linux-x86_64 macos-universal windows-x86_64; do
+    zip="$app/build/$app-${platform}-${VERSION}.zip"
+    [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
+    cosign sign-blob --yes --bundle "$zip.sigstore.json" "$zip"
+    cosign verify-blob --bundle "$zip.sigstore.json" --certificate-identity "$identity" \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+      --trusted-root {{config_root}}/sak-admin-cli/src-tauri/trusted_root.json "$zip"
+    files="$files $zip $zip.sha256 $zip.sigstore.json"
+  done
 done
 # created once; a release that failed halfway runs again, its files are replaced
 if ! gh release view "v${VERSION}" >/dev/null 2>&1; then
   gh release create "v${VERSION}" --verify-tag --title "SAK $VERSION" \
-    --notes "sakadmin for linux, macOS and windows and the android apps of the grocery lists, the notes and the todo lists, built from $(git rev-parse --short=12 HEAD)."
+    --notes "sakadmin and sakbackup for linux, macOS and windows and the android apps of the grocery lists, the notes and the todo lists, built from $(git rev-parse --short=12 HEAD)."
 fi
 gh release upload "v${VERSION}" $files --clobber
 """
@@ -487,13 +509,24 @@ dir = "{{config_root}}/sak-frontend"
 run = "npx ng serve"
 
 # the data the sakadmin ui shows in its screenshots and video (src/core/deployments/window_fixtures.rs)
+# the window of sakbackup in chromium (sak-e2e, SakbackupWindowTest): its files with the answers of
+# rust as gui/window_fixtures.rs writes them
+[tasks."backup:test:window"]
+description = "Test the window of sakbackup in a browser"
+depends = ["desktop:ui"]
+dir = "{{config_root}}"
+run = [
+  "cd sak-backup/src-tauri && cargo test --locked window_fixtures -- --ignored",
+  "./gradlew :sak-e2e:e2eWindow",
+]
+
 [tasks."docs:window"]
 description = "Prepare the sakadmin ui fixtures"
 depends = ["desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli/src-tauri"
 run = "cargo test window_fixtures -- --ignored"
 
-# the version and the checksums of the zips of admin-cli:build:<platform> for the installation page,
+# the version and the checksums of the zips of sakadmin (desktop:build) for the installation page,
 # site/data/sakadmin.yaml; a platform without a zip shows <sha256>
 [tasks."docs:data"]
 description = "Write the sakadmin data of the docs"
@@ -635,10 +668,10 @@ depends = ["desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli"
 run = """
 set -e
-(cd src-tauri && cargo nextest run --no-fail-fast -E 'not test(/::integration::/)')
-(cd cloud && cargo nextest run --no-fail-fast -E 'kind(lib)')
-(cd ../sak-desktop-shared && cargo nextest run --no-fail-fast)
-(cd ../sak-backup/src-tauri && cargo nextest run --no-fail-fast -E 'not test(/(^|::)integration::/)')
+(cd src-tauri && cargo nextest run --locked --no-fail-fast -E 'not test(/::integration::/)')
+(cd cloud && cargo nextest run --locked --no-fail-fast -E 'kind(lib)')
+(cd ../sak-desktop-shared && cargo nextest run --locked --no-fail-fast)
+(cd ../sak-backup/src-tauri && cargo nextest run --locked --no-fail-fast -E 'not test(/(^|::)integration::/)')
 """
 
 # in docker: the vector configuration of the backend role, sak-backend as the role renders it
@@ -673,9 +706,9 @@ depends = ["desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli/src-tauri"
 run = """
 set -e
-cargo nextest run --no-fail-fast -E 'test(/::integration::/)'
+cargo nextest run --locked --no-fail-fast -E 'test(/::integration::/)'
 (cd ../.. && ./gradlew -q :sak-backend:installDist)
-(cd ../../sak-backup/src-tauri && cargo nextest run --no-fail-fast -E 'test(/(^|::)integration::/)')
+(cd ../../sak-backup/src-tauri && cargo nextest run --locked --no-fail-fast -E 'test(/(^|::)integration::/)')
 """
 
 # sak-e2e: the apps in chromium against local:run
@@ -697,7 +730,7 @@ run = """
 set -e
 [ -n "$HCLOUD_TOKEN" ] || { echo "set HCLOUD_TOKEN, refer to sak-e2e/README.md" >&2; exit 1; }
 # a failing build stops before any server exists
-(cd sak-admin-cli/src-tauri && cargo build)
+(cd sak-admin-cli/src-tauri && cargo build --locked)
 # amd64 for the servers and this machine's platform for the tools image
 if [ -z "${CI:-}" ]; then
   case "$(uname -m)" in
@@ -709,7 +742,7 @@ if [ -z "${CI:-}" ]; then
 fi
 export SAK_DOCKER_IMAGE_TAG="${SAK_DOCKER_IMAGE_TAG:-${VERSION}-rc}"
 # one at a time: the tests share their ssh key and names
-(cd sak-admin-cli/cloud && cargo nextest run --no-fail-fast --test-threads 1 -E 'kind(test)')
+(cd sak-admin-cli/cloud && cargo nextest run --locked --no-fail-fast --test-threads 1 -E 'kind(test)')
 ./gradlew :sak-e2e:e2eIntegration --console=plain
 """
 

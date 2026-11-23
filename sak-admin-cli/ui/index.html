@@ -4,13 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Swiss Army Knife</title>
-    <!-- the theme of ../../sak-theme, copied to theme/ by mise run desktop:ui; style.css has the
-         layout -->
+    <!-- the theme of ../../sak-theme and the shared views of ../../sak-desktop-shared/ui, copied to
+         theme/ and shared/ by mise run desktop:ui; style.css has the layout -->
     <link rel="stylesheet" href="theme/bootstrap.min.css">
     <link rel="stylesheet" href="theme/fonts.css">
     <link rel="stylesheet" href="theme/tokens.css">
     <link rel="stylesheet" href="theme/bootstrap.css">
     <link rel="stylesheet" href="theme/components.css">
+    <link rel="stylesheet" href="shared/views.css">
+    <link rel="stylesheet" href="shared/update.css">
+    <link rel="stylesheet" href="shared/checks.css">
     <link rel="stylesheet" href="style.css">
     <script type="module" src="app.js"></script>
   </head>
@@ -22,7 +25,7 @@
         <img class="splash-icon" src="theme/images/icon.svg" alt="">
         <h1 class="splash-title">Swiss Army Knife</h1>
         <div class="splash-checks">
-          <ul class="checks" id="checks" aria-live="polite"></ul>
+          <ul class="plain-list checks" id="checks" aria-live="polite"></ul>
           <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
         </div>
       </div>
@@ -43,7 +46,7 @@
       </header>
       <p class="hint" id="providers-empty" data-text="ui.providers.empty"></p>
       <ul class="list-group" id="provider-tokens"></ul>
-      <div class="page-footer">
+      <div class="form-buttons">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-primary" id="providers-next" data-text="ui.next" disabled></button>
         </div>
@@ -58,7 +61,7 @@
         </div>
       </header>
       <ul class="list-group" id="provider-types"></ul>
-      <div class="page-footer">
+      <div class="form-buttons">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="select-cancel" data-text="ui.cancel"></button>
         </div>
@@ -82,7 +85,7 @@
           <div class="form-text" id="token-hint"></div>
         </div>
         <p class="hint" id="token-status" aria-live="polite"></p>
-        <div class="page-footer">
+        <div class="form-buttons">
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-outline-secondary" id="token-cancel" data-text="ui.cancel"></button>
             <button type="submit" class="btn btn-primary" id="token-add"><i class="sak-icon-plus" aria-hidden="true"></i> <span data-text="ui.token.add"></span></button>
@@ -102,8 +105,8 @@
         </div>
       </header>
       <p class="hint" id="deployments-status" aria-live="polite"></p>
-      <ul class="deployments" id="deployments"></ul>
-      <div class="page-footer">
+      <ul class="plain-list deployments" id="deployments"></ul>
+      <div class="form-buttons">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="deployments-back" data-text="ui.back"></button>
         </div>
@@ -124,7 +127,7 @@
           <button type="button" class="btn btn-outline-danger" id="deployment-destroy" data-text="ui.deployment.destroy"></button>
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-outline-secondary dropdown-toggle" id="deployment-maintenance" aria-haspopup="menu" aria-expanded="false" data-text="ui.deployment.maintenance"></button>
-            <ul class="dropdown-menu maintenance-menu" id="deployment-maintenance-menu" role="menu">
+            <ul class="dropdown-menu menu-end" id="deployment-maintenance-menu" role="menu">
               <li><button type="button" class="dropdown-item" role="menuitem" data-action="status" data-text="ui.maintenance.status"></button></li>
               <li><button type="button" class="dropdown-item" role="menuitem" data-action="update" data-text="ui.maintenance.update"></button></li>
               <li><button type="button" class="dropdown-item" role="menuitem" data-action="restart_services" data-text="ui.maintenance.restart_services"></button></li>
@@ -137,11 +140,11 @@
       </header>
       <!-- the configuration, read once when the page opened, and where it comes from -->
       <p class="hint" id="deployment-config-source" aria-live="polite"></p>
-      <ul class="resources deployment-config" id="deployment-config"></ul>
+      <ul class="plain-list resources deployment-config" id="deployment-config"></ul>
       <!-- the resources as the list found them, after the check as the plan has them -->
-      <ul class="resources" id="deployment-resources"></ul>
+      <ul class="plain-list resources" id="deployment-resources"></ul>
       <p class="hint" id="deployment-message" aria-live="polite"></p>
-      <div class="page-footer">
+      <div class="form-buttons">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="deployment-back" data-text="ui.back"></button>
           <button type="button" class="btn btn-outline-secondary" id="deployment-force" data-text="ui.plan.force_deploy" disabled></button>
@@ -173,7 +176,7 @@
           </div>
         </div>
         <p class="hint" id="password-status" aria-live="polite"></p>
-        <div class="page-footer">
+        <div class="form-buttons">
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-outline-secondary" id="password-cancel" data-text="ui.cancel"></button>
             <button type="submit" class="btn btn-primary" id="password-next" data-text="ui.next" disabled></button>
@@ -290,7 +293,7 @@
           <label class="form-check-label" for="create-delete-data" data-text="ui.create.delete_data"></label>
         </div>
         <p class="hint" id="create-status" aria-live="polite"></p>
-        <div class="page-footer">
+        <div class="form-buttons">
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-outline-secondary" id="create-cancel" data-text="ui.cancel"></button>
             <button type="submit" class="btn btn-primary" id="create-plan" data-text="ui.create.plan"></button>
@@ -307,9 +310,9 @@
         </div>
       </header>
       <p class="hint"><span id="plan-intro" data-text="common.plan.intro"></span> <strong class="sak-mono" id="plan-name"></strong></p>
-      <ul class="resources" id="plan-resources"></ul>
+      <ul class="plain-list resources" id="plan-resources"></ul>
       <p class="hint" id="plan-status" aria-live="polite"></p>
-      <div class="page-footer">
+      <div class="form-buttons">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="plan-cancel" data-text="ui.cancel"></button>
           <button type="button" class="btn btn-outline-secondary" id="plan-force" data-text="ui.plan.force_deploy"></button>
@@ -325,9 +328,9 @@
           <h1 id="run-title"></h1>
         </div>
       </header>
-      <ul class="resources" id="run-resources"></ul>
+      <ul class="plain-list resources" id="run-resources"></ul>
       <p class="hint" id="run-status" aria-live="polite"></p>
-      <div class="page-footer">
+      <div class="form-buttons">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="run-cancel" data-text="ui.cancel"></button>
           <button type="button" class="btn btn-primary" id="run-done" data-text="ui.run.done" disabled></button>
@@ -343,51 +346,34 @@
         </div>
       </header>
       <p class="hint"><span data-text="ui.maintenance.intro"></span> <strong class="sak-mono" id="maintenance-name"></strong></p>
-      <ul class="maintenance-lines maintenance-progress sak-mono" id="maintenance-progress" aria-live="polite"></ul>
-      <ul class="maintenance-lines maintenance-answer" id="maintenance-answer" aria-live="polite"></ul>
+      <ul class="plain-list maintenance-lines maintenance-progress sak-mono" id="maintenance-progress" aria-live="polite"></ul>
+      <ul class="plain-list maintenance-lines maintenance-answer" id="maintenance-answer" aria-live="polite"></ul>
       <p class="hint" id="maintenance-status" aria-live="polite"></p>
-      <div class="page-footer">
+      <div class="form-buttons">
         <div class="btn-group" role="group">
           <button type="button" class="btn btn-outline-secondary" id="maintenance-back" data-text="ui.back" disabled></button>
         </div>
       </div>
     </main>
-    <dialog class="confirm" id="destroy-confirm">
+    <!-- the recipient of the test e-mail. The questions before a destroy and a reboot
+         (shared/confirm-dialog.js) build their own dialog -->
+    <dialog class="dialog" id="smtp-test" aria-labelledby="smtp-test-title" aria-describedby="smtp-test-text">
       <form method="dialog">
-        <h2 class="confirm-title" id="destroy-confirm-title"></h2>
-        <p id="destroy-confirm-text"></p>
-        <div class="btn-group" role="group">
-          <button type="submit" class="btn btn-outline-secondary" value="cancel" data-text="ui.cancel" autofocus></button>
-          <button type="submit" class="btn btn-danger" value="destroy" data-text="ui.plan.destroy"></button>
-        </div>
-      </form>
-    </dialog>
-    <dialog class="confirm" id="reboot-confirm">
-      <form method="dialog">
-        <h2 class="confirm-title" id="reboot-confirm-title"></h2>
-        <p data-text="ui.maintenance.confirm_text"></p>
-        <div class="btn-group" role="group">
-          <button type="submit" class="btn btn-outline-secondary" value="cancel" data-text="ui.cancel" autofocus></button>
-          <button type="submit" class="btn btn-primary" value="reboot" data-text="ui.maintenance.reboot"></button>
-        </div>
-      </form>
-    </dialog>
-    <!-- the recipient of the test e-mail -->
-    <dialog class="confirm" id="smtp-test">
-      <form method="dialog">
-        <h2 class="confirm-title" data-text="ui.create.smtp_test_title"></h2>
+        <h2 class="h5 mb-0" id="smtp-test-title" data-text="ui.create.smtp_test_title"></h2>
         <p id="smtp-test-text"></p>
-        <div class="smtp-test-to">
+        <div>
           <label class="form-label" for="smtp-test-to" data-text="ui.create.smtp_test_to"></label>
           <input class="form-control" id="smtp-test-to" type="email" autocomplete="email" spellcheck="false" maxlength="254" required>
         </div>
-        <div class="btn-group" role="group">
-          <button type="submit" class="btn btn-outline-secondary" value="cancel" formnovalidate data-text="ui.cancel"></button>
-          <button type="submit" class="btn btn-primary" value="send" data-text="ui.create.smtp_test_send"></button>
+        <div class="form-buttons">
+          <div class="btn-group" role="group">
+            <button type="submit" class="btn btn-outline-secondary" value="cancel" formnovalidate data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" value="send" data-text="ui.create.smtp_test_send"></button>
+          </div>
         </div>
       </form>
     </dialog>
-    <!-- the version of sakadmin and its update (update.js), below every view -->
+    <!-- the version of sakadmin and its update (shared/update.js), below every view -->
     <footer class="app-footer">
       <span id="update-version"></span>
       <button type="button" class="btn btn-outline-secondary btn-sm" id="update-button"></button>

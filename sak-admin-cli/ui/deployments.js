@@ -72,7 +72,7 @@ function deployment(data) {
   title.textContent = name;
   header.append(logo, title);
   const group = document.createElement('ul');
-  group.className = 'resources card-body';
+  group.className = 'plain-list resources card-body';
   group.replaceChildren(...resources.map(resource));
   if (data.error) {
     const error = document.createElement('li');

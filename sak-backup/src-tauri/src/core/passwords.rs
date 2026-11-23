@@ -147,8 +147,8 @@ pub async fn forget(
 }
 
 /// the password a call gives: typed, or none for the one of SAK_BACKUP_REPO_PASSWORD or the kept
-/// one; and whether a typed one is kept when restic takes it
-#[derive(Clone, Debug, Default)]
+/// one; and whether a typed one is kept when restic takes it. No Debug, it holds the password
+#[derive(Clone, Default)]
 pub struct Given {
     pub typed: Option<String>,
     pub remember: bool,

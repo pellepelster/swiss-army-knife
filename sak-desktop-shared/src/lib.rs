@@ -6,10 +6,20 @@
 rust_i18n::i18n!("locales", fallback = "en");
 
 pub mod api;
+pub mod checks;
 pub mod cli;
+pub mod command_tests;
 pub mod desktop;
+pub mod encoding;
+pub mod errors;
 pub mod i18n;
 pub mod instances;
 pub mod secrets;
 pub mod session;
+pub mod sigstore;
+pub mod update;
 pub mod window;
+
+/// the version of SAK the app is built as (`VERSION` of the build, build.rs): the tag of a release
+/// without its v, `latest` for a build that is no release
+pub const VERSION: &str = env!("SAK_VERSION");

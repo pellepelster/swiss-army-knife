@@ -4963,15 +4963,19 @@ dependencies = [
  "keyring",
  "reqwest",
  "rust-i18n",
+ "self-replace",
+ "semver",
  "serde",
  "serde_json",
  "sha2 0.11.1",
+ "sigstore-verify",
  "sys-locale",
  "tauri",
  "tauri-plugin-opener",
  "tiny_http",
  "tokio",
  "url",
+ "zip",
 ]
 
 [[package]]
@@ -5000,12 +5004,10 @@ dependencies = [
  "rust-i18n",
  "sak-cloud",
  "sak-desktop-shared",
- "self-replace",
  "semver",
  "serde",
  "serde_json",
  "sha2 0.11.1",
- "sigstore-verify",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
@@ -5015,7 +5017,6 @@ dependencies = [
  "url",
  "wiremock",
  "zeroize",
- "zip",
  "zxcvbn",
 ]
 

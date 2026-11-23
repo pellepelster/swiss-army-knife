@@ -73,13 +73,24 @@ private val BRIDGE =
     })();
     """.trimIndent()
 
-// a context that shows the window: its files from sak-admin-cli/ui, rust replaced by the fixtures
+// the page of the sakbackup ui (sak-backup/ui) and its fixtures, a file for each case, that
+// `cargo test window_fixtures -- --ignored` in sak-backup/src-tauri writes (gui/window_fixtures.rs)
+val BACKUP_UI: Path = Paths.get(System.getProperty("sak.e2e.backup.ui") ?: "../sak-backup/ui").toAbsolutePath().normalize()
+private val BACKUP_FIXTURES: Path = Paths.get(System.getProperty("sak.e2e.backup.fixtures") ?: "../build/ui-fixtures")
+
+// the fixtures of sakbackup for a case, e.g. restic
+fun backupFixtures(case: String): Path = BACKUP_FIXTURES.resolve("sakbackup-$case.json")
+
+// a context that shows the window: its files from `ui`, sak-admin-cli/ui unless told, rust replaced
+// by the fixtures
 fun Browser.window(
     scheme: ColorScheme = ColorScheme.LIGHT,
+    ui: Path = UI,
+    fixtures: Path = FIXTURES,
     options: Browser.NewContextOptions.() -> Unit = {},
 ): BrowserContext {
-    check(Files.isDirectory(UI.resolve("theme"))) { "$UI/theme is missing, run mise run desktop:ui" }
-    check(Files.exists(FIXTURES)) { "$FIXTURES is missing, run cargo test window_fixtures -- --ignored in sak-admin-cli/src-tauri" }
+    check(Files.isDirectory(ui.resolve("theme"))) { "$ui/theme is missing, run mise run desktop:ui" }
+    check(Files.exists(fixtures)) { "$fixtures is missing, run cargo test window_fixtures -- --ignored in the src-tauri of the app" }
     val context =
         newContext(
             Browser
@@ -90,8 +101,8 @@ fun Browser.window(
         )
     context.route("$ORIGIN/**") { route: Route ->
         val path = route.request().url().removePrefix(ORIGIN).substringBefore('?').trimStart('/').ifEmpty { "index.html" }
-        val file = UI.resolve(path).normalize()
-        if (!file.startsWith(UI) || !Files.isRegularFile(file)) {
+        val file = ui.resolve(path).normalize()
+        if (!file.startsWith(ui) || !Files.isRegularFile(file)) {
             route.fulfill(Route.FulfillOptions().setStatus(404))
         } else {
             route.fulfill(
@@ -103,7 +114,7 @@ fun Browser.window(
             )
         }
     }
-    context.addInitScript(BRIDGE.replace("__FIXTURES__", Files.readString(FIXTURES)))
+    context.addInitScript(BRIDGE.replace("__FIXTURES__", Files.readString(fixtures)))
     return context
 }
 

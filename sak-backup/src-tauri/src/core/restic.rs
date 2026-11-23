@@ -256,7 +256,11 @@ impl Access {
             .basic_auth(self.id, Some(&self.token))
             .send()
             .await
-            .map_err(|error| failed(error.without_url()))?;
+            .map_err(|error| {
+                failed(sak_desktop_shared::errors::with_causes(
+                    &error.without_url(),
+                ))
+            })?;
         match response.status() {
             reqwest::StatusCode::OK => Ok(true),
             reqwest::StatusCode::NOT_FOUND => Ok(false),
@@ -274,10 +278,14 @@ pub(crate) async fn access(sessions: &SessionManager, id: u64) -> Result<Access,
         None,
     )
     .await?;
+    let token = token["token"]
+        .as_str()
+        .filter(|token| !token.is_empty())
+        .ok_or_else(|| failed("the SAK instance answered no token of the repository"))?;
     Ok(Access {
         id,
         base: base(sessions, id)?,
-        token: token["token"].as_str().unwrap_or_default().to_string(),
+        token: token.to_string(),
     })
 }
 

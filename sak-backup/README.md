@@ -11,7 +11,7 @@ YAML file on the server, run by systemd timers, to repositories the user chooses
 
 ## The window
 
-`sakbackup` is a window for now (`src-tauri/`, `ui/`). It signs in at a SAK instance through the browser
+`sakbackup` is a window and a command line (`src-tauri/`, `ui/`). It signs in at a SAK instance through the browser
 and shows the backup plans, the repositories and the snapshots on the left; they are empty for now. `mise run backup:run`
 runs it.
 

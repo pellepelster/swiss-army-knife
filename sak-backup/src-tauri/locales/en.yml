@@ -1,5 +1,11 @@
 # the texts of sakbackup in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 common:
+  checks:
+    restic:
+      name: "Find restic"
+      passed: "restic %{version}"
+      missing: "SAK Backup needs restic to make backups. Install it, e.g. with the package manager, and start SAK Backup again."
+      failed: "%{program} does not run: %{error}"
 cli:
   repository_created: "Created the repository %{name}: %{url}"
   plan_created: "Created the backup plan %{name} of %{host} into %{repository}."
@@ -13,6 +19,9 @@ cli:
   removed: "Removed %{count} older snapshots."
   expire_failed: "The backup is done, but the older snapshots could not be removed: %{error}"
   unknown_snapshot: "The repository has no snapshot of this id."
+  cancelled: "The run was cancelled."
+  running: "Another backup or restore is running."
+  needs_init: "The repository has no backup yet. Run the backup again to create it with a password."
   restored_partly: "Restored the newest snapshot of %{plan} below %{target}, but %{count} files could not be written."
   skipped: "Skipped: %{message}"
   unknown_repository: "You have no repository %{name}."
@@ -31,6 +40,9 @@ cli:
   repository_missing: "The SAK instance has no data of the repository, but its password is remembered on this computer, so it had backups. It is not created again: check the SAK instance."
   empty: "The snapshot %{snapshot} has no file: is a disk not mounted? No older snapshot was removed."
 ui:
+  quit: "Quit"
+  update:
+    restart_while_running: "A backup or a restore is running, restart when it is done."
   title: "SAK Backup"
   intro: "Sign in at your SAK instance in the browser to manage its backups."
   nav:
