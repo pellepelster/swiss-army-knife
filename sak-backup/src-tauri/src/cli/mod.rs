@@ -358,19 +358,21 @@ async fn command(command: Command) -> Result<(), String> {
                 .map_err(|error| error.to_string())?;
             let host = host();
             let plan = with_keep(
-                json!({
-                    "name": name,
-                    "repositoryId": repository["id"],
-                    "host": host,
-                    "paths": paths,
-                    "excludes": excludes.excludes()?.unwrap_or_default(),
-                    "excludeCaches": excludes.caches().unwrap_or(false),
-                }),
+                json!({ "name": name, "repositoryId": repository["id"], "host": host, "paths": paths }),
                 &keep.json().unwrap_or_else(default_keep),
             );
+            // the excludes go along only when given: a SAK instance from before them refuses a
+            // request with a field it does not know
+            let patterns = excludes.excludes()?;
+            let sends_excludes = patterns.is_some() || excludes.caches().is_some();
+            let mut plan = plan;
+            if sends_excludes {
+                plan["excludes"] = json!(patterns.unwrap_or_default());
+                plan["excludeCaches"] = json!(excludes.caches().unwrap_or(false));
+            }
             let created = api::create_plan(&sessions, &plan)
                 .await
-                .map_err(|error| api_message(&error))?;
+                .map_err(|error| excludes_message(&error, sends_excludes))?;
             println!(
                 "{}",
                 t!(
@@ -398,9 +400,14 @@ async fn command(command: Command) -> Result<(), String> {
                 "repositoryId": plan["repositoryId"],
                 "host": plan["host"],
                 "paths": plan["paths"],
-                "excludes": plan["excludes"],
-                "excludeCaches": plan["excludeCaches"],
             });
+            // the excludes of the plan, when its SAK instance knows them: one from before answers
+            // a plan without them and refuses a request with them
+            for field in ["excludes", "excludeCaches"] {
+                if !plan[field].is_null() {
+                    values[field] = plan[field].clone();
+                }
+            }
             let kept = json!({
                 "keepLast": plan["keepLast"],
                 "keepDaily": plan["keepDaily"],
@@ -415,9 +422,11 @@ async fn command(command: Command) -> Result<(), String> {
             if let Some(caches) = excludes.caches() {
                 values["excludeCaches"] = json!(caches);
             }
+            let sends_excludes =
+                !values["excludes"].is_null() || !values["excludeCaches"].is_null();
             api::update_plan(&sessions, id, &values)
                 .await
-                .map_err(|error| api_message(&error))?;
+                .map_err(|error| excludes_message(&error, sends_excludes))?;
             println!("{}", t!("cli.plan_changed", name = name));
         }
         Command::Plan(PlanCommand::Excludes { name }) => {
@@ -659,6 +668,24 @@ fn password(new: bool) -> Result<String, String> {
     }
 }
 
+/// the text of a failed save of a plan: a SAK instance from before the excludes can not read a
+/// request with them, it says so as a malformed request
+fn excludes_message(error: &ApiError, sends_excludes: bool) -> String {
+    match error {
+        ApiError::Refused {
+            status: 400,
+            errors,
+        } if sends_excludes
+            && errors
+                .iter()
+                .any(|each| each.code == "api.malformed_request") =>
+        {
+            t!("cli.excludes_unsupported").to_string()
+        }
+        error => api_message(error),
+    }
+}
+
 /// what a preview found, a line each: what a run backs up, then each pattern with what it leaves
 /// out, the patterns that leave out nothing and the paths that are not here
 fn print_preview(found: &crate::core::excludes::Preview) {
@@ -840,6 +867,26 @@ mod tests {
                 "--no-exclude-caches"
             ])
             .is_err()
+        );
+    }
+
+    #[test]
+    fn a_save_with_excludes_an_older_instance_can_not_read_says_why() {
+        let malformed = ApiError::Refused {
+            status: 400,
+            errors: vec![sak_desktop_shared::api::ApiErrorMessage {
+                code: "api.malformed_request".into(),
+                message: "The request is malformed.".into(),
+            }],
+        };
+        assert_eq!(
+            excludes_message(&malformed, true),
+            "This SAK instance does not know excludes yet. Update it with sakadmin, then save the backup plan again."
+        );
+        // without excludes it is what the instance said
+        assert_eq!(
+            excludes_message(&malformed, false),
+            "The SAK instance refused it: The request is malformed."
         );
     }
 

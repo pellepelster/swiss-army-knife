@@ -2384,6 +2384,9 @@ sak_backup:
       excludes_none: { en: "Nothing is left out.", de: "Nichts wird ausgelassen." }
       excludes_summary: { en: "%{count} patterns", de: "%{count} Muster" }
       excludes_caches_on: { en: "cache folders left out", de: "Cache-Ordner ausgelassen" }
+      excludes_unsupported:
+        en: "This SAK instance does not know excludes yet. Update it with sakadmin, then save the backup plan again."
+        de: "Diese SAK-Instanz kennt noch keine Ausschlüsse. Aktualisiere sie mit sakadmin und speichere den Backup-Plan dann erneut."
       delete_title: { en: "Delete %{name}", de: "%{name} löschen" }
       delete_confirm:
         en: "Delete the backup plan %{name}? Its paths are no longer backed up by it. Its repository and the snapshots in it stay."
@@ -2537,6 +2540,9 @@ sak_backup:
       en: "Give --keep-*, --exclude, --exclude-file, --preset or --[no-]exclude-caches to change the backup plan."
       de: "Gib --keep-*, --exclude, --exclude-file, --preset oder --[no-]exclude-caches an, um den Backup-Plan zu ändern."
     exclude_file_unreadable: { en: "%{file} can not be read: %{error}", de: "%{file} kann nicht gelesen werden: %{error}" }
+    excludes_unsupported:
+      en: "This SAK instance does not know excludes yet. Update it with sakadmin, then save the backup plan again."
+      de: "Diese SAK-Instanz kennt noch keine Ausschlüsse. Aktualisiere sie mit sakadmin und speichere den Backup-Plan dann erneut."
     excludes_caches_on:
       en: "and the folders marked as caches (CACHEDIR.TAG)"
       de: "und die als Cache markierten Ordner (CACHEDIR.TAG)"

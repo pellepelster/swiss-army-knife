@@ -315,14 +315,16 @@ form.addEventListener('submit', async (event) => {
   if (!named || paths.length === 0 || keep === null) return;
   setBusy(form, true);
   setStatus(formStatus, text('ui.saving'));
+  // the excludes go along only when there are some, or the plan had some: a SAK instance from before
+  // the excludes refuses a request with a field it does not know
+  const sendsExcludes = Boolean(excludes || excludeCaches || editing?.excludes || editing?.excludeCaches);
   const plan = {
     name: name.value.trim(),
     repositoryId: Number(repository.value),
     host,
     paths,
     ...keep,
-    excludes,
-    excludeCaches,
+    ...(sendsExcludes ? { excludes, excludeCaches } : {}),
   };
   try {
     if (editing) {
@@ -334,10 +336,16 @@ form.addEventListener('submit', async (event) => {
   } catch (error) {
     if (signedOut(error, shell)) return;
     setStatus(formStatus, '');
-    saveFailed(error, FIELD_OF, (field) => $(`plan-${field}-error`), formStatus);
+    if (sendsExcludes && isMalformed(error)) setFailure(formStatus, text('ui.plans.excludes_unsupported'));
+    else saveFailed(error, FIELD_OF, (field) => $(`plan-${field}-error`), formStatus);
   } finally {
     setBusy(form, false);
   }
 });
+
+// the answer of a SAK instance that could not read the request, e.g. one from before the excludes
+function isMalformed(error) {
+  return error?.kind === 'refused' && error.status === 400 && error.errors.some((each) => each.code === 'api.malformed_request');
+}
 
 $('plan-cancel').addEventListener('click', () => showPlans());
