@@ -14,6 +14,9 @@ import java.nio.file.Paths
 private val UI: Path = Paths.get(System.getProperty("sak.e2e.window.ui") ?: "../sak-admin-cli/ui").toAbsolutePath().normalize()
 private val FIXTURES: Path = Paths.get(System.getProperty("sak.e2e.window.fixtures") ?: "../build/ui-fixtures/window.json")
 
+// the fixtures of sakadmin, for a test that serves them changed
+val WINDOW_FIXTURES: Path get() = FIXTURES
+
 // where the page is served from, no server listens there
 private const val ORIGIN = "http://sakadmin.test"
 

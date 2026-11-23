@@ -278,14 +278,14 @@ ui:
     loading: "Looking for SAK instances at the providers…"
   deployment:
     edit_config: "Config…"
-    changed_since_check: "The SAK instance changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
+    changed_since_check: "The SAK instance changed since its plan was shown, nothing was changed. Plan or check it again and look at the new plan before you go on."
     maintenance: "Maintenance"
     destroy: "Destroy"
     check: "Check"
     checking: "Checking the SAK instance…"
     changes: "%{count} of its resources have changes."
     up_to_date: "Everything is up-to-date."
-    not_checked: "Check the SAK instance first."
+    not_checked: "This plan is no longer the newest one. Plan or check the SAK instance again."
     config:
       loading: "Reading the configuration…"
       source_running: "The configuration the running SAK instance answered."
@@ -379,6 +379,8 @@ ui:
     title: "Destroy %{name}?"
     text: "Its DNS records, server, addresses, firewall and ssh key are deleted. Its data volume stays."
     text_with_data: "Its DNS records, server, addresses, firewall, ssh key and its data volume with everything stored on it are deleted. This cannot be undone."
+    deploy_title: "Deploy %{name}?"
+    deploy_text: "This plan deletes or replaces: %{resources}."
   plan:
     title: "Plan"
     deploy_changes: "Deploy changes"

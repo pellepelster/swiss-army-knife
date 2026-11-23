@@ -4,7 +4,6 @@
 // one with deployments in dns mode `subdomain` allows only that mode
 import { openedDeployment } from './password.js';
 import { runDestroy, showPlan } from './run.js';
-import { confirmAction } from './shared/confirm-dialog.js';
 import { navigate, setBusy, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -61,17 +60,6 @@ function showDeleteData() {
 
 deleteDataInput.addEventListener('change', showDeleteData);
 
-// true to continue; Escape cancels. A destroy that deletes the data volume shows red as the form
-function confirmDestroy(name) {
-  const withData = deleteDataInput.checked;
-  return confirmAction({
-    title: text('ui.confirm.title', { name }),
-    message: text(withData ? 'ui.confirm.text_with_data' : 'ui.confirm.text'),
-    action: text('ui.plan.destroy'),
-    danger: true,
-    className: withData ? 'danger-zone' : '',
-  });
-}
 const dnsModeHint = document.getElementById('create-dns-mode-hint');
 const repeatGroup = document.getElementById('create-repeat-group');
 // the opened deployment, null for a new one; the intent is create, deploy (a new config) or destroy
@@ -478,10 +466,8 @@ form.addEventListener('submit', async (event) => {
     return;
   }
   if (intent === 'destroy') {
-    if (!(await confirmDestroy(nameInput.value))) {
-      return;
-    }
-    // cancel is busy too, so a cancel cannot slip in between the plan and the run
+    // planned first, then confirmed with what it deletes (run.js); cancel is busy too, so a cancel
+    // cannot slip in between the plan and the run
     setFormBusy(true);
     setStatus(status, text('ui.create.planning'));
     let plan;

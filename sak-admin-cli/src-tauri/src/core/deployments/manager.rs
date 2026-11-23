@@ -603,10 +603,10 @@ impl DeploymentManager {
         .map_err(|error| {
             cloud_failure("common.deployments.plan_failed", prepared.provider, error)
         })?;
-        let plan = PlanResponse {
-            name: prepared.spec.name.clone(),
-            public_key: prepared.spec.public_key.clone(),
-            resources: diffs
+        let plan = PlanResponse::new(
+            prepared.spec.name.clone(),
+            prepared.spec.public_key.clone(),
+            diffs
                 .iter()
                 .map(|diff| {
                     let keep =
@@ -679,7 +679,7 @@ impl DeploymentManager {
                     })
                 }))
                 .collect::<Result<Vec<_>, SakadminError>>()?,
-        };
+        );
         Ok(Planned {
             plan,
             prepared,
@@ -687,24 +687,11 @@ impl DeploymentManager {
         })
     }
 
-    /// A create or deploy applies the resources by their dependencies, the roles after the server
+    /// the apply of a plan made already (`plan_prepared`). A create or deploy applies the resources by their dependencies, the roles after the server
     /// and the volume, then removes the dns records of an old dns mode or root domain, sets the
     /// version label and waits for the api. What is up to date stays, so a next run finishes a
     /// failed one. A destroy removes the dns records, then every resource, dependents first; the
     /// data volume only with `delete_data`
-    pub async fn prepare_and_apply(
-        &self,
-        tokens: Vec<(ProviderType, String)>,
-        deployment: &DeploymentRequest,
-        container: &ContainerRuntime,
-        on_event: &mut (dyn FnMut(DeploymentEvent) + Send),
-    ) -> Result<(), SakadminError> {
-        let prepared = self.prepare(tokens, deployment).await?;
-        self.apply_prepared(prepared, None, container, on_event)
-            .await
-    }
-
-    /// `prepare_and_apply` with the diffs of a plan made already
     pub async fn apply(
         &self,
         planned: Planned,

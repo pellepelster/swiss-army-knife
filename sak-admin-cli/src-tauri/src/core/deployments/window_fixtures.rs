@@ -151,11 +151,34 @@ fn plan(spec: &DeploymentSpec, intent: Intent) -> PlanResponse {
         keep: false,
         changes: Vec::new(),
     });
-    PlanResponse {
-        name: NAME.to_string(),
-        public_key: spec.public_key.clone(),
-        resources,
-    }
+    PlanResponse::new(NAME.to_string(), spec.public_key.clone(), resources)
+}
+
+/// the plan of a deploy whose server changed so that it is created anew: it deletes and replaces
+fn replacing(spec: &DeploymentSpec) -> PlanResponse {
+    let PlanResponse {
+        name,
+        public_key,
+        mut resources,
+        ..
+    } = plan(spec, Intent::Deploy);
+    let server = resources
+        .iter_mut()
+        .find(|resource| resource.kind == PlannedKind::Resource(ResourceKind::Server))
+        .expect("a server in the plan");
+    server.status = DiffStatus::HasChanges;
+    server.resource_status = ResourceStatus::HasChanges;
+    server.action = Some(PlanAction::WillUpdate);
+    server.working = Working::Recreate;
+    server.changes = vec!["server type: cx22 to cx32".to_string()];
+    PlanResponse::new(name, public_key, resources)
+}
+
+/// a plan as `plan_deployment` and `check_deployment` answer it: with the number its apply names
+fn checked(plan: PlanResponse, number: u64) -> Value {
+    let mut answer = json!(plan);
+    answer["check"] = json!(number);
+    answer
 }
 
 /// the events of the create: each resource, then the playbook task by task, the wait for the api
@@ -426,21 +449,24 @@ fn window_fixtures() {
             "send_test_mail": [t!("common.smtp.sent", host = "smtp.example.org", to = "admin@example.org")],
             "locations": [crate::gui::deployments::locations()],
             "root_domains": [[root_domain_response(&root_domain, NAME)]],
-            "plan_deployment": [plan(&spec, Intent::Create)],
+            "plan_deployment": [checked(plan(&spec, Intent::Create), 1)],
             "deployment_settings": [settings()],
-            "check_deployment": [plan(&spec, Intent::Deploy)],
+            "check_deployment": [checked(plan(&spec, Intent::Deploy), 2)],
             "check_deployment_password": [null],
             "cancel_apply": [null],
-            "apply_deployment": [null],
+            "apply_checked": [null],
             "open_url": [null],
             "quit": [null],
             "run_checks": [null],
             "version": [sak_desktop_shared::update::version_of(&crate::core::APP)],
         },
+        // a plan that replaces the server, which a test serves instead of the one of the create
+        // (SakadminPlanTest); the bridge reads `answers` and `channels` only
+        "replacingPlan": checked(replacing(&spec), 3),
         // the events a command sends to its channel before it answers
         "channels": {
             "run_checks": checks(),
-            "apply_deployment": create(&spec),
+            "apply_checked": create(&spec),
         },
     });
     let path = std::env::var("SAK_WINDOW_FIXTURES")

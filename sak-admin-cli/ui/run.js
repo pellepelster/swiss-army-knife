@@ -1,7 +1,10 @@
 // the plan of a create or of a new config, and the run of an apply or a destroy, with the same
 // resource rows. A destroy runs without this plan, a check of deployment.js is its own plan. Done
-// only when every resource was done; cancel stops the run
+// only when every resource was done; cancel stops the run. Every apply names its plan, rust
+// applies only what the page showed (apply_checked), and a plan that deletes or replaces something
+// is confirmed first
 import { openDeployment } from './password.js';
+import { confirmAction } from './shared/confirm-dialog.js';
 import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke, Channel } = window.__TAURI__.core;
@@ -118,8 +121,40 @@ function onEvent(message) {
   }
 }
 
-// `afterDone` is what done opens; `start` starts the apply in rust with the channel of its events
-async function run(plan, deployment, afterDone, start = (channel) => invoke('apply_deployment', { deployment, onEvent: channel })) {
+// what a plan deletes or replaces, named as its rows name it
+function goes(plan) {
+  return plan.resources
+    .filter((resource) => resource.action === 'will_destroy' || resource.working === 'working_recreate')
+    .map((resource) => `${text(`common.deployments.resource.${resource.kind}`)} ${resource.name}`)
+    .join(', ');
+}
+
+// true to apply: asked when the plan deletes or replaces something (rust's `destroys`), after the
+// plan, as the command line asks (CTL-1, UI-10). A destroy says what it deletes, red with its data
+function confirmPlan(plan, deployment) {
+  if (!plan.destroys) return Promise.resolve(true);
+  if (deployment.intent === 'destroy') {
+    const withData = Boolean(deployment.deleteData);
+    return confirmAction({
+      title: text('ui.confirm.title', { name: plan.name }),
+      message: text(withData ? 'ui.confirm.text_with_data' : 'ui.confirm.text'),
+      action: text('ui.plan.destroy'),
+      danger: true,
+      className: withData ? 'danger-zone' : '',
+    });
+  }
+  return confirmAction({
+    title: text('ui.confirm.deploy_title', { name: plan.name }),
+    message: text('ui.confirm.deploy_text', { resources: goes(plan) }),
+    action: text('ui.plan.deploy_changes'),
+    danger: true,
+  });
+}
+
+// `afterDone` is what done opens; the apply in rust is the one of `plan.check`, forced or not. False
+// when the user did not confirm the plan
+async function run(plan, deployment, afterDone) {
+  if (!(await confirmPlan(plan, deployment))) return false;
   running = { deployment, afterDone };
   const { intent } = deployment;
   document.getElementById('run-title').textContent = text(`ui.plan.title_${intent}`, { name: plan.name });
@@ -139,7 +174,7 @@ async function run(plan, deployment, afterDone, start = (channel) => invoke('app
   const channel = new Channel();
   channel.onmessage = onEvent;
   try {
-    await start(channel);
+    await invoke('apply_checked', { deploy: { check: plan.check, force: Boolean(deployment.force) }, onEvent: channel });
     if (isCurrent(visit)) {
       setStatus(runStatus, text(intent === 'destroy' ? `ui.plan.destroyed${withData}` : 'ui.plan.provisioned'));
       doneButton.disabled = false;
@@ -169,12 +204,13 @@ document.getElementById('plan-cancel').addEventListener('click', () => cancelPla
 
 // rust keeps what it checked, `plan.check` names it
 export function runChecked(plan, name, password, force) {
-  const deployment = { name, password, intent: 'deploy', deleteData: false };
-  run(plan, deployment, () => showApplied(deployment), (channel) => invoke('apply_checked', { deploy: { check: plan.check, force }, onEvent: channel }));
+  const deployment = { name, password, intent: 'deploy', deleteData: false, force };
+  run(plan, deployment, () => showApplied(deployment));
 }
 
-export async function runDestroy(plan, deployment) {
-  await run(plan, deployment, showList);
+// false when the user did not confirm it
+export function runDestroy(plan, deployment) {
+  return run(plan, deployment, showList);
 }
 
 async function showList() {

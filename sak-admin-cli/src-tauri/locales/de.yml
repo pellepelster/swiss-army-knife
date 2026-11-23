@@ -278,14 +278,14 @@ ui:
     loading: "Suche SAK-Instanzen bei den Providern…"
   deployment:
     edit_config: "Konfiguration…"
-    changed_since_check: "Die SAK-Instanz hat sich seit ihrer Prüfung geändert, nichts wurde geändert. Prüfe sie erneut und sieh dir den Plan an, bevor du sie ausrollst."
+    changed_since_check: "Die SAK-Instanz hat sich geändert, seit ihr Plan angezeigt wurde, nichts wurde geändert. Plane oder prüfe sie erneut und sieh dir den neuen Plan an, bevor du weitermachst."
     maintenance: "Wartung"
     destroy: "Zerstören"
     check: "Prüfen"
     checking: "Prüfe die SAK-Instanz…"
     changes: "%{count} seiner Ressourcen haben Änderungen."
     up_to_date: "Alles ist aktuell."
-    not_checked: "Prüfe die SAK-Instanz zuerst."
+    not_checked: "Dieser Plan ist nicht mehr der neueste. Plane oder prüfe die SAK-Instanz erneut."
     config:
       loading: "Lese die Konfiguration…"
       source_running: "Die Konfiguration, die die laufende SAK-Instanz genannt hat."
@@ -379,6 +379,8 @@ ui:
     title: "%{name} zerstören?"
     text: "Seine DNS-Einträge, sein Server, seine Adressen, seine Firewall und sein SSH-Key werden gelöscht. Sein Datenvolume bleibt."
     text_with_data: "Seine DNS-Einträge, sein Server, seine Adressen, seine Firewall, sein SSH-Key und sein Datenvolume mit allem, was darauf gespeichert ist, werden gelöscht. Das kann nicht rückgängig gemacht werden."
+    deploy_title: "%{name} ausrollen?"
+    deploy_text: "Dieser Plan löscht oder ersetzt: %{resources}."
   plan:
     title: "Plan"
     deploy_changes: "Änderungen ausrollen"

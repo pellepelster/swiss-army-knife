@@ -91,18 +91,26 @@ pub async fn root_domains(
 }
 
 /// the plan of a create, a config or a destroy; a config takes what it is not given from the
-/// deployment, as the command line does
+/// deployment, as the command line does. It is kept as a check is, so its apply (`apply_checked`)
+/// applies what the page shows (DA-27)
 #[tauri::command]
 pub async fn plan_deployment(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     container: State<'_, ContainerRuntime>,
+    checked: State<'_, CheckedDeployment>,
     loaded: State<'_, LoadedSettings>,
     deployment: DeploymentRequest,
-) -> Result<PlanResponse, SakadminError> {
+) -> Result<CheckResponse, SakadminError> {
+    let number = checked.start();
     let tokens = tokens.tokens();
     let deployment = completed_config(&manager, tokens.clone(), &loaded, deployment).await?;
-    manager.plan(tokens, &deployment, &container).await
+    let plan = manager.plan(tokens, &deployment, &container).await?;
+    checked.done(number, deployment, plan.seen());
+    Ok(CheckResponse {
+        check: number,
+        plan,
+    })
 }
 
 /// a config of the form completed from the settings of the deployment; a create or destroy
@@ -161,7 +169,7 @@ async fn settings_of(
     Ok(detected)
 }
 
-/// the plan of a check and its number, which the deploy names
+/// the plan of a check or of the plan of a form, and its number, which the apply names
 #[derive(serde::Serialize)]
 pub struct CheckResponse {
     check: u64,
@@ -224,7 +232,8 @@ pub struct CheckedDeploy {
     force: bool,
 }
 
-/// the deploy of a check; refused when it is not the newest check
+/// the apply of a check or a plan the page shows, a create, deploy or destroy; refused when it is
+/// not the newest one, or when the plan is not what the page showed
 #[tauri::command]
 pub async fn apply_checked(
     manager: State<'_, DeploymentManager>,
@@ -260,49 +269,6 @@ pub async fn apply_checked(
         manager.apply(planned, &container, &mut report).await
     };
     running.run(work, "common.deployments.cancelled").await
-}
-
-#[tauri::command]
-pub async fn apply_deployment(
-    manager: State<'_, DeploymentManager>,
-    tokens: State<'_, ProviderTokens>,
-    container: State<'_, ContainerRuntime>,
-    running: State<'_, RunningWork>,
-    loaded: State<'_, LoadedSettings>,
-    deployment: DeploymentRequest,
-    on_event: Channel<DeploymentEvent>,
-) -> Result<(), SakadminError> {
-    let deployment = completed_config(&manager, tokens.tokens(), &loaded, deployment).await?;
-    apply(
-        &manager,
-        tokens.tokens(),
-        &container,
-        &running,
-        &deployment,
-        &on_event,
-    )
-    .await
-}
-
-/// the apply of `deployment`, which cancel can stop; each event goes to the page
-async fn apply(
-    manager: &DeploymentManager,
-    tokens: Vec<(ProviderType, String)>,
-    container: &ContainerRuntime,
-    running: &RunningWork,
-    deployment: &DeploymentRequest,
-    on_event: &Channel<DeploymentEvent>,
-) -> Result<(), SakadminError> {
-    // a progress event that cannot be sent is no reason to stop the apply
-    let mut report = |event| {
-        let _ = on_event.send(event);
-    };
-    running
-        .run(
-            manager.prepare_and_apply(tokens, deployment, container, &mut report),
-            "common.deployments.cancelled",
-        )
-        .await
 }
 
 /// stops the apply or the maintenance that runs: its requests to the provider end where they are,

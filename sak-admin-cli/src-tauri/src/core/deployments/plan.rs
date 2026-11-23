@@ -12,9 +12,28 @@ pub struct PlanResponse {
     pub(crate) name: String,
     pub(crate) public_key: String,
     pub(crate) resources: Vec<PlannedResource>,
+    /// the apply removes or replaces a resource: both faces ask before it (CTL-1, UI-10)
+    pub(crate) destroys: bool,
 }
 
 impl PlanResponse {
+    pub(crate) fn new(name: String, public_key: String, resources: Vec<PlannedResource>) -> Self {
+        let destroys = resources.iter().any(|resource| {
+            resource.action == Some(PlanAction::WillDestroy)
+                || resource.working == Working::Recreate
+        });
+        PlanResponse {
+            name,
+            public_key,
+            resources,
+            destroys,
+        }
+    }
+
+    pub fn destroys(&self) -> bool {
+        self.destroys
+    }
+
     /// to tell whether the project changed since. Without the provisioning: a forced deploy
     /// changes its row on purpose
     pub fn seen(&self) -> Seen {

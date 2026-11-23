@@ -1229,15 +1229,17 @@ admin_cli:
     deployment:
       edit_config: { en: "Config…", de: "Konfiguration…" }
       changed_since_check:
-        en: "The SAK instance changed since its check, nothing was changed. Check it again and look at the plan before you deploy."
-        de: "Die SAK-Instanz hat sich seit ihrer Prüfung geändert, nichts wurde geändert. Prüfe sie erneut und sieh dir den Plan an, bevor du sie ausrollst."
+        en: "The SAK instance changed since its plan was shown, nothing was changed. Plan or check it again and look at the new plan before you go on."
+        de: "Die SAK-Instanz hat sich geändert, seit ihr Plan angezeigt wurde, nichts wurde geändert. Plane oder prüfe sie erneut und sieh dir den neuen Plan an, bevor du weitermachst."
       maintenance: { en: "Maintenance", de: "Wartung" }
       destroy: { en: "Destroy", de: "Zerstören" }
       check: { en: "Check", de: "Prüfen" }
       checking: { en: "Checking the SAK instance…", de: "Prüfe die SAK-Instanz…" }
       changes: { en: "%{count} of its resources have changes.", de: "%{count} seiner Ressourcen haben Änderungen." }
       up_to_date: { en: "Everything is up-to-date.", de: "Alles ist aktuell." }
-      not_checked: { en: "Check the SAK instance first.", de: "Prüfe die SAK-Instanz zuerst." }
+      not_checked:
+        en: "This plan is no longer the newest one. Plan or check the SAK instance again."
+        de: "Dieser Plan ist nicht mehr der neueste. Plane oder prüfe die SAK-Instanz erneut."
       config:
         loading: { en: "Reading the configuration…", de: "Lese die Konfiguration…" }
         source_running:
@@ -1393,6 +1395,11 @@ admin_cli:
       text_with_data:
         en: "Its DNS records, server, addresses, firewall, ssh key and its data volume with everything stored on it are deleted. This cannot be undone."
         de: "Seine DNS-Einträge, sein Server, seine Adressen, seine Firewall, sein SSH-Key und sein Datenvolume mit allem, was darauf gespeichert ist, werden gelöscht. Das kann nicht rückgängig gemacht werden."
+      # a create or deploy whose plan deletes or replaces something, after the plan (CTL-1, UI-10)
+      deploy_title: { en: "Deploy %{name}?", de: "%{name} ausrollen?" }
+      deploy_text:
+        en: "This plan deletes or replaces: %{resources}."
+        de: "Dieser Plan löscht oder ersetzt: %{resources}."
     plan:
       title: { en: "Plan", de: "Plan" }
       deploy_changes: { en: "Deploy changes", de: "Änderungen ausrollen" }

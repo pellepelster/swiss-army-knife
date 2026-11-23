@@ -39,7 +39,10 @@ are `DA-26` to `DA-62`. The most serious claims were checked in the code before 
 Fixed since the second pass: `DA-1`, the sign-in that other users of the machine could take over off linux. There
 the url the browser is started with has a secret of its sign-in now (`START_SECRET` in `session.rs`), and every other
 request of the start page is answered 404 and ends nothing; it rests on macOS and windows showing the arguments of a
-process to its user and an admin only, which was not tried on either.
+process to its user and an admin only, which was not tried on either. `DA-26` and `DA-27`: the plan says whether it deletes or
+replaces something (`destroys`, computed in core, read by both faces); the window asks after the plan with what goes,
+also for a destroy, and every apply of the window names the plan it showed (`apply_checked`), so a project that
+changed since is refused (`SakadminPlanTest`).
 
 ## What is good
 
@@ -70,27 +73,6 @@ process to its user and an admin only, which was not tried on either.
 ## Should fix
 
 ### sakadmin
-
-#### `DA-26` A deploy from the window that replaces or removes something does not ask (read, checked)
-
-The command line asks when a plan destroys or recreates a resource (`cli/deploy.rs:129-134`, `CTL-1`). The window asks
-only before a destroy (`ui/create.js:481`): the Deploy of the plan view (`ui/run.js:161-167`, `apply_deployment`) and
-the deploy after a check (`ui/deployment.js:174`) apply without a dialog, also when the plan replaces the server or
-removes stale DNS records (`plan.rs:185`). For a destroy the dialog comes before the plan, so the user agrees before
-seeing what goes, which `UI-10` asks the other way round.
-
-Fix: `destroys: bool` on `PlanResponse`, computed in core where the plan is built; both faces read it, the window shows
-`confirmAction` before `apply_*` when it is true; for a destroy the plan first, then the confirmation.
-
-#### `DA-27` Create, config and destroy in the window apply a new plan, not the one shown (read, checked)
-
-`apply_checked` plans again and refuses when the result differs from what the page showed
-(`gui/deployments.rs:229-260`). `apply_deployment`, used by create, the config form and destroy, calls
-`prepare_and_apply` (`gui/deployments.rs:266-306`, `manager.rs:695-705`), which applies whatever the project looks like
-now. A project changed between the plan and the click gets a plan nobody saw; with `DA-26` nothing stops it.
-
-Fix: the check numbers for every intent: `plan_deployment` keeps the request with what it saw and returns its number,
-the apply takes the number; `apply_deployment` and `prepare_and_apply` go.
 
 #### `DA-28` A cancel can leave the playbook running in the background (read; the window depends on timing)
 

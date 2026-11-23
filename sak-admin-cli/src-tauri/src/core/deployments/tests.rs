@@ -1314,23 +1314,25 @@ fn what_a_plan_shows_leaves_out_the_provisioning_a_forced_deploy_changes() {
         keep: false,
         changes: Vec::new(),
     };
-    let plan = |provisioning_status, provisioning_action, server_status| PlanResponse {
-        name: "alpha".into(),
-        public_key: String::new(),
-        resources: vec![
-            row(
-                PlannedKind::Resource(ResourceKind::Server),
-                "server 'sak-alpha'",
-                server_status,
-                None,
-            ),
-            row(
-                PlannedKind::Provisioning,
-                "provisioning",
-                provisioning_status,
-                provisioning_action,
-            ),
-        ],
+    let plan = |provisioning_status, provisioning_action, server_status| {
+        PlanResponse::new(
+            "alpha".into(),
+            String::new(),
+            vec![
+                row(
+                    PlannedKind::Resource(ResourceKind::Server),
+                    "server 'sak-alpha'",
+                    server_status,
+                    None,
+                ),
+                row(
+                    PlannedKind::Provisioning,
+                    "provisioning",
+                    provisioning_status,
+                    provisioning_action,
+                ),
+            ],
+        )
     };
     let checked = plan(
         DiffStatus::UpToDate,

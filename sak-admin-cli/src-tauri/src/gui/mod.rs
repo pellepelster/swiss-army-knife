@@ -56,7 +56,6 @@ pub fn run() {
             deployments::root_domains,
             deployments::plan_deployment,
             deployments::deployment_settings,
-            deployments::apply_deployment,
             deployments::check_deployment,
             deployments::apply_checked,
             deployments::cancel_apply,

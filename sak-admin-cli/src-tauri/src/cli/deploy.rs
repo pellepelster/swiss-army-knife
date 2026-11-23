@@ -126,10 +126,7 @@ pub(super) async fn plan_and_apply(
         }
     }
 
-    let destroys = plan.resources.iter().any(|resource| {
-        resource.action == Some(PlanAction::WillDestroy) || resource.working == Working::Recreate
-    });
-    if destroys && !yes {
+    if plan.destroys() && !yes {
         confirm_plan(&plan.name)?;
     }
 
