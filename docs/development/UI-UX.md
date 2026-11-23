@@ -64,7 +64,7 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
 - `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Sign out". An
   app that can update itself (e.g. the Android apps, not the web app, which a browser updates) has "Check for updates"
   in it too: the check loads a new version at once when there is one; otherwise a line under the header says what it
-  found.
+  found. The desktop apps have neither, their update and their account are placed by `DESKTOP-4`.
 - `UX-14` **The robot starts the AI features.** Each action that starts an AI feature has the robot icon of the theme
   (`fa-robot`), in every app. Examples are the action that discovers the text of a photo or a recording of a note and
   the action that reads the items in a photo for a grocery list.
@@ -113,3 +113,8 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
 - `DESKTOP-3` **The SAK addresses are remembered on the computer.** A desktop app remembers the SAK addresses of its
   successful sign-ins, on the computer of the user only, the last one first. The sign-in screen shows the last
   address. A failed sign-in is not remembered.
+- `DESKTOP-4` **The update in the footer, the account in the navigation.** A desktop app has a footer below every view
+  with its version, one button and a line of text. The button checks for a newer version, installs it on a second
+  click and offers a restart after that; the line says whom the check asks before anything is asked, and what it
+  found. Nothing is asked before the user clicks. A desktop app that signs in (sakbackup) has its navigation on the
+  left; at its bottom a menu with the name of the user holds "Sign out".

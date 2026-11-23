@@ -431,9 +431,6 @@ page without a page of sakbackup, `#create-smtp-password-hint` and the second `i
 - the markup of the footer of the update is in both `index.html`; `update.js` can make it
 - the header with the icon in ten views of sakadmin
 - `$`, `invoke` and a builder of elements are written in each module; `views.js` can export them
-- `UX-13` wants "Sign out" and "Check for updates" in a menu at the top right; both windows have the update in the
-  footer and sakbackup its menu at the bottom of the navigation. Write the desktop apps into `UI-UX.md`, or change
-  the windows: a decision of the owner, a rule changes only with its consent
 
 ## Not reviewed
 
