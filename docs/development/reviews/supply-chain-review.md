@@ -9,7 +9,8 @@ weight: 6
 
 **Created:** 2026-11-04
 
-**Checked again:** 2026-11-22, every finding listed is still open; the fixed ones are in the history of git.
+**Checked again:** 2026-11-23, every finding listed is still open; the fixed ones are in the history of git. `SC-3`
+is fixed: the Dependabot alerts are on (`vulnerability-alerts` answers 204), the security updates stay off.
 
 Scope: the signing of the zips of sakadmin and of the images with cosign (`mise run admin-cli:release`, `image:sign`),
 their verification in sakadmin (`sakadmin update`, `core/images.rs`, `SAKADM-12` in
@@ -29,15 +30,6 @@ only), `packages: write` only for the jobs that push, the ruleset of the tags `v
 `release` and the trusted root shared by CI and sakadmin.
 
 ## Should fix
-
-### `SC-3` Dependabot alerts are off
-
-The dependency graph does not raise alerts (`vulnerability-alerts` answers 404) and the security updates of
-Dependabot are off. Renovate updates the dependencies every week, with a release age of 7 days, but without the
-alerts a known vulnerability waits for the schedule, and Renovate's `vulnerabilityAlerts` has nothing to act on.
-
-Fix: turn on the Dependabot alerts (Settings, Code security); the security updates can stay off, Renovate opens the
-pull requests.
 
 ### `SC-4` The zips of sakadmin are signed where they arrive, not where they are built
 
