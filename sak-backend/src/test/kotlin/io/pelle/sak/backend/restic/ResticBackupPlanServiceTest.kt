@@ -1,10 +1,12 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.DeleteResult
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.restic.ResticBackupPlanValues
+import io.pelle.sak.model.restic.ResticExcludes
 import io.pelle.sak.model.restic.ResticKeep
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -97,5 +99,32 @@ class ResticBackupPlanServiceTest {
         plans.plan(ANNA, documents.id) shouldBe null
         plans.plans(ANNA) shouldBe emptyList()
         repositories.repositories(ANNA).map { it.id } shouldBe listOf(laptop)
+    }
+
+    @Test
+    fun `a backup plan keeps its excludes as written, with comments, within their limits`() {
+        val laptop = repository()
+        fun plan(excludes: ResticExcludes) =
+            plans.create(ANNA, ResticBackupPlanValues("documents", laptop, "annas-laptop", listOf("/home/anna"), ResticKeep(), excludes))
+
+        // the line ends of windows, spaces at the ends and blank lines at the end go; comments and blank
+        // lines between stay
+        val saved =
+            plan(ResticExcludes("### caches\r\n  \$HOME/.cache  \r\n\r\nnode_modules\r\n\r\n", caches = true))
+                .shouldBeInstanceOf<ResticBackupPlanSaveResult.Saved>()
+                .plan
+        saved.excludes shouldBe ResticExcludes("### caches\n\$HOME/.cache\n\nnode_modules", caches = true)
+        plans.plan(ANNA, saved.id)!!.excludes shouldBe saved.excludes
+
+        val tooMany = ErrorMessage(ResticTexts.TOO_MANY_EXCLUDES, "max" to 1000, "bytes" to 65536)
+        plans.update(ANNA, saved.id, ResticBackupPlanValues("documents", laptop, "annas-laptop", listOf("/home/anna"), ResticKeep(), ResticExcludes((1..1001).joinToString("\n") { "p$it" }))) shouldBe
+            ResticBackupPlanSaveResult.Invalid(listOf(tooMany))
+        plan(ResticExcludes("x".repeat(65537))) shouldBe ResticBackupPlanSaveResult.Invalid(listOf(tooMany))
+        plan(ResticExcludes("node_modules\u0000")) shouldBe ResticBackupPlanSaveResult.Invalid(listOf(ErrorMessage(ResticTexts.INVALID_EXCLUDE)))
+        // a tab is a character of a name, no control character
+        plans
+            .update(ANNA, saved.id, ResticBackupPlanValues("documents", laptop, "annas-laptop", listOf("/home/anna"), ResticKeep(), ResticExcludes("a\tb")))
+            .shouldBeInstanceOf<ResticBackupPlanSaveResult.Saved>()
+            .plan.excludes shouldBe ResticExcludes("a\tb")
     }
 }

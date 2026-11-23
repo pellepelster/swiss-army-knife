@@ -760,6 +760,25 @@ class SakAppsTest {
             }
             page("limit=2&offset=2").getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("zebra")
             get(port, "/api/v1/restic/plans?limit=0", admin).statusCode() shouldBe 400
+            // the excludes as written, one pattern a line with comments; none without
+            page("").getValue("items").jsonArray.first().jsonObject.let {
+                it.string("excludes") shouldBe ""
+                it.string("excludeCaches") shouldBe "false"
+            }
+            post(
+                port,
+                "/api/v1/restic/plans",
+                """{"name":"home","repositoryId":$id,"host":"h","paths":["/home/anna"],"excludes":"# caches\r\n${'$'}HOME/.cache\r\nnode_modules\r\n","excludeCaches":true}""",
+                admin,
+            ).json().let {
+                it.string("excludes") shouldBe "# caches\n${'$'}HOME/.cache\nnode_modules"
+                it.string("excludeCaches") shouldBe "true"
+            }
+            post(port, "/api/v1/restic/plans", """{"name":"long","repositoryId":$id,"host":"h","paths":["/a"],"excludes":"${"x".repeat(65537)}"}""", admin).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "restic.too_many_excludes"
+            }
+            delete(port, "/api/v1/restic/plans/${page("").getValue("items").jsonArray.single { it.jsonObject.string("name") == "home" }.jsonObject.string("id")}", admin).statusCode() shouldBe 204
             // a delete by another user, then by its owner, once; the repository stays (API-8)
             delete(port, "/api/v1/restic/plans/$plan", second).statusCode() shouldBe 404
             delete(port, "/api/v1/restic/plans/$plan", admin).let {

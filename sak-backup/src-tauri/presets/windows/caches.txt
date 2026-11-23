@@ -1,0 +1,4 @@
+$LOCALAPPDATA/Temp
+$LOCALAPPDATA/Microsoft/Windows/INetCache
+$LOCALAPPDATA/Microsoft/Windows/Explorer/thumbcache_*
+$LOCALAPPDATA/CrashDumps

@@ -20,4 +20,9 @@ data class ResticBackupPlanResponse(
     val keepWeekly: Int? = null,
     val keepMonthly: Int? = null,
     val keepYearly: Int? = null,
+    // what a run leaves out: the patterns of restic, one a line, with comments (#) and blank lines;
+    // none when empty
+    val excludes: String = "",
+    // whether a run leaves out the folders marked as caches (CACHEDIR.TAG)
+    val excludeCaches: Boolean = false,
 )

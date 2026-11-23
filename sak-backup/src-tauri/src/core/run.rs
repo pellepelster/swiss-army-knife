@@ -3,6 +3,7 @@
 //! the run
 
 use crate::core::api::{PLANS, host};
+use crate::core::excludes::Excludes;
 use crate::core::passwords::{Given, PasswordStore, Source, password_of, run_with};
 use crate::core::restic::{Keep, Plan, Restic, files_from};
 use sak_desktop_shared::api::{self, ApiError};
@@ -156,6 +157,8 @@ pub(crate) struct Prepared {
     pub account: String,
     /// what a run keeps of the snapshots of the plan (BACKUP-8)
     pub keep: Keep,
+    /// what a run leaves out
+    pub excludes: Excludes,
 }
 
 impl Prepared {
@@ -165,6 +168,7 @@ impl Prepared {
             id: self.id,
             host: &self.host,
             paths: &self.paths,
+            excludes: &self.excludes,
         }
     }
 
@@ -218,6 +222,7 @@ pub(crate) async fn prepare(sessions: &SessionManager, id: u64) -> Result<Prepar
         first,
         account: access.account(),
         keep: Keep::of(&plan),
+        excludes: Excludes::of(&plan),
     })
 }
 
@@ -324,12 +329,17 @@ fn run_restic_now(
         restic.init()?;
     }
     let files = files_from(plan.paths).map_err(failed)?;
+    let exclude_file = crate::core::restic::exclude_file(plan.excludes).map_err(failed)?;
     let mut command = restic.command();
     command
         .args(["backup", "--json", "--host", plan.host, "--tag"])
         .arg(plan.tag())
         .arg("--files-from-verbatim")
         .arg(files.path())
+        .args(
+            plan.excludes
+                .arguments(exclude_file.as_ref().map(|file| file.path())),
+        )
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut child = command.spawn().map_err(failed)?;
@@ -551,6 +561,7 @@ mod integration {
             id: 7,
             host: "annas-laptop",
             paths: &paths,
+            excludes: &crate::core::excludes::NO_EXCLUDES,
         };
 
         let first =
@@ -629,6 +640,7 @@ mod integration {
             id,
             host: "annas-laptop",
             paths,
+            excludes: &crate::core::excludes::NO_EXCLUDES,
         };
         let (documents, everything, twin) = (plan(1, &only_a), plan(2, &a_and_b), plan(3, &only_a));
         let runs = Runs::default();
@@ -715,6 +727,7 @@ mod integration {
             id: 3,
             host: "annas-laptop",
             paths: &paths,
+            excludes: &crate::core::excludes::NO_EXCLUDES,
         };
         let path_files = || -> std::collections::BTreeSet<PathBuf> {
             std::fs::read_dir(std::env::temp_dir())
@@ -786,6 +799,7 @@ mod integration {
                     id: 1,
                     host: "h",
                     paths: &[],
+                    excludes: &crate::core::excludes::NO_EXCLUDES,
                 },
                 false,
                 |_| {}

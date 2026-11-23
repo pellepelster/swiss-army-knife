@@ -8,6 +8,8 @@ double_path: "A path must be in a backup plan only once."
 invalid_path: "%{path} is no absolute path like /home/anna/Documents."
 unknown_repository: "There is no such repository, or you can not see it."
 plan_exists: "A backup plan of the name exists."
+too_many_excludes: "The excludes of a backup plan can have at most %{max} lines and %{bytes} bytes."
+invalid_exclude: "An exclude can not have a control character."
 invalid_keep: "A number of snapshots to keep must be from 1 to %{max}, or empty to keep them all."
 settings:
   s3:

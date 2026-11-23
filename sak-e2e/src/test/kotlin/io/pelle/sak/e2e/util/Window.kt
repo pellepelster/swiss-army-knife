@@ -51,7 +51,10 @@ private val BRIDGE =
       class Channel { constructor() { this.onmessage = () => {}; } }
       // how long rust takes for a command without a channel
       const busy = { plan_deployment: 900, check_deployment: 900, add_provider_token: 1200, list_deployments: 300 };
+      // each call with its arguments, for a test that checks what the page sent
+      window.__sakCalls = [];
       async function invoke(command, args = {}) {
+        window.__sakCalls.push({ command, args: JSON.parse(JSON.stringify(args, (key, value) => value instanceof Channel ? undefined : value)) });
         const events = fixtures.channels[command] ?? [];
         const channel = Object.values(args).find((value) => value instanceof Channel);
         for (const [index, { delayMs, message }] of events.entries()) {

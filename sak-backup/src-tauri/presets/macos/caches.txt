@@ -1,0 +1,4 @@
+$HOME/Library/Caches
+$HOME/.Trash
+$HOME/Library/Logs
+$HOME/Library/Containers/*/Data/Library/Caches

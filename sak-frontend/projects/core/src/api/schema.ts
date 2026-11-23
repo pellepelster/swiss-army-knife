@@ -5547,6 +5547,8 @@ export interface components {
       keepWeekly?: number | null;
       keepMonthly?: number | null;
       keepYearly?: number | null;
+      excludes?: string;
+      excludeCaches?: boolean;
     };
     /** ResticBackupPlanRequest */
     ResticBackupPlanRequest: {
@@ -5559,6 +5561,8 @@ export interface components {
       keepWeekly?: number | null;
       keepMonthly?: number | null;
       keepYearly?: number | null;
+      excludes?: string;
+      excludeCaches?: boolean;
     };
     /** ResticRepositoryResponse */
     ResticRepositoryResponse: {

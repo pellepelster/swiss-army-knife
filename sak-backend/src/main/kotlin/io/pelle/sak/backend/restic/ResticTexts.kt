@@ -14,6 +14,8 @@ object ResticTexts : Catalog("restic") {
     val UNKNOWN_REPOSITORY = text("unknown_repository")
     val PLAN_EXISTS = text("plan_exists")
     val INVALID_KEEP = text("invalid_keep")
+    val TOO_MANY_EXCLUDES = text("too_many_excludes")
+    val INVALID_EXCLUDE = text("invalid_exclude")
     val S3_LABEL = text("settings.s3.label")
     val S3_DESCRIPTION = text("settings.s3.description")
     val SCOPE_LABEL = text("settings.label")

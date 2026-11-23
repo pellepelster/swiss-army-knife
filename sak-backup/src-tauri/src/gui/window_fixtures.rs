@@ -62,6 +62,68 @@ fn fixtures(checks: Vec<Value>, passed: bool) -> Value {
     })
 }
 
+/// a signed in user with one backup plan of this computer, `home`, and what the dialog of its
+/// excludes asks: the presets of linux, a preview
+fn excludes() -> Value {
+    let mut answers = fixtures(
+        checks(CheckEvent::Passed {
+            id: ResticCheck.id(),
+            name: ResticCheck.name(),
+            text: t!("common.checks.restic.passed", version = "0.16.4").to_string(),
+        }),
+        true,
+    );
+    let plan = json!({
+        "id": 3,
+        "name": "home",
+        "repositoryId": 1,
+        "host": "annas-laptop",
+        "paths": ["/home/anna"],
+        "createdAt": "2026-11-23T08:00:00Z",
+        "keepDaily": 7,
+        "excludes": "node_modules",
+        "excludeCaches": false,
+    });
+    let preview = crate::core::excludes::Preview {
+        complete: true,
+        included_files: 12_345,
+        included_bytes: 3 << 30,
+        skipped: vec![crate::core::excludes::Skipped {
+            pattern: "$HOME/.cache".into(),
+            files: 4_000,
+            bytes: 1 << 30,
+            examples: vec!["/home/anna/.cache".into()],
+        }],
+        unused: vec!["$HOME/.thumbnails".into()],
+        missing: Vec::new(),
+    };
+    let answers_of = answers["answers"].as_object_mut().unwrap();
+    for (command, answer) in [
+        (
+            "restore_session",
+            json!([{ "username": "anna@example.org", "name": "Anna", "expires_at": null, "roles": ["user"] }]),
+        ),
+        ("host", json!(["annas-laptop"])),
+        (
+            "repositories",
+            json!([[{ "id": 1, "name": "my-backups", "url": "rest:https://api.example.org/restic/1/", "size": 0, "createdAt": "2026-11-23T08:00:00Z" }]]),
+        ),
+        ("plans", json!([[plan.clone()]])),
+        ("password_kept", json!([false])),
+        (
+            "exclude_presets",
+            json!([crate::core::presets::presets(
+                crate::core::presets::System::Linux
+            )]),
+        ),
+        ("preview_excludes", json!([preview])),
+        ("update_plan", json!([plan])),
+    ] {
+        answers_of.insert(command.to_string(), answer);
+    }
+    answers
+}
+
 #[test]
 #[ignore = "writes the fixtures of the window test of sakbackup, run by mise run backup:test:window"]
 fn window_fixtures() {
@@ -88,7 +150,11 @@ fn window_fixtures() {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../build/ui-fixtures")
         });
     std::fs::create_dir_all(&dir).unwrap();
-    for (case, fixtures) in [("restic", found), ("no-restic", missing)] {
+    for (case, fixtures) in [
+        ("restic", found),
+        ("no-restic", missing),
+        ("excludes", excludes()),
+    ] {
         let path = dir.join(format!("sakbackup-{case}.json"));
         std::fs::write(&path, serde_json::to_string_pretty(&fixtures).unwrap()).unwrap();
         println!("wrote {}", path.display());

@@ -286,3 +286,52 @@ button.row-body:focus-visible {
 #page-snapshots > .hint {
   margin-top: var(--sak-space-3);
 }
+
+/* the row of the excludes in the form of a plan, and their dialog: wide for long patterns */
+.excludes-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sak-space-2);
+}
+
+/* as high as the window at most, it scrolls within: the buttons stay reachable */
+.excludes-dialog {
+  width: min(48rem, 100% - 2rem);
+  max-height: calc(100% - 2rem);
+  overflow-y: auto;
+}
+
+.excludes-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sak-space-1);
+}
+
+.excludes-text {
+  min-height: 8rem;
+  resize: vertical;
+  white-space: pre;
+}
+
+.excludes-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-2);
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.excludes-preview-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.excludes-preview-examples {
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.excludes-dialog .form-buttons {
+  justify-content: space-between;
+}

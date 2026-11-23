@@ -82,6 +82,12 @@ backend:
       en: "There is no such repository, or you can not see it."
       de: "Dieses Repository gibt es nicht, oder du kannst es nicht sehen."
     plan_exists: { en: "A backup plan of the name exists.", de: "Einen Backup-Plan mit diesem Namen gibt es schon." }
+    too_many_excludes:
+      en: "The excludes of a backup plan can have at most %{max} lines and %{bytes} bytes."
+      de: "Die Ausschlüsse eines Backup-Plans können höchstens %{max} Zeilen und %{bytes} Bytes haben."
+    invalid_exclude:
+      en: "An exclude can not have a control character."
+      de: "Ein Ausschluss darf kein Steuerzeichen enthalten."
     invalid_keep:
       en: "A number of snapshots to keep must be from 1 to %{max}, or empty to keep them all."
       de: "Eine Anzahl zu behaltender Snapshots muss zwischen 1 und %{max} liegen oder leer bleiben, um alle zu behalten."
@@ -2247,6 +2253,14 @@ todo:
 sak_backup:
   # the checks at the start of sakbackup (core/checks.rs)
   common:
+    # the presets of excludes (core/presets.rs), their names
+    excludes:
+      presets:
+        caches: { en: "Caches and trash", de: "Caches und Papierkorb" }
+        developer: { en: "Developer tool caches", de: "Caches der Entwicklerwerkzeuge" }
+        build: { en: "Project build output", de: "Build-Ausgaben von Projekten" }
+        scratch: { en: "Editor and system scratch files", de: "Hilfsdateien von Editoren und System" }
+        downloads: { en: "Downloads", de: "Downloads" }
     checks:
       restic:
         name: { en: "Find restic", de: "restic suchen" }
@@ -2259,6 +2273,48 @@ sak_backup:
           de: "%{program} läuft nicht: %{error}"
   ui:
     quit: { en: "Quit", de: "Beenden" }
+    # the dialog of the excludes of a backup plan (excludes-dialog.js)
+    excludes:
+      title: { en: "What %{name} leaves out", de: "Was %{name} auslässt" }
+      title_new: { en: "What the backup plan leaves out", de: "Was der Backup-Plan auslässt" }
+      hint:
+        en: "One pattern of restic a line; # starts a comment, $HOME is your home folder. What is left out is not in the next snapshots; snapshots made before keep it."
+        de: "Ein Muster von restic pro Zeile; # beginnt einen Kommentar, $HOME ist dein Home-Ordner. Was ausgelassen wird, ist nicht in den nächsten Snapshots; frühere Snapshots behalten es."
+      presets: { en: "Presets for this computer", de: "Vorlagen für diesen Computer" }
+      preset_added: { en: "All its patterns are in the list.", de: "Alle seine Muster sind in der Liste." }
+      patterns: { en: "Patterns", de: "Muster" }
+      count: { en: "%{count} patterns", de: "%{count} Muster" }
+      caches:
+        en: "Leave out the folders marked as caches (CACHEDIR.TAG)"
+        de: "Ordner auslassen, die als Cache markiert sind (CACHEDIR.TAG)"
+      import: { en: "Import file…", de: "Datei importieren…" }
+      preview: { en: "Preview what is left out", de: "Vorschau des Ausgelassenen" }
+      preview_running: { en: "Looking through the folders of the plan…", de: "Durchsuche die Ordner des Plans…" }
+      preview_result:
+        en: "A run backs up %{files} files (%{size}) and leaves out:"
+        de: "Ein Lauf sichert %{files} Dateien (%{size}) und lässt aus:"
+      preview_nothing:
+        en: "A run backs up %{files} files (%{size}) and leaves out nothing."
+        de: "Ein Lauf sichert %{files} Dateien (%{size}) und lässt nichts aus."
+      preview_partial:
+        en: "It stopped after a minute or 2 million entries, the numbers are too low."
+        de: "Sie hat nach einer Minute oder 2 Millionen Einträgen aufgehört, die Zahlen sind zu niedrig."
+      preview_skipped: { en: "%{files} files, %{size}", de: "%{files} Dateien, %{size}" }
+      preview_cache_folders: { en: "Folders marked as caches", de: "Als Cache markierte Ordner" }
+      preview_unused:
+        en: "Leave out nothing: is one of them mistyped?"
+        de: "Lassen nichts aus: Ist eines davon vertippt?"
+      preview_missing: { en: "Not on this computer", de: "Nicht auf diesem Computer" }
+      preview_failed: { en: "The preview failed: %{error}", de: "Die Vorschau ist fehlgeschlagen: %{error}" }
+      no_paths:
+        en: "Add a folder or a file to back up first."
+        de: "Füge zuerst einen Ordner oder eine Datei zum Sichern hinzu."
+      done: { en: "Done", de: "Fertig" }
+      close: { en: "Close", de: "Schließen" }
+      file_too_large:
+        en: "The file has more than %{max} bytes, more than a backup plan takes."
+        de: "Die Datei hat mehr als %{max} Bytes, mehr als ein Backup-Plan aufnimmt."
+      file_not_text: { en: "The file is no text.", de: "Die Datei ist kein Text." }
     update:
       restart_while_running:
         en: "A backup or a restore is running, restart when it is done."
@@ -2322,6 +2378,12 @@ sak_backup:
         en: "A backup plan of the computer %{host} is changed on that computer."
         de: "Ein Backup-Plan des Computers %{host} wird auf diesem Computer geändert."
       this_computer: { en: "Backs up this computer, %{host}.", de: "Sichert diesen Computer, %{host}." }
+      excludes: { en: "What to leave out", de: "Was ausgelassen wird" }
+      excludes_edit: { en: "Edit excludes…", de: "Ausschlüsse bearbeiten…" }
+      excludes_show: { en: "Show excludes…", de: "Ausschlüsse anzeigen…" }
+      excludes_none: { en: "Nothing is left out.", de: "Nichts wird ausgelassen." }
+      excludes_summary: { en: "%{count} patterns", de: "%{count} Muster" }
+      excludes_caches_on: { en: "cache folders left out", de: "Cache-Ordner ausgelassen" }
       delete_title: { en: "Delete %{name}", de: "%{name} löschen" }
       delete_confirm:
         en: "Delete the backup plan %{name}? Its paths are no longer backed up by it. Its repository and the snapshots in it stay."
@@ -2471,15 +2533,26 @@ sak_backup:
     restored: { en: "Restored the newest snapshot of %{plan} below %{target}.", de: "Neuesten Snapshot von %{plan} unter %{target} wiederhergestellt." }
     snapshot_deleted: { en: "Deleted the snapshot %{id} of %{repository}.", de: "Snapshot %{id} von %{repository} gelöscht." }
     plan_changed: { en: "Changed the backup plan %{name}.", de: "Backup-Plan %{name} geändert." }
+    no_change:
+      en: "Give --keep-*, --exclude, --exclude-file, --preset or --[no-]exclude-caches to change the backup plan."
+      de: "Gib --keep-*, --exclude, --exclude-file, --preset oder --[no-]exclude-caches an, um den Backup-Plan zu ändern."
+    exclude_file_unreadable: { en: "%{file} can not be read: %{error}", de: "%{file} kann nicht gelesen werden: %{error}" }
+    excludes_caches_on:
+      en: "and the folders marked as caches (CACHEDIR.TAG)"
+      de: "und die als Cache markierten Ordner (CACHEDIR.TAG)"
+    preview_backed_up: { en: "A run backs up %{files} files (%{size}).", de: "Ein Lauf sichert %{files} Dateien (%{size})." }
+    preview_skipped: { en: "leaves out %{files} files (%{size})", de: "lässt %{files} Dateien aus (%{size})" }
+    preview_unused: { en: "leaves out nothing", de: "lässt nichts aus" }
+    preview_missing: { en: "is not on this computer", de: "ist nicht auf diesem Computer" }
+    preview_partial:
+      en: "The preview stopped after a minute or 2 million entries, the numbers are too low."
+      de: "Die Vorschau hat nach einer Minute oder 2 Millionen Einträgen aufgehört, die Zahlen sind zu niedrig."
     plan_deleted:
       en: "Deleted the backup plan %{name}. Its repository and its snapshots stay."
       de: "Backup-Plan %{name} gelöscht. Sein Repository und seine Snapshots bleiben."
     plan_other_computer:
       en: "This backup plan is one of the computer %{host}; it is deleted there."
       de: "Dieser Backup-Plan gehört zum Computer %{host}; er wird dort gelöscht."
-    no_keep:
-      en: "Give what the backup plan keeps: --keep-last, --keep-daily, --keep-weekly, --keep-monthly, --keep-yearly or --keep-all."
-      de: "Gib an, was der Backup-Plan behält: --keep-last, --keep-daily, --keep-weekly, --keep-monthly, --keep-yearly oder --keep-all."
     expiring: { en: "Removing the snapshots the backup plan no longer keeps…", de: "Entferne die Snapshots, die der Backup-Plan nicht mehr behält…" }
     removed: { en: "Removed %{count} older snapshots.", de: "%{count} ältere Snapshots entfernt." }
     expire_failed:

@@ -20,6 +20,7 @@ import {
   thisHost,
 } from './rows.js';
 import { onRunsChanged, runningPlan, showRun, startRestore, startRun } from './run.js';
+import { editExcludes, patternLines } from './excludes-dialog.js';
 import { confirmAction } from './shared/confirm-dialog.js';
 import { closeMenu } from './shared/menu.js';
 import { setBusy, setFailure, setStatus, text } from './shared/views.js';
@@ -176,10 +177,27 @@ onRunsChanged(() => runButtons.forEach((enable) => enable()));
 
 // the form: empty to create a backup plan of this computer, filled to change one; read only for one of
 // another computer (BACKUP-5)
+// what a run of the plan in the form leaves out, edited in its dialog
+let excludes = '';
+let excludeCaches = false;
+
+function showExcludes(readOnly) {
+  const lines = patternLines(excludes).length;
+  const parts = [lines ? text('ui.plans.excludes_summary', { count: lines }) : text('ui.plans.excludes_none')];
+  if (excludeCaches) parts.push(text('ui.plans.excludes_caches_on'));
+  $('plan-excludes-summary').textContent = parts.join(' · ');
+  const edit = $('plan-excludes-edit');
+  edit.textContent = text(readOnly ? 'ui.plans.excludes_show' : 'ui.plans.excludes_edit');
+  // a plan of another computer shows its excludes without changing them
+  edit.disabled = false;
+}
+
 function showForm(plan, repositories) {
   closeMenu();
   editing = plan;
   paths = [...(plan?.paths ?? [])];
+  excludes = plan?.excludes ?? '';
+  excludeCaches = plan?.excludeCaches ?? false;
   const readOnly = plan !== null && plan.host !== host;
   name.value = plan?.name ?? '';
   repositoryOptions(repository, repositories, plan?.repositoryId);
@@ -196,6 +214,7 @@ function showForm(plan, repositories) {
   shell.toolbar();
   shell.page('page-plan');
   showPaths(readOnly);
+  showExcludes(readOnly);
   if (!readOnly) name.focus();
 }
 
@@ -231,6 +250,14 @@ function add(added) {
   $('plan-path-error').textContent = '';
   showPaths();
 }
+
+$('plan-excludes-edit').addEventListener('click', async () => {
+  const readOnly = editing !== null && editing.host !== host;
+  const edited = await editExcludes({ name: name.value.trim(), paths, excludes, excludeCaches, readOnly });
+  if (!edited) return;
+  ({ excludes, excludeCaches } = edited);
+  showExcludes(readOnly);
+});
 
 async function pick(folders) {
   try {
@@ -288,7 +315,15 @@ form.addEventListener('submit', async (event) => {
   if (!named || paths.length === 0 || keep === null) return;
   setBusy(form, true);
   setStatus(formStatus, text('ui.saving'));
-  const plan = { name: name.value.trim(), repositoryId: Number(repository.value), host, paths, ...keep };
+  const plan = {
+    name: name.value.trim(),
+    repositoryId: Number(repository.value),
+    host,
+    paths,
+    ...keep,
+    excludes,
+    excludeCaches,
+  };
   try {
     if (editing) {
       await invoke('update_plan', { id: editing.id, plan });

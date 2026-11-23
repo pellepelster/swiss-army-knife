@@ -66,4 +66,56 @@ class SakbackupWindowTest {
             assertThat(page.locator("#checks-error")).isHidden()
         }
     }
+
+    @Test
+    fun `the excludes of a plan are edited in their dialog, with presets and a preview, and saved with the plan`() {
+        browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
+            val page = context.openWindow()
+            page.locator("#nav button[data-page=plans]").click()
+            page.locator("#plans-list .row-body").first().click()
+            assertThat(page.locator("#plan-excludes-summary")).hasText("1 patterns")
+            page.locator("#plan-excludes-edit").click()
+
+            val dialog = page.locator("#excludes-dialog")
+            assertThat(dialog).isVisible()
+            assertThat(page.locator("#excludes-title")).hasText("What home leaves out")
+            assertThat(page.locator("#excludes-text")).hasValue("node_modules")
+            assertThat(page.locator("#excludes-count")).hasText("1 patterns")
+            // a preset copies its lines under its name; then it is added
+            val caches = page.locator("#excludes-presets button[data-preset=caches]")
+            assertThat(caches).hasText("+ Caches and trash")
+            caches.click()
+            assertThat(page.locator("#excludes-text")).hasValue("node_modules\n\n### Caches and trash\n\$HOME/.cache\n\$HOME/.local/share/Trash\n\$HOME/.thumbnails\n\$HOME/.var/app/*/cache")
+            assertThat(caches).isDisabled()
+            assertThat(page.locator("#excludes-count")).hasText("5 patterns")
+            page.locator("#excludes-caches").check()
+
+            // the preview walks the paths of the plan with the patterns as they are now
+            page.locator("#excludes-preview").click()
+            assertThat(page.locator("#excludes-preview-status")).containsText("A run backs up 12345 files")
+            assertThat(page.locator("#excludes-preview-list li")).hasCount(2)
+            assertThat(page.locator("#excludes-preview-list li").first()).containsText("\$HOME/.cache")
+            assertThat(page.locator("#excludes-preview-list li").nth(1)).containsText("is one of them mistyped?")
+            // a look at the dialog for who changes it, in build/ of sak-e2e
+            page.screenshot(com.microsoft.playwright.Page.ScreenshotOptions().setPath(java.nio.file.Paths.get("build/sakbackup-excludes-dialog.png")))
+            // every button of the dialog is in the window
+            for (button in listOf("#excludes-import", "#excludes-preview", "#excludes-cancel", "#excludes-done")) {
+                page.locator(button).scrollIntoViewIfNeeded()
+                assertThat(page.locator(button)).isInViewport()
+            }
+            page.locator("#excludes-done").scrollIntoViewIfNeeded()
+            page.screenshot(com.microsoft.playwright.Page.ScreenshotOptions().setPath(java.nio.file.Paths.get("build/sakbackup-excludes-dialog-end.png")))
+            val preview = page.evaluate("() => window.__sakCalls.filter((call) => call.command === 'preview_excludes').at(-1).args").toString()
+            check(preview.contains("excludeCaches=true") && preview.contains("/home/anna")) { preview }
+
+            // done: the form shows the new summary, save sends them with the plan
+            page.locator("#excludes-done").click()
+            assertThat(dialog).isHidden()
+            assertThat(page.locator("#plan-excludes-summary")).hasText("5 patterns · cache folders left out")
+            page.locator("#plan-submit").click()
+            page.waitForFunction("() => window.__sakCalls.some((call) => call.command === 'update_plan')")
+            val saved = page.evaluate("() => JSON.stringify(window.__sakCalls.find((call) => call.command === 'update_plan').args.plan)").toString()
+            check(saved.contains("\"excludeCaches\":true") && saved.contains("### Caches and trash") && saved.contains("\"keepDaily\":7")) { saved }
+        }
+    }
 }

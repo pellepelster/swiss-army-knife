@@ -33,6 +33,15 @@ data class ResticBackupPlanValues(
     // in their order (BACKUP-6)
     val paths: List<String>,
     val keep: ResticKeep = ResticKeep(),
+    val excludes: ResticExcludes = ResticExcludes(),
+)
+
+// what a run of a backup plan leaves out: the patterns of restic (`--exclude-file`), one a line, as
+// the user wrote them with comments and blank lines, and whether it leaves out the folders marked as
+// caches (`--exclude-caches`)
+data class ResticExcludes(
+    val patterns: String = "",
+    val caches: Boolean = false,
 )
 
 // a backup plan of restic (BACKUP-5)
@@ -46,6 +55,7 @@ data class ResticBackupPlan(
     val createdAt: Instant,
     val updatedAt: Instant?,
     val keep: ResticKeep = ResticKeep(),
+    val excludes: ResticExcludes = ResticExcludes(),
 )
 
 // what saving a backup plan came to
@@ -104,6 +114,8 @@ class ResticBackupPlanRepository(
                         .set(RESTIC_BACKUP_PLANS.REPOSITORY_ID, values.repositoryId)
                         .set(RESTIC_BACKUP_PLANS.HOST, values.host)
                         .set(keepColumns(values.keep))
+                        .set(RESTIC_BACKUP_PLANS.EXCLUDES, values.excludes.patterns)
+                        .set(RESTIC_BACKUP_PLANS.EXCLUDE_CACHES, values.excludes.caches)
                         .set(RESTIC_BACKUP_PLANS.CREATED_AT, now)
                         .returningResult(RESTIC_BACKUP_PLANS.ID)
                         .fetchOne()!!
@@ -136,6 +148,8 @@ class ResticBackupPlanRepository(
                     .set(RESTIC_BACKUP_PLANS.REPOSITORY_ID, values.repositoryId)
                     .set(RESTIC_BACKUP_PLANS.HOST, values.host)
                     .set(keepColumns(values.keep))
+                    .set(RESTIC_BACKUP_PLANS.EXCLUDES, values.excludes.patterns)
+                    .set(RESTIC_BACKUP_PLANS.EXCLUDE_CACHES, values.excludes.caches)
                     .set(
                         RESTIC_BACKUP_PLANS.UPDATED_AT,
                         changedAt(
@@ -145,6 +159,8 @@ class ResticBackupPlanRepository(
                             RESTIC_BACKUP_PLANS.REPOSITORY_ID.changesTo(values.repositoryId),
                             RESTIC_BACKUP_PLANS.HOST.changesTo(values.host),
                             DSL.condition(pathsChange),
+                            RESTIC_BACKUP_PLANS.EXCLUDES.changesTo(values.excludes.patterns),
+                            RESTIC_BACKUP_PLANS.EXCLUDE_CACHES.changesTo(values.excludes.caches),
                             *keepChanges.toTypedArray(),
                         ),
                     )
@@ -240,7 +256,7 @@ class ResticBackupPlanRepository(
     private fun ResticBackupPlansRecord.toPlan(dsl: DSLContext): ResticBackupPlan {
         val paths = paths(dsl, id!!)
         val keep = ResticKeep(keepLast, keepDaily, keepWeekly, keepMonthly, keepYearly)
-        return ResticBackupPlan(id!!, owner!!, name!!, repositoryId!!, host!!, paths, createdAt!!, updatedAt, keep)
+        return ResticBackupPlan(id!!, owner!!, name!!, repositoryId!!, host!!, paths, createdAt!!, updatedAt, keep, ResticExcludes(excludes!!, excludeCaches!!))
     }
 
     // the columns of the keep setting (BACKUP-8)

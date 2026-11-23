@@ -96,6 +96,8 @@ pub(crate) struct Plan<'a> {
     pub id: u64,
     pub host: &'a str,
     pub paths: &'a [String],
+    /// what a run leaves out
+    pub excludes: &'a crate::core::excludes::Excludes,
 }
 
 impl Plan<'_> {
@@ -316,9 +318,28 @@ impl Drop for FilesFrom {
 }
 
 pub(crate) fn files_from(paths: &[String]) -> std::io::Result<FilesFrom> {
+    private_file("paths", paths)
+}
+
+/// the excludes of a plan as the file restic reads them from, only the user reads it; none without a
+/// pattern
+pub(crate) fn exclude_file(
+    excludes: &crate::core::excludes::Excludes,
+) -> std::io::Result<Option<FilesFrom>> {
+    if excludes.lines().is_empty() {
+        return Ok(None);
+    }
+    let lines: Vec<String> = excludes.patterns.lines().map(String::from).collect();
+    private_file("excludes", &lines).map(Some)
+}
+
+/// lines in a file of the temporary folder only the user reads; it goes when it is dropped
+fn private_file(kind: &str, lines: &[String]) -> std::io::Result<FilesFrom> {
+    let paths = lines;
     let mut bytes = [0u8; 8];
     getrandom::fill(&mut bytes).map_err(std::io::Error::other)?;
-    let path = std::env::temp_dir().join(format!("sak-backup-{}.paths", u64::from_le_bytes(bytes)));
+    let path =
+        std::env::temp_dir().join(format!("sak-backup-{}.{kind}", u64::from_le_bytes(bytes)));
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]

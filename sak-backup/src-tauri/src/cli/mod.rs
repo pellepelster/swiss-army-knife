@@ -126,6 +126,76 @@ fn default_keep() -> Value {
     json!({ "keepDaily": 7, "keepWeekly": 4, "keepMonthly": 12 })
 }
 
+/// what a run of the backup plan leaves out, its excludes; replaced as a whole when one of
+/// --exclude, --exclude-file or --preset is given
+#[derive(clap::Args, Clone, Debug, Default)]
+pub struct ExcludeArgs {
+    /// Leave out a pattern of restic, e.g. node_modules or $HOME/.cache
+    #[arg(long = "exclude", value_name = "PATTERN")]
+    patterns: Vec<String>,
+    /// Leave out the patterns of a file, one a line, as restic --exclude-file reads them
+    #[arg(long, value_name = "FILE")]
+    exclude_file: Option<PathBuf>,
+    /// Leave out the patterns of a preset of this computer, see `plan presets`
+    #[arg(long = "preset", value_name = "PRESET", value_parser = clap::builder::PossibleValuesParser::new(crate::core::presets::IDS))]
+    presets: Vec<String>,
+    /// Leave out the folders marked as caches (CACHEDIR.TAG)
+    #[arg(long, conflicts_with = "no_exclude_caches")]
+    exclude_caches: bool,
+    /// Back up the folders marked as caches too
+    #[arg(long)]
+    no_exclude_caches: bool,
+}
+
+impl ExcludeArgs {
+    /// the excludes the arguments give, the presets first with their names as comments; none
+    /// without --exclude, --exclude-file and --preset
+    fn excludes(&self) -> Result<Option<String>, String> {
+        if self.patterns.is_empty() && self.exclude_file.is_none() && self.presets.is_empty() {
+            return Ok(None);
+        }
+        let mut blocks: Vec<String> = self
+            .presets
+            .iter()
+            .filter_map(|id| crate::core::presets::preset(crate::core::presets::System::this(), id))
+            .map(|preset| crate::core::presets::as_excludes(&preset))
+            .collect();
+        if let Some(file) = &self.exclude_file {
+            let read = std::fs::read_to_string(file).map_err(|error| {
+                t!(
+                    "cli.exclude_file_unreadable",
+                    file = file.display().to_string(),
+                    error = error.to_string()
+                )
+                .to_string()
+            })?;
+            blocks.push(read.trim_end().to_string());
+        }
+        if !self.patterns.is_empty() {
+            blocks.push(self.patterns.join("\n"));
+        }
+        Ok(Some(blocks.join("\n\n")))
+    }
+
+    /// whether the folders marked as caches are left out; none when neither switch is given
+    fn caches(&self) -> Option<bool> {
+        if self.exclude_caches {
+            Some(true)
+        } else if self.no_exclude_caches {
+            Some(false)
+        } else {
+            None
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.patterns.is_empty()
+            && self.exclude_file.is_none()
+            && self.presets.is_empty()
+            && self.caches().is_none()
+    }
+}
+
 /// the backup plan with `keep` in place of what it keeps
 fn with_keep(mut plan: Value, keep: &Value) -> Value {
     for (name, value) in keep.as_object().into_iter().flatten() {
@@ -178,14 +248,33 @@ pub enum PlanCommand {
         paths: Vec<PathBuf>,
         #[command(flatten)]
         keep: KeepArgs,
+        #[command(flatten)]
+        excludes: ExcludeArgs,
     },
-    /// Change how many snapshots a backup plan keeps; what is not given is no longer kept by it
+    /// Change how many snapshots a backup plan keeps, or what it leaves out: given --keep-*, what is
+    /// not given is no longer kept by it; given --exclude, --exclude-file or --preset, they replace
+    /// its excludes
     Set {
         /// The name of the backup plan
         name: String,
         #[command(flatten)]
         keep: KeepArgs,
+        #[command(flatten)]
+        excludes: ExcludeArgs,
     },
+    /// Print what a backup plan leaves out, its excludes as they are kept: `> file` and
+    /// --exclude-file bring them back
+    Excludes {
+        /// The name of the backup plan
+        name: String,
+    },
+    /// Tell what a run of a backup plan of this computer would leave out, without restic
+    Preview {
+        /// The name of the backup plan
+        name: String,
+    },
+    /// List the presets of excludes of this computer with their patterns
+    Presets,
     /// Delete a backup plan of this computer; its repository and its snapshots stay
     Delete {
         /// The name of the backup plan
@@ -255,6 +344,7 @@ async fn command(command: Command) -> Result<(), String> {
             repo,
             paths,
             keep,
+            excludes,
         }) => {
             let repository =
                 by_name(&sessions, REPOSITORIES, &repo, "cli.unknown_repository").await?;
@@ -268,7 +358,14 @@ async fn command(command: Command) -> Result<(), String> {
                 .map_err(|error| error.to_string())?;
             let host = host();
             let plan = with_keep(
-                json!({ "name": name, "repositoryId": repository["id"], "host": host, "paths": paths }),
+                json!({
+                    "name": name,
+                    "repositoryId": repository["id"],
+                    "host": host,
+                    "paths": paths,
+                    "excludes": excludes.excludes()?.unwrap_or_default(),
+                    "excludeCaches": excludes.caches().unwrap_or(false),
+                }),
                 &keep.json().unwrap_or_else(default_keep),
             );
             let created = api::create_plan(&sessions, &plan)
@@ -284,21 +381,82 @@ async fn command(command: Command) -> Result<(), String> {
                 )
             );
         }
-        Command::Plan(PlanCommand::Set { name, keep }) => {
-            let keep = keep.json().ok_or_else(|| t!("cli.no_keep").to_string())?;
+        Command::Plan(PlanCommand::Set {
+            name,
+            keep,
+            excludes,
+        }) => {
+            let given_keep = keep.json();
+            if given_keep.is_none() && excludes.is_empty() {
+                return Err(t!("cli.no_change").to_string());
+            }
             let plan = by_name(&sessions, PLANS, &name, "cli.unknown_plan").await?;
             let id = id(&plan)?;
-            // the values of the plan the api takes, with the new setting
-            let values = json!({
+            // the values of the plan the api takes, what is not given as it is
+            let mut values = json!({
                 "name": plan["name"],
                 "repositoryId": plan["repositoryId"],
                 "host": plan["host"],
                 "paths": plan["paths"],
+                "excludes": plan["excludes"],
+                "excludeCaches": plan["excludeCaches"],
             });
-            api::update_plan(&sessions, id, &with_keep(values, &keep))
+            let kept = json!({
+                "keepLast": plan["keepLast"],
+                "keepDaily": plan["keepDaily"],
+                "keepWeekly": plan["keepWeekly"],
+                "keepMonthly": plan["keepMonthly"],
+                "keepYearly": plan["keepYearly"],
+            });
+            values = with_keep(values, &given_keep.unwrap_or(kept));
+            if let Some(patterns) = excludes.excludes()? {
+                values["excludes"] = json!(patterns);
+            }
+            if let Some(caches) = excludes.caches() {
+                values["excludeCaches"] = json!(caches);
+            }
+            api::update_plan(&sessions, id, &values)
                 .await
                 .map_err(|error| api_message(&error))?;
             println!("{}", t!("cli.plan_changed", name = name));
+        }
+        Command::Plan(PlanCommand::Excludes { name }) => {
+            let plan = by_name(&sessions, PLANS, &name, "cli.unknown_plan").await?;
+            let excludes = crate::core::excludes::Excludes::of(&plan);
+            if !excludes.patterns.is_empty() {
+                println!("{}", excludes.patterns);
+            }
+            if excludes.caches {
+                println!("# {}", t!("cli.excludes_caches_on"));
+            }
+        }
+        Command::Plan(PlanCommand::Preview { name }) => {
+            let plan = by_name(&sessions, PLANS, &name, "cli.unknown_plan").await?;
+            let other = plan["host"].as_str().unwrap_or_default();
+            if other != host() {
+                return Err(t!("cli.other_computer", host = other).to_string());
+            }
+            let paths: Vec<String> = plan["paths"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(text)
+                .collect();
+            let excludes = crate::core::excludes::Excludes::of(&plan);
+            let found = crate::core::excludes::preview(
+                &paths,
+                &excludes,
+                crate::core::excludes::Limits::default(),
+            );
+            print_preview(&found);
+        }
+        Command::Plan(PlanCommand::Presets) => {
+            for preset in crate::core::presets::presets(crate::core::presets::System::this()) {
+                println!("{}\t{}", preset.id, preset.name);
+                for pattern in preset.patterns {
+                    println!("\t{pattern}");
+                }
+            }
         }
         Command::Plan(PlanCommand::Delete { name }) => {
             let plan = by_name(&sessions, PLANS, &name, "cli.unknown_plan").await?;
@@ -501,6 +659,40 @@ fn password(new: bool) -> Result<String, String> {
     }
 }
 
+/// what a preview found, a line each: what a run backs up, then each pattern with what it leaves
+/// out, the patterns that leave out nothing and the paths that are not here
+fn print_preview(found: &crate::core::excludes::Preview) {
+    let bytes = |bytes: u64| format!("{:.1} MiB", bytes as f64 / (1024.0 * 1024.0));
+    println!(
+        "{}",
+        t!(
+            "cli.preview_backed_up",
+            files = found.included_files,
+            size = bytes(found.included_bytes)
+        )
+    );
+    for skipped in &found.skipped {
+        println!(
+            "{}\t{}",
+            skipped.pattern,
+            t!(
+                "cli.preview_skipped",
+                files = skipped.files,
+                size = bytes(skipped.bytes)
+            )
+        );
+    }
+    for pattern in &found.unused {
+        println!("{pattern}\t{}", t!("cli.preview_unused"));
+    }
+    for path in &found.missing {
+        println!("{path}\t{}", t!("cli.preview_missing"));
+    }
+    if !found.complete {
+        println!("{}", t!("cli.preview_partial"));
+    }
+}
+
 /// the id of the repository or the backup plan of the name
 async fn id_of(
     sessions: &SessionManager,
@@ -584,6 +776,71 @@ mod tests {
             Err("It failed: the SAK instance answered no id".to_string())
         );
         assert!(id(&json!({ "id": "7" })).is_err());
+    }
+
+    #[test]
+    fn the_excludes_of_the_arguments_are_presets_a_file_and_patterns() {
+        let Command::Plan(PlanCommand::Set { excludes, .. }) =
+            Cli::try_parse_from(["sakbackup", "plan", "set", "home"])
+                .unwrap()
+                .command
+        else {
+            panic!("no set");
+        };
+        assert_eq!(excludes.excludes(), Ok(None));
+        assert_eq!(excludes.caches(), None);
+        assert!(excludes.is_empty());
+
+        let file = std::env::temp_dir().join(format!("sak-excludes-args-{}", std::process::id()));
+        std::fs::write(&file, "# mine\n$HOME/git/**/build\n\n").unwrap();
+        let Command::Plan(PlanCommand::Set { excludes, .. }) = Cli::try_parse_from([
+            "sakbackup",
+            "plan",
+            "set",
+            "home",
+            "--preset",
+            "downloads",
+            "--exclude-file",
+            file.to_str().unwrap(),
+            "--exclude",
+            "node_modules",
+            "--exclude",
+            "*.log",
+            "--exclude-caches",
+        ])
+        .unwrap()
+        .command
+        else {
+            panic!("no set");
+        };
+        let downloads = crate::core::presets::as_excludes(
+            &crate::core::presets::preset(crate::core::presets::System::this(), "downloads")
+                .unwrap(),
+        );
+        assert_eq!(
+            excludes.excludes(),
+            Ok(Some(format!(
+                "{downloads}\n\n# mine\n$HOME/git/**/build\n\nnode_modules\n*.log"
+            )))
+        );
+        assert_eq!(excludes.caches(), Some(true));
+        let _ = std::fs::remove_file(&file);
+        // a preset of no system, and both switches of the caches, are refused
+        assert!(
+            Cli::try_parse_from(["sakbackup", "plan", "set", "home", "--preset", "nothing"])
+                .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "sakbackup",
+                "plan",
+                "set",
+                "home",
+                "--exclude-caches",
+                "--no-exclude-caches"
+            ])
+            .is_err()
+        );
     }
 
     #[test]

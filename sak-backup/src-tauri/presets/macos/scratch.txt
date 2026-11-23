@@ -1,0 +1,11 @@
+*.pyc
+*.pyo
+*.class
+*.o
+*.swp
+*.swo
+*~
+.DS_Store
+._*
+$HOME/.zcompdump*
+$HOME/.lesshst

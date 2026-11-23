@@ -5,7 +5,7 @@
 use crate::core::passwords::{Given, PasswordStore};
 use crate::core::run::{RunError, RunEvent, RunSummary, Runs};
 use crate::core::snapshots::Snapshots;
-use crate::core::{api, passwords, restore, run, snapshots};
+use crate::core::{api, excludes, passwords, presets, restore, run, snapshots};
 use rust_i18n::t;
 use sak_desktop_shared::api::ApiError;
 use sak_desktop_shared::checks::{self, CheckEvent};
@@ -151,6 +151,45 @@ pub async fn run_checks(on_event: Channel<CheckEvent<()>>) -> Result<(), String>
     .await
     .inspect_err(|text| eprintln!("{text}"))?;
     checks::send(&on_event, CheckEvent::Finished { next: () })
+}
+
+/// the presets of excludes of this computer, each with its name and its patterns (core/presets.rs)
+#[tauri::command]
+pub fn exclude_presets() -> Vec<presets::Preset> {
+    presets::presets(presets::System::this())
+}
+
+/// the excludes of a file the user picked, e.g. one of restic of before; at most the size a plan
+/// takes
+#[tauri::command]
+pub fn read_excludes(path: String) -> Result<String, String> {
+    let bytes = std::fs::read(&path).map_err(|error| error.to_string())?;
+    if bytes.len() > MAX_EXCLUDES_BYTES {
+        return Err(t!("ui.excludes.file_too_large", max = MAX_EXCLUDES_BYTES).to_string());
+    }
+    String::from_utf8(bytes).map_err(|_| t!("ui.excludes.file_not_text").to_string())
+}
+
+/// the bytes of excludes a backup plan takes (ResticBackupPlanService of sak-backend)
+const MAX_EXCLUDES_BYTES: usize = 65536;
+
+/// what a run of the paths would leave out with the excludes, on this computer, by the rules of
+/// restic; walks the paths on a thread of its own, at most for its limits
+#[tauri::command]
+pub async fn preview_excludes(
+    paths: Vec<String>,
+    excludes: String,
+    exclude_caches: bool,
+) -> Result<excludes::Preview, String> {
+    let excludes = excludes::Excludes {
+        patterns: excludes,
+        caches: exclude_caches,
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        excludes::preview(&paths, &excludes, excludes::Limits::default())
+    })
+    .await
+    .map_err(|error| error.to_string())
 }
 
 /// starts sakbackup again, the binary it was started from, which an update replaced

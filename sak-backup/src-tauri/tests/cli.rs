@@ -342,6 +342,86 @@ mod integration {
     }
 
     #[test]
+    fn a_backup_plan_leaves_out_its_excludes_and_the_cache_folders() {
+        let instance = Instance::start("excludes");
+        let documents = instance.work.join("documents");
+        let files = folder(&documents);
+        for (path, content) in [
+            ("node_modules/m/index.js", b"js".as_slice()),
+            ("notes.log", b"log"),
+            (
+                "cache/CACHEDIR.TAG",
+                b"Signature: 8a477f597d28d172789f06886806bc55\n",
+            ),
+            ("cache/big.bin", b"cached"),
+        ] {
+            let file = documents.join(path);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file, content).unwrap();
+        }
+        let path = documents.to_str().unwrap();
+        instance.run(&[
+            "plan",
+            "create",
+            "documents",
+            "--repo",
+            "my-backups",
+            path,
+            "--exclude",
+            "node_modules",
+            "--exclude",
+            "*.log",
+            "--exclude-caches",
+        ]);
+        // kept as given, the switch of the caches as a comment
+        let excludes = instance.run(&["plan", "excludes", "documents"]);
+        assert!(excludes.starts_with("node_modules\n*.log\n#"), "{excludes}");
+        // the preview tells what a run will leave out
+        let preview = instance.run(&["plan", "preview", "documents"]);
+        assert!(
+            preview.contains("node_modules\tleaves out 1 files"),
+            "{preview}"
+        );
+        assert!(preview.contains("*.log\tleaves out 1 files"), "{preview}");
+        assert!(
+            preview.contains("CACHEDIR.TAG\tleaves out 1 files"),
+            "{preview}"
+        );
+        instance.run(&["run", "documents", "--init"]);
+
+        let elsewhere = instance.work.join("elsewhere");
+        instance.run(&[
+            "restore",
+            "documents",
+            "--target",
+            elsewhere.to_str().unwrap(),
+        ]);
+        let restored = elsewhere.join(documents.strip_prefix("/").unwrap());
+        assert_same(&files, &restored);
+        assert!(!restored.join("node_modules").exists());
+        assert!(!restored.join("notes.log").exists());
+        // restic keeps the CACHEDIR.TAG of a folder it leaves out, not what is in it
+        assert!(restored.join("cache/CACHEDIR.TAG").exists());
+        assert!(!restored.join("cache/big.bin").exists());
+
+        // set replaces the excludes, keeps what is not given
+        instance.run(&[
+            "plan",
+            "set",
+            "documents",
+            "--exclude",
+            "nested",
+            "--no-exclude-caches",
+        ]);
+        assert_eq!(
+            instance.run(&["plan", "excludes", "documents"]).trim(),
+            "nested"
+        );
+        let failed = instance.fail(&["plan", "set", "documents"]);
+        assert!(failed.contains("to change the backup plan"), "{failed}");
+    }
+
+    #[test]
     fn a_folder_is_restored_into_another_folder_below_its_path() {
         let instance = Instance::start("target");
         let documents = instance.work.join("documents");

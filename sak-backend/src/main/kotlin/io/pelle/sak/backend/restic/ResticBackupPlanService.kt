@@ -8,6 +8,7 @@ import io.pelle.sak.model.restic.ResticBackupPlan
 import io.pelle.sak.model.restic.ResticBackupPlanRepository
 import io.pelle.sak.model.restic.ResticBackupPlanWriteResult
 import io.pelle.sak.model.restic.ResticBackupPlanValues
+import io.pelle.sak.model.restic.ResticExcludes
 import io.pelle.sak.model.restic.ResticKeep
 import java.time.Clock
 
@@ -70,7 +71,13 @@ class ResticBackupPlanService(
         values: ResticBackupPlanValues,
         store: (ResticBackupPlanValues) -> ResticBackupPlanWriteResult,
     ): ResticBackupPlanSaveResult {
-        val checked = values.copy(name = values.name.trim(), host = values.host.trim(), paths = values.paths.map { normalized(it.trim()) })
+        val checked =
+            values.copy(
+                name = values.name.trim(),
+                host = values.host.trim(),
+                paths = values.paths.map { normalized(it.trim()) },
+                excludes = values.excludes.copy(patterns = excludeLines(values.excludes.patterns)),
+            )
         val errors =
             listOfNotNull(
                 ErrorMessage(ResticTexts.INVALID_NAME).takeUnless { isDnsLabel(checked.name) },
@@ -79,6 +86,9 @@ class ResticBackupPlanService(
                 ErrorMessage(ResticTexts.TOO_MANY_PATHS, "max" to MAX_PATHS).takeIf { checked.paths.size > MAX_PATHS },
                 ErrorMessage(ResticTexts.DOUBLE_PATH).takeIf { checked.paths.toSet().size != checked.paths.size },
                 ErrorMessage(ResticTexts.INVALID_KEEP, "max" to MAX_KEEP).takeIf { !checked.keep.valid() },
+                ErrorMessage(ResticTexts.TOO_MANY_EXCLUDES, "max" to MAX_EXCLUDE_LINES, "bytes" to MAX_EXCLUDES_BYTES)
+                    .takeIf { checked.excludes.tooLong() },
+                ErrorMessage(ResticTexts.INVALID_EXCLUDE).takeIf { checked.excludes.patterns.any { it.isISOControl() && it != '\n' && it != '\t' } },
             ) + checked.paths.filterNot(::isPath).take(1).map { ErrorMessage(ResticTexts.INVALID_PATH, "path" to it.take(MAX_SHOWN)) }
         if (errors.isNotEmpty()) return ResticBackupPlanSaveResult.Invalid(errors)
         return when (val saved = store(checked)) {
@@ -90,6 +100,24 @@ class ResticBackupPlanService(
     }
 
     companion object {
+        // the most lines and bytes the excludes of a plan have; a long list of presets has about 100
+        const val MAX_EXCLUDE_LINES = 1000
+        const val MAX_EXCLUDES_BYTES = 65536
+
+        // the excludes as restic reads them, one pattern a line: the line ends of windows are the
+        // ones of a file, the spaces at the ends of a line are none of a pattern, the blank lines at
+        // the end go
+        fun excludeLines(patterns: String): String =
+            patterns
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .lines()
+                .joinToString("\n") { it.trim() }
+                .trimEnd('\n')
+
+        private fun ResticExcludes.tooLong() =
+            patterns.lines().size > MAX_EXCLUDE_LINES || patterns.toByteArray().size > MAX_EXCLUDES_BYTES
+
 
         // a host name as the computer has it: letters, digits, '-', '_' and '.', as restic takes it for --host
         private val HOST = Regex("^[A-Za-z0-9]([A-Za-z0-9._-]{0,251}[A-Za-z0-9])?$")

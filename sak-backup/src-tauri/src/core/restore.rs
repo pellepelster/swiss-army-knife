@@ -88,6 +88,7 @@ mod tests {
             id: 7,
             host: "laptop",
             paths: &paths,
+            excludes: &crate::core::excludes::NO_EXCLUDES,
         };
         // the newest first, as restic is listed
         let snapshots = [

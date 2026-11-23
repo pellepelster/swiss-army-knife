@@ -146,6 +146,14 @@
               </div>
               <div class="field-error" id="plan-path-error"></div>
             </fieldset>
+            <!-- what a run leaves out, edited in its dialog (excludes-dialog.js): the list can be long -->
+            <fieldset>
+              <legend class="form-label" data-text="ui.plans.excludes"></legend>
+              <div class="excludes-row">
+                <span class="hint" id="plan-excludes-summary"></span>
+                <button type="button" class="btn btn-outline-secondary" id="plan-excludes-edit"></button>
+              </div>
+            </fieldset>
             <!-- how many snapshots a run keeps (BACKUP-8) -->
             <fieldset>
               <legend class="form-label" data-text="ui.plans.keep"></legend>
@@ -214,6 +222,42 @@
           <div class="btn-group" role="group">
             <button type="button" class="btn btn-outline-secondary" id="password-dialog-cancel" data-text="ui.cancel"></button>
             <button type="submit" class="btn btn-primary" id="password-dialog-submit"></button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+    <!-- the excludes of a backup plan (excludes-dialog.js): presets of this computer, the patterns
+         one a line, the cache folders, and a preview of what a run leaves out -->
+    <dialog class="dialog excludes-dialog" id="excludes-dialog" aria-labelledby="excludes-title" aria-describedby="excludes-hint">
+      <form method="dialog" id="excludes-form" novalidate>
+        <h2 class="h5 mb-0" id="excludes-title"></h2>
+        <p class="hint" id="excludes-hint" data-text="ui.excludes.hint"></p>
+        <div>
+          <div class="form-label" id="excludes-presets-label" data-text="ui.excludes.presets"></div>
+          <div class="excludes-presets" id="excludes-presets" role="group" aria-labelledby="excludes-presets-label"></div>
+        </div>
+        <div>
+          <label class="form-label" for="excludes-text" data-text="ui.excludes.patterns"></label>
+          <textarea class="form-control sak-mono excludes-text" id="excludes-text" rows="8" spellcheck="false" autocapitalize="off" aria-describedby="excludes-count excludes-error"></textarea>
+          <div class="form-text" id="excludes-count"></div>
+          <div class="field-error" id="excludes-error" role="alert"></div>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="excludes-caches">
+          <label class="form-check-label" for="excludes-caches" data-text="ui.excludes.caches"></label>
+        </div>
+        <div class="excludes-preview">
+          <p class="hint" id="excludes-preview-status" aria-live="polite"></p>
+          <ul class="plain-list excludes-preview-list" id="excludes-preview-list"></ul>
+        </div>
+        <div class="form-buttons">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="excludes-import" data-text="ui.excludes.import"></button>
+            <button type="button" class="btn btn-outline-secondary" id="excludes-preview" data-text="ui.excludes.preview"></button>
+          </div>
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary" id="excludes-cancel" data-text="ui.cancel"></button>
+            <button type="submit" class="btn btn-primary" id="excludes-done"></button>
           </div>
         </div>
       </form>

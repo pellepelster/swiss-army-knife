@@ -83,4 +83,19 @@ class ResticBackupPlanRepositoryTest {
         // the name is free again
         (plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "h", listOf("/a"))) is ResticBackupPlanWriteResult.Saved) shouldBe true
     }
+
+    @Test
+    fun `the excludes are kept with the plan, a change of them is a change of the plan`() {
+        val laptop = repository(ANNA)
+        val values = ResticBackupPlanValues("documents", laptop, "h", listOf("/a"))
+        val saved = (plans.insert(ANNA, values) as ResticBackupPlanWriteResult.Saved).plan
+        // a plan made without leaves out nothing
+        saved.excludes shouldBe ResticExcludes("", caches = false)
+
+        val excludes = ResticExcludes("# caches\n\$HOME/.cache\n\nnode_modules", caches = true)
+        val changed = (plans.update(ANNA, saved.id, values.copy(excludes = excludes)) as ResticBackupPlanWriteResult.Saved).plan
+        changed.excludes shouldBe excludes
+        changed.updatedAt shouldBe now
+        plans.byId(ANNA, saved.id)!!.excludes shouldBe excludes
+    }
 }

@@ -1,0 +1,11 @@
+*.pyc
+*.pyo
+*.class
+*.o
+*.swp
+*.swo
+*~
+lost+found
+$HOME/.zcompdump*
+$HOME/.lesshst
+$HOME/.wget-hsts

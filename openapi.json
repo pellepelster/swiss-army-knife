@@ -7414,6 +7414,12 @@
                             "integer",
                             "null"
                         ]
+                    },
+                    "excludes": {
+                        "type": "string"
+                    },
+                    "excludeCaches": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -7471,6 +7477,12 @@
                             "integer",
                             "null"
                         ]
+                    },
+                    "excludes": {
+                        "type": "string"
+                    },
+                    "excludeCaches": {
+                        "type": "boolean"
                     }
                 }
             },

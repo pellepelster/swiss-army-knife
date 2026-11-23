@@ -5,7 +5,9 @@
 
 pub mod api;
 pub mod checks;
+pub mod excludes;
 pub mod passwords;
+pub mod presets;
 pub mod restic;
 pub mod restore;
 pub mod run;

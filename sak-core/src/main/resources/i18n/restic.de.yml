@@ -8,6 +8,8 @@ double_path: "Ein Pfad darf nur einmal in einem Backup-Plan sein."
 invalid_path: "%{path} ist kein absoluter Pfad wie /home/anna/Documents."
 unknown_repository: "Dieses Repository gibt es nicht, oder du kannst es nicht sehen."
 plan_exists: "Einen Backup-Plan mit diesem Namen gibt es schon."
+too_many_excludes: "Die Ausschlüsse eines Backup-Plans können höchstens %{max} Zeilen und %{bytes} Bytes haben."
+invalid_exclude: "Ein Ausschluss darf kein Steuerzeichen enthalten."
 invalid_keep: "Eine Anzahl zu behaltender Snapshots muss zwischen 1 und %{max} liegen oder leer bleiben, um alle zu behalten."
 settings:
   s3:

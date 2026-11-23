@@ -1,0 +1,4 @@
+$HOME/.cache
+$HOME/.local/share/Trash
+$HOME/.thumbnails
+$HOME/.var/app/*/cache

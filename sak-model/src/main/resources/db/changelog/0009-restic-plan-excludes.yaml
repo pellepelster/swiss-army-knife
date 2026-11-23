@@ -1,0 +1,36 @@
+# what a run of a backup plan leaves out: the patterns of restic, one a line, with comments as the
+# user wrote them, and whether folders marked as caches (CACHEDIR.TAG) are left out. A plan made
+# before leaves out nothing, as before
+databaseChangeLog:
+  # as plain sql: for sqlite, the addColumn of liquibase makes the table again through a renamed copy,
+  # and sqlite then points the foreign key of the paths at the copy
+  - changeSet:
+      id: 0009-restic-plan-excludes
+      author: sak
+      dbms: sqlite
+      changes:
+        - sql:
+            sql: ALTER TABLE restic_backup_plans ADD COLUMN excludes TEXT NOT NULL DEFAULT ''
+        - sql:
+            sql: ALTER TABLE restic_backup_plans ADD COLUMN exclude_caches BOOLEAN NOT NULL DEFAULT FALSE
+  # the same for the code generation, which reads the schema from h2
+  - changeSet:
+      id: 0009-restic-plan-excludes-codegen
+      author: sak
+      dbms: h2
+      changes:
+        - addColumn:
+            tableName: restic_backup_plans
+            columns:
+              - column:
+                  name: excludes
+                  type: varchar(65536)
+                  defaultValue: ""
+                  constraints:
+                    nullable: false
+              - column:
+                  name: exclude_caches
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

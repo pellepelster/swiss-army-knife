@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.restic
 
+import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.pelle.sak.backend.respondDeleted
 import io.ktor.server.routing.delete
 import io.ktor.http.ContentType
@@ -39,6 +40,7 @@ import io.pelle.sak.backend.restic.model.ResticRepositoryRequest
 import io.pelle.sak.backend.restic.model.ResticRepositoryResponse
 import io.pelle.sak.backend.restic.model.ResticTokenResponse
 import io.pelle.sak.model.ResourceId
+import io.pelle.sak.model.restic.ResticExcludes
 import io.pelle.sak.model.restic.ResticBackupPlan
 import io.pelle.sak.model.restic.ResticBackupPlanValues
 import io.pelle.sak.model.restic.ResticKeep
@@ -91,10 +93,19 @@ private fun ResticBackupPlan.response() =
         keep.weekly,
         keep.monthly,
         keep.yearly,
+        excludes.patterns,
+        excludes.caches,
     )
 
 private fun ResticBackupPlanRequest.values() =
-    ResticBackupPlanValues(name, repositoryId, host, paths, ResticKeep(keepLast, keepDaily, keepWeekly, keepMonthly, keepYearly))
+    ResticBackupPlanValues(
+        name,
+        repositoryId,
+        host,
+        paths,
+        ResticKeep(keepLast, keepDaily, keepWeekly, keepMonthly, keepYearly),
+        ResticExcludes(excludes, excludeCaches),
+    )
 
 private suspend fun ApplicationCall.respondPlan(
     result: ResticBackupPlanSaveResult,
@@ -107,6 +118,10 @@ private suspend fun ApplicationCall.respondPlan(
     ResticBackupPlanSaveResult.Exists -> respondErrors(ResticTexts.PLAN_EXISTS, status = HttpStatusCode.Conflict)
 }
 
+// the most a request of a backup plan has: its excludes (ResticBackupPlanService.MAX_EXCLUDES_BYTES)
+// with room for its paths and the rest
+const val PLAN_MAX_BODY_SIZE = 128L * 1024
+
 // the repositories of restic of the signed in user (BACKUP-1, BACKUP-2) and the backup plans into them
 // (BACKUP-5, BACKUP-6), meant to be mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
@@ -116,6 +131,8 @@ fun Route.restic(
     apiHost: String,
 ) {
     route("/plans") {
+        // a plan has up to 64 KiB of excludes, more than the 16 KiB of the other json bodies
+        install(RequestBodyLimit) { bodyLimit { PLAN_MAX_BODY_SIZE } }
         get {
             val page = call.pageRequest() ?: return@get
             val all = withContext(Dispatchers.IO) { plans.plans(call.owner) }
