@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.backend.isDnsLabel
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
@@ -57,6 +58,13 @@ class ResticBackupPlanService(
         id: Int,
         values: ResticBackupPlanValues,
     ): ResticBackupPlanSaveResult = save(values) { repository.update(user, id, it) }
+
+    // deletes a backup plan of the user; its repository and its snapshots stay, they are the user's
+    // backups (BACKUP-1)
+    fun delete(
+        user: String,
+        id: Int,
+    ): DeleteResult = if (repository.delete(user, id)) DeleteResult.Deleted else DeleteResult.NotFound
 
     private fun save(
         values: ResticBackupPlanValues,

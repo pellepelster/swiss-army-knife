@@ -52,6 +52,7 @@ pub fn run() {
             commands::plans,
             commands::create_plan,
             commands::update_plan,
+            commands::delete_plan,
             commands::pick_paths,
             commands::pick_folder,
             commands::run_backup,

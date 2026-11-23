@@ -57,6 +57,12 @@ pub async fn update_plan(
     api::update_plan(&sessions, u64::from(id), &plan).await
 }
 
+/// deletes a backup plan of this computer (BACKUP-5); its repository and its snapshots stay
+#[tauri::command]
+pub async fn delete_plan(sessions: State<'_, SessionManager>, id: u32) -> Result<(), ApiError> {
+    api::delete_plan(&sessions, u64::from(id)).await
+}
+
 /// folders or files the user picks in the dialog of the system, as absolute paths; none when the
 /// dialog is cancelled
 #[tauri::command]

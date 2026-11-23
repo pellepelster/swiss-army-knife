@@ -4212,7 +4212,40 @@ export interface paths {
       };
     };
     post?: never;
-    delete?: never;
+    /**
+     * Delete a backup plan of restic
+     * @description Only its owner deletes a backup plan. Its repository and the snapshots in it stay.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the backup plan */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The backup plan is gone */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description The user has no such backup plan */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
     options?: never;
     head?: never;
     patch?: never;

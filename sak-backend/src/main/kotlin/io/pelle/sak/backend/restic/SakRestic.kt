@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.backend.respondDeleted
+import io.ktor.server.routing.delete
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -195,6 +197,20 @@ fun Route.restic(
                 errors(HttpStatusCode.NotFound, "The user has no such backup plan")
                 errors(HttpStatusCode.Conflict, "The user has another backup plan of the name")
                 errors(HttpStatusCode.UnprocessableEntity, "The repository is none of the user")
+            }
+        }
+
+        delete("/{id}") {
+            val id = call.idParameter() ?: return@delete
+            call.respondDeleted(withContext(Dispatchers.IO) { plans.delete(call.owner, id) })
+        }.describe {
+            tag(RESTIC_TAG)
+            summary = "Delete a backup plan of restic"
+            description = "Only its owner deletes a backup plan. Its repository and the snapshots in it stay."
+            parameters { planId() }
+            responses {
+                HttpStatusCode.NoContent { description = "The backup plan is gone" }
+                errors(HttpStatusCode.NotFound, "The user has no such backup plan")
             }
         }
     }

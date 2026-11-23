@@ -53,6 +53,18 @@ pub async fn update_plan(
     .await
 }
 
+/// deletes the backup plan `id`; its repository and its snapshots stay
+pub async fn delete_plan(sessions: &SessionManager, id: u64) -> Result<(), ApiError> {
+    api::call(
+        sessions,
+        reqwest::Method::DELETE,
+        &format!("{PLANS}/{id}"),
+        None,
+    )
+    .await
+    .map(|_| ())
+}
+
 /// the item of `path` (repositories or plans) of the name; none when the user has none of it
 pub async fn by_name(
     sessions: &SessionManager,

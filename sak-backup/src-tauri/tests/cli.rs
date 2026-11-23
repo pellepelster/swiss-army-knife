@@ -419,6 +419,40 @@ mod integration {
     }
 
     #[test]
+    fn a_deleted_backup_plan_is_gone_its_repository_and_its_snapshots_stay() {
+        let instance = Instance::start("plan-delete");
+        let documents = instance.work.join("documents");
+        folder(&documents);
+        instance.back_up("documents", "my-backups", &documents);
+
+        let said = instance.run(&["plan", "delete", "documents"]);
+        assert!(said.contains("Deleted the backup plan documents"), "{said}");
+        assert!(!instance.run(&["plan", "list"]).contains("documents"));
+        // once only
+        let failed = instance.fail(&["plan", "delete", "documents"]);
+        assert!(
+            failed.contains("You have no backup plan documents"),
+            "{failed}"
+        );
+        // the snapshot of its run is still in the repository
+        let snapshots = instance.run(&["snapshot", "list", "--repo", "my-backups"]);
+        assert!(
+            snapshots.contains(documents.to_str().unwrap()),
+            "{snapshots}"
+        );
+        // the name is free for a new plan
+        instance.run(&[
+            "plan",
+            "create",
+            "documents",
+            "--repo",
+            "my-backups",
+            documents.to_str().unwrap(),
+        ]);
+        assert!(instance.run(&["plan", "list"]).contains("documents"));
+    }
+
+    #[test]
     fn a_run_keeps_the_snapshots_its_plan_keeps_and_removes_the_older_ones() {
         let instance = Instance::start("keep");
         let documents = instance.work.join("documents");

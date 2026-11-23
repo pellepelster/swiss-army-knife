@@ -16,8 +16,8 @@ import {
   rowName,
   saveFailed,
   signedOut,
+  message,
   thisHost,
-  unavailableDelete,
 } from './rows.js';
 import { onRunsChanged, runningPlan, showRun, startRestore, startRun } from './run.js';
 import { confirmAction } from './shared/confirm-dialog.js';
@@ -101,7 +101,7 @@ function planRow(plan, names, repositories) {
   });
   const restoreHere = entry(text('ui.plans.restore'), () => restore(plan, repositoryName));
   const restoreTo = entry(text('ui.plans.restore_to'), () => restoreToFolder(plan, repositoryName));
-  const remove = unavailableDelete(text('ui.plans.delete_unavailable'));
+  const remove = entry(text('ui.delete'), () => deletePlan(plan), { danger: true });
   // only a backup plan of this computer runs or is restored here, one at a time, on its own page;
   // disabled, never hidden (UX-8). The row of the plan that runs opens its page again
   const start = button('btn btn-outline-secondary btn-sm', text('ui.plans.run'), (event) => {
@@ -121,10 +121,33 @@ function planRow(plan, names, repositories) {
       if (plan.host !== host) disable(each, text('ui.plans.restore_other_computer', { host: plan.host }));
       else if (runningPlan() !== null) disable(each, text('ui.plans.run_busy'));
     }
+    // the app changes only the backup plans of this computer (BACKUP-5), never the one that runs
+    remove.disabled = false;
+    remove.title = '';
+    if (plan.host !== host) disable(remove, text('ui.plans.delete_other_computer', { host: plan.host }));
+    else if (runningPlan() === plan.id) disable(remove, text('ui.plans.run_busy'));
   };
   enable();
   runButtons.push(enable);
   return row(plan.name, [rowName(plan.name), ...badges, detail], open, [edit, restoreHere, restoreTo, remove], [start]);
+}
+
+// a backup plan goes with its paths, its repository and its snapshots stay: asked first, then the
+// list again without it
+async function deletePlan(plan) {
+  const confirmed = await confirmAction({
+    title: text('ui.plans.delete_title', { name: plan.name }),
+    message: text('ui.plans.delete_confirm', { name: plan.name }),
+    action: text('ui.delete'),
+    danger: true,
+  });
+  if (!confirmed) return;
+  try {
+    await invoke('delete_plan', { id: plan.id });
+    await showPlans();
+  } catch (error) {
+    if (!signedOut(error, shell)) setFailure(status, text('ui.plans.delete_failed', { error: message(error) }));
+  }
 }
 
 // a restore where the files were changes files of this computer: asked first

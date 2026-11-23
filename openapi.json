@@ -4804,6 +4804,47 @@
                     }
                 ]
             },
+            "delete": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "Delete a backup plan of restic",
+                "description": "Only its owner deletes a backup plan. Its repository and the snapshots in it stay.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the backup plan",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The backup plan is gone"
+                    },
+                    "404": {
+                        "description": "The user has no such backup plan",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            },
             "get": {
                 "tags": [
                     "restic"

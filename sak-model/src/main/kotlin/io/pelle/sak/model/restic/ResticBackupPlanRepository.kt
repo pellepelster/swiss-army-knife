@@ -162,6 +162,30 @@ class ResticBackupPlanRepository(
             ResticBackupPlanWriteResult.NameTaken
         }
 
+    // deletes a backup plan of the owner and its paths; they stay as deleted. Its repository and the
+    // snapshots in it stay. False when the owner has no such backup plan
+    fun delete(
+        owner: String,
+        id: Int,
+    ): Boolean =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            val now = clock.instant()
+            val deleted =
+                dsl
+                    .update(RESTIC_BACKUP_PLANS)
+                    .set(RESTIC_BACKUP_PLANS.DELETED_AT, now)
+                    .where(RESTIC_BACKUP_PLANS.ID.eq(id), RESTIC_BACKUP_PLANS.OWNER.eq(owner), RESTIC_BACKUP_PLANS.DELETED_AT.isNull)
+                    .execute()
+            if (deleted == 0) return@transactionResult false
+            dsl
+                .update(RESTIC_BACKUP_PLAN_PATHS)
+                .set(RESTIC_BACKUP_PLAN_PATHS.DELETED_AT, now)
+                .where(RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.eq(id), RESTIC_BACKUP_PLAN_PATHS.DELETED_AT.isNull)
+                .execute()
+            true
+        }
+
     private fun ownsRepository(
         dsl: DSLContext,
         owner: String,

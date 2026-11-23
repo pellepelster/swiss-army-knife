@@ -2322,9 +2322,14 @@ sak_backup:
         en: "A backup plan of the computer %{host} is changed on that computer."
         de: "Ein Backup-Plan des Computers %{host} wird auf diesem Computer geändert."
       this_computer: { en: "Backs up this computer, %{host}.", de: "Sichert diesen Computer, %{host}." }
-      delete_unavailable:
-        en: "Deleting a backup plan is not possible yet."
-        de: "Ein Backup-Plan kann noch nicht gelöscht werden."
+      delete_title: { en: "Delete %{name}", de: "%{name} löschen" }
+      delete_confirm:
+        en: "Delete the backup plan %{name}? Its paths are no longer backed up by it. Its repository and the snapshots in it stay."
+        de: "Backup-Plan %{name} löschen? Seine Pfade werden nicht mehr von ihm gesichert. Sein Repository und die Snapshots darin bleiben."
+      delete_other_computer:
+        en: "A backup plan of the computer %{host} is deleted on that computer."
+        de: "Ein Backup-Plan des Computers %{host} wird auf diesem Computer gelöscht."
+      delete_failed: { en: "The backup plan was not deleted: %{error}", de: "Der Backup-Plan wurde nicht gelöscht: %{error}" }
       repository: { en: "Repository", de: "Repository" }
       paths: { en: "What to back up", de: "Was gesichert wird" }
       add_folder: { en: "Add folder", de: "Ordner hinzufügen" }
@@ -2466,6 +2471,12 @@ sak_backup:
     restored: { en: "Restored the newest snapshot of %{plan} below %{target}.", de: "Neuesten Snapshot von %{plan} unter %{target} wiederhergestellt." }
     snapshot_deleted: { en: "Deleted the snapshot %{id} of %{repository}.", de: "Snapshot %{id} von %{repository} gelöscht." }
     plan_changed: { en: "Changed the backup plan %{name}.", de: "Backup-Plan %{name} geändert." }
+    plan_deleted:
+      en: "Deleted the backup plan %{name}. Its repository and its snapshots stay."
+      de: "Backup-Plan %{name} gelöscht. Sein Repository und seine Snapshots bleiben."
+    plan_other_computer:
+      en: "This backup plan is one of the computer %{host}; it is deleted there."
+      de: "Dieser Backup-Plan gehört zum Computer %{host}; er wird dort gelöscht."
     no_keep:
       en: "Give what the backup plan keeps: --keep-last, --keep-daily, --keep-weekly, --keep-monthly, --keep-yearly or --keep-all."
       de: "Gib an, was der Backup-Plan behält: --keep-last, --keep-daily, --keep-weekly, --keep-monthly, --keep-yearly oder --keep-all."

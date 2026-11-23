@@ -2,6 +2,8 @@ package io.pelle.sak.model.restic
 
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.jooq.tables.references.RESTIC_BACKUP_PLANS
+import io.pelle.sak.model.jooq.tables.references.RESTIC_BACKUP_PLAN_PATHS
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -61,5 +63,24 @@ class ResticBackupPlanRepositoryTest {
         (plans.update(ANNA, id, changed) as ResticBackupPlanWriteResult.Saved).plan shouldBe
             ResticBackupPlan(id, ANNA, "papers", laptop, "h2", listOf("/b", "/z"), now, now, ResticKeep(daily = 7, monthly = 12))
         (plans.update(ANNA, id, changed.copy(keep = ResticKeep())) as ResticBackupPlanWriteResult.Saved).plan.keep shouldBe ResticKeep()
+    }
+
+    @Test
+    fun `a delete keeps the backup plan and its paths as deleted, of the owner only`() {
+        val laptop = repository(ANNA)
+        val id = (plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "h", listOf("/a", "/b"))) as ResticBackupPlanWriteResult.Saved).plan.id
+
+        plans.delete(BERT, id) shouldBe false
+        plans.byId(ANNA, id)?.name shouldBe "documents"
+        plans.delete(ANNA, id) shouldBe true
+        plans.delete(ANNA, id) shouldBe false
+        plans.byId(ANNA, id) shouldBe null
+        plans.of(ANNA) shouldBe emptyList()
+        // kept as deleted, the plan and each of its paths
+        database.dsl.fetchCount(RESTIC_BACKUP_PLANS, RESTIC_BACKUP_PLANS.ID.eq(id), RESTIC_BACKUP_PLANS.DELETED_AT.isNotNull) shouldBe 1
+        database.dsl.fetchCount(RESTIC_BACKUP_PLAN_PATHS, RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.eq(id), RESTIC_BACKUP_PLAN_PATHS.DELETED_AT.isNull) shouldBe 0
+        database.dsl.fetchCount(RESTIC_BACKUP_PLAN_PATHS, RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.eq(id)) shouldBe 2
+        // the name is free again
+        (plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "h", listOf("/a"))) is ResticBackupPlanWriteResult.Saved) shouldBe true
     }
 }

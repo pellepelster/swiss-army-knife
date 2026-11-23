@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.backend.DeleteResult
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
@@ -79,5 +80,22 @@ class ResticBackupPlanServiceTest {
         plans.update(ANNA, documents.id, values("papers")).shouldBeInstanceOf<ResticBackupPlanSaveResult.Saved>().plan.name shouldBe "papers"
         plans.plans(ANNA).map { it.name } shouldBe listOf("music", "papers")
         plans.plans(BERT) shouldBe emptyList()
+    }
+
+    @Test
+    fun `a backup plan is deleted only by its owner, once, and its repository stays`() {
+        val laptop = repository()
+        val documents =
+            plans
+                .create(ANNA, ResticBackupPlanValues("documents", laptop, "annas-laptop", listOf("/home/anna"), ResticKeep()))
+                .shouldBeInstanceOf<ResticBackupPlanSaveResult.Saved>()
+                .plan
+
+        plans.delete(BERT, documents.id) shouldBe DeleteResult.NotFound
+        plans.delete(ANNA, documents.id) shouldBe DeleteResult.Deleted
+        plans.delete(ANNA, documents.id) shouldBe DeleteResult.NotFound
+        plans.plan(ANNA, documents.id) shouldBe null
+        plans.plans(ANNA) shouldBe emptyList()
+        repositories.repositories(ANNA).map { it.id } shouldBe listOf(laptop)
     }
 }

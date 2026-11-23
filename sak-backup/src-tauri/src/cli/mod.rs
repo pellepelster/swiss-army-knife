@@ -186,6 +186,11 @@ pub enum PlanCommand {
         #[command(flatten)]
         keep: KeepArgs,
     },
+    /// Delete a backup plan of this computer; its repository and its snapshots stay
+    Delete {
+        /// The name of the backup plan
+        name: String,
+    },
     /// List the backup plans of every computer
     List,
 }
@@ -294,6 +299,18 @@ async fn command(command: Command) -> Result<(), String> {
                 .await
                 .map_err(|error| api_message(&error))?;
             println!("{}", t!("cli.plan_changed", name = name));
+        }
+        Command::Plan(PlanCommand::Delete { name }) => {
+            let plan = by_name(&sessions, PLANS, &name, "cli.unknown_plan").await?;
+            // the app changes only the backup plans of this computer (BACKUP-5)
+            let other = plan["host"].as_str().unwrap_or_default();
+            if other != host() {
+                return Err(t!("cli.plan_other_computer", host = other).to_string());
+            }
+            api::delete_plan(&sessions, id(&plan)?)
+                .await
+                .map_err(|error| api_message(&error))?;
+            println!("{}", t!("cli.plan_deleted", name = name));
         }
         Command::Plan(PlanCommand::List) => {
             let plans = api::plans(&sessions)
@@ -567,6 +584,19 @@ mod tests {
             Err("It failed: the SAK instance answered no id".to_string())
         );
         assert!(id(&json!({ "id": "7" })).is_err());
+    }
+
+    #[test]
+    fn a_backup_plan_is_deleted_by_its_name() {
+        let Command::Plan(PlanCommand::Delete { name }) =
+            Cli::try_parse_from(["sakbackup", "plan", "delete", "documents"])
+                .unwrap()
+                .command
+        else {
+            panic!("no delete of a plan");
+        };
+        assert_eq!(name, "documents");
+        assert!(Cli::try_parse_from(["sakbackup", "plan", "delete"]).is_err());
     }
 
     #[test]

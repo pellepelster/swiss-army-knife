@@ -760,6 +760,18 @@ class SakAppsTest {
             }
             page("limit=2&offset=2").getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("zebra")
             get(port, "/api/v1/restic/plans?limit=0", admin).statusCode() shouldBe 400
+            // a delete by another user, then by its owner, once; the repository stays (API-8)
+            delete(port, "/api/v1/restic/plans/$plan", second).statusCode() shouldBe 404
+            delete(port, "/api/v1/restic/plans/$plan", admin).let {
+                it.statusCode() shouldBe 204
+                it.body() shouldBe ""
+            }
+            delete(port, "/api/v1/restic/plans/$plan", admin).statusCode() shouldBe 404
+            get(port, "/api/v1/restic/plans/$plan", admin).statusCode() shouldBe 404
+            page("").getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("music", "zebra")
+            get(port, "/api/v1/restic/repositories/$id/token", admin).statusCode() shouldBe 200
+            // its name is free again
+            post(port, "/api/v1/restic/plans", """{"name":"papers","repositoryId":$id,"host":"h","paths":["/a"]}""", admin).statusCode() shouldBe 201
         }
     }
 
