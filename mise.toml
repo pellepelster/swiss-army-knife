@@ -145,7 +145,7 @@ run = "./gradlew :sak-frontend:npmCi"
 # into sak-frontend/dist/, what the backend jar contains
 [tasks."frontend:build"]
 description = "Build sak-frontend"
-depends = ["frontend:install"]
+# the install of npm is a dependency of the gradle task (npmCi)
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmBuild"
 
@@ -402,9 +402,11 @@ gh release upload "v${VERSION}" $files --clobber
 """
 
 # the command line without the ui: `mise run admin-cli:sakadmin -- --help`. HCLOUD_TOKEN from pass
-# unless set
+# unless set. Without a command the binary opens the window, which embeds ui/ with the theme and the
+# shared views of desktop:ui
 [tasks."admin-cli:sakadmin"]
 description = "Run the sakadmin command line"
+depends = ["desktop:ui"]
 dir = "{{config_root}}/sak-admin-cli/src-tauri"
 # the terminal itself: password prompts and ssh need it
 raw = true
@@ -765,7 +767,6 @@ run = "node scripts/icons.mjs"
 
 [tasks."frontend:test:unit"]
 description = "Run the frontend unit tests"
-depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:npmTest"
 
@@ -803,7 +804,6 @@ ansible/roles/role_markers/tests/role-markers-test.sh
 # the apps in chromium against the backend and a mailpit (docker)
 [tasks."frontend:test:integration"]
 description = "Run the frontend integration tests"
-depends = ["frontend:install"]
 dir = "{{config_root}}"
 run = "./gradlew :sak-frontend:e2eTest"
 
