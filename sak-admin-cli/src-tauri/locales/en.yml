@@ -4,6 +4,8 @@ common:
     no_home: "The home directory of the user is not known."
     not_written: "%{path} could not be written: %{error}"
     not_read: "%{path} could not be read: %{error}"
+    started: "Backing up %{name} from root@%{host}…"
+    restore_started: "Restoring %{name} on root@%{host} from %{path}…"
     not_decrypted: "%{path} does not decrypt with the password of the SAK instance, or is damaged or not complete: %{error}"
   checks:
     container_runtime:
@@ -236,9 +238,7 @@ cli:
   ssh_config_exists: "%{path} exists, sakadmin replaces no file. Delete it or give another directory, nothing was written."
   ssh_config_bad_directory: "The directory %{path} has a quote or a line break in its name, an ssh configuration cannot name it. Give another directory."
   ssh_config_not_written: "%{path} could not be written: %{error}"
-  backup_started: "Backing up %{name} from root@%{host}…"
   backup_done: "Backup of %{name} written to %{path} (%{size})."
-  restore_started: "Restoring %{name} on root@%{host} from %{path}…"
   restore_done: "The SAK instance %{name} is restored from %{path}."
   not_confirmed: "Not confirmed, nothing was changed."
   plan_confirm: "The plan deletes or replaces what is marked WARN above. Type the name of %{name} to continue: "

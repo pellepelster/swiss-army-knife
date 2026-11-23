@@ -56,7 +56,10 @@ directory, `try_lock`), so the command line next to the window is refused with i
 no delete while a run goes on. Left: a restore can not be cancelled, and the app has no single instance (the lock makes
 a second window harmless). `DA-43`: a cancel or a sign-out while the token is exchanged ends the sign-in: the
 flag is checked after the exchange and after `who_am_i`, and under the lock of the session after the keychain, which
-forgets the token again when it was stopped; the window remembers the instance with the api the sign-in returns.
+forgets the token again when it was stopped; the window remembers the instance with the api the sign-in returns. `DA-48`:
+the backup and the restore of sakadmin are `core::backup::perform_backup` and `perform_restore`; the command line keeps
+its lines and its confirmation (checked by the unit tests and the build; the run itself is in the e2e tests on
+Hetzner, which did not run).
 
 ## What is good
 
@@ -219,14 +222,6 @@ tell cancelled, changed since the check, `NotOwned` or `RecreateRefused` apart, 
 
 Fix: one error type per window with a code (`{message, code}` for sakadmin), and a test that lists the kinds against
 the JS that renders them, as `command_tests!` does for the invokes.
-
-#### `DA-48` The orchestration of sakadmin's backup and restore is in its command line (read)
-
-`cli/server.rs:177-253` derives the key, builds the path and runs the backup; the window has none yet (`CTL-3`), and
-would write it a second time.
-
-Fix: `core::backup::perform_backup` and `perform_restore` next to `maintenance::perform`; the command line keeps the
-printing and the confirmation.
 
 #### `DA-49` The SAK deployment is modelled in the cloud library (read; whether on purpose not verified)
 

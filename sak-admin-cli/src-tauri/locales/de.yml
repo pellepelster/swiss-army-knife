@@ -4,6 +4,8 @@ common:
     no_home: "Das Home-Verzeichnis des Benutzers ist nicht bekannt."
     not_written: "%{path} konnte nicht geschrieben werden: %{error}"
     not_read: "%{path} konnte nicht gelesen werden: %{error}"
+    started: "Sichere %{name} von root@%{host}…"
+    restore_started: "Stelle %{name} auf root@%{host} aus %{path} wieder her…"
     not_decrypted: "%{path} lässt sich mit dem Passwort der SAK-Instanz nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
   checks:
     container_runtime:
@@ -236,9 +238,7 @@ cli:
   ssh_config_exists: "%{path} existiert, sakadmin ersetzt keine Datei. Lösche sie oder gib ein anderes Verzeichnis an, nichts wurde geschrieben."
   ssh_config_bad_directory: "Das Verzeichnis %{path} hat ein Anführungszeichen oder einen Zeilenumbruch im Namen, eine ssh-Konfiguration kann es nicht nennen. Gib ein anderes Verzeichnis an."
   ssh_config_not_written: "%{path} konnte nicht geschrieben werden: %{error}"
-  backup_started: "Sichere %{name} von root@%{host}…"
   backup_done: "Sicherung von %{name} nach %{path} geschrieben (%{size})."
-  restore_started: "Stelle %{name} auf root@%{host} aus %{path} wieder her…"
   restore_done: "Die SAK-Instanz %{name} ist aus %{path} wiederhergestellt."
   not_confirmed: "Nicht bestätigt, nichts wurde geändert."
   plan_confirm: "Der Plan löscht oder legt neu an, was oben mit WARN markiert ist. Gib den Namen von %{name} ein, um fortzufahren: "

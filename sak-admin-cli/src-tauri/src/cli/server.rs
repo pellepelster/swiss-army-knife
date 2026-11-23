@@ -174,6 +174,7 @@ fn maintenance_json(answer: &crate::core::maintenance::Answer) -> serde_json::Va
 }
 
 /// a backup of the deployment to `~/.sak/<name>/backups/`, each step of the server logged
+/// (`core::backup::perform_backup`)
 pub(super) async fn backup(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -181,30 +182,20 @@ pub(super) async fn backup(
     name: &str,
     password: &str,
 ) -> Result<(), SakadminError> {
-    let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
-    let key = crate::core::keys::backup_key(&name, password)?;
-    let directory = crate::core::backup::directory(&name)?;
-    log(
-        Level::Info,
-        t!(
-            "cli.backup_started",
-            name = name,
-            host = target.host.as_str()
-        ),
-    );
-    let path = directory.join(crate::core::backup::file_name(&name, chrono::Utc::now()));
-    let backup = tokio::task::spawn_blocking(move || {
-        backup::backup(runtime, &target, &key, &path, &mut |line| {
-            log(Level::Info, line)
-        })
-    })
-    .await
-    .map_err(|error| error.to_string())??;
+    let backup = crate::core::backup::perform_backup(
+        manager,
+        provider.tokens(),
+        runtime,
+        name,
+        password,
+        |line| log(Level::Info, line),
+    )
+    .await?;
     log(
         Level::Info,
         t!(
             "cli.backup_done",
-            name = name,
+            name = name.trim(),
             path = backup.path.display(),
             size = size(backup.size)
         ),
@@ -213,7 +204,7 @@ pub(super) async fn backup(
 }
 
 /// replaces the data of the deployment with the backup in `file`, after the user typed the name
-/// (or gave --yes)
+/// (or gave --yes) (`core::backup::perform_restore`)
 pub(super) async fn restore(
     manager: &DeploymentManager,
     provider: &HetznerToken,
@@ -223,31 +214,30 @@ pub(super) async fn restore(
     file: &std::path::Path,
     yes: bool,
 ) -> Result<(), SakadminError> {
-    let (name, target, runtime) = session(manager, provider, runtime, name, password).await?;
-    let key = crate::core::keys::backup_key(&name, password)?;
-    if !yes {
-        confirm_restore(&name, file)?;
-    }
+    crate::core::backup::perform_restore(
+        manager,
+        provider.tokens(),
+        runtime,
+        name,
+        password,
+        file,
+        |name| {
+            if yes {
+                Ok(())
+            } else {
+                confirm_restore(name, file)
+            }
+        },
+        |line| log(Level::Info, line),
+    )
+    .await?;
     log(
         Level::Info,
         t!(
-            "cli.restore_started",
-            name = name,
-            host = target.host.as_str(),
+            "cli.restore_done",
+            name = name.trim(),
             path = file.display()
         ),
-    );
-    let path = file.to_path_buf();
-    tokio::task::spawn_blocking(move || {
-        backup::restore(runtime, &target, &key, &path, &mut |line| {
-            log(Level::Info, line)
-        })
-    })
-    .await
-    .map_err(|error| error.to_string())??;
-    log(
-        Level::Info,
-        t!("cli.restore_done", name = name, path = file.display()),
     );
     Ok(())
 }

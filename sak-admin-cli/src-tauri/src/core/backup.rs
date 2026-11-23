@@ -157,6 +157,82 @@ pub fn restore(
         on_line,
     )
 }
+/// a backup of the deployment `name` to `~/.sak/<name>/backups/`, its password checked first:
+/// the server is found, the key derived, the file named; then `backup`. Each step and each line of
+/// the server go to `on_line`. The command line and the window share it, each says the rest in its
+/// own words (DA-48)
+pub async fn perform_backup(
+    manager: &crate::core::deployments::DeploymentManager,
+    tokens: Vec<(crate::core::providers::ProviderType, String)>,
+    container: &crate::core::container::ContainerRuntime,
+    name: &str,
+    password: &str,
+    mut on_line: impl FnMut(String) + Send + 'static,
+) -> Result<Backup, crate::core::error::SakadminError> {
+    let name = name.trim().to_string();
+    let target = manager.ssh_target(tokens, &name, password).await?;
+    let runtime = runtime_of(container)?;
+    let key = crate::core::keys::backup_key(&name, password)?;
+    let path = directory(&name)?.join(file_name(&name, chrono::Utc::now()));
+    on_line(
+        t!(
+            "common.backup.started",
+            name = name,
+            host = target.host.as_str()
+        )
+        .to_string(),
+    );
+    tokio::task::spawn_blocking(move || backup(runtime, &target, &key, &path, &mut on_line))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(Into::into)
+}
+
+/// replaces the data of the deployment `name` with the backup in `file`, its password checked
+/// first; `confirm` is asked with the name before anything changes, the face asks the user there
+/// (the command line: the name typed, or --yes). Each step and each line go to `on_line` (DA-48)
+// the parts of a restore as a face has them, as `maintenance::perform` takes them
+#[allow(clippy::too_many_arguments)]
+pub async fn perform_restore(
+    manager: &crate::core::deployments::DeploymentManager,
+    tokens: Vec<(crate::core::providers::ProviderType, String)>,
+    container: &crate::core::container::ContainerRuntime,
+    name: &str,
+    password: &str,
+    file: &Path,
+    confirm: impl FnOnce(&str) -> Result<(), crate::core::error::SakadminError>,
+    mut on_line: impl FnMut(String) + Send + 'static,
+) -> Result<(), crate::core::error::SakadminError> {
+    let name = name.trim().to_string();
+    let target = manager.ssh_target(tokens, &name, password).await?;
+    let runtime = runtime_of(container)?;
+    let key = crate::core::keys::backup_key(&name, password)?;
+    confirm(&name)?;
+    on_line(
+        t!(
+            "common.backup.restore_started",
+            name = name,
+            host = target.host.as_str(),
+            path = file.display()
+        )
+        .to_string(),
+    );
+    let path = file.to_path_buf();
+    tokio::task::spawn_blocking(move || restore(runtime, &target, &key, &path, &mut on_line))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(Into::into)
+}
+
+/// the container runtime the backup runs its tools in
+fn runtime_of(
+    container: &crate::core::container::ContainerRuntime,
+) -> Result<&'static str, crate::core::error::SakadminError> {
+    Ok(container
+        .get()
+        .ok_or_else(|| t!("common.provision.no_runtime").to_string())?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

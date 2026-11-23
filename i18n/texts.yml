@@ -688,6 +688,10 @@ admin_cli:
         en: "%{path} could not be written: %{error}"
         de: "%{path} konnte nicht geschrieben werden: %{error}"
       not_read: { en: "%{path} could not be read: %{error}", de: "%{path} konnte nicht gelesen werden: %{error}" }
+      started: { en: "Backing up %{name} from root@%{host}…", de: "Sichere %{name} von root@%{host}…" }
+      restore_started:
+        en: "Restoring %{name} on root@%{host} from %{path}…"
+        de: "Stelle %{name} auf root@%{host} aus %{path} wieder her…"
       not_decrypted:
         en: "%{path} does not decrypt with the password of the SAK instance, or is damaged or not complete: %{error}"
         de: "%{path} lässt sich mit dem Passwort der SAK-Instanz nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
@@ -1156,13 +1160,9 @@ admin_cli:
     ssh_config_not_written:
       en: "%{path} could not be written: %{error}"
       de: "%{path} konnte nicht geschrieben werden: %{error}"
-    backup_started: { en: "Backing up %{name} from root@%{host}…", de: "Sichere %{name} von root@%{host}…" }
     backup_done:
       en: "Backup of %{name} written to %{path} (%{size})."
       de: "Sicherung von %{name} nach %{path} geschrieben (%{size})."
-    restore_started:
-      en: "Restoring %{name} on root@%{host} from %{path}…"
-      de: "Stelle %{name} auf root@%{host} aus %{path} wieder her…"
     restore_done:
       en: "The SAK instance %{name} is restored from %{path}."
       de: "Die SAK-Instanz %{name} ist aus %{path} wiederhergestellt."
