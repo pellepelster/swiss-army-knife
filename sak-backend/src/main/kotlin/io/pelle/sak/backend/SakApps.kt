@@ -8,7 +8,7 @@ import io.pelle.sak.api.API_PATH_PREFIX
 import io.pelle.sak.backend.hosting.S3_MAX_BODY_SIZE
 import io.pelle.sak.backend.users.AppLinkService
 import io.pelle.sak.backend.users.users
-import io.pelle.sak.backend.config.deployment
+import io.pelle.sak.backend.deployment.deployment
 import io.ktor.http.HttpHeaders
 import io.pelle.sak.auth.ADMIN_USERNAME
 import io.pelle.sak.auth.requireRole

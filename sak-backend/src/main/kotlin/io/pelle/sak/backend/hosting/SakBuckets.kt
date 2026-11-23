@@ -29,7 +29,7 @@ import io.pelle.sak.backend.hosting.model.BucketSecretResponse
 import io.pelle.sak.backend.hosting.model.BucketStatisticsResponse
 import io.pelle.sak.backend.hosting.model.CreateBucketRequest
 import io.pelle.sak.backend.hosting.model.UpdateDomainsRequest
-import io.pelle.sak.model.s3.S3Bucket
+import io.pelle.sak.model.hosting.S3Bucket
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

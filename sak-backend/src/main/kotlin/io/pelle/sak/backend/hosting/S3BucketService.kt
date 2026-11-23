@@ -1,7 +1,7 @@
 package io.pelle.sak.backend.hosting
 
 import io.pelle.sak.s3.storage.S3BucketStorage
-import io.pelle.sak.model.s3.BucketKeyPairUpdateResult
+import io.pelle.sak.model.hosting.BucketKeyPairUpdateResult
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.BackgroundJobs
 import io.pelle.sak.s3.storage.isValidBucketName
@@ -9,13 +9,13 @@ import io.pelle.sak.backend.isFree
 import io.pelle.sak.backend.blobPath
 import io.pelle.sak.backend.leftovers
 import io.pelle.sak.backend.DomainRegistry
-import io.pelle.sak.model.s3.BucketDomainsReplaceResult
-import io.pelle.sak.model.s3.BucketInsertResult
+import io.pelle.sak.model.hosting.BucketDomainsReplaceResult
+import io.pelle.sak.model.hosting.BucketInsertResult
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.Secret
 import io.pelle.sak.backend.isValidDomain
-import io.pelle.sak.model.s3.S3Bucket
-import io.pelle.sak.model.s3.S3BucketRepository
+import io.pelle.sak.model.hosting.S3Bucket
+import io.pelle.sak.model.hosting.S3BucketRepository
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.storage.BinaryStorage
 import io.pelle.sak.storage.BlobPath

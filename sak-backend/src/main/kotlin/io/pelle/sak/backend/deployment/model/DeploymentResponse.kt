@@ -1,4 +1,4 @@
-package io.pelle.sak.backend.config.model
+package io.pelle.sak.backend.deployment.model
 
 import io.pelle.sak.backend.info.model.DnsModeResponse
 import io.pelle.sak.backend.info.model.UserModeResponse

@@ -1,4 +1,4 @@
-package io.pelle.sak.model.ingress
+package io.pelle.sak.model.redirects
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -6,8 +6,8 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.references.REDIRECTS
-import io.pelle.sak.model.s3.BucketInsertResult
-import io.pelle.sak.model.s3.S3BucketRepository
+import io.pelle.sak.model.hosting.BucketInsertResult
+import io.pelle.sak.model.hosting.S3BucketRepository
 import org.jooq.exception.DataAccessException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

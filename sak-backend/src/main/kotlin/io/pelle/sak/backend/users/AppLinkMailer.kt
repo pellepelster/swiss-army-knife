@@ -68,7 +68,7 @@ class AppLinkService(
     ): AppLinkSendResult {
         val address = UserService.normalize(email)
         if (mailer == null) return AppLinkSendResult.NoMailServer
-        if (users.users().none { it.email == address }) return AppLinkSendResult.NotAUser
+        if (users.all().none { it.email == address }) return AppLinkSendResult.NotAUser
         return try {
             mailer.send(address, language)
             logger.info { "sent the links of the android apps to ${logAddress(address)}" }

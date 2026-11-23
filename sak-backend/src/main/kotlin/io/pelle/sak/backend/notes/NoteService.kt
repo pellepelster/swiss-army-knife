@@ -45,21 +45,6 @@ enum class NoteColor {
     }
 }
 
-// owner is the address of the user the note belongs to; labels are sorted by name, photos (images)
-// and recordings (audio) are the ids of files of the file storage in their order
-data class Note(
-    val id: Int,
-    val owner: String,
-    val text: String,
-    val color: NoteColor,
-    val labels: List<Label>,
-    val photos: List<Int>,
-    val recordings: List<Int>,
-    val createdAt: Instant,
-    // null until the note is changed
-    val updatedAt: Instant?,
-)
-
 // what can be wrong with a note, each with the message the api answers (API-1), in the order they are
 // answered
 enum class NoteProblem(

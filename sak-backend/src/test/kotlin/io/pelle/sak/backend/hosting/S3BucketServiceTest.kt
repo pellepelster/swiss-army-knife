@@ -5,7 +5,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.model.redirects.RedirectTarget
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.DomainRegistry
 import org.junit.jupiter.api.Test

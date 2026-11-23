@@ -12,7 +12,7 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.dns.DomainDnsCheck
 import io.pelle.sak.dns.NameServer
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.model.redirects.RedirectTarget
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.net.Inet4Address

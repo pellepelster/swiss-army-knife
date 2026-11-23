@@ -86,7 +86,7 @@ class SakDatabaseTest {
             it.resourceId shouldBe ResourceId("file00000001")
             it.size shouldBe 7
         }
-        io.pelle.sak.model.s3.S3BucketRepository(database).byName("site")!!.resourceId shouldBe ResourceId("site00000001")
+        io.pelle.sak.model.hosting.S3BucketRepository(database).byName("site")!!.resourceId shouldBe ResourceId("site00000001")
         java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
             fun columns(table: String) =
                 connection.createStatement().use { statement ->
@@ -126,7 +126,7 @@ class SakDatabaseTest {
         }
 
         val database = SakDatabase.open(file)
-        val buckets = io.pelle.sak.model.s3.S3BucketRepository(database)
+        val buckets = io.pelle.sak.model.hosting.S3BucketRepository(database)
 
         buckets.byName("site")!!.let {
             it.resourceId shouldBe ResourceId("site00000000")
@@ -134,11 +134,11 @@ class SakDatabaseTest {
             it.domains shouldBe listOf("example.org")
         }
         buckets.resourceIds() shouldBe setOf(ResourceId("site00000000"), ResourceId("gone00000000"))
-        io.pelle.sak.model.ingress.RedirectRepository(database).sourcesTo("site") shouldBe listOf("www.example.org")
+        io.pelle.sak.model.redirects.RedirectRepository(database).sourcesTo("site") shouldBe listOf("www.example.org")
         // the access key id of the deleted bucket is free, its name is not; the one of the live bucket is taken
-        buckets.insert("other", "AKgone", "secret", owner = "admin@example.org").let { (it is io.pelle.sak.model.s3.BucketInsertResult.Inserted) shouldBe true }
-        buckets.insert("gone", "AKnew", "secret", owner = "admin@example.org") shouldBe io.pelle.sak.model.s3.BucketInsertResult.NameTaken
-        buckets.insert("third", "AKsite", "secret", owner = "admin@example.org") shouldBe io.pelle.sak.model.s3.BucketInsertResult.AccessKeyTaken
+        buckets.insert("other", "AKgone", "secret", owner = "admin@example.org").let { (it is io.pelle.sak.model.hosting.BucketInsertResult.Inserted) shouldBe true }
+        buckets.insert("gone", "AKnew", "secret", owner = "admin@example.org") shouldBe io.pelle.sak.model.hosting.BucketInsertResult.NameTaken
+        buckets.insert("third", "AKsite", "secret", owner = "admin@example.org") shouldBe io.pelle.sak.model.hosting.BucketInsertResult.AccessKeyTaken
         // the foreign keys hold as before: no row is without its bucket, and none can be added without one
         java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
             connection.createStatement().use { statement ->

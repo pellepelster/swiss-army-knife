@@ -6,8 +6,8 @@ import io.pelle.sak.backend.DomainRegistry
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.model.ingress.Redirect
-import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.model.redirects.Redirect
+import io.pelle.sak.model.redirects.RedirectTarget
 import io.pelle.sak.backend.hosting.S3BucketService
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

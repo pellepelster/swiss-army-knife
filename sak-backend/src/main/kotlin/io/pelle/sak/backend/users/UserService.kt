@@ -17,20 +17,20 @@ data class UserEntry(
     val configured: Boolean,
 )
 
-sealed interface UserAddResult {
+sealed interface UserCreateResult {
     data class Added(
         val user: User,
-    ) : UserAddResult
+    ) : UserCreateResult
 
     data class Invalid(
         val errors: List<ErrorMessage>,
-    ) : UserAddResult
+    ) : UserCreateResult
 
     // an added user of the address exists
-    data object Exists : UserAddResult
+    data object Exists : UserCreateResult
 
     // the address is an admin of the configuration, never also a user
-    data object Admin : UserAddResult
+    data object Admin : UserCreateResult
 }
 
 // who may sign in besides the admins of the configuration: the users an admin adds by address, with
@@ -48,15 +48,15 @@ class UserService(
     ) : this(UserRepository(database, clock), admins.map(::normalize).distinct())
 
     // the admins of the configuration first, then the added users by address
-    fun users(): List<UserEntry> =
+    fun all(): List<UserEntry> =
         admins.map { UserEntry(null, it, null, configured = true) } +
             repository.all().map { UserEntry(it.id, it.email, it.name, configured = false) }
 
-    fun add(
+    fun create(
         owner: String,
         email: String,
         name: String?,
-    ): UserAddResult {
+    ): UserCreateResult {
         // as the login takes it: an address the login refuses would never get a link
         val address = normalizeEmail(email)
         val named = name?.trim()?.ifEmpty { null }
@@ -65,9 +65,9 @@ class UserService(
                 ErrorMessage(UsersTexts.INVALID_EMAIL).takeIf { address == null },
                 ErrorMessage(UsersTexts.INVALID_NAME, "max" to MAX_NAME_LENGTH).takeIf { named != null && (named.length > MAX_NAME_LENGTH || named.any { it.isISOControl() }) },
             )
-        if (address == null || errors.isNotEmpty()) return UserAddResult.Invalid(errors)
-        if (address in admins) return UserAddResult.Admin
-        return repository.insert(owner, address, named)?.let { UserAddResult.Added(it) } ?: UserAddResult.Exists
+        if (address == null || errors.isNotEmpty()) return UserCreateResult.Invalid(errors)
+        if (address in admins) return UserCreateResult.Admin
+        return repository.insert(owner, address, named)?.let { UserCreateResult.Added(it) } ?: UserCreateResult.Exists
     }
 
     // false when there is no such user

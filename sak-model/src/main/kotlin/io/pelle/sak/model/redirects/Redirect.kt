@@ -1,4 +1,4 @@
-package io.pelle.sak.model.ingress
+package io.pelle.sak.model.redirects
 
 import java.time.Instant
 

@@ -7,9 +7,9 @@ import io.pelle.sak.backend.DomainRegistry
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.isValidDomain
 import io.pelle.sak.backend.hosting.S3BucketService
-import io.pelle.sak.model.ingress.Redirect
-import io.pelle.sak.model.ingress.RedirectRepository
-import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.model.redirects.Redirect
+import io.pelle.sak.model.redirects.RedirectRepository
+import io.pelle.sak.model.redirects.RedirectTarget
 import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList

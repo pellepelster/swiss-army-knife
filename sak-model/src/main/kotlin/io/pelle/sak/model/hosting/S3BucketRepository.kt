@@ -1,4 +1,4 @@
-package io.pelle.sak.model.s3
+package io.pelle.sak.model.hosting
 
 import io.pelle.sak.model.ResourceIds
 import io.pelle.sak.model.ResourceId

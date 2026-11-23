@@ -16,7 +16,7 @@ class AppLinkServiceTest {
 
     private val users by lazy {
         UserService(SakDatabase.open(tempDir.resolve("sak.db")), admins = listOf("admin@example.org")).apply {
-            add("admin@example.org", "anna@example.org", "Anna")
+            create("admin@example.org", "anna@example.org", "Anna")
         }
     }
 

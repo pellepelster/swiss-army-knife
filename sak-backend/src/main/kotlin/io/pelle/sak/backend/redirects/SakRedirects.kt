@@ -25,8 +25,8 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.model.ingress.Redirect
-import io.pelle.sak.model.ingress.RedirectTarget
+import io.pelle.sak.model.redirects.Redirect
+import io.pelle.sak.model.redirects.RedirectTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

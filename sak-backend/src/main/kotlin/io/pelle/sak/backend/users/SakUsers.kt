@@ -42,7 +42,7 @@ fun Route.users(
 ) {
     get {
         val page = call.pageRequest() ?: return@get
-        val users = withContext(Dispatchers.IO) { userService.users() }
+        val users = withContext(Dispatchers.IO) { userService.all() }
         call.respond(page.of(page.of(users.map { it.response() })))
     }.describe {
         tag(USERS_TAG)
@@ -60,12 +60,12 @@ fun Route.users(
 
     post {
         val request = call.receive<UserRequest>()
-        when (val result = withContext(Dispatchers.IO) { userService.add(call.owner, request.email, request.name) }) {
-            is UserAddResult.Added ->
+        when (val result = withContext(Dispatchers.IO) { userService.create(call.owner, request.email, request.name) }) {
+            is UserCreateResult.Added ->
                 call.respond(HttpStatusCode.Created, UserResponse(result.user.id, result.user.email, result.user.name, configured = false))
-            is UserAddResult.Invalid -> call.respondErrors(result.errors)
-            UserAddResult.Exists -> call.respondErrors(UsersTexts.EXISTS, status = HttpStatusCode.Conflict)
-            UserAddResult.Admin -> call.respondErrors(UsersTexts.IS_ADMIN, status = HttpStatusCode.Conflict)
+            is UserCreateResult.Invalid -> call.respondErrors(result.errors)
+            UserCreateResult.Exists -> call.respondErrors(UsersTexts.EXISTS, status = HttpStatusCode.Conflict)
+            UserCreateResult.Admin -> call.respondErrors(UsersTexts.IS_ADMIN, status = HttpStatusCode.Conflict)
         }
     }.describe {
         tag(USERS_TAG)
