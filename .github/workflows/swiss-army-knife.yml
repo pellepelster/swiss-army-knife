@@ -199,10 +199,16 @@ jobs:
   # the command line in one native binary with the page built in (on windows two: <binary>.exe for
   # the window and <binary>-cli.exe, a console program, for the command line), no installers, zipped
   # as <dir>-<platform>-<architecture>-<VERSION>.zip and uploaded as that file, its sha-256 next to it
-  # (<zip>.sha256). The programs are not signed for macOS and windows, they warn on the first start;
-  # the release signs the zips with cosign. Both need webkitgtk for their window on linux
+  # (<zip>.sha256). The programs are not signed for macOS and windows, they warn on the first start.
+  # On a tag, and on a run started by hand to try it, the job signs its zip with cosign
+  # (<zip>.sigstore.json, mise run desktop:sign): signed where it is built, the release only checks
+  # the signatures (SC-4). Both need webkitgtk for their window on linux
   desktop-apps:
     name: ${{ matrix.app }} (${{ matrix.platform }})
+    # the id token of the job signs its zip (mise run desktop:sign)
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -247,6 +253,8 @@ jobs:
             ${{ matrix.dir }}/src-tauri/target
           key: rust-${{ matrix.app }}-${{ matrix.platform }}-${{ steps.rust.outputs.version }}-${{ hashFiles(format('{0}/src-tauri/Cargo.lock', matrix.dir)) }}
       - run: mise run desktop:build ${{ matrix.dir }} ${{ matrix.platform }}
+      - if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        run: mise install cosign && mise run desktop:sign ${{ matrix.dir }} ${{ matrix.platform }}
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -265,6 +273,12 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: ${{ matrix.dir }}/build/${{ matrix.dir }}-${{ matrix.platform }}-*.zip.sha256
+          archive: false
+          if-no-files-found: error
+      - if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ matrix.dir }}/build/${{ matrix.dir }}-${{ matrix.platform }}-*.zip.sigstore.json
           archive: false
           if-no-files-found: error
 
@@ -343,9 +357,10 @@ jobs:
 
   # from a tag v<version> only, when all images, all zips of sakadmin and sakbackup and the apks are built: the images
   # pushed as <VERSION>-rc as <VERSION> (mise run release:docker), the zips, their checksums and their
-  # cosign signatures (keyless, with the id token of the job) as the github release of the tag (mise
-  # run admin-cli:release), where the installation downloads them, and the signed apks of the android apps
-  # with their checksums and their bundles for google play (mise run android:release)
+  # cosign signatures (made in the jobs that built them, checked here) as the github release of the tag
+  # (mise run admin-cli:release), where the installation downloads them, and the signed apks of the
+  # android apps with their checksums and their bundles for google play (mise run android:release).
+  # It has no id token: it can not sign what it publishes (SC-4)
   release:
     if: github.ref_type == 'tag'
     needs: [sak-backend-images, sak-admin-cli-images, desktop-apps, sak-android-apps, docs-build]
@@ -353,7 +368,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8

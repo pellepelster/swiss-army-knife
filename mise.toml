@@ -268,14 +268,50 @@ else
 fi
 '''
 
-# the zips of desktop:build of both apps and of the three platforms and their checksums as the
-# github release v<VERSION>, where the installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job release).
-# Each zip signed with cosign, keyless: a short-lived certificate of sigstore for the workflow run
-# of the tag (its id token, permission id-token: write), the signature and the certificate in
-# <zip>.sigstore.json. Each signature is verified for the identity the installation names and
-# against the trusted root of sigstore that sakadmin embeds (sak-admin-cli/src-tauri/trusted_root.json, the
-# one sakadmin update verifies with), so a root cosign knows but sakadmin does not fails the release
-# here, not the users
+# the zip of desktop:build of an app for a platform signed with cosign where it is built (workflow
+# job desktop-apps, SC-4), keyless: a short-lived certificate of sigstore for the workflow run (its id
+# token, permission id-token: write), the signature and the certificate in <zip>.sigstore.json. Then
+# verified for the identity the installation names and against the trusted root of sigstore the
+# apps embed (sak-admin-cli/src-tauri/trusted_root.json, the one their update verifies with), so a
+# root cosign knows but the apps do not fails here, not the users. Outside of the workflow nothing is
+# signed: a build of a developer has no id token of the workflow
+[tasks."desktop:sign"]
+description = "Sign the zip of a desktop app with cosign, in the workflow only"
+usage = '''
+arg "<app>" help="the directory of the app: sak-admin-cli (sakadmin) or sak-backup (sakbackup)"
+arg "<platform>" help="the platform of the zip: linux, macos or windows"
+'''
+dir = "{{config_root}}"
+shell = "bash -e -c"
+run = '''
+app="$usage_app"
+case "$usage_platform" in
+  linux) platform=linux-x86_64 ;;
+  macos) platform=macos-universal ;;
+  windows) platform=windows-x86_64 ;;
+  *) echo "no platform $usage_platform: linux, macos or windows" >&2; exit 1 ;;
+esac
+zip="$app/build/$app-$platform-${VERSION}.zip"
+[ -f "$zip" ] || { echo "$zip is missing, run mise run desktop:build $app $usage_platform" >&2; exit 1; }
+if [ -z "${GITHUB_ACTIONS:-}" ]; then
+  echo "$zip is not signed, only the workflow signs"
+  exit 0
+fi
+cosign sign-blob --yes --bundle "$zip.sigstore.json" "$zip"
+cosign verify-blob --bundle "$zip.sigstore.json" \
+  --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --trusted-root "{{config_root}}/sak-admin-cli/src-tauri/trusted_root.json" "$zip"
+echo "signed $zip"
+'''
+
+# the zips of desktop:build of both apps and of the three platforms, their checksums and their
+# signatures (desktop:sign, made in the jobs that built them) as the github release v<VERSION>,
+# where the installation downloads them; needs gh and GH_TOKEN with contents: write (workflow job
+# release). It signs nothing: each signature is verified for the identity the installation names
+# and against the trusted root the apps embed, and a zip whose signature is missing or does not
+# verify, e.g. changed on its way from the job that built it (SC-4), stops the release before
+# anything is published
 [tasks."admin-cli:release"]
 description = "Publish the GitHub release of sakadmin and sakbackup"
 dir = "{{config_root}}"
@@ -286,8 +322,9 @@ files=""
 for app in sak-admin-cli sak-backup; do
   for platform in linux-x86_64 macos-universal windows-x86_64; do
     zip="$app/build/$app-${platform}-${VERSION}.zip"
-    [ -f "$zip" ] && [ -f "$zip.sha256" ] || { echo "$zip or its checksum is missing" >&2; exit 1; }
-    cosign sign-blob --yes --bundle "$zip.sigstore.json" "$zip"
+    for file in "$zip" "$zip.sha256" "$zip.sigstore.json"; do
+      [ -f "$file" ] || { echo "$file is missing" >&2; exit 1; }
+    done
     cosign verify-blob --bundle "$zip.sigstore.json" --certificate-identity "$identity" \
       --certificate-oidc-issuer https://token.actions.githubusercontent.com \
       --trusted-root {{config_root}}/sak-admin-cli/src-tauri/trusted_root.json "$zip"

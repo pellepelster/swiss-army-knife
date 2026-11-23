@@ -13,7 +13,7 @@ use std::time::Duration;
 /// how the certificate names who signed, as `verify` compares it
 pub use sigstore_verify::IdentityMatcher as Identity;
 
-/// who signs the zips of a release and the images (`mise run admin-cli:release`, `image:sign`):
+/// who signs the zips of a release and the images (`mise run desktop:sign`, `image:sign`):
 /// the workflow of the repository, with a certificate of sigstore for its id token
 pub const SIGNER_WORKFLOW: &str =
     "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml";

@@ -10,11 +10,13 @@ weight: 6
 **Created:** 2026-11-04
 
 **Checked again:** 2026-11-23, every finding listed is still open; the fixed ones are in the history of git. `SC-3`
-is fixed: the Dependabot alerts are on (`vulnerability-alerts` answers 204), the security updates stay off.
+is fixed: the Dependabot alerts are on (`vulnerability-alerts` answers 204), the security updates stay off. `SC-4`
+is fixed for the zips of sakadmin and sakbackup: each is signed in the job that builds it (`mise run desktop:sign`),
+the job `release` has no id token and only checks the signatures before it publishes.
 
-Scope: the signing of the zips of sakadmin and of the images with cosign (`mise run admin-cli:release`, `image:sign`),
-their verification in sakadmin (`sakadmin update`, `core/images.rs`, `SAKADM-12` in
-[SYSTEM.md](../architecture/SYSTEM.md)), the workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the
+Scope: the signing of the zips of sakadmin and of the images with cosign (`mise run desktop:sign`,
+`admin-cli:release`, `image:sign`), their verification in sakadmin (`sakadmin update`, `core/images.rs`, `SAKADM-12`
+in [SYSTEM.md](../architecture/SYSTEM.md)), the workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the
 repository on GitHub. The question: what could make a signature of the workflow certify something that was not built
 from this repository.
 
@@ -28,18 +30,6 @@ deploys only from the tags `v*`; there are no deploy keys and no webhooks.
 Only the open findings are listed. Fixed with this review: the actions pinned (SHA pinning required, selected actions
 only), `packages: write` only for the jobs that push, the ruleset of the tags `v*`, the keystore in the environment
 `release` and the trusted root shared by CI and sakadmin.
-
-## Should fix
-
-### `SC-4` The zips of sakadmin are signed where they arrive, not where they are built
-
-The three zips are built on three runners, go through `upload-artifact` and `download-artifact`, and are signed in
-the job `release`. What changes a zip between the two, or runs in the job `release` before `cosign sign-blob`, gets
-a valid signature. With the actions pinned, that takes another job of the same run that writes artifacts named
-`sak-admin-cli-*`, which none does today.
-
-Fix: attest each zip in the job that builds it (`actions/attest-build-provenance`), and sign or check the
-attestation in the job `release`.
 
 ## Could fix
 
