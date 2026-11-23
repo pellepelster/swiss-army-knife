@@ -1,0 +1,33 @@
+# the texts of the catalog storage in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+settings:
+  enabled:
+    label: "S3-Speicher"
+    description: "Richtet den Zugang zu einem externen S3-Objektspeicher ein."
+  endpoint_type:
+    label: "Art des Endpunkts"
+    description: "Der Anbieter des S3-Speichers."
+    hetzner: "Hetzner Object Storage"
+  region:
+    label: "Region"
+    description: "Der Standort des Buckets."
+    fsn1: "Falkenstein (fsn1)"
+    nbg1: "Nürnberg (nbg1)"
+    hel1: "Helsinki (hel1)"
+  bucket:
+    label: "Bucket"
+    description: "Der Name des Buckets."
+  access_key:
+    label: "Access Key"
+    description: "Der Access Key der S3-Zugangsdaten."
+  secret_key:
+    label: "Secret Key"
+    description: "Der Secret Key der S3-Zugangsdaten."
+  label: "Speicher"
+  description: "Externer Speicher für die Daten von SAK"
+bucket_missing: "Der S3-Speicher braucht einen Bucket, um eingeschaltet zu werden."
+bucket_invalid: "Ein Bucket-Name hat 3 bis 63 Zeichen: Kleinbuchstaben, Ziffern, Bindestriche und Punkte, mit einem Buchstaben oder einer Ziffer an jedem Ende."
+access_key_missing: "Der S3-Speicher braucht einen Access Key, um eingeschaltet zu werden."
+secret_key_missing: "Der S3-Speicher braucht einen Secret Key, um eingeschaltet zu werden."
+keys_refused: "Hetzner nimmt die Schlüssel für diesen Bucket nicht an."
+no_bucket: "In dieser Region gibt es keinen Bucket mit diesem Namen."
+unchecked: "Der Speicher konnte bei Hetzner nicht geprüft werden, bitte versuche es später erneut."

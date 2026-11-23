@@ -9,6 +9,7 @@ import io.pelle.sak.core.Language
 import io.pelle.sak.core.render
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.api.Page
 import io.pelle.sak.backend.lists.ListChanges
 import io.pelle.sak.backend.lists.ListSaveResult
 import io.pelle.sak.backend.lists.ListTexts
@@ -110,12 +111,17 @@ class TodoService(
         id: Int,
     ): DeleteResult = lists.delete(user, id)
 
-    // the tasks of a list the user sees, done ones in their place, by priority (TODO-3, TODO-5); null
-    // for another list
+    // a page of the tasks of a list the user sees, done ones in their place, by priority (TODO-3,
+    // TODO-5), read from the database a page at a time; null for another list
     fun items(
         user: String,
         listId: Int,
-    ): List<TodoItem>? = repository.items(user, listId)
+        offset: Long = 0,
+        limit: Int = Int.MAX_VALUE,
+    ): Page<TodoItem>? {
+        val total = repository.itemCount(user, listId) ?: return null
+        return Page(repository.items(user, listId, offset, limit).orEmpty(), total)
+    }
 
     // on a list the user sees (LIST-1); the due date yyyy-mm-dd, also one that passed, none or empty
     // for no day (TODO-4); the priority high, normal or low, none for normal (TODO-5)

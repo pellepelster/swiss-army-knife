@@ -17,7 +17,7 @@ class BlobPathConflictException(
 // of one; what a write that ended without its blob left behind (e.g. the backend stopped) goes when
 // the storage starts. A path has a blob or blobs below it, never both. A path that has neither is not
 // there: the storage keeps no empty directory, a delete or a move takes away what it leaves empty
-interface BinaryStorage {
+interface LocalStorage {
     // writes all of the stream as the blob at the path, replacing a blob there, and closes the stream.
     // A BlobPathConflictException when the path has blobs below it or a blob is on the way to it; a
     // write that fails leaves the blob that was there

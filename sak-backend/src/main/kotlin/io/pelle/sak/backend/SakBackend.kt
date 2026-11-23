@@ -31,6 +31,7 @@ import io.pelle.sak.backend.settings.SettingService
 import io.pelle.sak.backend.notes.NotesSettingsService
 import io.pelle.sak.backend.settings.SettingsRegistry
 import io.pelle.sak.backend.openrouter.OpenRouterManager
+import io.pelle.sak.backend.storage.S3StorageManager
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService
@@ -40,11 +41,14 @@ import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.notes.NoteService
 import io.pelle.sak.backend.grocery.GroceryService
 import io.pelle.sak.backend.todo.TodoService
-import io.pelle.sak.storage.BinaryStorage
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.LocalStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.backend.restic.resticRest
 import io.pelle.sak.backend.restic.ResticStore
+import io.pelle.sak.backend.restic.ResticSettingsService
+import io.pelle.sak.backend.restic.LocalResticFileStorage
+import io.pelle.sak.backend.restic.S3ResticFileStorage
 import io.pelle.sak.backend.restic.ResticRepositoryService
 import io.pelle.sak.backend.restic.ResticBackupPlanService
 import io.pelle.sak.backend.restic.RESTIC_PATH_PREFIX
@@ -134,9 +138,21 @@ class SakServices(
 // notes, the grocery and todo lists, the records of the files and the settings
 fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 
-fun resticStore(config: SakConfig): ResticStore {
+// the repositories of restic: in the bucket of the S3 storage while the settings of the backups say
+// so and the S3 storage is turned on, else on the data volume (BACKUP-1). Asked for each call, a change
+// of the setting moves no file
+fun resticStore(
+    config: SakConfig,
+    s3Storage: S3StorageManager,
+    resticSettings: ResticSettingsService,
+): ResticStore {
     Files.createDirectories(config.resticDir)
-    return ResticStore(FilesystemBinaryStorage(config.resticDir), WriteGuard({ Files.getFileStore(config.resticDir).usableSpace }, config.minFreeBytes, ResticStore.MAX_FILE_BYTES))
+    val volume =
+        LocalResticFileStorage(
+            FilesystemLocalStorage(config.resticDir),
+            WriteGuard({ Files.getFileStore(config.resticDir).usableSpace }, config.minFreeBytes, ResticStore.MAX_FILE_BYTES),
+        )
+    return ResticStore { s3Storage.bucket()?.takeIf { resticSettings.s3() }?.let(::S3ResticFileStorage) ?: volume }
 }
 
 fun Application.sak(config: SakConfig): SakServices {
@@ -152,6 +168,8 @@ fun Application.sak(config: SakConfig): SakServices {
     val openRouter = OpenRouterManager(config.openrouter, settings)
     val notesSettings = NotesSettingsService(settings)
     val grocerySettings = GrocerySettingsService(settings)
+    val s3Storage = S3StorageManager(settings, config.name)
+    val resticSettings = ResticSettingsService(settings)
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(reservedDomains(config))
     // everything the backend does on its own runs here and ends with it
@@ -189,7 +207,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val userService = UserService(database, config.auth?.admins.orEmpty())
     // without a login there are no users, so no repository is reached
     val rolesOf = config.auth?.let { rolesOf(it, userService) }
-    val resticStore = resticStore(config)
+    val resticStore = resticStore(config, s3Storage, resticSettings)
     val resticService = ResticRepositoryService(database, mayLogin = { owner -> rolesOf?.invoke(owner).orEmpty().isNotEmpty() }, store = resticStore)
     val resticBackupPlanService = ResticBackupPlanService(database)
     val accessCallback = BucketKeysAccessCallback(bucketService)
@@ -212,7 +230,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val services =
         SakServices(
             settings = settings,
-            settingsRegistry = SettingsRegistry(listOf(openRouter, notesSettings, grocerySettings)),
+            settingsRegistry = SettingsRegistry(listOf(openRouter, notesSettings, grocerySettings, s3Storage, resticSettings)),
             bucketService = bucketService,
             redirectService = redirectService,
             labelService = labelService,

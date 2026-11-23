@@ -39,6 +39,7 @@ value class SettingScopeName(
 enum class SettingType {
     BOOLEAN,
     TEXT,
+    CHOICE,
 }
 
 // a setting of a scope with values of type T; typed, so set(OpenRouterManager.ENABLED, "yes") does
@@ -145,6 +146,45 @@ open class TextSetting(
     override fun parse(json: JsonElement) = (json as? JsonPrimitive)?.takeIf { it.isString }?.content
 
     override fun check(value: String) = if (value.length > maxLength) ErrorMessage(SettingsTexts.TOO_LONG, "label" to label, "max" to maxLength) else null
+}
+
+// one of the values a choice setting takes, with the text the settings page shows for it
+data class SettingChoice(
+    // what is stored and what the api takes
+    val value: String,
+    val label: TextKey,
+)
+
+// one of a fixed list of values, a dropdown on the settings page
+open class ChoiceSetting(
+    name: SettingName,
+    label: TextKey,
+    description: TextKey,
+    val choices: List<SettingChoice>,
+    default: String,
+    readOnly: Boolean = false,
+    requires: Requirement? = null,
+) : SettingDefinition<String>(name, label, description, default, readOnly, requires) {
+    init {
+        require(choices.isNotEmpty()) { "the setting $name has no choices" }
+        require(choices.map { it.value }.toSet().size == choices.size) { "the choices of $name have the same value twice" }
+        require(choices.any { it.value == default }) { "the default of $name is not one of its choices" }
+    }
+
+    override val type = SettingType.CHOICE
+
+    override val typeError get() = ErrorMessage(SettingsTexts.NOT_CHOICE, "label" to label)
+
+    override fun encode(value: String) = value
+
+    // a value stored that is no choice any more is none
+    override fun decode(stored: String) = stored.takeIf(::isChoice)
+
+    override fun toJson(value: String) = JsonPrimitive(value)
+
+    override fun parse(json: JsonElement) = (json as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf(::isChoice)
+
+    private fun isChoice(value: String) = choices.any { it.value == value }
 }
 
 const val MASKED = "••••••••"

@@ -85,6 +85,14 @@ backend:
     invalid_keep:
       en: "A number of snapshots to keep must be from 1 to %{max}, or empty to keep them all."
       de: "Eine Anzahl zu behaltender Snapshots muss zwischen 1 und %{max} liegen oder leer bleiben, um alle zu behalten."
+    settings:
+      s3:
+        label: { en: "Keep the backups in the S3 storage", de: "Backups im S3-Speicher ablegen" }
+        description:
+          en: "On: the backups are kept in the bucket of the S3 storage. Off: on the server. Backups made before are not moved."
+          de: "Ein: Die Backups liegen im Bucket des S3-Speichers. Aus: auf dem Server. Frühere Backups werden nicht verschoben."
+      label: { en: "Restic backups", de: "Restic-Backups" }
+      description: { en: "Where the restic backups are kept", de: "Wo die Restic-Backups liegen" }
   auth:
     invalid_email: { en: "No valid e-mail address.", de: "Keine gültige E-Mail-Adresse." }
     invalid_nonce:
@@ -187,6 +195,9 @@ backend:
     too_long:
       en: "\"%{label}\" must be at most %{max} characters."
       de: "\"%{label}\" darf höchstens %{max} Zeichen haben."
+    not_choice:
+      en: "\"%{label}\" must be one of its choices."
+      de: "\"%{label}\" muss eine der Auswahlmöglichkeiten sein."
     unknown_setting:
       en: "There is no setting \"%{name}\" in \"%{scope}\"."
       de: "Es gibt keine Einstellung \"%{name}\" in \"%{scope}\"."
@@ -194,6 +205,55 @@ backend:
     requires:
       en: "\"%{label}\" needs \"%{required}\" of \"%{scope}\" turned on."
       de: "\"%{label}\" braucht \"%{required}\" von \"%{scope}\" eingeschaltet."
+  storage:
+    settings:
+      enabled:
+        label: { en: "S3 storage", de: "S3-Speicher" }
+        description:
+          en: "Configures the access to an external S3 object storage."
+          de: "Richtet den Zugang zu einem externen S3-Objektspeicher ein."
+      endpoint_type:
+        label: { en: "Type of endpoint", de: "Art des Endpunkts" }
+        description: { en: "The provider of the S3 storage.", de: "Der Anbieter des S3-Speichers." }
+        hetzner: { en: "Hetzner Object Storage", de: "Hetzner Object Storage" }
+      region:
+        label: { en: "Region", de: "Region" }
+        description: { en: "The location of the bucket.", de: "Der Standort des Buckets." }
+        fsn1: { en: "Falkenstein (fsn1)", de: "Falkenstein (fsn1)" }
+        nbg1: { en: "Nuremberg (nbg1)", de: "Nürnberg (nbg1)" }
+        hel1: { en: "Helsinki (hel1)", de: "Helsinki (hel1)" }
+      bucket:
+        label: { en: "Bucket", de: "Bucket" }
+        description: { en: "The name of the bucket.", de: "Der Name des Buckets." }
+      access_key:
+        label: { en: "Access key", de: "Access Key" }
+        description: { en: "The access key of the S3 credentials.", de: "Der Access Key der S3-Zugangsdaten." }
+      secret_key:
+        label: { en: "Secret key", de: "Secret Key" }
+        description: { en: "The secret key of the S3 credentials.", de: "Der Secret Key der S3-Zugangsdaten." }
+      label: { en: "Storage", de: "Speicher" }
+      description: { en: "External storage for the data of SAK", de: "Externer Speicher für die Daten von SAK" }
+    bucket_missing:
+      en: "The S3 storage needs a bucket to be turned on."
+      de: "Der S3-Speicher braucht einen Bucket, um eingeschaltet zu werden."
+    bucket_invalid:
+      en: "A bucket name has 3 to 63 characters: lower case letters, digits, hyphens and dots, with a letter or a digit at each end."
+      de: "Ein Bucket-Name hat 3 bis 63 Zeichen: Kleinbuchstaben, Ziffern, Bindestriche und Punkte, mit einem Buchstaben oder einer Ziffer an jedem Ende."
+    access_key_missing:
+      en: "The S3 storage needs an access key to be turned on."
+      de: "Der S3-Speicher braucht einen Access Key, um eingeschaltet zu werden."
+    secret_key_missing:
+      en: "The S3 storage needs a secret key to be turned on."
+      de: "Der S3-Speicher braucht einen Secret Key, um eingeschaltet zu werden."
+    keys_refused:
+      en: "Hetzner does not take the keys for this bucket."
+      de: "Hetzner nimmt die Schlüssel für diesen Bucket nicht an."
+    no_bucket:
+      en: "There is no bucket of this name in this region."
+      de: "In dieser Region gibt es keinen Bucket mit diesem Namen."
+    unchecked:
+      en: "The storage could not be checked at Hetzner, please try again later."
+      de: "Der Speicher konnte bei Hetzner nicht geprüft werden, bitte versuche es später erneut."
   users:
     invalid_name:
       en: "A user name must have at most %{max} characters and no control characters."

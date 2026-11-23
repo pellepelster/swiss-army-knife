@@ -83,14 +83,14 @@ class GroceryServiceTest {
         val milk = add(PELLE, own, input("Milk", categoryId = category(own, "Dairy & eggs")))
         service.checkItem(PELLE, apples.id).shouldBeInstanceOf<GroceryItemCheckResult.Checked>()
 
-        service.items(PELLE, own)!!.map { it.name } shouldBe listOf("Milk", "Soap", "Candles")
+        service.items(PELLE, own)!!.items.map { it.name } shouldBe listOf("Milk", "Soap", "Candles")
         milk.listId shouldBe soap.listId
         candles.categoryId shouldBe null
 
         // in the new order of the categories
         val ids = service.categories(PELLE, own)!!.map { it.id }
         (service.orderCategories(PELLE, own, ids.reversed()) as GroceryCategoriesOrderResult.Ordered).categories.map { it.id } shouldBe ids.reversed()
-        service.items(PELLE, own)!!.map { it.name } shouldBe listOf("Soap", "Milk", "Candles")
+        service.items(PELLE, own)!!.items.map { it.name } shouldBe listOf("Soap", "Milk", "Candles")
     }
 
     @Test
@@ -104,15 +104,15 @@ class GroceryServiceTest {
         service.checkItem(PELLE, rolls.id).shouldBeInstanceOf<GroceryItemCheckResult.Checked>()
         service.checkItem(PELLE, soap.id).shouldBeInstanceOf<GroceryItemCheckResult.Checked>()
 
-        service.items(PELLE, own)!!.map { it.name } shouldBe listOf("Bread", "Cake")
-        service.items(PELLE, own, checked = true)!!.map { it.name to (it.checkedAt != null) } shouldBe
+        service.items(PELLE, own)!!.items.map { it.name } shouldBe listOf("Bread", "Cake")
+        service.items(PELLE, own, checked = true)!!.items.map { it.name to (it.checkedAt != null) } shouldBe
             listOf("Bread" to false, "Cake" to false, "Rolls" to true, "Soap" to true)
         service.items(OTHER, own, checked = true) shouldBe null
 
         // each name once, the latest bought item; none of a name to buy
         add(PELLE, own, input("rolls", categoryId = bakery)).let { service.checkItem(PELLE, it.id) }
         add(PELLE, own, input("Soap"))
-        service.items(PELLE, own, checked = true)!!.map { it.name to (it.checkedAt != null) } shouldBe
+        service.items(PELLE, own, checked = true)!!.items.map { it.name to (it.checkedAt != null) } shouldBe
             listOf("Bread" to false, "Cake" to false, "rolls" to true, "Soap" to false)
     }
 
@@ -173,9 +173,9 @@ class GroceryServiceTest {
 
         // a deleted category goes from its items and suggestions
         service.deleteCategory(PELLE, party, snacks.id) shouldBe DeleteResult.Deleted
-        service.items(PELLE, party)!!.single().categoryId shouldBe null
+        service.items(PELLE, party)!!.items.single().categoryId shouldBe null
         service.suggestions(PELLE, party, "chips")!!.items.let { it shouldBe emptyList() }
-        service.checkItem(PELLE, service.items(PELLE, party)!!.single().id)
+        service.checkItem(PELLE, service.items(PELLE, party)!!.items.single().id)
         service.suggestions(PELLE, party, "chips")!!.items.single().categoryId shouldBe null
     }
 

@@ -18,11 +18,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class FilesystemBinaryStorageTest {
+class FilesystemLocalStorageTest {
     @TempDir
     lateinit var root: Path
 
-    private val storage by lazy { FilesystemBinaryStorage(root) }
+    private val storage by lazy { FilesystemLocalStorage(root) }
 
     private fun path(vararg segments: String) = BlobPath(segments.toList())
 
@@ -242,7 +242,7 @@ class FilesystemBinaryStorageTest {
         val running = Files.writeString(staging.resolve("running"), "x")
         Files.setLastModifiedTime(running, FileTime.from(now.minus(Duration.ofMinutes(5))))
 
-        FilesystemBinaryStorage(root, Duration.ofHours(1), Clock.fixed(now, ZoneOffset.UTC))
+        FilesystemLocalStorage(root, Duration.ofHours(1), Clock.fixed(now, ZoneOffset.UTC))
 
         Files.exists(stale) shouldBe false
         Files.exists(running) shouldBe true

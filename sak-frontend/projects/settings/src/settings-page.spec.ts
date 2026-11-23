@@ -22,6 +22,7 @@ const system = {
       default: false,
       maxLength: null,
       mask: null,
+      choices: null,
       readOnly: false,
       requires: null,
     },
@@ -33,6 +34,7 @@ const system = {
       default: 'hello',
       maxLength: 10,
       mask: null,
+      choices: null,
       readOnly: false,
       requires: null,
     },
@@ -44,6 +46,7 @@ const system = {
       default: '',
       maxLength: 255,
       mask: 2,
+      choices: null,
       readOnly: false,
       requires: null,
     },
@@ -55,6 +58,7 @@ const system = {
       default: '',
       maxLength: 255,
       mask: null,
+      choices: null,
       readOnly: true,
       requires: null,
     },
@@ -62,6 +66,32 @@ const system = {
 };
 
 const other = { ...system, name: 'other', label: 'Other', settings: [system.settings[0]] };
+
+// turned on by its switch, with a choice
+const storage = {
+  name: 'storage',
+  label: 'Storage',
+  description: 'Where the files go.',
+  enabledBy: 'enabled',
+  settings: [
+    { ...system.settings[0], name: 'enabled', label: 'S3 storage' },
+    {
+      name: 'region',
+      label: 'Region',
+      description: 'The location of the bucket.',
+      type: 'choice',
+      default: 'fsn1',
+      maxLength: null,
+      mask: null,
+      choices: [
+        { value: 'fsn1', label: 'Falkenstein' },
+        { value: 'nbg1', label: 'Nuremberg' },
+      ],
+      readOnly: false,
+      requires: null,
+    },
+  ],
+};
 
 describe('SettingsPage', () => {
   let http: HttpTestingController;
@@ -217,6 +247,50 @@ describe('SettingsPage', () => {
 
     expect(input('setting-system-ai').checked).toBe(true);
     expect(button('Save').disabled).toBe(true);
+  });
+
+  it('shows a choice as a dropdown of its choices and saves the one chosen', async () => {
+    await load({ enabled: true }, [storage], '/settings/storage');
+
+    const region = page().querySelector<HTMLSelectElement>('#setting-storage-region')!;
+    expect(page().querySelector('label[for=setting-storage-region]')?.textContent).toBe('Region');
+    expect([...region.options].map((option) => [option.value, option.textContent?.trim()])).toEqual(
+      [
+        ['fsn1', 'Falkenstein'],
+        ['nbg1', 'Nuremberg'],
+      ],
+    );
+    // no value is stored, the default is chosen
+    expect(region.value).toBe('fsn1');
+    expect(region.disabled).toBe(false);
+    expect(button('Save').disabled).toBe(true);
+
+    region.value = 'nbg1';
+    region.dispatchEvent(new Event('change'));
+    await harness.fixture.whenStable();
+    button('Save').click();
+
+    const request = http.expectOne({ method: 'PUT', url: '/api/v1/settings/storage' });
+    expect(request.request.body).toEqual({ region: 'nbg1' });
+    request.flush({ enabled: true, region: 'nbg1' });
+    await harness.fixture.whenStable();
+
+    expect(page().querySelector<HTMLSelectElement>('#setting-storage-region')!.value).toBe('nbg1');
+    expect(button('Save').disabled).toBe(true);
+  });
+
+  it('greys a choice out while the switch of its scope is off', async () => {
+    await load({ enabled: false, region: 'nbg1' }, [storage], '/settings/storage');
+
+    const region = page().querySelector<HTMLSelectElement>('#setting-storage-region')!;
+    expect(region.value).toBe('nbg1');
+    expect(region.disabled).toBe(true);
+
+    input('setting-storage-enabled').click();
+    await harness.fixture.whenStable();
+    expect(page().querySelector<HTMLSelectElement>('#setting-storage-region')!.disabled).toBe(
+      false,
+    );
   });
 
   it('shows what the backend did not take, the change stays', async () => {

@@ -160,9 +160,9 @@ fun Route.todo(todoService: TodoService) {
         get("/{id}/items") {
             val id = call.idParameter() ?: return@get
             val page = call.pageRequest() ?: return@get
-            when (val items = withContext(Dispatchers.IO) { todoService.items(call.owner, id) }) {
+            when (val items = withContext(Dispatchers.IO) { todoService.items(call.owner, id, page.offset, page.limit) }) {
                 null -> call.respond(HttpStatusCode.NotFound)
-                else -> call.respond(page.of(page.of(items.map { it.response() })))
+                else -> call.respond(page.of(items.map { it.response() }))
             }
         }.describe {
             tag(TODO_TAG)

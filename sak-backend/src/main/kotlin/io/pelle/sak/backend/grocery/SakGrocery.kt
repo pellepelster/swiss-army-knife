@@ -292,9 +292,9 @@ fun Route.grocery(
             val id = call.idParameter() ?: return@get
             val page = call.pageRequest() ?: return@get
             val checked = call.request.queryParameters["checked"] == "true"
-            when (val items = withContext(Dispatchers.IO) { groceryService.items(call.owner, id, checked) }) {
+            when (val items = withContext(Dispatchers.IO) { groceryService.items(call.owner, id, checked, page.offset, page.limit) }) {
                 null -> call.respond(HttpStatusCode.NotFound)
-                else -> call.respond(page.of(page.of(items.map { it.response() })))
+                else -> call.respond(page.of(items.map { it.response() }))
             }
         }.describe {
             tag(GROCERY_TAG)

@@ -6,7 +6,7 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.jvm.javaio.toByteReadChannel
 import io.pelle.sak.storage.BlobContent
 
-// a blob of the binary storage as the body of a response, read while it is sent, with its length
+// a blob of the local storage as the body of a response, read while it is sent, with its length
 class BlobResponse(
     private val content: BlobContent,
     override val contentType: ContentType,

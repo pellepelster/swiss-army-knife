@@ -22,6 +22,7 @@ import io.pelle.sak.api.respondErrors
 import io.pelle.sak.backend.settings.model.SettingRequirementResponse
 import io.pelle.sak.backend.settings.model.SettingScopeResponse
 import io.pelle.sak.backend.settings.model.SettingTypeResponse
+import io.pelle.sak.backend.settings.model.SettingChoiceResponse
 import io.pelle.sak.backend.settings.model.SettingResponse
 import io.pelle.sak.backend.settings.model.SettingsRequest
 import io.pelle.sak.backend.settings.model.SettingsResponse
@@ -39,6 +40,7 @@ private fun <T : Any> SettingDefinition<T>.response(language: Language) =
         toJson(default),
         (this as? TextSetting)?.maxLength,
         (this as? TextSetting)?.mask,
+        (this as? ChoiceSetting)?.choices?.map { SettingChoiceResponse(it.value, it.label.render(language)) },
         readOnly,
         requires?.let { SettingRequirementResponse(it.scope.name.value, it.setting.name.value) },
     )
@@ -47,6 +49,7 @@ private fun SettingType.response() =
     when (this) {
         SettingType.BOOLEAN -> SettingTypeResponse.BOOLEAN
         SettingType.TEXT -> SettingTypeResponse.TEXT
+        SettingType.CHOICE -> SettingTypeResponse.CHOICE
     }
 
 // in the language of the user

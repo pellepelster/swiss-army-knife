@@ -16,6 +16,8 @@ data class SettingResponse(
     val maxLength: Int?,
     // how many characters of a value the api shows, the rest is masked; null shows the whole value
     val mask: Int?,
+    // the values of a choice in the order to show them, null for the other types
+    val choices: List<SettingChoiceResponse>?,
     // a value given by the backend, e.g. from its configuration, which can not be changed
     val readOnly: Boolean,
     // the boolean setting that must be on for this one to count, null when there is none

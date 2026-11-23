@@ -17,7 +17,7 @@ import io.pelle.sak.backend.isValidDomain
 import io.pelle.sak.model.hosting.S3Bucket
 import io.pelle.sak.model.hosting.S3BucketRepository
 import io.pelle.sak.model.ResourceId
-import io.pelle.sak.storage.BinaryStorage
+import io.pelle.sak.storage.LocalStorage
 import io.pelle.sak.storage.BlobPath
 import java.security.SecureRandom
 import java.time.Clock
@@ -89,7 +89,7 @@ class S3BucketService(
     // register there
     internal val domains: DomainRegistry,
     // the storage of the buckets, none where only their rows are needed
-    private val storage: BinaryStorage? = null,
+    private val storage: LocalStorage? = null,
     // the counts of the objects of the buckets, none where only their rows are needed
     private val statistics: BucketStatisticsCache? = null,
 ) {
@@ -100,7 +100,7 @@ class S3BucketService(
         baseDomain: String? = null,
         reservedNames: Set<String> = emptySet(),
         domains: DomainRegistry = DomainRegistry(),
-        storage: BinaryStorage? = null,
+        storage: LocalStorage? = null,
         statistics: BucketStatisticsCache? = null,
     ) : this(S3BucketRepository(database, clock, free = { storage?.isFree(it) != false }), baseDomain, reservedNames, domains, storage, statistics)
 

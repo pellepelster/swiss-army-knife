@@ -175,4 +175,30 @@ class TodoRepositoryTest {
         }
         database.dsl.execute("UPDATE todo_items SET due_date = NULL WHERE id = ?", task.id) shouldBe 1
     }
+
+    @Test
+    fun `the tasks of a list are read a page at a time, in their order, with the count of all`() {
+        val home = repository.insertList(PELLE, "Home", shared = false)!!
+        val other = repository.insertList(PELLE, "Work", shared = false)!!
+        val titles = (1..7).map { "Task $it" }
+        val items = titles.map { repository.insertItem(PELLE, home.id, it)!! }
+        repository.insertItem(PELLE, other.id, "Of another list")
+        // a deleted task is neither on a page nor counted
+        repository.deleteItem(PELLE, items[1].id)
+        val left = titles - "Task 2"
+
+        repository.itemCount(PELLE, home.id) shouldBe 6
+        repository.items(PELLE, home.id)!!.map { it.title } shouldBe left
+        repository.items(PELLE, home.id, offset = 0, limit = 4)!!.map { it.title } shouldBe left.take(4)
+        repository.items(PELLE, home.id, offset = 4, limit = 4)!!.map { it.title } shouldBe left.drop(4)
+        repository.items(PELLE, home.id, offset = 2, limit = 3)!!.map { it.title } shouldBe left.drop(2).take(3)
+        // past the end
+        repository.items(PELLE, home.id, offset = 6, limit = 4) shouldBe emptyList()
+        repository.items(PELLE, home.id, offset = 100, limit = 4) shouldBe emptyList()
+
+        // a list the user does not see has neither
+        repository.items(OTHER, home.id, offset = 0, limit = 4) shouldBe null
+        repository.itemCount(OTHER, home.id) shouldBe null
+        repository.itemCount(PELLE, other.id) shouldBe 1
+    }
 }

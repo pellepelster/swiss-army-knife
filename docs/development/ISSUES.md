@@ -19,18 +19,6 @@ answered there; when it is work to do, it is moved here and closed there.
 A weakness that is kept on purpose is in [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md), the open findings of the reviews are
 in [the reviews](reviews/).
 
-## `#35` (`B-12`) E-mail addresses in the logs, public openapi document
-
-**Created:** 2026-10-27. **Labels:** area: backend, review, severity: low.
-
-E-mail addresses in the logs, public openapi document: `AuthRoutes.kt:163,165,251,255` log e-mail addresses at info
-(personal data in the logs). `/doc/openapi.json` is public at `apps.<root_domain>`; it exposes only route shapes,
-acceptable.
-
-Finding **B-12** of the code review of 2026-10-27 (`doc/REVIEW.md`), area: Backend (`sak-backend`, `sak-auth`,
-`sak-logs`, `sak-api`, `sak-config`, `sak-ingress`, `sak-s3`), severity: low (judgement call). Other findings refer to
-it by its id.
-
 ## `#129` Ask for consent before text discovery sends a file to OpenRouter
 
 **Created:** 2026-10-29. **Labels:** enhancement, area: backend, area: frontend, security.
@@ -251,21 +239,6 @@ listing all pages walks the bucket 100 times. A static site seldom has this many
 
 Fix: walk the directories lazily in the order of the keys and stop after `maxKeys`; start at `startAfter`. Sort the
 names of a directory as `name + "/"`, else `a/b` comes before `a-b` (`-` is before `/`), which is not the order of S3.
-
-From the review of the memory of the backend (`docs/development/reviews/memory-review.md`), reviewed again at commit
-db41d795; the review is removed, its findings are these issues.
-
-## `#154` (`MR-6`) Some lists are read whole from the database and then paged
-
-**Created:** 2026-11-13. **Labels:** enhancement, area: backend, area: data model, review, severity: low.
-
-The grocery lists, items, suggestions and categories, the lists and tasks of todo, the users, the labels of the notes,
-the redirects and the buckets are read as a whole and paged in memory (`page.of(all)`). Only the notes and the labels
-(`/api/v1/labels`) are paged in the database. For the data of one household this is small; it grows with the data, not
-with the page.
-
-Fix: when a list can grow without a limit (the items of a grocery list, the tasks of a todo list), page it in its
-repository like `NoteRepository`.
 
 From the review of the memory of the backend (`docs/development/reviews/memory-review.md`), reviewed again at commit
 db41d795; the review is removed, its findings are these issues.

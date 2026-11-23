@@ -1,5 +1,13 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.backend.storage.S3Bucket
+import io.pelle.sak.backend.storage.S3Endpoint
+import io.pelle.sak.s3.S3AccessCallback
+import io.pelle.sak.s3.S3AccessResult
+import io.pelle.sak.s3.S3Operation
+import io.pelle.sak.s3.api.s3
+import io.pelle.sak.s3.storage.LocalStorageS3Backend
+import io.pelle.sak.storage.BlobPath
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -10,7 +18,7 @@ import io.ktor.server.routing.routing
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.restic.ResticRepository
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.FilesystemBinaryStorage
+import io.pelle.sak.storage.FilesystemLocalStorage
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -30,15 +38,53 @@ class ResticRestIntegrationTest {
 
     private val service by lazy { ResticRepositoryService(SakDatabase.open(tempDir.resolve("sak.db")), mayLogin = { true }) }
 
-    private val store by lazy {
+    private val volume by lazy {
         val dir = Files.createDirectories(tempDir.resolve("restic"))
-        ResticStore(FilesystemBinaryStorage(dir), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
+        ResticStore(FilesystemLocalStorage(dir), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
     }
 
-    private fun withServer(block: (port: Int) -> Unit) {
+    private fun withServer(
+        store: ResticStore,
+        block: (port: Int) -> Unit,
+    ) {
         val server = embeddedServer(Netty, port = 0) { routing { route(RESTIC_PATH_PREFIX) { resticRest(service, store) } } }.start()
         try {
             block(runBlocking { server.engine.resolvedConnectors().first().port })
+        } finally {
+            server.stop()
+        }
+    }
+
+    // an S3 storage in the process, the S3 api of SAK itself with the bucket "backups": the store that
+    // keeps the repositories there, and the directory the objects of the bucket are in
+    private fun withBucket(block: (store: ResticStore, objects: Path) -> Unit) {
+        val dir = Files.createDirectories(tempDir.resolve("s3"))
+        val access =
+            object : S3AccessCallback {
+                override fun resolveSecretKey(
+                    accessKeyId: String,
+                    bucket: String?,
+                ) = "the/secret+key".takeIf { accessKeyId == "the-access-key" }
+
+                override fun checkAccess(
+                    accessKeyId: String,
+                    bucket: String,
+                    operation: S3Operation,
+                    key: String?,
+                ) = S3AccessResult.GRANTED
+            }
+        val server =
+            embeddedServer(Netty, port = 0) {
+                routing {
+                    route("/s3") {
+                        s3(LocalStorageS3Backend(FilesystemLocalStorage(dir), { bucket -> BlobPath(listOf(bucket)) }, WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)), access)
+                    }
+                }
+            }.start()
+        try {
+            val port = runBlocking { server.engine.resolvedConnectors().first().port }
+            val bucket = S3Bucket(S3Endpoint("http://localhost:$port/s3", "fsn1"), "backups", "the-deployment", "the-access-key", "the/secret+key")
+            block(ResticStore(S3ResticFileStorage(bucket)), dir)
         } finally {
             server.stop()
         }
@@ -81,6 +127,29 @@ class ResticRestIntegrationTest {
 
     @Test
     fun `restic backs up into a repository of the instance, checks and restores it`() {
+        val repository = backsUpAndRestores(volume)
+
+        // the files are where BACKUP-1 has them, below the resource id (MODEL-8), none is left staged
+        Files.list(tempDir.resolve("restic/${repository.resourceId}")).use { dirs ->
+            dirs.map { it.fileName.toString() }.toList().sorted() shouldContainExactly listOf("config", "data", "index", "keys", "snapshots")
+        }
+    }
+
+    @Test
+    fun `restic backs up into a repository in the bucket of the S3 storage, checks and restores it`() {
+        withBucket { store, objects ->
+            val repository = backsUpAndRestores(store)
+
+            // every file is an object of the bucket, where it is on a data volume: below
+            // <deployment>/backend/data/restic/<resource id>; the data volume has none
+            Files.walk(objects).use { paths -> paths.anyMatch { it.toString().contains("/the-deployment/backend/data/restic/${repository.resourceId}/data/") } } shouldBe true
+            Files.exists(tempDir.resolve("restic")) shouldBe false
+            (store.usage(repository.resourceId) > 20L * 1024 * 1024) shouldBe true
+        }
+    }
+
+    // init, two backups, a check of all data, a restore, forget and prune, and a wrong token
+    private fun backsUpAndRestores(store: ResticStore): ResticRepository {
         val repository = (service.create("anna@example.org", "laptop") as ResticRepositoryCreateResult.Created).repository
         val token = service.token("anna@example.org", repository.id)!!
         val source = Files.createDirectories(tempDir.resolve("source/documents"))
@@ -88,7 +157,7 @@ class ResticRestIntegrationTest {
         // larger than one pack (16 MiB), and random, so it does not deduplicate or compress
         Files.write(source.resolve("big.bin"), ByteArray(20 * 1024 * 1024).also { java.util.Random(1).nextBytes(it) })
 
-        withServer { port ->
+        withServer(store) { port ->
             val repo = url(port, repository, token)
             ok(repo, "init")
             ok(repo, "backup", source.toString())
@@ -106,15 +175,11 @@ class ResticRestIntegrationTest {
             ok(repo, "check")
             ok(repo, "snapshots").split("\"time\"").size - 1 shouldBe 1
 
-            // the files are where BACKUP-1 has them, below the resource id (MODEL-8), none is left staged
-            Files.list(tempDir.resolve("restic/${repository.resourceId}")).use { dirs ->
-                dirs.map { it.fileName.toString() }.toList().sorted() shouldContainExactly listOf("config", "data", "index", "keys", "snapshots")
-            }
-
             // a wrong token is refused
             val (code, output) = restic(url(port, repository, "wrong"), "snapshots")
             code shouldBe 1
             output shouldContain "401"
         }
+        return repository
     }
 }

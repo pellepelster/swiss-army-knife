@@ -5,6 +5,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.api.Page
 import io.pelle.sak.backend.lists.ListSaveResult
 import io.pelle.sak.backend.lists.MAX_LIST_NAME_LENGTH
 import io.pelle.sak.model.SakDatabase
@@ -68,16 +69,16 @@ class TodoServiceTest {
         val door = add(PELLE, home, "  Fix the door ")
         add(PELLE, home, "Paint the fence")
         door.title shouldBe "Fix the door"
-        service.items(PELLE, home)!!.map { it.title } shouldBe listOf("Fix the door", "Paint the fence")
+        service.items(PELLE, home)!!.items.map { it.title } shouldBe listOf("Fix the door", "Paint the fence")
 
         done(PELLE, door.id).doneAt shouldNotBe null
-        service.items(PELLE, home)!!.map { it.title } shouldBe listOf("Fix the door", "Paint the fence")
+        service.items(PELLE, home)!!.items.map { it.title } shouldBe listOf("Fix the door", "Paint the fence")
         // only the done tasks the user saw go, one done meanwhile stays (TODO-6)
-        val fence = service.items(PELLE, home)!!.last()
+        val fence = service.items(PELLE, home)!!.items.last()
         done(PELLE, fence.id)
         service.purge(PELLE, home, listOf(door.id)) shouldBe DeleteResult.Deleted
         service.purge(OTHER, home, listOf(fence.id)) shouldBe DeleteResult.NotFound
-        service.items(PELLE, home)!!.map { it.title } shouldBe listOf("Paint the fence")
+        service.items(PELLE, home)!!.items.map { it.title } shouldBe listOf("Paint the fence")
         service.setDone(PELLE, 999, done = true) shouldBe TodoItemUpdateResult.NotFound
     }
 
@@ -105,7 +106,7 @@ class TodoServiceTest {
 
         service.deleteItem(OTHER, music.id) shouldBe DeleteResult.Deleted
         service.deleteItem(OTHER, music.id) shouldBe DeleteResult.NotFound
-        service.items(PELLE, party) shouldBe emptyList()
+        service.items(PELLE, party)!!.items shouldBe emptyList()
         service.renameItem(PELLE, music.id, "Gone") shouldBe TodoItemUpdateResult.NotFound
     }
 
@@ -200,4 +201,17 @@ class TodoServiceTest {
 
             heard.await() shouldBe listOf(party, picnic)
         }
+
+    @Test
+    fun `the tasks of a list are a page with the count of all`() {
+        val home = (service.createList(PELLE, "Home", shared = false) as ListSaveResult.Saved).list.id
+        (1..5).forEach { service.addItem(PELLE, home, "Task $it") }
+
+        service.items(PELLE, home, offset = 3, limit = 10)!!.let {
+            it.items.map { item -> item.title } shouldBe listOf("Task 4", "Task 5")
+            it.total shouldBe 5
+        }
+        service.items(PELLE, home, offset = 9, limit = 10) shouldBe Page(emptyList(), 5)
+        service.items(OTHER, home, offset = 0, limit = 10) shouldBe null
+    }
 }

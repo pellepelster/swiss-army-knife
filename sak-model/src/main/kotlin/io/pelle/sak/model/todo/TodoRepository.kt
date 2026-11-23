@@ -134,11 +134,14 @@ class TodoRepository(
                 .execute()
         }
 
-    // open and done alike, so a task keeps its place when it is done (TODO-3): by priority (TODO-5),
-    // then in the order they were added; null when the user does not see the list
+    // a page of the tasks of the list, open and done alike, so a task keeps its place when it is done
+    // (TODO-3): by priority (TODO-5), then in the order they were added; null when the user does not
+    // see the list
     fun items(
         user: String,
         listId: Int,
+        offset: Long = 0,
+        limit: Int = Int.MAX_VALUE,
     ): List<TodoItem>? =
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
@@ -147,8 +150,21 @@ class TodoRepository(
                 .selectFrom(TODO_ITEMS)
                 .where(TODO_ITEMS.LIST_ID.eq(listId), TODO_ITEMS.DELETED_AT.isNull)
                 .orderBy(PRIORITY_ORDER, TODO_ITEMS.ID)
+                .limit(limit)
+                .offset(offset)
                 .fetch()
                 .map { it.toItem() }
+        }
+
+    // how many tasks the list has, as items has them; null when the user does not see the list
+    fun itemCount(
+        user: String,
+        listId: Int,
+    ): Long? =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            if (!lists.sees(dsl, user, listId)) return@transactionResult null
+            dsl.fetchCount(TODO_ITEMS, TODO_ITEMS.LIST_ID.eq(listId), TODO_ITEMS.DELETED_AT.isNull).toLong()
         }
 
     // a task, open or done; null when the user does not see its list

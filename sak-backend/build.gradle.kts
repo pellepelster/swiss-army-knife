@@ -15,6 +15,8 @@ dependencies {
     implementation(project(":sak-openrouter"))
     implementation(project(":sak-dns"))
     runtimeOnly(project(":sak-frontend"))
+    // the client of the S3 storage (S3StorageManager): one small jar without dependencies
+    implementation(libs.aws.lightweight.client)
     implementation(libs.caffeine)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.body.limit)
@@ -74,13 +76,24 @@ tasks.test {
     passSecrets(mapOf("OPENROUTER_API_KEY" to "openrouter/pelle/api-key"), selectedTest = "RecipeIngredientsTest")
 }
 
-// the tests that need a program of the machine, e.g. restic (TEST-2); not part of check
+// the tests that need a program of the machine, e.g. restic (TEST-2); not part of check.
+// StorageKeysIntegrationTest asks Hetzner Object Storage for a bucket with its keys, read from pass
+// unless the variables are set, and S3BucketIntegrationTest writes a few objects to it and deletes
+// them; without the keys both are skipped
 val integrationTest by tasks.registering(Test::class) {
     group = "verification"
     description = "Run the integration tests of the backend"
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform { includeTags("integration") }
+    passSecrets(
+        mapOf(
+            "HETZNER_S3_ACCESS_KEY" to "hetzner/pelle.io/access_key",
+            "HETZNER_S3_SECRET_KEY" to "hetzner/pelle.io/secret_key",
+            "HETZNER_S3_BUCKET" to "hetzner/pelle.io/bucket",
+            "HETZNER_S3_REGION" to "hetzner/pelle.io/region",
+        ),
+    )
 }
 
 // runs with the image the role deploys; needs docker, so not part of check (the console's e2eTest depends on it)

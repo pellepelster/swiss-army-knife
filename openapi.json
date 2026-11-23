@@ -7543,6 +7543,22 @@
                     }
                 }
             },
+            "SettingChoiceResponse": {
+                "type": "object",
+                "title": "SettingChoiceResponse",
+                "required": [
+                    "value",
+                    "label"
+                ],
+                "properties": {
+                    "value": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                }
+            },
             "SettingRequirementResponse": {
                 "type": "object",
                 "title": "SettingRequirementResponse",
@@ -7584,7 +7600,8 @@
                         "type": "string",
                         "enum": [
                             "boolean",
-                            "text"
+                            "text",
+                            "choice"
                         ]
                     },
                     "default": {
@@ -7605,6 +7622,15 @@
                             "integer",
                             "null"
                         ]
+                    },
+                    "choices": {
+                        "type": [
+                            "array",
+                            "null"
+                        ],
+                        "items": {
+                            "$ref": "#/components/schemas/SettingChoiceResponse"
+                        }
                     },
                     "readOnly": {
                         "type": "boolean"

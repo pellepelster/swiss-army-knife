@@ -5,7 +5,7 @@ plugins {
 }
 
 dependencies {
-    // the files sent along are blobs of the binary storage (MODEL-7)
+    // the files sent along are blobs of the local storage (MODEL-7)
     api(project(":sak-storage"))
     implementation(libs.kotlinx.serialization.json)
 

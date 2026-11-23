@@ -643,7 +643,12 @@ set -e
 
 # in docker: the vector configuration of the backend role, sak-backend as the role renders it
 # (backup, restore, maintenance) next to victorialogs, and the role role_markers; with the restic of
-# the machine: the REST backend of the repositories (integrationTest)
+# the machine: the REST backend of the repositories, on the data volume and in a bucket of the S3 api
+# of SAK in the process (integrationTest). integrationTest also asks Hetzner Object Storage for a bucket
+# (StorageKeysIntegrationTest) and writes, reads and deletes a few objects in it, 12 MB below
+# saktest-<random>/backend/data/restic/ (S3BucketIntegrationTest), when HETZNER_S3_ACCESS_KEY, _SECRET_KEY, _BUCKET
+# and _REGION are set or in pass (hetzner/pelle.io/access_key, secret_key, bucket, region); without
+# them those tests are skipped
 [tasks."backend:test:integration"]
 description = "Run the backend integration tests"
 dir = "{{config_root}}"

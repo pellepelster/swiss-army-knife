@@ -70,13 +70,13 @@ private class LimitedInputStream(
 
 // the blobs as files below the root, a directory for each segment of the path (MODEL-7). A write
 // is staged in STAGING_DIRECTORY and moved into place at once, a reader never sees half a blob
-class FilesystemBinaryStorage(
+class FilesystemLocalStorage(
     private val rootPath: Path,
     // a staged file older than this is left from a write that ended without its move (e.g. the
     // backend stopped), it is removed when the storage starts; a write that runs is younger
     staleAfter: Duration = DEFAULT_STALE_AFTER,
     private val clock: Clock = Clock.systemUTC(),
-) : BinaryStorage {
+) : LocalStorage {
     private val tmpDir = rootPath.resolve(BlobPath.STAGING_DIRECTORY)
 
     init {
