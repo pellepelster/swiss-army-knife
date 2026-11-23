@@ -48,7 +48,9 @@ asks; a yes stops the work as cancel does and quits. Found on the way: a change 
 three desktop crates, so a build kept old texts; their build scripts name `locales` now. `DA-32`: a backup is one run from its
 start to its end (`Runs::begin`), so a cancel while the instance is asked or the password looked up stops it before
 restic, and one during the expiry kills forget or prune; the snapshot is done then and the expiry says it was
-cancelled.
+cancelled. `DA-34`: the tray says nothing runs again after a backup, a restore or a delete of a
+snapshot, whatever it showed. `DA-35`: closed during a run without a tray, the window asks as the tray's Quit does. Both
+were not tried with a tray, the tests of the window have none.
 
 ## What is good
 
@@ -112,22 +114,6 @@ the lock. `restart` sees only its own process (`gui/commands.rs:194-199`).
 Fix: every restic process through `Runs` (an exclusive guard answering `Running`), read by run.js and snapshots.js
 instead of their own state; a lock file per repository in core for both faces, and
 `tauri-plugin-single-instance`.
-
-#### `DA-34` The tray says "running" after a restore or a failed backup (read, checked)
-
-`close_requested` sets `ui.tray.running` when no percent was shown (`gui/tray.rs:125-131`); `idle` returns early when no
-percent was shown (`tray.rs:111-113`) and is called only after a backup (`gui/commands.rs:134`). After a restore, a
-delete of a snapshot or a backup that failed before its first progress, with the window hidden, the menu keeps saying
-something runs.
-
-Fix: `idle` always resets the text, called after a restore and a delete too, best when the last `Busy` is dropped.
-
-#### `DA-35` Closing the window during a run without a tray quits without asking (read)
-
-`close_requested` prevents the close only when a tray shows the icon (`gui/tray.rs:122`). Without one (GNOME without
-an extension) the window closes, the app exits and restic is orphaned, without the question the tray's Quit asks.
-
-Fix: without a tray and while `is_running()`, prevent the close and ask as `quit_app` does.
 
 #### `DA-36` `sakbackup plan set` changes a plan of another computer (read, checked)
 

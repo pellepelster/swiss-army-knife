@@ -191,8 +191,11 @@ pub struct RestoreSummary {
 }
 
 /// restores the plan below `target`, an absolute folder; none puts the files back where they were
+// the page names each argument, a command of tauri takes them one by one
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn restore_backup(
+    app: tauri::AppHandle,
     sessions: State<'_, SessionManager>,
     runs: State<'_, Runs>,
     passwords: State<'_, PasswordStore>,
@@ -208,9 +211,11 @@ pub async fn restore_backup(
         typed: password,
         remember,
     };
-    restore::restore(&sessions, &passwords, u64::from(id), target, given)
+    let restored = restore::restore(&sessions, &passwords, u64::from(id), target, given)
         .await
-        .map(|skipped| RestoreSummary { skipped })
+        .map(|skipped| RestoreSummary { skipped });
+    super::tray::idle(&app);
+    restored
 }
 
 #[tauri::command]
@@ -228,8 +233,11 @@ pub async fn snapshots(
     snapshots::snapshots(&sessions, &passwords, repository_id, given).await
 }
 
+// the page names each argument, a command of tauri takes them one by one
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn delete_snapshot(
+    app: tauri::AppHandle,
     sessions: State<'_, SessionManager>,
     runs: State<'_, Runs>,
     passwords: State<'_, PasswordStore>,
@@ -244,7 +252,9 @@ pub async fn delete_snapshot(
         typed: password,
         remember,
     };
-    snapshots::delete(&sessions, &passwords, repository_id, snapshot_id, given).await
+    let deleted = snapshots::delete(&sessions, &passwords, repository_id, snapshot_id, given).await;
+    super::tray::idle(&app);
+    deleted
 }
 
 /// whether SAK_BACKUP_REPO_PASSWORD gives the password: the page asks for none then, it never sees

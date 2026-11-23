@@ -103,32 +103,38 @@ pub fn progress(app: &AppHandle, event: &RunEvent) {
     let _ = tray.status.set_text(text);
 }
 
-/// the icon of nothing running again, after a backup ended in whatever way
+/// nothing runs again, after a backup, a restore or a delete of a snapshot ended in whatever way:
+/// the icon of nothing running when it showed a percent, the text and the tooltip always (DA-34)
 pub fn idle(app: &AppHandle) {
     let Some(tray) = app.try_state::<Tray>() else {
         return;
     };
-    if tray.shown.lock().unwrap().take().is_none() {
-        return;
+    if tray.shown.lock().unwrap().take().is_some() {
+        let _ = tray.icon.set_icon(Some(picture(IDLE)));
     }
-    let _ = tray.icon.set_icon(Some(picture(IDLE)));
     let _ = tray.icon.set_tooltip(Some(t!("ui.title")));
     let _ = tray.status.set_text(t!("ui.tray.idle"));
 }
 
-/// the window is hidden instead of closed while something runs and the tray shows the icon
+/// while something runs the window is not closed: hidden when the tray shows the icon, else the
+/// question of quit is asked, which stops the run on a yes (DA-35)
 pub fn close_requested(window: &Window, api: &tauri::CloseRequestApi) {
     let app = window.app_handle();
-    if app.try_state::<Tray>().is_some() && app.state::<Runs>().is_running() && has_tray() {
-        api.prevent_close();
-        let _ = window.hide();
-        // what runs, when no backup said its percent yet, e.g. a restore
-        if let Some(tray) = app
-            .try_state::<Tray>()
-            .filter(|tray| tray.shown.lock().unwrap().is_none())
-        {
-            let _ = tray.status.set_text(t!("ui.tray.running"));
-        }
+    if !app.state::<Runs>().is_running() {
+        return;
+    }
+    api.prevent_close();
+    if app.try_state::<Tray>().is_none() || !has_tray() {
+        quit_app(app);
+        return;
+    }
+    let _ = window.hide();
+    // what runs, when no backup said its percent yet, e.g. a restore
+    if let Some(tray) = app
+        .try_state::<Tray>()
+        .filter(|tray| tray.shown.lock().unwrap().is_none())
+    {
+        let _ = tray.status.set_text(t!("ui.tray.running"));
     }
 }
 
