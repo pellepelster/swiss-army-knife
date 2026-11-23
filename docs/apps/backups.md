@@ -58,6 +58,10 @@ On Windows, then start `sakbackup.exe` in `%LOCALAPPDATA%\Programs\sakbackup`:
   Windows add common caches, build output and scratch files; a preset is copied into the plan, so you can change it.
   On the command line: `sakbackup plan set <plan> --preset caches --exclude node_modules`, `--exclude-file <file>`
   and `--exclude-caches`.
+- While the window is open, SAK Backup has an icon in the tray of the panel. Its menu shows the window again and
+  quits. During a backup, the icon shows the progress as a bar. If you close the window while a backup or a restore
+  runs, it goes to the tray and the run goes on. Quit asks first and stops the run. A desktop without a tray, such
+  as GNOME without an extension, has no icon, and closing the window works as before.
 - SAK Backup needs [restic](https://restic.net) on your computer. At its start it looks for restic and shows the
   version it found; without restic it shows how to get it and stops.
 - SAK Backup is not signed for macOS and Windows, so they warn on the first start.

@@ -5,6 +5,7 @@
 use tauri::Manager;
 
 mod commands;
+mod tray;
 
 /// the entry of sakbackup in the desktop of linux
 #[cfg(target_os = "linux")]
@@ -13,7 +14,7 @@ const DESKTOP_ENTRY: sak_desktop_shared::desktop::DesktopEntry =
         app_id: "sakbackup",
         name: "SAK Backup",
         comment: "The backups of your Swiss Army Knife",
-        icon: include_bytes!("../../../../sak-theme/images/tauri/icon.png"),
+        icon: include_bytes!("../../../../sak-theme/images/sakbackup/icon.png"),
     };
 
 /// runs the window until it closes
@@ -28,7 +29,17 @@ pub fn run() {
         .setup(|app| {
             app.manage(sak_desktop_shared::window::session_manager(app));
             app.manage(sak_desktop_shared::window::instance_store(app)?);
+            // a system without a tray has the window only
+            if let Err(error) = tray::create(app.handle()) {
+                eprintln!("the icon in the tray was not created: {error}");
+            }
             Ok(())
+        })
+        // closed while something runs, the window goes to the tray (tray.rs)
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                tray::close_requested(window, api);
+            }
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -101,6 +112,7 @@ mod tests {
         sources: |module| match module {
             "" => include_str!("mod.rs"),
             "commands" => include_str!("commands.rs"),
+            "tray" => include_str!("tray.rs"),
             other => panic!("the test knows no source of the module {other}"),
         },
         ui: concat!(env!("CARGO_MANIFEST_DIR"), "/../ui"),

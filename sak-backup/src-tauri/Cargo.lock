@@ -4082,6 +4082,8 @@ dependencies = [
  "clap",
  "gethostname",
  "getrandom 0.4.3",
+ "gio",
+ "png",
  "reqwest",
  "rpassword",
  "rust-i18n",

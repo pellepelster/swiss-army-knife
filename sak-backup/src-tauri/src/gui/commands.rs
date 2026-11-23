@@ -106,6 +106,7 @@ pub async fn pick_folder(app: tauri::AppHandle) -> Result<Option<String>, String
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn run_backup(
+    app: tauri::AppHandle,
     sessions: State<'_, SessionManager>,
     runs: State<'_, Runs>,
     passwords: State<'_, PasswordStore>,
@@ -121,18 +122,17 @@ pub async fn run_backup(
         typed: password,
         remember,
     };
-    run::back_up(
-        &sessions,
-        &runs,
-        &passwords,
-        u64::from(id),
-        given,
-        init,
+    // the progress in the icon of the tray too, which shows no run again however it ends
+    let summary = run::back_up(&sessions, &runs, &passwords, u64::from(id), given, init, {
+        let app = app.clone();
         move |event| {
+            super::tray::progress(&app, &event);
             let _ = on_event.send(event);
-        },
-    )
-    .await
+        }
+    })
+    .await;
+    super::tray::idle(&app);
+    summary
 }
 
 #[tauri::command]

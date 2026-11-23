@@ -31,6 +31,9 @@ when the system prefers dark, the accent green of the rack-led icon, IBM Plex Sa
   - `sources/`: the sources of the png icons, not shipped.
   - `sakadmin/`: the SAK icon and `providers/` (the logo of each cloud provider), copied by `mise run desktop:ui`.
   - `tauri/`: the icons of the sakadmin installers and windows (`sak-admin-cli/src-tauri/tauri.conf.json`).
+  - `sakbackup/`: the icons of sakbackup, rendered from `web/icons/backups.svg` by `tauri icon` for its installers and
+    window (`sak-backup/src-tauri/tauri.conf.json`), and the two icons of its tray (`tray.png`, `tray-run.png`, 64
+    pixels, from `sources/sakbackup-tray*.svg`; `gui/tray.rs` draws the progress into the bar of `tray-run.png`).
   - `android/icons/`: the icons of the Android apps (Font Awesome as vector drawables), a res directory of `core` and
     of each app. `android/<app>/`: the launcher icon of the app.
 

@@ -28,12 +28,12 @@
     "targets": "all",
     "category": "Utility",
     "icon": [
-      "../../sak-theme/images/tauri/icon.png",
-      "../../sak-theme/images/tauri/32x32.png",
-      "../../sak-theme/images/tauri/128x128.png",
-      "../../sak-theme/images/tauri/128x128@2x.png",
-      "../../sak-theme/images/tauri/icon.icns",
-      "../../sak-theme/images/tauri/icon.ico"
+      "../../sak-theme/images/sakbackup/icon.png",
+      "../../sak-theme/images/sakbackup/32x32.png",
+      "../../sak-theme/images/sakbackup/128x128.png",
+      "../../sak-theme/images/sakbackup/128x128@2x.png",
+      "../../sak-theme/images/sakbackup/icon.icns",
+      "../../sak-theme/images/sakbackup/icon.ico"
     ]
   }
 }

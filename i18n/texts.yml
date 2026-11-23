@@ -2303,6 +2303,17 @@ sak_backup:
         en: "The file has more than %{max} bytes, more than a backup plan takes."
         de: "Die Datei hat mehr als %{max} Bytes, mehr als ein Backup-Plan aufnimmt."
       file_not_text: { en: "The file is no text.", de: "Die Datei ist kein Text." }
+    # the icon in the tray of the panel and its menu (gui/tray.rs)
+    tray:
+      show: { en: "Show SAK Backup", de: "SAK Backup anzeigen" }
+      quit: { en: "Quit", de: "Beenden" }
+      idle: { en: "No backup is running", de: "Kein Backup läuft" }
+      backing_up: { en: "Backing up: %{percent}%", de: "Backup läuft: %{percent} %" }
+      running: { en: "A backup or a restore is running", de: "Ein Backup oder eine Wiederherstellung läuft" }
+      quit_running:
+        en: "A backup or a restore is running. Quitting stops it."
+        de: "Ein Backup oder eine Wiederherstellung läuft. Beenden stoppt es."
+      keep_running: { en: "Keep running", de: "Weiterlaufen lassen" }
     update:
       restart_while_running:
         en: "A backup or a restore is running, restart when it is done."

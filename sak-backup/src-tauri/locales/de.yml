@@ -73,6 +73,14 @@ ui:
     close: "Schließen"
     file_too_large: "Die Datei hat mehr als %{max} Bytes, mehr als ein Backup-Plan aufnimmt."
     file_not_text: "Die Datei ist kein Text."
+  tray:
+    show: "SAK Backup anzeigen"
+    quit: "Beenden"
+    idle: "Kein Backup läuft"
+    backing_up: "Backup läuft: %{percent} %"
+    running: "Ein Backup oder eine Wiederherstellung läuft"
+    quit_running: "Ein Backup oder eine Wiederherstellung läuft. Beenden stoppt es."
+    keep_running: "Weiterlaufen lassen"
   update:
     restart_while_running: "Ein Backup oder eine Wiederherstellung läuft gerade, starte neu, wenn das fertig ist."
   title: "SAK Backup"

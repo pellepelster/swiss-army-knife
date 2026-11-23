@@ -15,7 +15,10 @@ console = []
 tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
-tauri = { version = "2.12.5", features = [] }
+# the icon in the tray (gui/tray.rs)
+tauri = { version = "2.12.5", features = ["tray-icon"] }
+# the pictures of the icon in the tray, the decoder of png that tauri has already
+png = "0.18.1"
 tauri-plugin-opener = "2.7.2"
 # the dialog of the system that picks the paths of a backup, opened from rust only (restic.rs)
 tauri-plugin-dialog = "2.8.4"
@@ -37,6 +40,10 @@ serde = { version = "1", features = ["derive"] }
 rust-i18n = "4.2.4"
 # the sign-in through the browser, the texts and the desktop entry, shared with sakadmin
 sak-desktop-shared = { path = "../../sak-desktop-shared" }
+
+# whether the panel has a tray (gui/tray.rs), over the session bus; the gio of gtk, which tauri has
+[target.'cfg(target_os = "linux")'.dependencies]
+gio = "0.18.4"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
