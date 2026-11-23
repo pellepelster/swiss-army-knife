@@ -25,7 +25,9 @@ the trusted root it embeds, for the exact identity of the workflow at the tag of
 images by their digests. Every action is pinned to a commit and the repository allows no other; the token of the
 workflow reads only, but in the jobs that push or publish; the tags `v*` are protected by a ruleset and must be
 signed; the release verifies against the root sakadmin embeds; secret scanning with push protection is on; Pages
-deploys only from the tags `v*`; there are no deploy keys and no webhooks.
+deploys only from the tags `v*`; there are no deploy keys and no webhooks. The tools tauri needs for the AppImage of
+linux (`AppRun`, `linuxdeploy`, `linuxdeploy-plugin-appimage`) are pinned by their sha-256 in `desktop:build`, and a
+build where tauri still downloads one fails; the deb, the rpm and the AppImage are signed and verified like the zips.
 
 Only the open findings are listed. Fixed with this review: the actions pinned (SHA pinning required, selected actions
 only), `packages: write` only for the jobs that push, the ruleset of the tags `v*`, the keystore in the environment

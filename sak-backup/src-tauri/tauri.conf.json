@@ -26,6 +26,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "Utility",
     "icon": [
       "../../sak-theme/images/tauri/icon.png",
       "../../sak-theme/images/tauri/32x32.png",

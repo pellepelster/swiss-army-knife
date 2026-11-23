@@ -2618,6 +2618,10 @@ desktop_shared:
       newer:
         en: "%{app} %{newest} is available, this is %{current}."
         de: "%{app} %{newest} ist verfügbar, dies ist %{current}."
+      # a deb or an rpm: the package manager installs the update, not the app
+      newer_package:
+        en: "%{app} %{newest} is available, this is %{current}. It was installed with a package: download the new .deb or .rpm from the release page and install it."
+        de: "%{app} %{newest} ist verfügbar, dies ist %{current}. Es wurde mit einem Paket installiert: Lade das neue .deb oder .rpm von der Release-Seite und installiere es."
       installing:
         en: "Downloading %{app} %{version} from %{receiver}…"
         de: "Lade %{app} %{version} von %{receiver}…"

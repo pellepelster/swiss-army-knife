@@ -15,11 +15,45 @@ use semver::Version;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::{Cursor, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::Duration;
 
 pub const RECEIVER: &str = "github.com";
+
+/// how the app was installed, which decides what its update replaces: the binary of the zip, an
+/// AppImage of linux (the file `$APPIMAGE`, the binary runs from its read-only mount), or a deb or
+/// an rpm (the binary in `/usr/bin`, the package manager's: the update only says that there is one)
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Install {
+    Binary,
+    AppImage(PathBuf),
+    Package,
+}
+
+impl Install {
+    /// the install of the running app
+    pub fn this() -> Install {
+        Install::of(
+            std::env::var_os("APPIMAGE").map(PathBuf::from),
+            std::env::current_exe().ok(),
+        )
+    }
+
+    /// by `$APPIMAGE`, which the runtime of an AppImage sets, and by where the binary is; linux only
+    fn of(appimage: Option<PathBuf>, exe: Option<PathBuf>) -> Install {
+        if !cfg!(target_os = "linux") {
+            return Install::Binary;
+        }
+        if let Some(path) = appimage.filter(|path| path.is_absolute()) {
+            return Install::AppImage(path);
+        }
+        if exe.is_some_and(|exe| exe.starts_with("/usr/bin")) {
+            return Install::Package;
+        }
+        Install::Binary
+    }
+}
 
 /// a desktop app as its release has it; an app keeps one and hands it to its window (`manage`).
 /// Its version is the one of the build (`crate::VERSION`)
@@ -92,6 +126,11 @@ pub enum Status {
         current: String,
         newest: String,
     },
+    /// a newer release of an app installed with a package, which the package manager installs
+    NewerPackage {
+        current: String,
+        newest: String,
+    },
 }
 
 /// whether this build is a release, which an update compares with the newest one
@@ -121,6 +160,13 @@ impl Status {
                 newest = newest
             )
             .to_string(),
+            Status::NewerPackage { current, newest } => t!(
+                "common.update.newer_package",
+                app = app.name,
+                current = current,
+                newest = newest
+            )
+            .to_string(),
         }
     }
 
@@ -138,12 +184,12 @@ impl Status {
     }
 }
 
-/// the newest release with its zip for this platform, its sha-256 and its cosign signature
-/// (`<zip>.sigstore.json`)
+/// the newest release with its file for this platform and install (the zip, or the AppImage), its
+/// sha-256 and its cosign signature (`<file>.sigstore.json`)
 #[derive(Debug, PartialEq, Eq)]
 struct Release {
     version: Version,
-    zip: Asset,
+    file: Asset,
     checksum: Asset,
     bundle: Asset,
 }
@@ -233,6 +279,7 @@ pub async fn install_update(app: tauri::State<'_, App>) -> Result<UpdateResponse
     })
 }
 
+/// the version the window offers to install: none for a package, the button stays a check
 fn newer(status: &Status) -> Option<String> {
     match status {
         Status::Newer { newest, .. } => Some(newest.clone()),
@@ -253,6 +300,8 @@ struct Updater {
     api: String,
     https_only: bool,
     signature: SignatureCheck,
+    /// how the app was installed, `Install::this()` but in the tests
+    install: Install,
     /// the client of all requests of this update, built with the first one (`client`)
     client: OnceLock<Client>,
 }
@@ -260,6 +309,7 @@ struct Updater {
 impl Updater {
     fn github(app: App) -> Self {
         Updater::new(app, crate::VERSION, API.to_string(), true, verify_signature)
+            .installed(Install::this())
     }
 
     fn new(
@@ -275,7 +325,22 @@ impl Updater {
             api,
             https_only,
             signature,
+            install: Install::Binary,
             client: OnceLock::new(),
+        }
+    }
+
+    fn installed(self, install: Install) -> Self {
+        Updater { install, ..self }
+    }
+
+    /// a newer release of a package is the package manager's
+    fn status(&self, current: &Version, newest: &Version) -> Status {
+        match (status(current, newest), &self.install) {
+            (Status::Newer { current, newest }, Install::Package) => {
+                Status::NewerPackage { current, newest }
+            }
+            (status, _) => status,
         }
     }
 
@@ -320,8 +385,11 @@ impl Updater {
         .to_string());
         let status = self.check().await?;
         log(status.message(app));
-        let Status::Newer { newest, .. } = status else {
-            return Ok(false);
+        let newest = match status {
+            Status::Newer { newest, .. } => newest,
+            // the package manager installs it: available, also without `check_only`
+            Status::NewerPackage { .. } => return Ok(true),
+            _ => return Ok(false),
         };
         if check_only {
             log(t!("cli.update.hint", app = app.name).to_string());
@@ -345,11 +413,12 @@ impl Updater {
         let Some(current) = self.current() else {
             return Ok(self.no_release());
         };
-        Ok(status(&current, &self.latest().await?.version))
+        Ok(self.status(&current, &self.latest().await?.version))
     }
 
-    /// checks the zip of a newer release against its sha-256 and its signature before `replace`
-    /// gets its binary
+    /// checks the file of a newer release (the zip, or the AppImage) against its sha-256 and its
+    /// signature before `replace` gets its binary, or before it is written over the AppImage; a
+    /// package downloads nothing
     async fn install(
         &self,
         replace: &(dyn Fn(&Path) -> std::io::Result<()> + Sync),
@@ -358,26 +427,34 @@ impl Updater {
             return Ok(self.no_release());
         };
         let release = self.latest().await?;
-        let status = status(&current, &release.version);
+        let status = self.status(&current, &release.version);
         if !matches!(status, Status::Newer { .. }) {
             return Ok(status);
         }
-        let zip = self.download(&release.zip.browser_download_url).await?;
+        let file = self.download(&release.file.browser_download_url).await?;
         let checksum = self
             .download(&release.checksum.browser_download_url)
             .await?;
-        verify(&zip, &checksum, &release.zip.name)?;
+        verify(&file, &checksum, &release.file.name)?;
         let bundle = self.download(&release.bundle.browser_download_url).await?;
-        (self.signature)(&zip, &bundle, &release.zip.name, &release.version)?;
+        (self.signature)(&file, &bundle, &release.file.name, &release.version)?;
+        if let Install::AppImage(path) = &self.install {
+            write_beside(&self.app, path, &file)?;
+            return Ok(status);
+        }
+        let zip = file;
         let names = self.app.binaries();
         let binaries = names
             .iter()
-            .map(|binary| Ok((binary, unzip(&zip, &release.zip.name, binary)?)))
+            .map(|binary| Ok((binary, unzip(&zip, &release.file.name, binary)?)))
             .collect::<Result<Vec<_>, String>>()?;
         // the others next to this one first, the running one last
         let running = running(&names);
         for (name, binary) in binaries.iter().filter(|(name, _)| **name != running) {
-            write_beside(&self.app, name, binary)?;
+            let target = std::env::current_exe()
+                .map(|path| path.with_file_name(name))
+                .unwrap_or_else(|_| PathBuf::from(name));
+            write_beside(&self.app, &target, binary)?;
         }
         if let Some((_, binary)) = binaries.iter().find(|(name, _)| **name == running) {
             write_and_replace(&self.app, binary, replace)?;
@@ -404,7 +481,11 @@ impl Updater {
             )
             .to_string()
         })?;
-        let zip_name = format!("{}-{}-{version}.zip", self.app.zip, platform());
+        let extension = match self.install {
+            Install::AppImage(_) => "AppImage",
+            _ => "zip",
+        };
+        let file_name = format!("{}-{}-{version}.{extension}", self.app.zip, platform());
         let asset = |name: &str| {
             latest
                 .assets
@@ -421,9 +502,9 @@ impl Updater {
                 })
         };
         Ok(Release {
-            zip: asset(&zip_name)?,
-            checksum: asset(&format!("{zip_name}.sha256"))?,
-            bundle: asset(&format!("{zip_name}.sigstore.json"))?,
+            file: asset(&file_name)?,
+            checksum: asset(&format!("{file_name}.sha256"))?,
+            bundle: asset(&format!("{file_name}.sigstore.json"))?,
             version,
         })
     }
@@ -570,11 +651,7 @@ fn write_and_replace(
     let path = std::env::temp_dir().join(format!("{}-update-{}", app.name, random_hex::<16>()?));
     let result = (|| {
         std::fs::write(&path, binary)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
-        }
+        executable(&path)?;
         replace(&path)
     })();
     let _ = std::fs::remove_file(&path);
@@ -590,14 +667,13 @@ fn write_and_replace(
     })
 }
 
-/// a binary that does not run: written beside it and renamed over it, so a failed write leaves the
-/// old one
-fn write_beside(app: &App, name: &str, binary: &[u8]) -> Result<(), String> {
-    let target = std::env::current_exe()
-        .map(|path| path.with_file_name(name))
-        .unwrap_or_else(|_| std::path::PathBuf::from(name));
+/// a file that does not run as this process (another binary of the zip, the AppImage): written
+/// beside `target`, executable, and renamed over it, so a failed write leaves the old one
+fn write_beside(app: &App, target: &Path, binary: &[u8]) -> Result<(), String> {
     let staged = target.with_extension("update");
-    let result = std::fs::write(&staged, binary).and_then(|()| std::fs::rename(&staged, &target));
+    let result = std::fs::write(&staged, binary)
+        .and_then(|()| executable(&staged))
+        .and_then(|()| std::fs::rename(&staged, target));
     if result.is_err() {
         let _ = std::fs::remove_file(&staged);
     }
@@ -610,6 +686,18 @@ fn write_beside(app: &App, name: &str, binary: &[u8]) -> Result<(), String> {
         )
         .to_string()
     })
+}
+
+/// rwxr-xr-x on unix; windows knows a program by its name
+fn executable(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))?;
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -696,9 +784,19 @@ mod tests {
     }
 
     async fn github_signed(tag: &str, zip: Vec<u8>, checksum: &str, bundle: &[u8]) -> MockServer {
+        let name = zip_name(&APP, tag.trim_start_matches('v'));
+        github_file(tag, &name, zip, checksum, bundle).await
+    }
+
+    /// a github with the release `tag` and its file `name` (a zip, an AppImage)
+    async fn github_file(
+        tag: &str,
+        name: &str,
+        zip: Vec<u8>,
+        checksum: &str,
+        bundle: &[u8],
+    ) -> MockServer {
         let server = MockServer::start().await;
-        let version = tag.trim_start_matches('v');
-        let name = zip_name(&APP, version);
         Mock::given(method("GET"))
             .and(path("/releases/latest"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -850,6 +948,106 @@ mod tests {
         assert_eq!(
             *replaced.lock().unwrap(),
             vec![b"the new sakadmin".to_vec()]
+        );
+    }
+
+    #[test]
+    fn the_install_is_an_appimage_a_package_or_the_binary_of_the_zip() {
+        let exe = |path: &str| Some(PathBuf::from(path));
+        let of = Install::of;
+        if cfg!(target_os = "linux") {
+            assert_eq!(
+                of(
+                    Some("/home/a/sakbackup.AppImage".into()),
+                    exe("/tmp/.mount_x/usr/bin/sakbackup")
+                ),
+                Install::AppImage("/home/a/sakbackup.AppImage".into())
+            );
+            assert_eq!(of(None, exe("/usr/bin/sakbackup")), Install::Package);
+            // a relative $APPIMAGE is none the runtime sets
+            assert_eq!(
+                of(
+                    Some("x.AppImage".into()),
+                    exe("/home/a/.local/bin/sakbackup")
+                ),
+                Install::Binary
+            );
+            assert_eq!(of(None, exe("/usr/local/bin/sakbackup")), Install::Binary);
+        } else {
+            assert_eq!(of(None, exe("/usr/bin/sakbackup")), Install::Binary);
+        }
+    }
+
+    #[tokio::test]
+    async fn an_appimage_is_replaced_by_the_appimage_of_the_release() {
+        let name = format!("{}-{}-0.2.0.AppImage", APP.zip, platform());
+        let image = b"the new AppImage".to_vec();
+        let server = github_file("v0.2.0", &name, image.clone(), &sha256_of(&image), SIGNED).await;
+        let dir = std::env::temp_dir().join(format!("sak-update-{}", random_hex::<8>().unwrap()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sakadmin.AppImage");
+        std::fs::write(&path, b"the old AppImage").unwrap();
+        let replaced = Mutex::new(Vec::new());
+        let status = updater(&server, "0.1.1")
+            .installed(Install::AppImage(path.clone()))
+            .install(&recording(&replaced))
+            .await;
+        assert!(matches!(status, Ok(Status::Newer { .. })), "{status:?}");
+        // the AppImage is written over, the running binary of its mount is not replaced
+        assert_eq!(std::fs::read(&path).unwrap(), image);
+        assert!(replaced.lock().unwrap().is_empty());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o755
+            );
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_package_is_told_to_update_by_its_package_manager_and_downloads_nothing() {
+        let zip = zip_of(&binary(), b"the new sakadmin");
+        let server = github("v0.2.0", zip.clone(), &sha256_of(&zip)).await;
+        let package = || updater(&server, "0.1.1").installed(Install::Package);
+        let status = package()
+            .install(&|_| panic!("a package is never replaced"))
+            .await;
+        let expected = Status::NewerPackage {
+            current: "0.1.1".into(),
+            newest: "0.2.0".into(),
+        };
+        assert_eq!(status, Ok(expected.clone()));
+        assert_eq!(newer(&expected), None);
+        assert!(
+            expected.message(&APP).contains("installed with a package"),
+            "{}",
+            expected.message(&APP)
+        );
+        // the command says so and ends as "update available", also without --check
+        let lines = Mutex::new(Vec::new());
+        assert_eq!(
+            package()
+                .run(false, &|line| lines.lock().unwrap().push(line))
+                .await,
+            Ok(true)
+        );
+        assert!(
+            lines
+                .lock()
+                .unwrap()
+                .last()
+                .unwrap()
+                .contains("download the new .deb or .rpm")
+        );
+        // only the release was asked, nothing downloaded
+        let requests = server.received_requests().await.unwrap();
+        assert!(
+            requests
+                .iter()
+                .all(|request| request.url.path() == "/releases/latest")
         );
     }
 

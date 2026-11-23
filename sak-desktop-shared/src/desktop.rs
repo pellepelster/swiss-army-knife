@@ -4,6 +4,7 @@
 //! one. Written when the window opens and its content differs, so it follows the binary when it
 //! moves; a failure leaves the window as it is
 
+use crate::update::Install;
 use std::path::{Path, PathBuf};
 
 /// what the desktop shows of an app
@@ -17,13 +18,26 @@ pub struct DesktopEntry {
 }
 
 impl DesktopEntry {
-    /// a release build only, a build of the development would point the entry at itself
+    /// a release build only, a build of the development would point the entry at itself. A deb or
+    /// an rpm has the entry of its package, one written by a zip before goes; an AppImage starts by
+    /// its file, the binary inside moves with each start
     pub fn install(&self) {
         if cfg!(debug_assertions) {
             return;
         }
-        let (Ok(exe), Some(data)) = (std::env::current_exe(), data_home()) else {
+        let Some(data) = data_home() else {
             return;
+        };
+        let exe = match Install::this() {
+            Install::Package => {
+                self.remove(&data);
+                return;
+            }
+            Install::AppImage(path) => path,
+            Install::Binary => match std::env::current_exe() {
+                Ok(exe) => exe,
+                Err(_) => return,
+            },
         };
         if let Err(error) = self.write(&data, &exe) {
             eprintln!(
@@ -34,10 +48,24 @@ impl DesktopEntry {
     }
 
     fn write(&self, data: &Path, exe: &Path) -> std::io::Result<()> {
-        let icon = data.join(format!("icons/hicolor/512x512/apps/{}.png", self.app_id));
-        let entry = data.join(format!("applications/{}.desktop", self.app_id));
+        let (icon, entry) = self.paths(data);
         write_if_changed(&icon, self.icon)?;
         write_if_changed(&entry, self.entry(exe).as_bytes())
+    }
+
+    /// the entry and the icon this app wrote, when there are; the ones of a package are elsewhere
+    fn remove(&self, data: &Path) {
+        let (icon, entry) = self.paths(data);
+        let _ = std::fs::remove_file(entry);
+        let _ = std::fs::remove_file(icon);
+    }
+
+    /// the icon and the desktop file below `data`
+    fn paths(&self, data: &Path) -> (PathBuf, PathBuf) {
+        (
+            data.join(format!("icons/hicolor/512x512/apps/{}.png", self.app_id)),
+            data.join(format!("applications/{}.desktop", self.app_id)),
+        )
     }
 
     /// the entry of the desktop entry specification; the path of the binary quoted, as it can
@@ -131,6 +159,9 @@ mod tests {
                 .unwrap()
                 .contains("Exec=\"/usr/local/bin/sakadmin\"")
         );
+        // installed with a package afterwards: the files of the zip go
+        ENTRY.remove(&data);
+        assert!(!entry.exists() && !icon.exists());
         std::fs::remove_dir_all(&data).unwrap();
     }
 }

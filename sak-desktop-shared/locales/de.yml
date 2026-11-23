@@ -8,6 +8,7 @@ common:
     no_release: "Dieses %{app} (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
     up_to_date: "%{app} %{version} ist aktuell."
     newer: "%{app} %{newest} ist verfügbar, dies ist %{current}."
+    newer_package: "%{app} %{newest} ist verfügbar, dies ist %{current}. Es wurde mit einem Paket installiert: Lade das neue .deb oder .rpm von der Release-Seite und installiere es."
     installing: "Lade %{app} %{version} von %{receiver}…"
     installed: "%{app} ist von %{current} auf %{newest} aktualisiert. Starte %{app} erneut, um es zu verwenden."
     unreachable: "%{url} ist nicht erreichbar: %{error}"

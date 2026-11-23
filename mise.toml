@@ -219,9 +219,12 @@ run = "npx --no-install tauri build"
 # zipped to <app>/build/<app>-<platform>-<architecture>-<VERSION>.zip with its <zip>.sha256; x86_64,
 # a universal binary for macOS. On windows two programs are in the zip: <binary>.exe, the window
 # without a console, and <binary>-cli.exe, the same built with the feature console as a console
-# program, whose commands print to the terminal. Both apps build with the tauri command line of
-# sak-admin-cli/package.json (admin-cli:install). bash on windows too (git bash), which has no zip
-# but 7-Zip
+# program, whose commands print to the terminal. On linux the same build also makes the packages
+# <app>-linux-x86_64-<VERSION>.deb, .rpm and .AppImage, each with its .sha256, of the version of the
+# release (0.1.0 of tauri.conf.json for latest). The AppImage takes the tools of linuxdeploy from
+# the cache of tauri, put there pinned by their sha-256 (APPIMAGE_TOOLS); a build where tauri still
+# downloads one fails. Both apps build with the tauri command line of sak-admin-cli/package.json
+# (admin-cli:install). bash on windows too (git bash), which has no zip but 7-Zip
 [tasks."desktop:build"]
 description = "Build a desktop app for a platform"
 usage = '''
@@ -239,17 +242,61 @@ case "$app" in
   sak-backup) binary=sakbackup ;;
   *) echo "no desktop app $app: sak-admin-cli or sak-backup" >&2; exit 1 ;;
 esac
+tauri() {
+  node "{{config_root}}/sak-admin-cli/node_modules/@tauri-apps/cli/tauri.js" "$@"
+}
 build() {
-  node "{{config_root}}/sak-admin-cli/node_modules/@tauri-apps/cli/tauri.js" build --no-bundle "$@" -- --locked
+  tauri build --no-bundle "$@" -- --locked
+}
+# the file, its address and its sha-256: what tauri downloads for an AppImage, pinned
+appimage_tools() {
+  cache="${XDG_CACHE_HOME:-$HOME/.cache}/tauri"
+  mkdir -p "$cache"
+  while read -r file url sha256; do
+    if ! echo "$sha256  $cache/$file" | sha256sum --check --status 2>/dev/null; then
+      curl -fsSL -o "$cache/$file.part" "$url"
+      echo "$sha256  $cache/$file.part" | sha256sum --check --quiet
+      chmod +x "$cache/$file.part"
+      mv "$cache/$file.part" "$cache/$file"
+    fi
+  done <<'TOOLS'
+AppRun-x86_64 https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64 f30140a43a0a59e46db21bdefdf749b9e9f2c6946e92afabbacf98b8ae73fb4f
+linuxdeploy-07333c6-x86_64.AppImage https://github.com/tauri-apps/binary-releases/releases/download/linuxdeploy-07333c6/linuxdeploy-x86_64.AppImage bd9521cd5ff3ca351fecb78cd9b236a4e37b3621014ac05cac0c2d767ffa0474
+linuxdeploy-plugin-appimage.AppImage https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/1-alpha-20250213-1/linuxdeploy-plugin-appimage-x86_64.AppImage 992d502a248e14ab185448ddf6f6e7d25558cb84d4623c354c3af350c25fccb3
+TOOLS
 }
 cd "$app"
 mkdir -p build
 case "$platform" in
   linux)
-    build
+    appimage_tools
+    # the version of a release in the packages; latest is no version a package manager takes
+    config=()
+    if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      config=(--config "{\"version\":\"$VERSION\"}")
+    fi
+    log="$(mktemp)"
+    set -o pipefail
+    # the packages of a build before, of another version, would be taken too
+    rm -rf src-tauri/target/release/bundle
+    # the tools of an AppImage run without fuse, which a runner does not have
+    APPIMAGE_EXTRACT_AND_RUN=1 tauri build --bundles deb,rpm,appimage "${config[@]}" -- --locked 2>&1 | tee "$log"
+    if grep -q 'Downloading' "$log"; then
+      echo "tauri downloaded a tool that is not pinned in desktop:build, pin it" >&2
+      exit 1
+    fi
     archive="$app-linux-x86_64-${VERSION}.zip"
     rm -f "build/$archive"
     zip -j "build/$archive" "src-tauri/target/release/$binary"
+    bundle=src-tauri/target/release/bundle
+    for kind in deb rpm AppImage; do
+      folder="$(echo "$kind" | tr '[:upper:]' '[:lower:]')"
+      # one file of the kind; no length of an array, its brace and hash open a comment of the template of mise
+      set -- "$bundle/$folder"/*."$kind"
+      [ "$#" -eq 1 ] && [ -f "$1" ] || { echo "not one .$kind in $bundle/$folder" >&2; exit 1; }
+      cp "$1" "build/$app-linux-x86_64-${VERSION}.$kind"
+      (cd build && sha256sum "$app-linux-x86_64-${VERSION}.$kind" > "$app-linux-x86_64-${VERSION}.$kind.sha256")
+    done
     ;;
   macos)
     rustup target add aarch64-apple-darwin x86_64-apple-darwin
@@ -277,15 +324,16 @@ else
 fi
 '''
 
-# the zip of desktop:build of an app for a platform signed with cosign where it is built (workflow
-# job desktop-apps, SC-4), keyless: a short-lived certificate of sigstore for the workflow run (its id
-# token, permission id-token: write), the signature and the certificate in <zip>.sigstore.json. Then
+# the files of desktop:build of an app for a platform (the zip; on linux also the deb, the rpm and the
+# AppImage) signed with cosign where they are built (workflow job desktop-apps, SC-4), keyless: a
+# short-lived certificate of sigstore for the workflow run (its id token, permission id-token:
+# write), the signature and the certificate in <file>.sigstore.json. Then
 # verified for the identity the installation names and against the trusted root of sigstore the
 # apps embed (sak-admin-cli/src-tauri/trusted_root.json, the one their update verifies with), so a
 # root cosign knows but the apps do not fails here, not the users. Outside of the workflow nothing is
 # signed: a build of a developer has no id token of the workflow
 [tasks."desktop:sign"]
-description = "Sign the zip of a desktop app with cosign, in the workflow only"
+description = "Sign the files of a desktop app with cosign, in the workflow only"
 usage = '''
 arg "<app>" help="the directory of the app: sak-admin-cli (sakadmin) or sak-backup (sakbackup)"
 arg "<platform>" help="the platform of the zip: linux, macos or windows"
@@ -300,18 +348,22 @@ case "$usage_platform" in
   windows) platform=windows-x86_64 ;;
   *) echo "no platform $usage_platform: linux, macos or windows" >&2; exit 1 ;;
 esac
-zip="$app/build/$app-$platform-${VERSION}.zip"
-[ -f "$zip" ] || { echo "$zip is missing, run mise run desktop:build $app $usage_platform" >&2; exit 1; }
-if [ -z "${GITHUB_ACTIONS:-}" ]; then
-  echo "$zip is not signed, only the workflow signs"
-  exit 0
-fi
-cosign sign-blob --yes --bundle "$zip.sigstore.json" "$zip"
-cosign verify-blob --bundle "$zip.sigstore.json" \
-  --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}" \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --trusted-root "{{config_root}}/sak-admin-cli/src-tauri/trusted_root.json" "$zip"
-echo "signed $zip"
+kinds="zip"
+[ "$usage_platform" = linux ] && kinds="zip deb rpm AppImage"
+for kind in $kinds; do
+  file="$app/build/$app-$platform-${VERSION}.$kind"
+  [ -f "$file" ] || { echo "$file is missing, run mise run desktop:build $app $usage_platform" >&2; exit 1; }
+  if [ -z "${GITHUB_ACTIONS:-}" ]; then
+    echo "$file is not signed, only the workflow signs"
+    continue
+  fi
+  cosign sign-blob --yes --bundle "$file.sigstore.json" "$file"
+  cosign verify-blob --bundle "$file.sigstore.json" \
+    --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+    --trusted-root "{{config_root}}/sak-admin-cli/src-tauri/trusted_root.json" "$file"
+  echo "signed $file"
+done
 '''
 
 # the zips of desktop:build of both apps and of the three platforms, their checksums and their
@@ -329,15 +381,16 @@ set -eu
 identity="https://github.com/${GITHUB_REPOSITORY}/.github/workflows/swiss-army-knife.yml@${GITHUB_REF}"
 files=""
 for app in sak-admin-cli sak-backup; do
-  for platform in linux-x86_64 macos-universal windows-x86_64; do
-    zip="$app/build/$app-${platform}-${VERSION}.zip"
-    for file in "$zip" "$zip.sha256" "$zip.sigstore.json"; do
+  # the zip of each platform; the packages of linux
+  for name in linux-x86_64.zip macos-universal.zip windows-x86_64.zip linux-x86_64.deb linux-x86_64.rpm linux-x86_64.AppImage; do
+    artifact="$app/build/$app-${name%.*}-${VERSION}.${name##*.}"
+    for file in "$artifact" "$artifact.sha256" "$artifact.sigstore.json"; do
       [ -f "$file" ] || { echo "$file is missing" >&2; exit 1; }
     done
-    cosign verify-blob --bundle "$zip.sigstore.json" --certificate-identity "$identity" \
+    cosign verify-blob --bundle "$artifact.sigstore.json" --certificate-identity "$identity" \
       --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-      --trusted-root {{config_root}}/sak-admin-cli/src-tauri/trusted_root.json "$zip"
-    files="$files $zip $zip.sha256 $zip.sigstore.json"
+      --trusted-root {{config_root}}/sak-admin-cli/src-tauri/trusted_root.json "$artifact"
+    files="$files $artifact $artifact.sha256 $artifact.sigstore.json"
   done
 done
 # created once; a release that failed halfway runs again, its files are replaced
