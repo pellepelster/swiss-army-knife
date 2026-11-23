@@ -1,11 +1,12 @@
 package io.pelle.sak.backend.notes
 
+import io.pelle.sak.backend.ApiPath
+import io.pelle.sak.api.API_BASE_PATH
 import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.core.Text
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.files.fileUrl
-import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.files.thumbnailUrl
 import io.pelle.sak.backend.labels.INVALID_LABEL_NAME
 import io.pelle.sak.api.idParameter
@@ -78,8 +79,6 @@ fun Route.notes(
     // whether a text can be discovered now (FileTextService.available)
     discoverText: () -> Boolean = { false },
 ) {
-    installApi()
-
     get("/settings") {
         call.respond(NotesSettingsResponse(withContext(Dispatchers.IO) { discoverText() }))
     }.describe {
@@ -87,7 +86,7 @@ fun Route.notes(
         summary = "What the notes app may do"
         description =
             "For every signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5). The " +
-            "switches themselves are settings of the admins (GET /api/v1/settings/notes)."
+            "switches themselves are settings of the admins (GET $API_BASE_PATH${ApiPath.SETTINGS}/notes)."
         responses {
             HttpStatusCode.OK {
                 description = "What the notes app may do"
@@ -155,7 +154,7 @@ fun Route.notes(
     }.describe {
         tag(NOTES_TAG)
         summary = "The labels of the notes"
-        description = "The labels a note of the signed in user has, by name: the ones the notes filter by. GET /api/v1/labels has every label."
+        description = "The labels a note of the signed in user has, by name: the ones the notes filter by. GET $API_BASE_PATH${ApiPath.LABELS} has every label."
         parameters { pagination() }
         responses {
             HttpStatusCode.OK {

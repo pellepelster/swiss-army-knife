@@ -9,7 +9,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.info.model.InfoResponse
 import io.pelle.sak.config.DnsMode
 
@@ -25,8 +24,6 @@ fun Route.info(
     mailServer: Boolean,
     version: String?,
 ) {
-    installApi()
-
     get {
         call.respond(InfoResponse(name, DnsModeResponse.of(dnsMode), UserModeResponse.of(mailServer), version))
     }.describe {

@@ -1,10 +1,11 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.backend.ApiPath
+import io.pelle.sak.api.API_BASE_PATH
 import io.pelle.sak.core.logText
 import io.pelle.sak.core.Text
 import io.pelle.sak.api.apiTime
 import io.github.oshai.kotlinlogging.KotlinLogging
-import io.pelle.sak.api.installApi
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -22,8 +23,8 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.core.RateLimiter
 import io.pelle.sak.auth.owner
-import io.pelle.sak.backend.API_PATH_PREFIX
-import io.pelle.sak.backend.API_VERSION
+import io.pelle.sak.api.API_PATH_PREFIX
+import io.pelle.sak.api.API_VERSION
 import io.pelle.sak.backend.files.model.DiscoverTextResponse
 import io.pelle.sak.backend.files.model.FileResponse
 import io.pelle.sak.api.idParameter
@@ -37,7 +38,7 @@ private val logger = KotlinLogging.logger {}
 private const val FILES_TAG = "files"
 
 // where the files of the file storage are uploaded and served, both with a session only
-const val FILES_PATH = "$API_PATH_PREFIX$API_VERSION/files"
+const val FILES_PATH = "$API_BASE_PATH${ApiPath.FILES}"
 
 fun fileUrl(id: Int) = "$FILES_PATH/$id"
 
@@ -57,8 +58,6 @@ fun Route.files(
     // the limit of what goes to openrouter, one for the notes and the grocery lists: the apps make it
     discoverTextLimiter: RateLimiter,
 ) {
-    installApi()
-
     post {
         val result = withContext(Dispatchers.IO) { call.receiveStream().use { fileService.store(it, call.owner) } }
         when (result) {

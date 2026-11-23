@@ -10,8 +10,9 @@ weight: 12
 **Created:** 2026-11-22
 
 **Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-20`, `BA-22`, `BA-23` and `BA-26` to `BA-30`, which
-are in the history of git; `BA-21` and `BA-24` list what is left of them. Of `BA-22` one copy stays on purpose: the
-notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings endpoint.
+are in the history of git; `BA-21`, `BA-24` and `BA-25` list what is left of them. Of `BA-22` one copy stays on
+purpose: the notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings
+endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -60,20 +61,14 @@ Fix: when the notes get lists in their api, their lists go on `ListTable`.
 
 Fix: only with another reason to change that code; a new name of a package or a method touches every caller.
 
-### `BA-25` The same change has different verbs and answers
+### `BA-25` No rule says which verb a change has and what it answers
 
-- Done: `PUT /todo/items/{id}/done` with a body answers the item; `POST /grocery/items/{id}/check` without a body
-  answers 204.
-- `DELETE /grocery/items/{id}/photo` answers 200 and the item, every other delete 204.
-- `…/items/{id}/photo` and `…/items/{id}/photos/{fileId}`; `/grocery/discover/{id}` and `/files/{id}/discover/text`.
-- The paths of the apps are written as text in `backend/SakApps.kt`, again in `backend/files/SakFiles.kt:45` and in
-  the descriptions of `sak-auth`, the notes and the groceries.
-- `installApi()` is called in 20 route functions. `backend/info/SakWellKnown.kt:27` calls it on the root route, so
-  the plugins of the api also cover the web app (checked); `servedFiles` and `listChanges` call it not at all and
-  rely on a route next to them, which `API-1` does not allow: every route has `installApi()`.
+The routes agree now: a checked item of a grocery list is answered like a done task, the delete of a photo answers
+204 like every delete, the photo of an item is read below `…/photo/`, and the items of a photo are discovered at
+`…/files/{id}/discover/items` as its text is. The paths of the apps are written once, and the api has its plugins
+once. Nothing tells the next route what to do.
 
-Fix: one line in INDEX.md for the verbs and the answers; `installApi()` once for `/api/v1` and once for the well-known
-path.
+Fix: a rule for the verbs and the answers, e.g. a change answers the thing, a delete answers 204.
 
 ## Not checked
 

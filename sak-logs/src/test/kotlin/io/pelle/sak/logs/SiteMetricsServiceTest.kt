@@ -1,5 +1,6 @@
 package io.pelle.sak.logs
 
+import io.pelle.sak.api.installApi
 import com.sun.net.httpserver.HttpServer
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldContain
@@ -197,7 +198,7 @@ class SiteMetricsServiceTest {
             statusResponse = response(series("requests", mapOf("status" to "200"), Instant.now().epochSecond to 5))
             userAgentResponse = response()
             application {
-                routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, service, logs) } }
+                routing { installApi(); route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, service, logs) } }
             }
 
             val accessLogs = (client.get("/sites/pelle.io/access-logs").bodyAsText()).json()
@@ -267,6 +268,8 @@ class SiteMetricsServiceTest {
         testApplication {
             application {
                 routing {
+                    // as the backend does for all of its api
+                    installApi()
                     route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(VictoriaLogsClient("http://127.0.0.1:1")), SiteLogs(VictoriaLogsClient("http://127.0.0.1:1"))) }
                 }
             }

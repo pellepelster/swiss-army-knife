@@ -554,7 +554,7 @@ describe('Grocery', () => {
   it('shows the photo of an item scaled to its place, a tap on it shows it in full and does not check the item', async () => {
     await load([defaultList], [{ ...item(2, 'Milk', 12), photoId: 9 }, item(3, 'Candles', null)]);
     // 48 css pixels at a pixel ratio of 1: the smallest scaled size, 128
-    http.expectOne('/api/v1/grocery/items/2/photos/9?size=128').flush(new Blob(['jpeg']));
+    http.expectOne('/api/v1/grocery/items/2/photo/9?size=128').flush(new Blob(['jpeg']));
     await vi.waitFor(async () => {
       await harness.fixture.whenStable();
       expect(page().querySelector('[data-testid=item-2] img')?.getAttribute('src')).toBe(
@@ -566,7 +566,7 @@ describe('Grocery', () => {
     button('Photo of Milk').click();
     await harness.fixture.whenStable();
     // as large as the screen, 1024 by 768 in the tests
-    http.expectOne('/api/v1/grocery/items/2/photos/9?size=1024').flush(new Blob(['jpeg']));
+    http.expectOne('/api/v1/grocery/items/2/photo/9?size=1024').flush(new Blob(['jpeg']));
     await vi.waitFor(async () => {
       await harness.fixture.whenStable();
       expect(page().querySelector('[data-testid=photo-viewer] img')).not.toBeNull();
@@ -586,7 +586,7 @@ describe('Grocery', () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     await load([defaultList], [{ ...item(2, 'Milk', 12), photoId: 9 }]);
     http
-      .expectOne('/api/v1/grocery/items/2/photos/9?size=128')
+      .expectOne('/api/v1/grocery/items/2/photo/9?size=128')
       .flush(null, { status: 404, statusText: 'Not Found' });
     await harness.fixture.whenStable();
     await harness.fixture.whenStable();
@@ -618,7 +618,7 @@ describe('Grocery', () => {
     attach.flush({ ...item(2, 'Milk', 12), photoId: 9 });
     await vi.waitFor(async () => {
       await harness.fixture.whenStable();
-      http.expectOne('/api/v1/grocery/items/2/photos/9?size=128').flush(new Blob(['jpeg']));
+      http.expectOne('/api/v1/grocery/items/2/photo/9?size=128').flush(new Blob(['jpeg']));
     });
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=item-2] img')).not.toBeNull();
@@ -626,7 +626,7 @@ describe('Grocery', () => {
     button('Remove photo', await rowMenu('Milk')).click();
     http
       .expectOne({ method: 'DELETE', url: '/api/v1/grocery/items/2/photo' })
-      .flush(item(2, 'Milk', 12));
+      .flush(null, { status: 204, statusText: 'No Content' });
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=item-2] img')).toBeNull();
   });
@@ -1180,7 +1180,7 @@ describe('Grocery', () => {
       http.expectOne({ method: 'POST', url: '/api/v1/files' }).flush({ id: fileId }),
     );
     const request = await vi.waitFor(() =>
-      http.expectOne({ method: 'POST', url: `/api/v1/grocery/discover/${fileId}` }),
+      http.expectOne({ method: 'POST', url: `/api/v1/grocery/files/${fileId}/discover/items` }),
     );
     await harness.fixture.whenStable();
     return request;

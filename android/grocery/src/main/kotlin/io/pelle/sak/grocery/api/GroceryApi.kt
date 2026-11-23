@@ -168,7 +168,7 @@ class GroceryApi(
     // the items the AI discovers in an uploaded photo (GROCERY-16); nothing is added to a list
     suspend fun discoverItems(fileId: Int): List<GroceryDiscoveredItemResponse> =
         client
-            .post("$url/grocery/discover/$fileId") {
+            .post("$url/grocery/files/$fileId/discover/items") {
                 session()
                 longTransfer()
             }.answer<GroceryDiscoveredResponse>(R.string.grocery_discover_not_read)
@@ -194,8 +194,11 @@ class GroceryApi(
                 setBody(GroceryPhotoRequest(fileId))
             }.answer(R.string.grocery_photo_not_attached)
 
-    suspend fun removePhoto(id: Int): GroceryItemResponse =
-        client.delete("$url/grocery/items/$id/photo") { session() }.answer(R.string.grocery_photo_not_removed)
+    // the item as it is without its photo: a delete answers nothing
+    suspend fun removePhoto(item: GroceryItemResponse): GroceryItemResponse {
+        client.delete("$url/grocery/items/${item.id}/photo") { session() }.answer<Unit>(R.string.grocery_photo_not_removed)
+        return item.copy(photoId = null)
+    }
 
     // scaled to the smallest size of at least size pixels, the photo itself without a size
     suspend fun photo(
@@ -204,7 +207,7 @@ class GroceryApi(
         size: Int?,
     ): ByteArray =
         client
-            .get("$url/grocery/items/$id/photos/$fileId") {
+            .get("$url/grocery/items/$id/photo/$fileId") {
                 session()
                 longTransfer()
                 size?.let { parameter("size", it) }

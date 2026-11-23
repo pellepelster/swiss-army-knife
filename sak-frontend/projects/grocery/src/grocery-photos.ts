@@ -34,7 +34,7 @@ export class GroceryPhotos {
   }
 
   private async objectUrl(item: GroceryItem, size: number | null): Promise<string> {
-    const url = `/api/v1/grocery/items/${item.id}/photos/${item.photoId}`;
+    const url = `/api/v1/grocery/items/${item.id}/photo/${item.photoId}`;
     const blob = await firstValueFrom(
       this.http.get(url, { responseType: 'blob', params: size === null ? {} : { size } }),
     );

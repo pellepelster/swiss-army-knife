@@ -1834,7 +1834,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/grocery/discover/{id}': {
+  '/api/v1/grocery/files/{id}/discover/items': {
     parameters: {
       query?: never;
       header?: never;
@@ -3020,14 +3020,12 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description The item without a photo */
-        200: {
+        /** @description The item has no photo */
+        204: {
           headers: {
             [name: string]: unknown;
           };
-          content: {
-            'application/json': components['schemas']['GroceryItemResponse'];
-          };
+          content?: never;
         };
         /** @description The user sees no such item */
         404: {
@@ -3045,7 +3043,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/grocery/items/{id}/photos/{fileId}': {
+  '/api/v1/grocery/items/{id}/photo/{fileId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -3133,12 +3131,14 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description The item is checked */
-        204: {
+        /** @description The checked item */
+        200: {
           headers: {
             [name: string]: unknown;
           };
-          content?: never;
+          content: {
+            'application/json': components['schemas']['GroceryItemResponse'];
+          };
         };
         /** @description The user sees no such item to buy */
         404: {

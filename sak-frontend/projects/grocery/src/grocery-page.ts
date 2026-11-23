@@ -1235,7 +1235,7 @@ export class GroceryPage {
     this.photoBusy.set(item.id);
     this.itemError.clear();
     this.service
-      .removePhoto(item.id)
+      .removePhoto(item)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (changed) => {

@@ -11,7 +11,6 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.core.Health
 import io.pelle.sak.core.HealthStatus
-import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.health.model.HealthDetailResponse
 import io.pelle.sak.backend.health.model.HealthStateResponse
 import io.pelle.sak.backend.health.model.HealthStatusResponse
@@ -36,8 +35,6 @@ fun HealthStatus.response(language: Language) =
 // few seconds (e.g. dns)
 @OptIn(ExperimentalKtorApi::class)
 fun Route.health(checks: List<Health>) {
-    installApi()
-
     get {
         val statuses = withContext(Dispatchers.IO) { coroutineScope { checks.map { async { it.check() } }.awaitAll() } }
         call.respond(statuses.map { it.response(call.language()) })

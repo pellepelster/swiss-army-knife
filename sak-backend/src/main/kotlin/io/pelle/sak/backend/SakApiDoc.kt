@@ -1,5 +1,7 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.api.API_VERSION
+import io.pelle.sak.api.API_PATH_PREFIX
 import io.ktor.http.ContentType
 import io.ktor.openapi.OpenApiDoc
 import io.ktor.openapi.OpenApiInfo

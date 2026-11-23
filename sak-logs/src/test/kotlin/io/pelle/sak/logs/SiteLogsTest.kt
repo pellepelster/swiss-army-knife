@@ -1,5 +1,6 @@
 package io.pelle.sak.logs
 
+import io.pelle.sak.api.installApi
 import io.pelle.sak.core.testing.catalogProblems
 import java.time.Instant
 import com.sun.net.httpserver.HttpServer
@@ -107,7 +108,7 @@ class SiteLogsTest {
     fun `serves searches of known sites and all sites only`() =
         testApplication {
             application {
-                routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(victoriaLogsClient), logs) } }
+                routing { installApi(); route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(victoriaLogsClient), logs) } }
             }
 
             val found = client.get("/sites/pelle.io/access-logs/search?q=missing&limit=10")
@@ -141,7 +142,7 @@ class SiteLogsTest {
         testApplication {
             val down = VictoriaLogsClient("http://127.0.0.1:1")
             application {
-                routing { route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(down), SiteLogs(down)) } }
+                routing { installApi(); route("/sites/{site}/access-logs") { accessLogs({ call -> listOf(site).firstOrNull { it.id == call.parameters["site"] } }, SiteMetricsService(down), SiteLogs(down)) } }
             }
 
             client.get("/sites/pelle.io/access-logs/search?q=x").status shouldBe HttpStatusCode.ServiceUnavailable

@@ -4,7 +4,6 @@ import io.pelle.sak.core.logCause
 import io.pelle.sak.api.language
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
-import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
@@ -53,8 +52,6 @@ internal fun Route.accessLogs(
     metrics: SiteMetricsService,
     logs: SiteLogs,
 ) {
-    installApi()
-
     fun Operation.Builder.common(summary: String) {
         tag(LOGS_TAG)
         this.summary = summary

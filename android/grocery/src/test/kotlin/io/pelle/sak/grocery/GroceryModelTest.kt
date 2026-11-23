@@ -592,7 +592,7 @@ class GroceryModelTest {
     private fun discoverAnswers(items: String) {
         backend.answers["GET /grocery/settings"] = HttpStatusCode.OK to """{"discoverItems":true}"""
         backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/9","thumbnailUrl":"/api/v1/files/9/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
-        backend.answers["POST /grocery/discover/9"] = HttpStatusCode.OK to """{"items":[$items]}"""
+        backend.answers["POST /grocery/files/9/discover/items"] = HttpStatusCode.OK to """{"items":[$items]}"""
     }
 
     @Test
@@ -610,7 +610,7 @@ class GroceryModelTest {
             }
             advanceUntilIdle()
             assertTrue(backend.requests.contains("POST /files jpeg"))
-            assertTrue(backend.requests.contains("POST /grocery/discover/9"))
+            assertTrue(backend.requests.contains("POST /grocery/files/9/discover/items"))
             // nothing is added yet
             assertTrue(backend.requests.none { it.startsWith("POST /grocery/items") })
             val discovery = model.lists().discovery!!
@@ -706,14 +706,14 @@ class GroceryModelTest {
             assertTrue(none.rows.isEmpty())
             model.dismissDiscovery()
 
-            backend.answers["POST /grocery/discover/9"] =
+            backend.answers["POST /grocery/files/9/discover/items"] =
                 HttpStatusCode.Conflict to """{"errors":[{"code":"grocery.discover_off","message":"The AI features are off."}]}"""
             model.discover { "jpeg".toByteArray() }
             advanceUntilIdle()
             assertNull(model.lists().discovery)
             assertEquals("The AI features are off.", model.lists().error.english())
 
-            backend.answers["POST /grocery/discover/9"] = HttpStatusCode.InternalServerError to ""
+            backend.answers["POST /grocery/files/9/discover/items"] = HttpStatusCode.InternalServerError to ""
             model.discover { "jpeg".toByteArray() }
             advanceUntilIdle()
             assertEquals("The photo could not be read.", model.lists().error.english())
@@ -769,7 +769,7 @@ class GroceryModelTest {
                 HttpStatusCode.OK to page(item(10, 1, "Apples", 1), item(11, 1, "Milk", 2, 1.5, "l"), item(12, 1, "Candles", null), bought)
             backend.answers["PUT /grocery/items/13"] = HttpStatusCode.OK to bought.replace("Bred", "Bread")
             backend.answers["PUT /grocery/items/13/category"] = HttpStatusCode.OK to bought.replace("\"categoryId\":null", "\"categoryId\":1")
-            backend.answers["DELETE /grocery/items/13/photo"] = HttpStatusCode.OK to bought.replace("\"photoId\":7", "\"photoId\":null")
+            backend.answers["DELETE /grocery/items/13/photo"] = HttpStatusCode.NoContent to ""
             backend.answers["DELETE /grocery/items/13"] = HttpStatusCode.NoContent to ""
             val model = signedIn()
             advanceUntilIdle()
@@ -1208,8 +1208,8 @@ class GroceryModelTest {
         runTest {
             backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":9,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/9","thumbnailUrl":"/api/v1/files/9/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
             backend.answers["PUT /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", 1)
-            backend.answers["DELETE /grocery/items/10/photo"] = HttpStatusCode.OK to item(10, 1, "Apples", 1)
-            backend.answers["GET /grocery/items/10/photos/9"] = HttpStatusCode.OK to "jpeg"
+            backend.answers["DELETE /grocery/items/10/photo"] = HttpStatusCode.NoContent to ""
+            backend.answers["GET /grocery/items/10/photo/9"] = HttpStatusCode.OK to "jpeg"
             val model = signedIn()
             advanceUntilIdle()
 
@@ -1224,7 +1224,7 @@ class GroceryModelTest {
             val apples = model.item("Apples").copy(photoId = 9)
             assertEquals("jpeg", model.photo(apples, 128)?.decodeToString())
             model.photo(apples, 128)
-            assertEquals(1, backend.requests.count { it.startsWith("GET /grocery/items/10/photos/9") })
+            assertEquals(1, backend.requests.count { it.startsWith("GET /grocery/items/10/photo/9") })
 
             model.removePhoto(apples)
             advanceUntilIdle()

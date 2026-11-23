@@ -2054,7 +2054,7 @@
                 ]
             }
         },
-        "/api/v1/grocery/discover/{id}": {
+        "/api/v1/grocery/files/{id}/discover/items": {
             "post": {
                 "tags": [
                     "grocery"
@@ -3499,15 +3499,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "The item without a photo",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/GroceryItemResponse"
-                                }
-                            }
-                        }
+                    "204": {
+                        "description": "The item has no photo"
                     },
                     "404": {
                         "description": "The user sees no such item",
@@ -3530,7 +3523,7 @@
                 ]
             }
         },
-        "/api/v1/grocery/items/{id}/photos/{fileId}": {
+        "/api/v1/grocery/items/{id}/photo/{fileId}": {
             "get": {
                 "tags": [
                     "grocery"
@@ -3619,8 +3612,15 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "The item is checked"
+                    "200": {
+                        "description": "The checked item",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GroceryItemResponse"
+                                }
+                            }
+                        }
                     },
                     "404": {
                         "description": "The user sees no such item to buy",

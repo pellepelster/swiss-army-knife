@@ -58,8 +58,8 @@ export class GroceryService extends ListsService<GroceryList> {
   }
 
   // bought: it goes from the list and stays as its history (GROCERY-3)
-  checkItem(id: number): Observable<void> {
-    return this.http.post<void>(`/api/v1/grocery/items/${id}/check`, null);
+  checkItem(id: number): Observable<GroceryItem> {
+    return this.http.post<GroceryItem>(`/api/v1/grocery/items/${id}/check`, null);
   }
 
   // for good, also from the suggestions
@@ -79,8 +79,11 @@ export class GroceryService extends ListsService<GroceryList> {
     return this.http.put<GroceryItem>(`/api/v1/grocery/items/${id}/photo`, { fileId });
   }
 
-  removePhoto(id: number): Observable<GroceryItem> {
-    return this.http.delete<GroceryItem>(`/api/v1/grocery/items/${id}/photo`);
+  // the item as it is without its photo: a delete answers nothing
+  removePhoto(item: GroceryItem): Observable<GroceryItem> {
+    return this.http
+      .delete<void>(`/api/v1/grocery/items/${item.id}/photo`)
+      .pipe(map(() => ({ ...item, photoId: null })));
   }
 
   settings(): Observable<GrocerySettings> {
@@ -91,7 +94,7 @@ export class GroceryService extends ListsService<GroceryList> {
   discover(fileId: number): Observable<GroceryDiscoveredItem[]> {
     return this.http
       .post<components['schemas']['GroceryDiscoveredResponse']>(
-        `/api/v1/grocery/discover/${fileId}`,
+        `/api/v1/grocery/files/${fileId}/discover/items`,
         null,
       )
       .pipe(map((discovered) => discovered.items));

@@ -1,5 +1,6 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.api.installApi
 import io.pelle.sak.core.RateLimiter
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
@@ -67,6 +68,8 @@ class ConnectTest {
         application {
             install(Authentication) { session(tokens, rolesOf) }
             routing {
+                // as the backend does for all of its api
+                installApi()
                 route("/api/v1/auth") {
                     route("/login") { connectExchange(tokens, rolesOf, attemptsPerClient, onLogin = { owner, _ -> signedIn += owner }) }
                     authenticate(SESSION_AUTH) {

@@ -1,5 +1,10 @@
 package io.pelle.sak.backend
 
+import io.pelle.sak.auth.LOGIN_PATH
+import io.pelle.sak.auth.AUTH_PATH
+import io.pelle.sak.api.installApi
+import io.pelle.sak.api.API_VERSION
+import io.pelle.sak.api.API_PATH_PREFIX
 import io.pelle.sak.backend.hosting.S3_MAX_BODY_SIZE
 import io.pelle.sak.backend.users.AppLinkService
 import io.pelle.sak.backend.users.users
@@ -64,9 +69,23 @@ import java.net.URI
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-const val API_PATH_PREFIX = "/api"
-
-const val API_VERSION = "/v1"
+// the path of each part of the api below API_BASE_PATH, written once: the routes are mounted at them and
+// the descriptions name them
+object ApiPath {
+    const val INFO = "/info"
+    const val STATIC_HOSTING = "/static-hosting"
+    const val REDIRECTS = "/redirects"
+    const val LABELS = "/labels"
+    const val NOTES = "/notes"
+    const val GROCERY = "/grocery"
+    const val TODO = "/todo"
+    const val RESTIC = "/restic"
+    const val USERS = "/users"
+    const val SETTINGS = "/settings"
+    const val HEALTH = "/health"
+    const val FILES = "/files"
+    const val DEPLOYMENT = "/deployment"
+}
 
 // small json bodies only; the routes of the file storage have a limit of their own
 const val API_MAX_BODY_SIZE = 16L * 1024
@@ -186,12 +205,15 @@ fun Application.apps(
                 install(RequestBodyLimit) { bodyLimit { API_MAX_BODY_SIZE } }
 
                 route(API_VERSION) {
+                    // json bodies and the errors of the api, once for every route below (API-1)
+                    installApi()
+
                     // the only routes without a session
-                    route("/info") {
+                    route(ApiPath.INFO) {
                         info(config.name, config.dnsMode, mailServer = mailSender != null, version = config.version)
                     }
-                    route("/auth") {
-                        route("/login") {
+                    route(AUTH_PATH) {
+                        route(LOGIN_PATH) {
                             if (mailSender != null) {
                                 login(tokens, mailSender, loginApp, rolesOf, onLogin = onLogin)
                             }
@@ -207,7 +229,7 @@ fun Application.apps(
                         }
                     }
                     authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
-                        route("/static-hosting") {
+                        route(ApiPath.STATIC_HOSTING) {
                             requireRole(Role.ADMIN)
                             buckets(bucketService)
                             // the access logs of all the domains a bucket is served at
@@ -218,43 +240,43 @@ fun Application.apps(
                                 )
                             }
                         }
-                        route("/redirects") {
+                        route(ApiPath.REDIRECTS) {
                             requireRole(Role.ADMIN)
                             redirects(redirectService)
                         }
-                        route("/labels") {
+                        route(ApiPath.LABELS) {
                             requireRole(Role.ADMIN, Role.USER)
                             labels(labelService)
                         }
-                        route("/notes") {
+                        route(ApiPath.NOTES) {
                             requireRole(Role.ADMIN, Role.USER)
                             notes(noteService, fileTextService::available)
                         }
-                        route("/grocery") {
+                        route(ApiPath.GROCERY) {
                             requireRole(Role.ADMIN, Role.USER)
                             grocery(groceryService, groceryDiscovery, discoverLimiter)
                         }
-                        route("/todo") {
+                        route(ApiPath.TODO) {
                             requireRole(Role.ADMIN, Role.USER)
                             todo(todoService)
                         }
-                        route("/restic") {
+                        route(ApiPath.RESTIC) {
                             requireRole(Role.ADMIN, Role.USER)
                             restic(resticService, resticBackupPlanService, config.apiHost)
                         }
-                        route("/users") {
+                        route(ApiPath.USERS) {
                             requireRole(Role.ADMIN)
                             users(userService, AppLinkService(userService, mailSender?.let { AppLinkMailer(it, loginApp) }))
                         }
-                        route("/settings") {
+                        route(ApiPath.SETTINGS) {
                             requireRole(Role.ADMIN)
                             settingsRoutes(settingsRegistry)
                         }
-                        route("/health") {
+                        route(ApiPath.HEALTH) {
                             requireRole(Role.ADMIN)
                             health(listOf(hostingHealth, redirectsHealth))
                         }
-                        route("/files") {
+                        route(ApiPath.FILES) {
                             requireRole(Role.ADMIN, Role.USER)
                             install(RequestBodyLimit) { bodyLimit { fileService.maxSize } }
                             files(fileService, fileTextService, discoverLimiter)
@@ -263,7 +285,7 @@ fun Application.apps(
                     }
                     // sakadmin only, signed: holds the password of the mail server, no browser session gets it
                     authenticate(API_SIGNATURE_AUTH) {
-                        route("/deployment") {
+                        route(ApiPath.DEPLOYMENT) {
                             requireRole(Role.ADMIN)
                             deployment(config)
                         }

@@ -9,7 +9,6 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.config.model.DeploymentResponse
 import io.pelle.sak.backend.config.model.SmtpConfigResponse
 import io.pelle.sak.backend.info.model.DnsModeResponse
@@ -26,8 +25,6 @@ fun SakConfig.SmtpConfig.response() =
 // password of the mail server included
 @OptIn(ExperimentalKtorApi::class)
 fun Route.deployment(config: SakConfig) {
-    installApi()
-
     get {
         call.response.header(HttpHeaders.CacheControl, "no-store")
         val smtp = config.auth?.smtp

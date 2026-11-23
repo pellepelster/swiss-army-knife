@@ -62,7 +62,7 @@ add, change, order and delete a category; forget a suggestion; add, change, chec
 category, attach and take away its photo, read the photo in a scaled size (`GROCERY-12`); listen to the changes of the
 lists (`GET /api/v1/grocery/changes`, `LIST-4`). Every user may ask whether the items in a photo can be discovered
 now (`GET /api/v1/grocery/settings`, `discoverItems`) and discover them in a photo of the file storage
-(`POST /api/v1/grocery/discover/{id}`, `GROCERY-16`); the photos and the texts discovered share a limit for each user.
+(`POST /api/v1/grocery/files/{id}/discover/items`, `GROCERY-16`); the photos and the texts discovered share a limit for each user.
 
 ## Settings
 

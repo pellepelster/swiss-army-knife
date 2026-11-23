@@ -5,7 +5,6 @@ import io.pelle.sak.core.Text
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
-import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
@@ -46,8 +45,6 @@ private const val S3_TAG = "s3"
 fun Route.buckets(
     bucketService: S3BucketService,
 ) {
-    installApi()
-
     suspend fun S3Bucket.response() =
         BucketResponse(
             name,

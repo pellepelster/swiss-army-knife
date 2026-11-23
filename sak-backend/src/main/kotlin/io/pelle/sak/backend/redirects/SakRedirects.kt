@@ -6,7 +6,6 @@ import io.pelle.sak.auth.owner
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.redirects.model.RedirectTargetRequest
 import io.pelle.sak.backend.redirects.model.RedirectTargetResponse
-import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.redirects.model.RedirectResponse
 import io.pelle.sak.backend.redirects.model.CreateRedirectRequest
 import io.pelle.sak.backend.redirects.model.UpdateRedirectRequest
@@ -48,8 +47,6 @@ private fun RedirectTargetRequest.target(): RedirectTarget =
 // mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.redirects(redirectService: RedirectService) {
-    installApi()
-
     // the location of a bucket is read from the database
     suspend fun Redirect.response() =
         withContext(Dispatchers.IO) {

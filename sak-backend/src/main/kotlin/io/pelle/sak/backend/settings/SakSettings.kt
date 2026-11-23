@@ -18,7 +18,6 @@ import io.pelle.sak.auth.owner
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
-import io.pelle.sak.api.installApi
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.backend.settings.model.SettingRequirementResponse
 import io.pelle.sak.backend.settings.model.SettingScopeResponse
@@ -58,8 +57,6 @@ fun SettingScope.response(language: Language) =
 // and the admin role; the values are read and set one scope at a time
 @OptIn(ExperimentalKtorApi::class)
 fun Route.settings(registry: SettingsRegistry) {
-    installApi()
-
     get {
         val page = call.pageRequest() ?: return@get
         call.respond(page.of(page.of(registry.services.map { it.scope.response(call.language()) })))

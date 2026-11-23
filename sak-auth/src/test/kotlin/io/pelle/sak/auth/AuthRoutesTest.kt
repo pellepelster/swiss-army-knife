@@ -1,5 +1,6 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.api.installApi
 import io.pelle.sak.core.RateLimiter
 import io.kotest.matchers.string.shouldContain
 import io.ktor.http.HttpHeaders
@@ -63,6 +64,8 @@ class AuthRoutesTest {
         application {
             install(Authentication) { session(tokens, rolesOf) }
             routing {
+                // as the backend does for all of its api
+                installApi()
                 route("/api/v1/auth") {
                     authenticate(SESSION_AUTH) { whoAmI() }
                 }
@@ -334,6 +337,8 @@ class AuthRoutesTest {
                     }
                 }
                 routing {
+                    // as the backend does for all of its api
+                    installApi()
                     authenticate(SESSION_AUTH) {
                         route("/admin") {
                             install(RequireRole) { roles = setOf(Role.ADMIN) }

@@ -15,7 +15,6 @@ import io.ktor.server.routing.post
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.idParameter
-import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
@@ -41,8 +40,6 @@ fun Route.users(
     userService: UserService,
     appLinks: AppLinkService,
 ) {
-    installApi()
-
     get {
         val page = call.pageRequest() ?: return@get
         val users = withContext(Dispatchers.IO) { userService.users() }

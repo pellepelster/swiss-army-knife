@@ -24,7 +24,6 @@ import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.idParameter
-import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
@@ -114,8 +113,6 @@ fun Route.restic(
     plans: ResticBackupPlanService,
     apiHost: String,
 ) {
-    installApi()
-
     route("/plans") {
         get {
             val page = call.pageRequest() ?: return@get

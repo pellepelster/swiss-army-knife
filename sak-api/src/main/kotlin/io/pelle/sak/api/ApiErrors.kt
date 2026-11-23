@@ -74,8 +74,17 @@ fun Route.installApi() {
     install(ApiErrors)
 }
 
+// where the backend serves its api, and its version below it; api.<base domain> is caddy's other name
+// for it
+const val API_PATH_PREFIX = "/api"
+
+const val API_VERSION = "/v1"
+
+// the path every part of the api is below, as a client of the backend calls it
+const val API_BASE_PATH = "$API_PATH_PREFIX$API_VERSION"
+
 // the prefix of the backend api (/api/v1) and of api.<base domain> after caddy rewrote it
-private const val API_ERRORS_PREFIX = "/api"
+private const val API_ERRORS_PREFIX = API_PATH_PREFIX
 
 // the errors a route answers with its status alone, below /api/, and the message each gets (API-1);
 // a route that has a better message answers it itself

@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.info
 
+import io.ktor.server.routing.route
 import io.ktor.http.CacheControl
 import io.ktor.server.plugins.origin
 import io.ktor.server.request.host
@@ -9,8 +10,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.pelle.sak.api.installApi
-import io.pelle.sak.backend.API_PATH_PREFIX
-import io.pelle.sak.backend.API_VERSION
+import io.pelle.sak.api.API_PATH_PREFIX
+import io.pelle.sak.api.API_VERSION
 import io.pelle.sak.backend.info.model.WellKnownResponse
 import io.pelle.sak.config.SakConfig
 
@@ -24,11 +25,14 @@ private const val WELL_KNOWN_MAX_AGE_SECONDS = 3600
 // address and find the api here. At sak.<base domain> it is api.<base domain>/v1; at any other
 // address, the dev server of local:run or the backend itself, the api is /api/v1 of the same origin
 fun Route.wellKnown(config: SakConfig) {
-    installApi()
+    route(WELL_KNOWN_PATH) {
+        // json for this path only, not for the pages of the web app around it
+        installApi()
 
-    get(WELL_KNOWN_PATH) {
-        call.response.cacheControl(CacheControl.MaxAge(WELL_KNOWN_MAX_AGE_SECONDS))
-        call.respond(WellKnownResponse(apiAddress(config, call.request.origin.scheme, call.request.host(), call.request.port())))
+        get {
+            call.response.cacheControl(CacheControl.MaxAge(WELL_KNOWN_MAX_AGE_SECONDS))
+            call.respond(WellKnownResponse(apiAddress(config, call.request.origin.scheme, call.request.host(), call.request.port())))
+        }
     }
 }
 

@@ -569,7 +569,7 @@ class SakAppsTest {
                 it.statusCode() shouldBe 200
                 it.json().string("discoverItems") shouldBe "false"
             }
-            post(port, "/api/v1/grocery/discover/4711", "", anna).statusCode() shouldBe 404
+            post(port, "/api/v1/grocery/files/4711/discover/items", "", anna).statusCode() shouldBe 404
             listOf("/api/v1/static-hosting", "/api/v1/redirects", "/api/v1/settings", "/api/v1/health", "/api/v1/users").forEach {
                 get(port, it, anna).statusCode() shouldBe 403
             }
@@ -607,7 +607,7 @@ class SakAppsTest {
             fun image(
                 session: String,
                 query: String = "",
-            ) = request(port, "GET", "/api/v1/grocery/items/$milk/photos/$photo$query", session, answer = HttpResponse.BodyHandlers.ofByteArray())
+            ) = request(port, "GET", "/api/v1/grocery/items/$milk/photo/$photo$query", session, answer = HttpResponse.BodyHandlers.ofByteArray())
             image(admin, "?size=100").let {
                 it.statusCode() shouldBe 200
                 it.headers().firstValue("Cache-Control").get() shouldContain "immutable"
@@ -617,13 +617,13 @@ class SakAppsTest {
             ImageIO.read(image(admin, "?size=5000").body().inputStream()).width shouldBe 600
             ImageIO.read(image(admin).body().inputStream()).width shouldBe 600
             // a size that is none is a 400 with its message (API-1), a file id that is no number no resource
-            request(port, "GET", "/api/v1/grocery/items/$milk/photos/$photo?size=0", admin, answer = HttpResponse.BodyHandlers.ofString()).let {
+            request(port, "GET", "/api/v1/grocery/items/$milk/photo/$photo?size=0", admin, answer = HttpResponse.BodyHandlers.ofString()).let {
                 it.statusCode() shouldBe 400
                 it.body() shouldContain "api.malformed_request"
             }
-            request(port, "GET", "/api/v1/grocery/items/$milk/photos/none", admin, answer = HttpResponse.BodyHandlers.ofString())
+            request(port, "GET", "/api/v1/grocery/items/$milk/photo/none", admin, answer = HttpResponse.BodyHandlers.ofString())
                 .statusCode() shouldBe 404
-            request(port, "GET", "/api/v1/grocery/items/$milk/photos/${photo.toInt() + 1}", admin, answer = HttpResponse.BodyHandlers.ofString())
+            request(port, "GET", "/api/v1/grocery/items/$milk/photo/${photo.toInt() + 1}", admin, answer = HttpResponse.BodyHandlers.ofString())
                 .statusCode() shouldBe 404
 
             // the other user sees it on the shared list, but attaches only a file of their own
@@ -643,9 +643,9 @@ class SakAppsTest {
             add(anna, own, "Milk").getValue("photoId") shouldBe JsonNull
 
             // taken away from an item, the next item of the name takes what the latest one has (GROCERY-12)
-            delete(port, "/api/v1/grocery/items/$milk/photo", admin).json().getValue("photoId") shouldBe JsonNull
+            delete(port, "/api/v1/grocery/items/$milk/photo", admin).statusCode() shouldBe 204
             image(admin, "?size=100").statusCode() shouldBe 404
-            delete(port, "/api/v1/grocery/items/$latest/photo", anna).json().getValue("photoId") shouldBe JsonNull
+            delete(port, "/api/v1/grocery/items/$latest/photo", anna).statusCode() shouldBe 204
             add(admin, shared, "Milk").getValue("photoId") shouldBe JsonNull
         }
     }
@@ -937,7 +937,10 @@ class SakAppsTest {
             put(port, "/api/v1/grocery/items/$milkId", """{"name":"Milk","amount":1.5,"unit":"l","categoryId":$dairy}""", session).json().let {
                 it.string("amount") shouldBe "1.5"
             }
-            post(port, "/api/v1/grocery/items/$milkId/check", "", session).statusCode() shouldBe 204
+            post(port, "/api/v1/grocery/items/$milkId/check", "", session).let {
+                it.statusCode() shouldBe 200
+                it.json().string("id") shouldBe milkId
+            }
             post(port, "/api/v1/grocery/items/$milkId/check", "", session).statusCode() shouldBe 404
             // the bought items only when asked, with when they were bought (GROCERY-14)
             get(port, "/api/v1/grocery/lists/$listId/items?checked=true", session).json().getValue("items").jsonArray.map { it.jsonObject }.let { items ->
@@ -1139,8 +1142,8 @@ class SakAppsTest {
             download("/api/v1/files/$id", other).statusCode() shouldBe 404
             download("/api/v1/files/$image/thumbnail", other).statusCode() shouldBe 404
             post(port, "/api/v1/files/$image/discover/text", "", other).statusCode() shouldBe 404
-            post(port, "/api/v1/grocery/discover/$image", "", other).statusCode() shouldBe 404
-            post(port, "/api/v1/grocery/discover/$image", "", session).let {
+            post(port, "/api/v1/grocery/files/$image/discover/items", "", other).statusCode() shouldBe 404
+            post(port, "/api/v1/grocery/files/$image/discover/items", "", session).let {
                 it.statusCode() shouldBe 409
                 it.body() shouldContain "files.ai_off"
             }
@@ -1513,7 +1516,7 @@ class SakAppsTest {
                     "/api/v1/users/app-link",
                     "/api/v1/users/{id}",
                     "/api/v1/grocery/settings",
-                    "/api/v1/grocery/discover/{id}",
+                    "/api/v1/grocery/files/{id}/discover/items",
                     "/api/v1/grocery/lists",
                     "/api/v1/grocery/lists/{id}",
                     "/api/v1/grocery/lists/{id}/items",
@@ -1527,7 +1530,7 @@ class SakAppsTest {
                     "/api/v1/grocery/items/{id}/category",
                     "/api/v1/grocery/items/{id}/check",
                     "/api/v1/grocery/items/{id}/photo",
-                    "/api/v1/grocery/items/{id}/photos/{fileId}",
+                    "/api/v1/grocery/items/{id}/photo/{fileId}",
                     "/api/v1/todo/lists",
                     "/api/v1/todo/lists/{id}",
                     "/api/v1/todo/lists/{id}/items",

@@ -1,5 +1,6 @@
 package io.pelle.sak.auth
 
+import io.pelle.sak.api.API_BASE_PATH
 import io.pelle.sak.api.clientAddress
 import io.pelle.sak.api.clientNetwork
 import io.pelle.sak.core.MailSender
@@ -8,7 +9,6 @@ import io.pelle.sak.core.logCause
 import io.pelle.sak.core.logClient
 import io.pelle.sak.api.respondStatusError
 import io.pelle.sak.api.apiTime
-import io.pelle.sak.api.installApi
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.core.Text
@@ -54,6 +54,11 @@ import io.pelle.sak.auth.model.PasswordLoginRequest
 import io.pelle.sak.auth.model.WhoAmIResponse
 import io.pelle.sak.core.logAddress
 
+// where the backend mounts the routes of the login below the base of the api
+const val AUTH_PATH = "/auth"
+
+const val LOGIN_PATH = "/login"
+
 private val logger = KotlinLogging.logger {}
 
 const val SESSION_AUTH = "session"
@@ -64,7 +69,7 @@ val sessionSecurityScheme =
     HttpSecurityScheme(
         scheme = "bearer",
         bearerFormat = "JWT",
-        description = "The session token the apps get for a login link, see POST /api/v1/auth/login/exchange.",
+        description = "The session token the apps get for a login link, see POST $API_BASE_PATH$AUTH_PATH$LOGIN_PATH/exchange.",
     )
 
 private const val AUTH_TAG = "auth"
@@ -135,8 +140,6 @@ fun Route.login(
     // told of every exchange that issued a session
     onLogin: LoginListener = LoginListener { _, _ -> },
 ) {
-    installApi()
-
     // always accepted, whether a link is sent does not tell anything about the address
     post("/link") {
         val request = call.receive<LoginRequest>()
@@ -259,8 +262,6 @@ fun Route.passwordLogin(
     onLogin: LoginListener = LoginListener { _, _ -> },
 ) {
     route("/password") {
-        installApi()
-
         post {
             val request = call.receive<PasswordLoginRequest>()
             if (!attemptsPerClient.tryAcquire(call.clientNetwork()) || !attemptsPerHour.tryAcquire(ALL_CLIENTS)) {
@@ -314,8 +315,6 @@ fun Route.connectExchange(
     onLogin: LoginListener = LoginListener { _, _ -> },
 ) {
     route("/connect") {
-        installApi()
-
         post {
             val request = call.receive<ConnectExchangeRequest>()
             if (!attemptsPerClient.tryAcquire(call.clientNetwork())) {
@@ -341,7 +340,7 @@ fun Route.connectExchange(
             tag(AUTH_TAG)
             summary = "Exchange the token of a QR code for a session token"
             description =
-                "The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for " +
+                "The token of the QR code a signed in user shows to connect an app (POST $API_BASE_PATH$AUTH_PATH/connect), valid for " +
                 "${tokens.connectTokenTtl.toMinutes()} minutes and only once; the session token is valid for " +
                 "${tokens.sessionTokenTtl.toDays()} days. A token issued with a pkce challenge is exchanged only with its " +
                 "verifier (43 to 128 characters of A-Z, a-z, 0-9, '-', '.', '_', '~'), one without only without. " +
@@ -374,8 +373,6 @@ fun Route.connect(
     codesPerUser: RateLimiter = RateLimiter(10, Duration.ofHours(1)),
 ) {
     route("/connect") {
-        installApi()
-
         post {
             val request = call.receive<ConnectRequest>()
             if (request.challenge != null && !PKCE_CHALLENGE.matches(request.challenge)) {
@@ -400,7 +397,7 @@ fun Route.connect(
             description =
                 "The link the QR code shows: the SAK address with a token in its fragment, valid for " +
                 "${tokens.connectTokenTtl.toMinutes()} minutes and only once, that an app exchanges for a session of the " +
-                "signed in user (POST /api/v1/auth/login/connect). Whoever has the code signs in as the user until it " +
+                "signed in user (POST $API_BASE_PATH$AUTH_PATH$LOGIN_PATH/connect). Whoever has the code signs in as the user until it " +
                 "expires. With the pkce challenge (S256, 43 characters of base64url) of a desktop app the token is " +
                 "exchanged only with its verifier. Only for a session, a few codes an hour."
             requestBody {
@@ -455,8 +452,6 @@ private const val ALL_CLIENTS = "*"
 // instead of the address, null for none
 @OptIn(ExperimentalKtorApi::class)
 fun Route.whoAmI(nameOf: (email: String) -> String? = { null }) {
-    installApi()
-
     get("/who-am-i") {
         val principal = call.principal<SessionPrincipal>()!!
         call.response.header(HttpHeaders.CacheControl, "no-store")

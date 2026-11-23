@@ -5,7 +5,6 @@ import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.core.Text
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.backend.labels.model.LabelResponse
-import io.pelle.sak.api.installApi
 import io.pelle.sak.backend.labels.model.LabelRequest
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.auth.owner
@@ -43,8 +42,6 @@ fun Label.response() = LabelResponse(id, name, createdAt.apiTime(), updatedAt?.a
 // the labels every app attaches to its entities, mounted behind the authentication
 @OptIn(ExperimentalKtorApi::class)
 fun Route.labels(labelService: LabelService) {
-    installApi()
-
     get {
         val page = call.pageRequest() ?: return@get
         val labels = withContext(Dispatchers.IO) { labelService.page(call.owner, page.offset, page.limit) }

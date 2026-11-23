@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.grocery
 
+import io.pelle.sak.backend.ApiPath
+import io.pelle.sak.api.API_BASE_PATH
 import io.pelle.sak.model.grocery.GroceryItemValues
 import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.core.logText
@@ -25,7 +27,6 @@ import io.pelle.sak.api.ApiTexts
 import io.pelle.sak.api.apiTime
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.idParameter
-import io.pelle.sak.api.installApi
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.PageRequest
 import io.pelle.sak.api.pageRequest
@@ -119,8 +120,6 @@ fun Route.grocery(
     // the limit of what goes to openrouter, shared with the text the notes discover: the apps make it
     discoverLimiter: RateLimiter,
 ) {
-    installApi()
-
     get("/settings") {
         call.respond(GrocerySettingsResponse(withContext(Dispatchers.IO) { discovery.available() }))
     }.describe {
@@ -128,7 +127,7 @@ fun Route.grocery(
         summary = "What the grocery lists may do"
         description =
             "For every signed in user: whether the items in a photo can be discovered now (GROCERY-16). The switches " +
-            "themselves are settings of the admins (GET /api/v1/settings/grocery)."
+            "themselves are settings of the admins (GET $API_BASE_PATH${ApiPath.SETTINGS}/grocery)."
         responses {
             HttpStatusCode.OK {
                 description = "What the grocery lists may do"
@@ -137,7 +136,7 @@ fun Route.grocery(
         }
     }
 
-    post("/discover/{id}") {
+    post("/files/{id}/discover/items") {
         val id = call.idParameter() ?: return@post
         val owner = call.owner
         val result =
@@ -164,7 +163,7 @@ fun Route.grocery(
         description =
             "Reads the ingredients of a recipe or the items of a shopping list in a photo of the file storage with a vision " +
             "model at OpenRouter; providers that collect the data are not asked. Nothing is added to a list: the items are " +
-            "added once the user confirmed them (POST /api/v1/grocery/items). Needs the AI features of the grocery lists " +
+            "added once the user confirmed them (POST $API_BASE_PATH${ApiPath.GROCERY}/items). Needs the AI features of the grocery lists " +
             "turned on in the settings."
         parameters {
             path("id") {
@@ -625,22 +624,23 @@ fun Route.grocery(
 
         delete("/{id}/photo") {
             val id = call.idParameter() ?: return@delete
-            call.respondPhoto(withContext(Dispatchers.IO) { groceryService.setPhoto(call.owner, id, null) })
+            when (withContext(Dispatchers.IO) { groceryService.setPhoto(call.owner, id, null) }) {
+                is GroceryPhotoSetResult.Set -> call.respond(HttpStatusCode.NoContent)
+                // no photo is given, so the two other cases are an item the user does not see
+                GroceryPhotoSetResult.NotFound, GroceryPhotoSetResult.NotAPhoto -> call.respond(HttpStatusCode.NotFound)
+            }
         }.describe {
             tag(GROCERY_TAG)
             summary = "Take the photo away from an item"
             description = "From an item, to buy or bought; the next item of the name on the list has none; the file stays in the file storage."
             parameters { itemId() }
             responses {
-                HttpStatusCode.OK {
-                    description = "The item without a photo"
-                    schema = jsonSchema<GroceryItemResponse>()
-                }
+                HttpStatusCode.NoContent { description = "The item has no photo" }
                 errors(HttpStatusCode.NotFound, "The user sees no such item")
             }
         }
 
-        get("/{id}/photos/{fileId}") {
+        get("/{id}/photo/{fileId}") {
             val id = call.idParameter() ?: return@get
             val fileId = call.idParameter("fileId") ?: return@get
             val size = call.request.queryParameters["size"]?.let { it.toIntOrNull()?.takeIf { size -> size > 0 } ?: -1 }
@@ -685,8 +685,8 @@ fun Route.grocery(
 
         post("/{id}/check") {
             val id = call.idParameter() ?: return@post
-            when (withContext(Dispatchers.IO) { groceryService.checkItem(call.owner, id) }) {
-                is GroceryItemCheckResult.Checked -> call.respond(HttpStatusCode.NoContent)
+            when (val result = withContext(Dispatchers.IO) { groceryService.checkItem(call.owner, id) }) {
+                is GroceryItemCheckResult.Checked -> call.respond(result.item.response())
                 GroceryItemCheckResult.NotFound -> call.respond(HttpStatusCode.NotFound)
             }
         }.describe {
@@ -697,7 +697,10 @@ fun Route.grocery(
                 "suggestions are made of (GROCERY-11)."
             parameters { itemId() }
             responses {
-                HttpStatusCode.NoContent { description = "The item is checked" }
+                HttpStatusCode.OK {
+                    description = "The checked item"
+                    schema = jsonSchema<GroceryItemResponse>()
+                }
                 errors(HttpStatusCode.NotFound, "The user sees no such item to buy")
             }
         }

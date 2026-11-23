@@ -666,7 +666,7 @@ class GroceryModel(
         }
     }
 
-    fun removePhoto(item: GroceryItemResponse) = photoRequest(item.id, R.string.grocery_photo_not_removed) { api -> api.removePhoto(item.id) }
+    fun removePhoto(item: GroceryItemResponse) = photoRequest(item.id, R.string.grocery_photo_not_removed) { api -> api.removePhoto(item) }
 
     // a change of the photo of an item, after the ones before it, none dropped; the row of the
     // item shows it busy while it is sent
