@@ -6,9 +6,7 @@ import { showDeployments } from './deployments.js';
 import { showProviders } from './providers.js';
 import { confirmAction } from './shared/confirm-dialog.js';
 import { showVersion } from './shared/update.js';
-import { loadTexts, text } from './shared/views.js';
-
-const { invoke } = window.__TAURI__.core;
+import { element, invoke, loadTexts, text } from './shared/views.js';
 
 // the window closed while a SAK instance is changed: rust keeps it open and asks here first (DA-29)
 window.__TAURI__.event?.listen('close-requested', async () => {
@@ -21,6 +19,11 @@ window.__TAURI__.event?.listen('close-requested', async () => {
   });
   if (quit) await invoke('quit_working');
 });
+
+// the icon of the app before the title of every view, once
+for (const title of document.querySelectorAll('.view .page-title')) {
+  title.prepend(element('img', { class: 'app-icon', src: 'theme/images/icon.svg', alt: '' }));
+}
 
 await loadTexts();
 await showVersion();

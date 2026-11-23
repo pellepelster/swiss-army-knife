@@ -2,7 +2,7 @@
 // core/checks) on its splash screen: <main class="view splash" id="view-splash"> with #checks,
 // #checks-error and #splash-quit, checks.css. The commands run_checks and quit. After a failure the
 // splash screen stays, quit is the only action
-const { invoke, Channel } = window.__TAURI__.core;
+import { Channel, invoke } from './views.js';
 
 // the checkmarks stay a moment before the next view
 const SHOWN_DONE_MS = 600;

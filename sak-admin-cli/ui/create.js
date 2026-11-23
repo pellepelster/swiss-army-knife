@@ -4,9 +4,7 @@
 // one with deployments in dns mode `subdomain` allows only that mode
 import { openedDeployment } from './password.js';
 import { intentText, runDestroy, showPlan } from './run.js';
-import { navigate, setBusy, setFailure, setStatus, show, text } from './shared/views.js';
-
-const { invoke } = window.__TAURI__.core;
+import { invoke, navigate, setBusy, setFailure, setStatus, show, text } from './shared/views.js';
 
 const form = document.getElementById('create-form');
 const nameInput = document.getElementById('create-name');
@@ -85,7 +83,6 @@ function newDeployment() {
     adminEmail: multiUser() ? adminEmailInput.value.trim() : null,
   };
 }
-
 
 function userMode() {
   return form.elements['user-mode'].value || 'single';
@@ -340,8 +337,6 @@ rootDomainInput.addEventListener('change', applyRootDomain);
 const status = document.getElementById('create-status');
 const planButton = document.getElementById('create-plan');
 
-
-
 // after the plan, the fields that the intent or the root domain disable stay disabled
 function setFormBusy(busy) {
   setBusy(form, busy);
@@ -462,7 +457,6 @@ export async function showCreate(options = {}) {
   const filled = intent === 'destroy' ? document.getElementById('create-cancel') : planButton;
   (nameInput.value ? passwordInput.value ? filled : passwordInput : nameInput).focus();
 }
-
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();

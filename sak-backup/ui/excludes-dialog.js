@@ -3,11 +3,8 @@
 // (core/presets.rs), and a file of patterns can be imported. It answers
 // { excludes, excludeCaches }, or null when it is cancelled; a plan of another computer is only shown
 import { toggleOf } from './shared/menu.js';
-import { text } from './shared/views.js';
+import { $, invoke, text } from './shared/views.js';
 
-const { invoke } = window.__TAURI__.core;
-
-const $ = (id) => document.getElementById(id);
 const dialog = $('excludes-dialog');
 const form = $('excludes-form');
 const patterns = $('excludes-text');

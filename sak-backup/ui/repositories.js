@@ -16,11 +16,8 @@ import {
   unavailableDelete,
 } from './rows.js';
 import { runFailure } from './run.js';
-import { setBusy, setFailure, setStatus, text } from './shared/views.js';
+import { $, invoke, setBusy, setFailure, setStatus, text } from './shared/views.js';
 
-const { invoke } = window.__TAURI__.core;
-
-const $ = (id) => document.getElementById(id);
 const list = $('repositories-list');
 const status = $('repositories-status');
 const form = $('repository-form');

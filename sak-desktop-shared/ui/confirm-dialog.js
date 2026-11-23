@@ -3,19 +3,12 @@
 // cancelled. The same in each desktop app; the dialog builds itself into the body on its first use
 // (the look is `.dialog` of views.css)
 import { toggleOf } from './menu.js';
-import { text } from './views.js';
+import { element, text } from './views.js';
 
 let built = null;
 let answer = null;
 // the element that had the focus when the dialog opened
 let opener = null;
-
-function element(tag, attributes = {}, children = []) {
-  const created = document.createElement(tag);
-  for (const [name, value] of Object.entries(attributes)) created.setAttribute(name, value);
-  created.append(...children);
-  return created;
-}
 
 function build() {
   const title = element('h2', { class: 'h5 mb-0', id: 'confirm-dialog-title' });

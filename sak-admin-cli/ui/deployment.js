@@ -9,9 +9,7 @@ import { openedDeployment } from './password.js';
 import { row, runChecked } from './run.js';
 import { confirmAction } from './shared/confirm-dialog.js';
 import { menu } from './shared/menu.js';
-import { currentVisit, isCurrent, navigate, register, setFailure, setStatus, show, text } from './shared/views.js';
-
-const { invoke } = window.__TAURI__.core;
+import { currentVisit, invoke, isCurrent, navigate, register, setFailure, setStatus, show, text } from './shared/views.js';
 
 const message = document.getElementById('deployment-message');
 const list = document.getElementById('deployment-resources');
@@ -29,7 +27,6 @@ let checked = null;
 // the configuration read when the page opened (`deployment_settings`), null while it is read or
 // when it could not be
 let settings = null;
-
 
 // none before the check
 function setState(state) {

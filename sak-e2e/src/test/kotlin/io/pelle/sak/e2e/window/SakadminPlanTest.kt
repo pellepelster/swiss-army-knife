@@ -93,6 +93,10 @@ class SakadminPlanTest {
             val page = context.openWindow()
             // the window is up with its texts, as when a create runs
             assertThat(page.locator("#view-providers")).isVisible()
+            // every view has the icon of the app before its title, and the footer is below them (DESKTOP-4)
+            assertThat(page.locator(".view .page-title > img.app-icon")).hasCount(10)
+            assertThat(page.locator("#view-providers .page-title > img.app-icon")).isVisible()
+            assertThat(page.locator("footer.app-footer #update-button")).hasText("Check for updates")
             page.waitForFunction("() => window.__sakListeners['close-requested'] !== undefined")
             val quits = "() => window.__sakCalls.some((call) => call.command === 'quit_working')"
             page.evaluate("() => { window.__sakListeners['close-requested'](); }")

@@ -23,11 +23,8 @@ import { onRunsChanged, runningPlan, runProgress, showRun, startRestore, startRu
 import { editExcludes, patternLines } from './excludes-dialog.js';
 import { confirmAction } from './shared/confirm-dialog.js';
 import { closeMenu } from './shared/menu.js';
-import { setBusy, setFailure, setStatus, text } from './shared/views.js';
+import { $, invoke, setBusy, setFailure, setStatus, text } from './shared/views.js';
 
-const { invoke } = window.__TAURI__.core;
-
-const $ = (id) => document.getElementById(id);
 const list = $('plans-list');
 const status = $('plans-status');
 const form = $('plan-form');

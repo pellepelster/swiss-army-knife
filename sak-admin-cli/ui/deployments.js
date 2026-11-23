@@ -2,9 +2,7 @@
 // the list sees only the labels, the page of a deployment checks it with its password
 import { showCreate } from './create.js';
 import { closeDeployment, showPassword } from './password.js';
-import { navigate, register, setFailure, setStatus, show, text } from './shared/views.js';
-
-const { invoke } = window.__TAURI__.core;
+import { invoke, navigate, register, setFailure, setStatus, show, text } from './shared/views.js';
 
 const list = document.getElementById('deployments');
 const status = document.getElementById('deployments-status');
@@ -85,7 +83,6 @@ function deployment(data) {
   item.append(header, group);
   return item;
 }
-
 
 export async function showDeployments() {
   // the list forgets the password of the opened deployment

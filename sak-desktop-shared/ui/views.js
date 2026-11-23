@@ -1,6 +1,17 @@
 // the views of index.html and their texts, shared by the desktop apps (copied into ui/shared/ of
 // each); rust gives the texts in the language of the system
-const { invoke } = window.__TAURI__.core;
+// what every module of a window takes from here (DA-24): the calls into rust, an element by its id,
+// a new element with its attributes and children
+export const { invoke, Channel } = window.__TAURI__.core;
+
+export const $ = (id) => document.getElementById(id);
+
+export function element(tag, attributes = {}, children = []) {
+  const created = document.createElement(tag);
+  for (const [name, value] of Object.entries(attributes)) created.setAttribute(name, value);
+  created.append(...children);
+  return created;
+}
 
 let texts = {};
 

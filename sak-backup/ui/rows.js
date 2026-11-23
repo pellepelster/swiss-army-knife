@@ -2,9 +2,7 @@
 // common entries, a button, the field of a name, the choice of a repository, the host name of this
 // computer, and the errors of a call of the api
 import { menu } from './shared/menu.js';
-import { setFailure, setStatus, text } from './shared/views.js';
-
-const { invoke } = window.__TAURI__.core;
+import { invoke, setFailure, setStatus, text } from './shared/views.js';
 
 // a name of a repository or a backup plan
 const NAME = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;

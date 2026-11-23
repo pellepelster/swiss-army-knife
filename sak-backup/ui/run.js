@@ -6,9 +6,7 @@
 import { withPassword } from './password-dialog.js';
 import { message, signedOut } from './rows.js';
 import { confirmAction } from './shared/confirm-dialog.js';
-import { setFailure, setStatus, text } from './shared/views.js';
-
-const { invoke, Channel } = window.__TAURI__.core;
+import { $, Channel, invoke, setFailure, setStatus, text } from './shared/views.js';
 
 // the text of a failure of restic or of the instance (UX-15): its own for the ones the user can
 // act on, else `failed` with what went wrong; null when the session is gone and the sign-in shows.
@@ -28,7 +26,6 @@ export function runFailure(failure, shell, repository, failed) {
   return known ? known() : failed(failure?.message ?? String(failure));
 }
 
-const $ = (id) => document.getElementById(id);
 const progress = $('run-progress');
 const bar = $('run-bar');
 const status = $('run-status');

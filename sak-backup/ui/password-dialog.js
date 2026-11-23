@@ -3,11 +3,8 @@
 // this computer, never ticked by itself. It answers { password, remember }, or null when it is
 // cancelled; nothing of it stays in the page. `withPassword` asks as long as a call needs it
 import { toggleOf } from './shared/menu.js';
-import { text } from './shared/views.js';
+import { $, invoke, text } from './shared/views.js';
 
-const { invoke } = window.__TAURI__.core;
-
-const $ = (id) => document.getElementById(id);
 const dialog = $('password-dialog');
 const form = $('password-dialog-form');
 const password = $('password-dialog-password');

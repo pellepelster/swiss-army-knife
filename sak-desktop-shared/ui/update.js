@@ -1,14 +1,20 @@
-// the footer of the window of a desktop app (<footer class="app-footer"> with #update-version,
-// #update-button and #update-status, update.css): the version of the app and one button for the steps
+// the footer of the window of a desktop app, which this module makes (<footer class="app-footer"> with
+// #update-version, #update-button and #update-status, update.css): the version of the app and one button for the steps
 // of an update: check, install, restart. Only a click asks the receiver, the line names it first. The
 // commands version, check_update and install_update are the ones of sak-desktop-shared (update.rs),
 // restart is the app's own
-import { setFailure, setStatus, text } from './views.js';
+import { $, element, invoke, setFailure, setStatus, text } from './views.js';
 
-const { invoke } = window.__TAURI__.core;
-
-const status = document.getElementById('update-status');
-const button = document.getElementById('update-button');
+// the footer below every view (DESKTOP-4), made here for every app at the end of the body
+document.body.append(
+  element('footer', { class: 'app-footer' }, [
+    element('span', { id: 'update-version' }),
+    element('button', { type: 'button', class: 'btn btn-outline-secondary btn-sm', id: 'update-button' }),
+    element('span', { class: 'hint update-status', id: 'update-status', 'aria-live': 'polite' }),
+  ]),
+);
+const status = $('update-status');
+const button = $('update-button');
 let app = '';
 let receiver = '';
 let step = 'check';
@@ -71,7 +77,7 @@ export async function showVersion() {
     const answer = await invoke('version');
     app = answer.app;
     receiver = answer.receiver;
-    document.getElementById('update-version').textContent = text('ui.update.version', { app, version: answer.version });
+    $('update-version').textContent = text('ui.update.version', { app, version: answer.version });
     show('check', text('ui.update.idle', { app, receiver }));
   } catch (error) {
     button.disabled = true;

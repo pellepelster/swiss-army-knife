@@ -1,19 +1,10 @@
 // the sign-in of a desktop app, the same in each (the commands of sak-desktop-shared/src/window.rs):
 // the icon, the title and the intro of the app above the SAK address and the button that signs in
 // through the browser. The view builds itself into the body on its first show
-import { setFailure, setStatus, show, text } from './views.js';
-
-const { invoke, Channel } = window.__TAURI__.core;
+import { Channel, element, invoke, setFailure, setStatus, show, text } from './views.js';
 
 let view = null;
 let options = null;
-
-function element(tag, attributes = {}, children = []) {
-  const created = document.createElement(tag);
-  for (const [name, value] of Object.entries(attributes)) created.setAttribute(name, value);
-  created.append(...children);
-  return created;
-}
 
 function build() {
   const address = element('input', {

@@ -5,9 +5,7 @@
 // is confirmed first
 import { openDeployment } from './password.js';
 import { confirmAction } from './shared/confirm-dialog.js';
-import { currentVisit, isCurrent, navigate, setFailure, setStatus, show, text } from './shared/views.js';
-
-const { invoke, Channel } = window.__TAURI__.core;
+import { Channel, currentVisit, invoke, isCurrent, navigate, setFailure, setStatus, show, text } from './shared/views.js';
 
 const planList = document.getElementById('plan-resources');
 const planStatus = document.getElementById('plan-status');
@@ -30,7 +28,6 @@ const rows = new Map();
 export function intentText(key, intent) {
   return text(intent === 'create' ? key : `${key}_${intent}`);
 }
-
 
 // rust decides the action and the working text (`common.working.<working>`) the row shows when the
 // run starts

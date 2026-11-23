@@ -62,7 +62,8 @@ flag is checked after the exchange and after `who_am_i`, and under the lock of t
 forgets the token again when it was stopped; the window remembers the instance with the api the sign-in returns. `DA-48`:
 the backup and the restore of sakadmin are `core::backup::perform_backup` and `perform_restore`; the command line keeps
 its lines and its confirmation (checked by the unit tests and the build; the run itself is in the e2e tests on
-Hetzner, which did not run).
+Hetzner, which did not run). `DA-24`: all of it; `UX-13` points to the new `DESKTOP-4`, the footer is made by `update.js`,
+the icon of sakadmin's views by its `app.js`, and `$`, `invoke`, `Channel` and `element` come from `views.js`.
 
 ## What is good
 
@@ -420,17 +421,6 @@ sakbackup too; the installers of linux that `tauri.conf.json` configures are bui
 - `components/BACKUP.md`: "Nothing goes to a third party." An update asks github.com when the user asks; BACKUP.md has
   no rule for the update, `SAKADM-10` names sakadmin only
 - `ACCEPTED-RISKS.md`: the trusted root "is built into sakadmin"
-
-### `DA-24` Small things of the windows (read)
-
-Fixed since the second pass: Create backup plan waits for the repositories; the numbers of a running backup are in a
-line that is not read out and its bar has a name; the checks at the start are read out once each, not at every step
-of their progress; the numbers a plan keeps and the repeated password of sakadmin are checked as they are typed; the
-page without a page of sakbackup, `#create-smtp-password-hint` and the second `intentText` are gone. Still open:
-
-- the markup of the footer of the update is in both `index.html`; `update.js` can make it
-- the header with the icon in ten views of sakadmin
-- `$`, `invoke` and a builder of elements are written in each module; `views.js` can export them
 
 ## Not reviewed
 

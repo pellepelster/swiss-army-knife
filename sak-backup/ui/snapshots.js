@@ -16,11 +16,8 @@ import {
 } from './rows.js';
 import { runFailure, runningPlan } from './run.js';
 import { confirmAction } from './shared/confirm-dialog.js';
-import { setFailure, setStatus, text } from './shared/views.js';
+import { $, invoke, setFailure, setStatus, text } from './shared/views.js';
 
-const { invoke } = window.__TAURI__.core;
-
-const $ = (id) => document.getElementById(id);
 const form = $('snapshots-form');
 const repository = $('snapshots-repository');
 const submit = $('snapshots-submit');

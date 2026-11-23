@@ -1,8 +1,6 @@
 // the provider tokens. Rust validates a token before it adds it, and gives it back only masked
 import { showDeployments } from './deployments.js';
-import { register, setBusy, setFailure, setStatus, show, text } from './shared/views.js';
-
-const { invoke } = window.__TAURI__.core;
+import { invoke, register, setBusy, setFailure, setStatus, show, text } from './shared/views.js';
 
 const form = document.getElementById('token-form');
 const input = document.getElementById('token-input');
@@ -68,8 +66,6 @@ function showEntry(type) {
   show('view-token');
   input.focus();
 }
-
-
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
