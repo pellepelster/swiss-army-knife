@@ -287,7 +287,8 @@ case "$platform" in
     rm -rf src-tauri/target/release/bundle
     # the tools of an AppImage run without fuse, which a runner does not have
     APPIMAGE_EXTRACT_AND_RUN=1 tauri build --bundles deb,rpm,appimage "${config[@]}" -- --locked 2>&1 | tee "$log"
-    if grep -q 'Downloading' "$log"; then
+    # tauri says "Downloading https://…" for a tool; cargo says "Downloading crates ..."
+    if grep -q 'Downloading https://' "$log"; then
       echo "tauri downloaded a tool that is not pinned in desktop:build, pin it" >&2
       exit 1
     fi
