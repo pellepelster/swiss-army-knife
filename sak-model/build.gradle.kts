@@ -1,5 +1,6 @@
-// the database of the backend: the liquibase changelog in src/main/resources/db/changelog is the
-// schema, jooq generates its classes from it without a database at build time
+// the database of the backend: the sql migrations of flyway in src/main/resources/db/migration are the
+// schema. jooq generates its classes from a sqlite file migrated with them at build time, the
+// database the backend runs
 plugins {
     id("sak.kotlin-conventions")
     `java-library`
@@ -8,45 +9,44 @@ plugins {
     alias(libs.plugins.jooq.codegen)
 }
 
-val changelog = layout.projectDirectory.dir("src/main/resources/db/changelog")
+val migrationsDir = layout.projectDirectory.dir("src/main/resources/db/migration")
 val generated = layout.buildDirectory.dir("generated-sources/jooq")
+val codegenDatabase = layout.buildDirectory.file("codegen/sak.db")
+
+val migrateCodegenDatabase by tasks.registering(MigrateSqlite::class) {
+    migrations = migrationsDir
+    database = codegenDatabase
+}
 
 dependencies {
     // not api: no other module compiles against jOOQ (MODEL-2)
     implementation(libs.jooq)
-    implementation(libs.liquibase.core)
+    implementation(libs.flyway.core)
     implementation(libs.sqlite.jdbc)
 
-    jooqCodegen(libs.jooq.meta.extensions.liquibase)
+    jooqCodegen(libs.sqlite.jdbc)
 }
 
 jooq {
     configuration {
+        jdbc {
+            driver = "org.sqlite.JDBC"
+            url = "jdbc:sqlite:${codegenDatabase.get().asFile.absolutePath}"
+        }
         generator {
             name = "org.jooq.codegen.KotlinGenerator"
             database {
-                name = "org.jooq.meta.extensions.liquibase.LiquibaseDatabase"
+                name = "org.jooq.meta.sqlite.SQLiteDatabase"
+                excludes = "flyway_schema_history|sqlite_.*"
                 // the timestamps are instants, InstantConverter turns them into the utc they are
-                // stored in
+                // stored in. They are found by name: a table liquibase made (until V10) declares
+                // them as TEXT, one of plain sql as TIMESTAMP; both hold the same text
                 forcedTypes {
                     forcedType {
+                        name = "TIMESTAMP(6)"
                         userType = "java.time.Instant"
                         converter = "io.pelle.sak.model.InstantConverter"
-                        includeTypes = "TIMESTAMP.*"
-                    }
-                }
-                properties {
-                    property {
-                        key = "rootPath"
-                        value = changelog.asFile.absolutePath
-                    }
-                    property {
-                        key = "scripts"
-                        value = "db.changelog-master.yaml"
-                    }
-                    property {
-                        key = "includeLiquibaseTables"
-                        value = "false"
+                        includeExpression = ".*\\.[a-z_]+_at"
                     }
                 }
             }
@@ -59,7 +59,8 @@ jooq {
 }
 
 tasks.named("jooqCodegen") {
-    inputs.dir(changelog)
+    dependsOn(migrateCodegenDatabase)
+    inputs.file(codegenDatabase)
     outputs.dir(generated)
 }
 

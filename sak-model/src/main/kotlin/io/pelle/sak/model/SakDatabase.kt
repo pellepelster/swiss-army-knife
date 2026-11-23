@@ -2,8 +2,6 @@ package io.pelle.sak.model
 
 import org.jooq.DSLContext
 import org.jooq.SQLDialect
-import org.jooq.conf.RenderNameCase
-import org.jooq.conf.Settings
 import org.jooq.impl.DSL
 import org.sqlite.SQLiteConfig
 import org.sqlite.SQLiteDataSource
@@ -11,21 +9,19 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 
-// the sqlite file of the backend, only it uses it; migrated to the changelog when opened
+// the sqlite file of the backend, only it uses it; migrated to the last migration (db/migration) when
+// opened
 class SakDatabase private constructor(
     private val dataSource: SQLiteDataSource,
 ) {
-    // the generated classes name everything in upper case, the changelog in lower case; for the
-    // repositories of this module only
-    internal val dsl: DSLContext = DSL.using(dataSource, SQLDialect.SQLITE, Settings().withRenderNameCase(RenderNameCase.LOWER))
+    // for the repositories of this module only
+    internal val dsl: DSLContext = DSL.using(dataSource, SQLDialect.SQLITE)
 
     private fun migrate() {
-        dataSource.connection.use { migrateIsolated(it, CHANGELOG) }
+        migrateSchema(dataSource)
     }
 
     companion object {
-        const val CHANGELOG = "db/changelog/db.changelog-master.yaml"
-
         fun open(file: Path): SakDatabase {
             Files.createDirectories(file.toAbsolutePath().parent)
             if (!Files.exists(file)) {

@@ -53,7 +53,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `android/grocery` | The Android app of the grocery lists, on top of `android/core`. |
 | `android/notes` | The Android app of the notes, on top of `android/core`. |
 | `android/todo` | The Android app of the todo lists, on top of `android/core`. |
-| `sak-model` | The database: schema (Liquibase changelog), entities and their repositories (jOOQ on SQLite). |
+| `sak-model` | The database: schema (SQL migrations of Flyway), entities and their repositories (jOOQ on SQLite). |
 | `sak-core` | What every part of the backend shares and that is not the api: the texts and their catalogs (`I18N-1`), health, the limits of requests, the mail sender, and how an address is written to the logs. It knows no Ktor. |
 | `sak-api` | What every part of the api shares: the error answer, pagination, the language of a request. |
 | `sak-auth` | The e-mail login, the session tokens, the signed requests of sakadmin, the roles. |

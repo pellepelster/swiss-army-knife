@@ -17,6 +17,34 @@ class SakDatabaseTest {
 
     private val file get() = tempDir.resolve("data/sak.db")
 
+    private fun dataSource() =
+        org.sqlite.SQLiteDataSource(org.sqlite.SQLiteConfig().apply { enforceForeignKeys(true) }).apply {
+            Files.createDirectories(file.parent)
+            url = "jdbc:sqlite:$file"
+        }
+
+    // a database as liquibase left it after the change sets 0001 to the given one: the schema of the
+    // migrations until then, and the changelog of liquibase in place of the history of flyway
+    private fun liquibaseDatabase(changeSets: List<String>) {
+        migrateSchema(dataSource(), target = changeSets.size.toString())
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate("DROP TABLE flyway_schema_history")
+                statement.executeUpdate("CREATE TABLE DATABASECHANGELOG (ID VARCHAR(255) NOT NULL, AUTHOR VARCHAR(255) NOT NULL, FILENAME VARCHAR(255) NOT NULL)")
+                changeSets.forEach { statement.executeUpdate("INSERT INTO DATABASECHANGELOG VALUES ('$it', 'sak', 'db/changelog/$it.yaml')") }
+            }
+        }
+    }
+
+    private fun versions() =
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT version, type FROM flyway_schema_history WHERE success ORDER BY installed_rank").use { rows ->
+                    buildList { while (rows.next()) add(rows.getString(1) to rows.getString(2)) }
+                }
+            }
+        }
+
     private fun insert(
         database: SakDatabase,
         name: String,
@@ -64,8 +92,8 @@ class SakDatabaseTest {
     @Test
     fun `a database of the release that copied to the resource ids keeps its files and buckets without the columns of the copies`() {
         Files.createDirectories(file.parent)
+        migrateSchema(dataSource(), target = "5")
         java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
-            migrateIsolated(connection, "db/changelog/until-0005.yaml")
             connection.createStatement().use { statement ->
                 statement.executeUpdate(
                     "INSERT INTO files (id, resource_id, sha256, content_type, size, owner, created_at) " +
@@ -76,8 +104,6 @@ class SakDatabaseTest {
                         "VALUES ('site', 'site00000001', 0, 'AKsite', 'secret', 'admin@example.org', '2026-11-01 00:00:00.000')",
                 )
             }
-            // liquibase leaves the connection without auto commit
-            connection.commit()
         }
 
         val database = SakDatabase.open(file)
@@ -103,8 +129,8 @@ class SakDatabaseTest {
     @Test
     fun `the table of the buckets made again keeps the buckets, their domains and the redirects to them`() {
         Files.createDirectories(file.parent)
+        migrateSchema(dataSource(), target = "6")
         java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
-            migrateIsolated(connection, "db/changelog/until-0006.yaml")
             connection.createStatement().use { statement ->
                 for ((name, key, deletedAt) in listOf(Triple("site", "AKsite", "NULL"), Triple("gone", "AKgone", "'2026-11-02 00:00:00.000'"))) {
                     statement.executeUpdate(
@@ -121,8 +147,6 @@ class SakDatabaseTest {
                         "VALUES ('www.example.org', 'BUCKET', 'site', 'admin@example.org', '2026-11-01 00:00:00.000')",
                 )
             }
-            // liquibase leaves the connection without auto commit
-            connection.commit()
         }
 
         val database = SakDatabase.open(file)
@@ -156,8 +180,8 @@ class SakDatabaseTest {
     @Test
     fun `a list of the notes from before its icon keeps its notes and is found as the first list`() {
         Files.createDirectories(file.parent)
+        migrateSchema(dataSource(), target = "7")
         java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
-            migrateIsolated(connection, "db/changelog/until-0007.yaml")
             connection.createStatement().use { statement ->
                 statement.executeUpdate(
                     "INSERT INTO note_lists (id, owner, name, shared, created_at) VALUES (7, 'pelle@pelle.io', 'My Notes', 0, '2026-11-01 00:00:00.000')",
@@ -166,8 +190,6 @@ class SakDatabaseTest {
                     "INSERT INTO notes (list_id, owner, text, color, created_at) VALUES (7, 'pelle@pelle.io', 'a note', 'yellow', '2026-11-01 00:00:00.000')",
                 )
             }
-            // liquibase leaves the connection without auto commit
-            connection.commit()
         }
 
         val notes = io.pelle.sak.model.notes.NoteRepository(SakDatabase.open(file))
@@ -191,8 +213,8 @@ class SakDatabaseTest {
     fun `positions taken twice before they were unique are numbered again, then each is unique (DM-5)`() {
         Files.createDirectories(file.parent)
         val at = "'2026-11-01 00:00:00.000'"
+        migrateSchema(dataSource(), target = "9")
         java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
-            migrateIsolated(connection, "db/changelog/until-0009.yaml")
             connection.createStatement().use { statement ->
                 listOf(
                     "INSERT INTO note_lists (id, owner, name, shared, created_at) VALUES (1, 'a', 'Notes', 0, $at)",
@@ -211,8 +233,6 @@ class SakDatabaseTest {
                     "INSERT INTO restic_backup_plan_paths (id, plan_id, owner, path, position, created_at) VALUES (21, 1, 'a', '/a', 1, $at)",
                 ).forEach { statement.executeUpdate(it) }
             }
-            // liquibase leaves the connection without auto commit
-            connection.commit()
         }
 
         SakDatabase.open(file)
@@ -241,5 +261,66 @@ class SakDatabaseTest {
                 }.isFailure shouldBe true
             }
         }
+    }
+
+    @Test
+    fun `a database liquibase migrated to the last change set is taken as it is, no migration runs again`() {
+        liquibaseDatabase(LIQUIBASE_CHANGE_SETS)
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use {
+                it.executeUpdate(
+                    "INSERT INTO s3_buckets (name, resource_id, access_key_id, secret_access_key, owner, created_at) " +
+                        "VALUES ('site', 'site00000000', 'AKsite', 'secret', 'admin@example.org', '2026-11-01 00:00:00.000')",
+                )
+            }
+        }
+
+        val database = SakDatabase.open(file)
+
+        versions() shouldBe listOf("10" to "BASELINE")
+        io.pelle.sak.model.hosting.S3BucketRepository(database).byName("site")!!.resourceId shouldBe ResourceId("site00000000")
+    }
+
+    @Test
+    fun `a database liquibase migrated to an older change set gets the migrations after it`() {
+        liquibaseDatabase(LIQUIBASE_CHANGE_SETS.take(7))
+
+        SakDatabase.open(file)
+
+        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL")
+    }
+
+    @Test
+    fun `a changelog of liquibase with a gap is refused, no migration runs`() {
+        liquibaseDatabase(LIQUIBASE_CHANGE_SETS.take(3))
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { it.executeUpdate("DELETE FROM DATABASECHANGELOG WHERE ID = '0002-todo'") }
+        }
+
+        shouldThrow<IllegalStateException> { SakDatabase.open(file) }
+    }
+
+    @Test
+    fun `a new database gets every migration`() {
+        SakDatabase.open(file)
+
+        versions() shouldBe (1..10).map { it.toString() to "SQL" }
+    }
+
+    private companion object {
+        // the ids of the change sets of liquibase, in their order (db/changelog until V10)
+        val LIQUIBASE_CHANGE_SETS =
+            listOf(
+                "0001-initial",
+                "0002-todo",
+                "0003-restic",
+                "0004-files-resource-id",
+                "0005-s3-buckets-resource-id",
+                "0006-drop-layout-migration-columns",
+                "0007-s3-buckets-access-key-live",
+                "0008-note-lists-icon",
+                "0009-restic-plan-excludes",
+                "0010-unique-positions",
+            )
     }
 }
