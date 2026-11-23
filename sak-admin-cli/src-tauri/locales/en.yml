@@ -6,8 +6,6 @@ common:
     not_read: "%{path} could not be read: %{error}"
     not_decrypted: "%{path} does not decrypt with the password of the SAK instance, or is damaged or not complete: %{error}"
   checks:
-    not_finished: "A check did not finish: %{error}"
-    splash_not_updated: "The splash screen could not be updated: %{error}"
     container_runtime:
       name: "Verify container runtime"
       running: "Verifying container runtime…"
@@ -198,23 +196,6 @@ common:
     restart_failed: "Failed to restart: %{services}"
     restart_skipped: "Not restarted, only a reboot renews them: %{services}"
     no_restart: "No service runs old libraries, none was restarted."
-  update:
-    checking: "Asking %{receiver} for the newest release of sakadmin…"
-    no_release: "This sakadmin (%{version}) is no release, there is no version to compare it with."
-    up_to_date: "sakadmin %{version} is up-to-date."
-    newer: "sakadmin %{newest} is available, this is %{current}."
-    installing: "Downloading sakadmin %{version} from %{receiver}…"
-    installed: "sakadmin is updated from %{current} to %{newest}. Start sakadmin again to use it."
-    unreachable: "%{url} could not be reached: %{error}"
-    failed: "%{url} answered %{status}."
-    not_https: "%{url} is no https address, sakadmin asks github over https only."
-    not_github: "%{url} is no address of github, sakadmin downloads from github only."
-    unreadable: "The newest release on %{receiver} could not be read: %{error}"
-    no_asset: "The release %{version} has no %{name}."
-    checksum_mismatch: "The sha-256 of %{name} is not the one of its checksum, nothing was changed."
-    signature_invalid: "%{name} is not signed by the release workflow of %{version}, nothing was changed: %{error}"
-    no_binary: "%{name} has no %{binary}, nothing was changed."
-    not_replaced: "sakadmin at %{path} could not be replaced: %{error}"
 cli:
   mail:
     reading: "Reading the mail server of %{name}…"
@@ -264,7 +245,6 @@ cli:
   plan_no_terminal: "No terminal to confirm a plan that deletes or replaces resources: give --yes to apply it to %{name}."
   restore_confirm: "The data of %{name} is replaced with the backup %{path}. Type the name to continue: "
   restore_no_terminal: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
-  update_hint: "Run sakadmin update to install it."
   maintenance:
     reboot_hint: "A reboot is pending, run sakadmin maintenance reboot %{name}."
 ui:
@@ -278,12 +258,6 @@ ui:
     smtp_from: "Correct the sender address in the form."
   quit: "Quit"
   update:
-    version: "sakadmin %{version}"
-    check: "Check for updates"
-    idle: "Asks %{receiver} for the newest release of sakadmin."
-    install: "Update to %{version}"
-    restart: "Restart"
-    restart_hint: "Restart to use sakadmin %{version}."
     restart_while_running: "A SAK instance is being changed, restart when it is done."
   providers:
     title: "Provider tokens"

@@ -6,6 +6,11 @@ edition = "2024"
 rust-version = "1.90"
 publish = false
 
+[features]
+# the console program of windows (sakbackup-cli.exe): the same sakbackup, but a console program, so its
+# commands print to the terminal they run in (desktop:build)
+console = []
+
 [build-dependencies]
 tauri-build = { version = "2.7.4", features = [] }
 

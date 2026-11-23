@@ -4,8 +4,13 @@
 //! terminal; gui/ and cli/ are thin on top of it
 
 pub mod api;
+pub mod checks;
 pub mod passwords;
 pub mod restic;
 pub mod restore;
 pub mod run;
 pub mod snapshots;
+
+/// sakbackup as its release has it, what its update looks for (sak_desktop_shared::update)
+pub const APP: sak_desktop_shared::update::App =
+    sak_desktop_shared::update::App::new("sakbackup", "sak-backup");

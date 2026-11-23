@@ -22,11 +22,14 @@ pub mod sak_backend;
 pub mod smtp;
 pub mod ssh;
 pub mod ssh_config;
-pub mod update;
 
 /// the version of SAK this sakadmin is (`VERSION` of the build, `build.rs`), the tag of the images
 /// it pulls and deploys; `latest` for a build that is no release
-pub const VERSION: &str = env!("SAK_VERSION");
+pub const VERSION: &str = sak_desktop_shared::VERSION;
+
+/// sakadmin as its release has it, what its update looks for (sak_desktop_shared::update)
+pub const APP: sak_desktop_shared::update::App =
+    sak_desktop_shared::update::App::new("sakadmin", "sak-admin-cli");
 
 /// the variable that sets another tag of the images than the version, e.g. `<version>-rc` to test
 /// the images of a release before it is released

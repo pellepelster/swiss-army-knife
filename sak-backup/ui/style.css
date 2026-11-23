@@ -1,37 +1,6 @@
 /* the layout of the window; the look is bootstrap on the tokens of sak-theme (theme/, copied
-   by mise run desktop:ui). Every color is a var(--sak-…), never a literal */
-
-html, body {
-  height: 100%;
-}
-
-body {
-  /* an app, not a document: only what is typed in is meant to be selected */
-  user-select: none;
-  cursor: default;
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  background: var(--sak-bg);
-}
-
-[hidden] {
-  display: none !important;
-}
-
-.view {
-  flex: 1;
-  min-height: 0;
-}
-
-.hint {
-  color: var(--sak-muted);
-  margin: 0;
-}
-
-.status-failed {
-  color: var(--sak-danger-text);
-}
+   by mise run desktop:ui), the base of the page, the menus and the dialogs are shared/views.css.
+   Every color is a var(--sak-…), never a literal */
 
 /* signed in: the navigation on the left, the page on the right */
 .shell {
@@ -123,9 +92,6 @@ body {
 
 /* the rows of a list, one card each under the other (UX-11) */
 .rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
   gap: var(--sak-space-2);
@@ -179,13 +145,7 @@ button.row-body:focus-visible {
   padding: 0 var(--sak-space-3);
 }
 
-.row-menu .dropdown-menu {
-  right: 0;
-  left: auto;
-  top: 100%;
-}
-
-/* a form of a page, its buttons bottom right (UX-9) */
+/* a form of a page, its buttons bottom right (UX-9, .form-buttons of shared/views.css) */
 .page-form {
   display: flex;
   flex-direction: column;
@@ -212,16 +172,8 @@ button.row-body:focus-visible {
   display: none;
 }
 
-.form-buttons {
-  display: flex;
-  justify-content: flex-end;
-}
-
 /* the paths of a backup plan, each with its remove button */
 .paths {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
   gap: var(--sak-space-1);
@@ -333,18 +285,4 @@ button.row-body:focus-visible {
 #page-snapshots > .rows,
 #page-snapshots > .hint {
   margin-top: var(--sak-space-3);
-}
-
-/* the dialog of the password of a repository */
-.password-dialog {
-  width: min(32rem, 100% - 2rem);
-  border: 1px solid var(--sak-line);
-  border-radius: var(--sak-radius-lg);
-  background: var(--sak-surface);
-  color: var(--sak-ink);
-  padding: var(--sak-space-4);
-}
-
-.password-dialog::backdrop {
-  background: color-mix(in srgb, var(--sak-ink) 40%, transparent);
 }

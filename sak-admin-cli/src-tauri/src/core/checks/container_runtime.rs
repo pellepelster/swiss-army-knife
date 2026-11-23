@@ -1,11 +1,12 @@
-use super::{Check, CheckResult, Found, Progress};
+use super::{CheckResult, Found, Progress};
 use crate::core::container;
 use rust_i18n::t;
+use sak_desktop_shared::checks::Check;
 
 /// docker or podman, proven by the canary; the one found is used by the checks after it
 pub struct ContainerRuntimeCheck;
 
-impl Check for ContainerRuntimeCheck {
+impl Check<Found> for ContainerRuntimeCheck {
     fn id(&self) -> &'static str {
         "container_runtime"
     }

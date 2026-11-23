@@ -7,6 +7,8 @@ import { STATES, frontendLink, resource } from './deployments.js';
 import { showMaintenance } from './maintenance.js';
 import { openedDeployment } from './password.js';
 import { row, runChecked } from './run.js';
+import { confirmAction } from './shared/confirm-dialog.js';
+import { menu } from './shared/menu.js';
 import { currentVisit, isCurrent, navigate, register, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -21,7 +23,6 @@ const deployButton = document.getElementById('deployment-deploy');
 const forceButton = document.getElementById('deployment-force');
 const maintenanceButton = document.getElementById('deployment-maintenance');
 const maintenanceMenu = document.getElementById('deployment-maintenance-menu');
-const rebootDialog = document.getElementById('reboot-confirm');
 let current = null;
 // the plan of the last check; the run shows its rows
 let checked = null;
@@ -175,45 +176,15 @@ function deploy(force) {
   runChecked(checked, current.name, password, force);
 }
 
-function setMenu(open) {
-  maintenanceMenu.classList.toggle('show', open);
-  maintenanceButton.setAttribute('aria-expanded', String(open));
-  if (open) {
-    menuItems()[0].focus();
-  }
-}
+// the menu of the maintenance (shared/menu.js): it closes itself after a click on an entry and gives
+// the focus to its button, so the handler below starts with the menu closed
+menu(maintenanceButton, maintenanceMenu);
 
-function menuItems() {
-  return [...maintenanceMenu.querySelectorAll('[data-action]')];
-}
-
-maintenanceButton.addEventListener('click', (event) => {
-  event.stopPropagation();
-  setMenu(!maintenanceMenu.classList.contains('show'));
-});
-// arrow up and down, home and end move between the entries; tab leaves the menu closed
-maintenanceMenu.addEventListener('keydown', (event) => {
-  const items = menuItems();
-  const at = items.indexOf(document.activeElement);
-  const next = {
-    ArrowDown: (at + 1) % items.length,
-    ArrowUp: (at - 1 + items.length) % items.length,
-    Home: 0,
-    End: items.length - 1,
-  }[event.key];
-  if (next !== undefined) {
-    event.preventDefault();
-    items[next].focus();
-  } else if (event.key === 'Tab') {
-    setMenu(false);
-  }
-});
 function confirmReboot(name) {
-  document.getElementById('reboot-confirm-title').textContent = text('ui.maintenance.confirm_title', { name });
-  rebootDialog.returnValue = '';
-  rebootDialog.showModal();
-  return new Promise((resolve) => {
-    rebootDialog.addEventListener('close', () => resolve(rebootDialog.returnValue === 'reboot'), { once: true });
+  return confirmAction({
+    title: text('ui.maintenance.confirm_title', { name }),
+    message: text('ui.maintenance.confirm_text'),
+    action: text('ui.maintenance.reboot'),
   });
 }
 
@@ -222,21 +193,12 @@ maintenanceMenu.addEventListener('click', async (event) => {
   if (!item) {
     return;
   }
-  setMenu(false);
   const { action } = item.dataset;
+  // a reboot that is cancelled leaves the focus on the button of the menu
   if (action === 'reboot' && !(await confirmReboot(current.name))) {
-    // the closed menu had the focus
-    maintenanceButton.focus();
     return;
   }
   showMaintenance(current, action);
-});
-document.addEventListener('click', () => setMenu(false));
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && maintenanceMenu.classList.contains('show')) {
-    setMenu(false);
-    maintenanceButton.focus();
-  }
 });
 
 checkButton.addEventListener('click', check);

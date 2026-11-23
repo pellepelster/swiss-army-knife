@@ -1,5 +1,7 @@
-// the checks of src-tauri/src/core/checks/ on the splash screen. After a failure the splash screen
-// stays, quit is the only action
+// the checks at the start of a desktop app (sak-desktop-shared, checks.rs; the app's own in its
+// core/checks) on its splash screen: <main class="view splash" id="view-splash"> with #checks,
+// #checks-error and #splash-quit, checks.css. The commands run_checks and quit. After a failure the
+// splash screen stays, quit is the only action
 const { invoke, Channel } = window.__TAURI__.core;
 
 // the checkmarks stay a moment before the next view

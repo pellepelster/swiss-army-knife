@@ -1,11 +1,12 @@
-use super::{Check, CheckResult, Found, Progress};
+use super::{CheckResult, Found, Progress};
 use crate::core::container;
 use rust_i18n::t;
+use sak_desktop_shared::checks::Check;
 
 /// pulls the image of the tools again; the progress is the megabytes pulled
 pub struct ImageCheck;
 
-impl Check for ImageCheck {
+impl Check<Found> for ImageCheck {
     fn id(&self) -> &'static str {
         "image"
     }

@@ -1,11 +1,15 @@
-// the footer of the window: the version of sakadmin and one button for the steps of an update: check,
-// install, restart. Only a click asks the receiver, the line names it first
-import { setFailure, setStatus, text } from './shared/views.js';
+// the footer of the window of a desktop app (<footer class="app-footer"> with #update-version,
+// #update-button and #update-status, update.css): the version of the app and one button for the steps
+// of an update: check, install, restart. Only a click asks the receiver, the line names it first. The
+// commands version, check_update and install_update are the ones of sak-desktop-shared (update.rs),
+// restart is the app's own
+import { setFailure, setStatus, text } from './views.js';
 
 const { invoke } = window.__TAURI__.core;
 
 const status = document.getElementById('update-status');
 const button = document.getElementById('update-button');
+let app = '';
 let receiver = '';
 let step = 'check';
 let newest = null;
@@ -25,7 +29,7 @@ function show(next, message, { busy = false, failed = false } = {}) {
 }
 
 async function check() {
-  show('check', text('common.update.checking', { receiver }), { busy: true });
+  show('check', text('common.update.checking', { app, receiver }), { busy: true });
   try {
     const answer = await invoke('check_update');
     newest = answer.newest;
@@ -36,11 +40,11 @@ async function check() {
 }
 
 async function install() {
-  show('install', text('common.update.installing', { version: newest, receiver }), { busy: true });
+  show('install', text('common.update.installing', { app, version: newest, receiver }), { busy: true });
   try {
     const answer = await invoke('install_update');
     if (answer.installed) {
-      show('restart', text('ui.update.restart_hint', { version: answer.newest }));
+      show('restart', text('ui.update.restart_hint', { app, version: answer.newest }));
     } else {
       newest = null;
       show('check', answer.message);
@@ -50,7 +54,7 @@ async function install() {
   }
 }
 
-// gone on success, the new sakadmin starts; refused while a deployment is changed
+// gone on success, the new version starts; the app refuses it while its work must not be stopped
 async function restart() {
   try {
     await invoke('restart');
@@ -61,9 +65,16 @@ async function restart() {
 
 button.addEventListener('click', () => ({ check, install, restart })[step]());
 
+// never stops the start of the app: a footer that can not be filled says so and stays
 export async function showVersion() {
-  const answer = await invoke('version');
-  receiver = answer.receiver;
-  document.getElementById('update-version').textContent = text('ui.update.version', { version: answer.version });
-  show('check', text('ui.update.idle', { receiver }));
+  try {
+    const answer = await invoke('version');
+    app = answer.app;
+    receiver = answer.receiver;
+    document.getElementById('update-version').textContent = text('ui.update.version', { app, version: answer.version });
+    show('check', text('ui.update.idle', { app, receiver }));
+  } catch (error) {
+    button.disabled = true;
+    setFailure(status, String(error));
+  }
 }

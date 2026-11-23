@@ -4,7 +4,7 @@
 //! sign-in of the window kept in the keychain for the SAK address used last (DESKTOP-1). The
 //! password of a repository comes from SAK_BACKUP_REPO_PASSWORD, the keychain or is typed, never from
 //! an argument (BACKUP-3). What it does is core/, as for the window. Exit codes: 0 done, 1 failed,
-//! 2 wrong arguments
+//! 2 wrong arguments, 7 a newer release (`update --check`)
 
 use crate::core::api::{self, PLANS, REPOSITORIES, host};
 use crate::core::passwords::{Given, PasswordStore};
@@ -27,7 +27,7 @@ pub const SESSION_VARIABLE: &str = "SAK_BACKUP_SESSION_TOKEN";
 
 /// The backups of a SAK instance with restic. Without a command, the window opens.
 #[derive(Parser)]
-#[command(name = "sakbackup", version)]
+#[command(name = "sakbackup", version = sak_desktop_shared::VERSION)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -60,7 +60,18 @@ pub enum Command {
         #[arg(long, default_value = "/")]
         target: PathBuf,
     },
+    /// Update sakbackup to the newest release from github.com
+    ///
+    /// Replaces sakbackup only when the release is newer, after checking its sha-256 and its signature.
+    Update {
+        /// Only check for a newer release, exit code 7 when there is one
+        #[arg(long)]
+        check: bool,
+    },
 }
+
+/// the exit code of `update --check` when a newer release is there, as sakadmin has it
+pub const EXIT_UPDATE_AVAILABLE: i32 = 7;
 
 /// how many snapshots a run of the backup plan keeps, each from 1 to 1000 (BACKUP-8); restic removes
 /// the others after a backup
@@ -181,6 +192,19 @@ pub enum PlanCommand {
 
 /// runs the command, its exit code
 pub fn run(cli: Cli) -> i32 {
+    // the update asks github, not the SAK instance: it needs no sign-in
+    if let Command::Update { check } = cli.command {
+        let update =
+            sak_desktop_shared::update::run(&crate::core::APP, check, &|line| println!("{line}"));
+        return match tauri::async_runtime::block_on(update) {
+            Ok(true) => EXIT_UPDATE_AVAILABLE,
+            Ok(false) => 0,
+            Err(message) => {
+                eprintln!("{message}");
+                1
+            }
+        };
+    }
     match tauri::async_runtime::block_on(command(cli.command)) {
         Ok(()) => 0,
         Err(message) => {
@@ -194,6 +218,7 @@ async fn command(command: Command) -> Result<(), String> {
     let sessions = session().await?;
     let passwords = PasswordStore::default();
     match command {
+        Command::Update { .. } => unreachable!("run answers the update, it needs no session"),
         Command::Repo(RepoCommand::Create { name }) => {
             let created = api::create_repository(&sessions, &name)
                 .await
@@ -257,7 +282,7 @@ async fn command(command: Command) -> Result<(), String> {
         Command::Plan(PlanCommand::Set { name, keep }) => {
             let keep = keep.json().ok_or_else(|| t!("cli.no_keep").to_string())?;
             let plan = by_name(&sessions, PLANS, &name, "cli.unknown_plan").await?;
-            let id = plan["id"].as_u64().unwrap_or_default();
+            let id = id(&plan)?;
             // the values of the plan the api takes, with the new setting
             let values = json!({
                 "name": plan["name"],
@@ -334,7 +359,7 @@ async fn command(command: Command) -> Result<(), String> {
             }
             // the backup is done, the command still fails
             if let Some(error) = summary.expire_failed {
-                return Err(t!("cli.expire_failed", error = error).to_string());
+                return Err(t!("cli.expire_failed", error = message(&error)).to_string());
             }
         }
         Command::Snapshot(SnapshotCommand::List { repo }) => {
@@ -466,9 +491,14 @@ async fn id_of(
     name: &str,
     unknown: &str,
 ) -> Result<u64, String> {
-    Ok(by_name(sessions, path, name, unknown).await?["id"]
+    id(&by_name(sessions, path, name, unknown).await?)
+}
+
+/// the id of a repository or a backup plan as the api answered it; an answer without one is no 0
+fn id(answer: &Value) -> Result<u64, String> {
+    answer["id"]
         .as_u64()
-        .unwrap_or_default())
+        .ok_or_else(|| sak_desktop_shared::cli::failed_message("the SAK instance answered no id"))
 }
 
 async fn by_name(
@@ -504,11 +534,12 @@ fn message(error: &RunError) -> String {
         RunError::NeedsInitEnvironment => t!("cli.needs_init_environment").to_string(),
         RunError::RepositoryMissing => t!("cli.repository_missing").to_string(),
         RunError::UnknownSnapshot => t!("cli.unknown_snapshot").to_string(),
-        // a run of the command line is never cancelled, the only one of its process, and a new
-        // repository gets the password typed twice (`with_password`)
-        RunError::Cancelled | RunError::Running | RunError::NeedsInit => {
-            unreachable!("the command line got {error:?}")
-        }
+        // seldom on the command line: its run is the only one of its process and is not cancelled,
+        // and a new repository gets the password typed twice (`with_password`); a repository that
+        // appears new only on the second look still ends here
+        RunError::Cancelled => t!("cli.cancelled").to_string(),
+        RunError::Running => t!("cli.running").to_string(),
+        RunError::NeedsInit => t!("cli.needs_init").to_string(),
         RunError::Failed { message } => sak_desktop_shared::cli::failed_message(message),
     }
 }
@@ -516,6 +547,54 @@ fn message(error: &RunError) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_error_of_a_run_has_a_text_none_ends_the_command_line() {
+        for error in [RunError::Cancelled, RunError::Running, RunError::NeedsInit] {
+            assert!(!message(&error).is_empty());
+        }
+        assert_eq!(
+            message(&RunError::NeedsInit),
+            "The repository has no backup yet. Run the backup again to create it with a password."
+        );
+    }
+
+    #[test]
+    fn an_answer_without_an_id_fails_it_is_no_0() {
+        assert_eq!(id(&json!({ "id": 7, "name": "laptop" })), Ok(7));
+        assert_eq!(
+            id(&json!({ "name": "laptop" })),
+            Err("It failed: the SAK instance answered no id".to_string())
+        );
+        assert!(id(&json!({ "id": "7" })).is_err());
+    }
+
+    #[test]
+    fn the_update_is_a_command_with_a_check() {
+        let Command::Update { check } = Cli::try_parse_from(["sakbackup", "update"])
+            .unwrap()
+            .command
+        else {
+            panic!("no update");
+        };
+        assert!(!check);
+        let Command::Update { check } = Cli::try_parse_from(["sakbackup", "update", "--check"])
+            .unwrap()
+            .command
+        else {
+            panic!("no update");
+        };
+        assert!(check);
+        // the version is the one of SAK, what the update compares
+        let version = Cli::try_parse_from(["sakbackup", "--version"])
+            .err()
+            .unwrap();
+        assert_eq!(
+            version.to_string().trim(),
+            format!("sakbackup {}", sak_desktop_shared::VERSION)
+        );
+        assert_eq!(crate::core::APP.zip, "sak-backup");
+    }
 
     #[test]
     fn a_path_is_normalized_as_restic_keeps_it() {

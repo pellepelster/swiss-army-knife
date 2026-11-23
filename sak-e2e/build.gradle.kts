@@ -59,6 +59,12 @@ e2e("e2eScreenshots", "screenshots", "Takes the screenshots of docs/screenshots/
     window()
 }
 
+// the windows of the desktop apps from their files, rust replaced by their fixtures
+e2e("e2eWindow", "window", "Tests the window of sakbackup in chromium with the fixtures of its window_fixtures") {
+    systemProperty("sak.e2e.backup.ui", rootDir.resolve("sak-backup/ui").path)
+    systemProperty("sak.e2e.backup.fixtures", rootDir.resolve("build/ui-fixtures").path)
+}
+
 e2e("e2eVideos", "video", "Records the videos of build/videos/: the apps against the environment of mise run local:run, the sakadmin ui") {
     systemProperty("sak.e2e.videos", rootDir.resolve("build/videos").path)
     window()

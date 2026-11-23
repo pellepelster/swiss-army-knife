@@ -227,7 +227,7 @@ async fn fetch_json<T: serde::de::DeserializeOwned>(
 /// With `Trust::LetsEncryptStaging` it also trusts the roots of the staging ca
 fn client_builder(transport: Transport, trust: Trust) -> Result<reqwest::ClientBuilder, String> {
     let mut builder = Client::builder()
-        .user_agent(concat!("sakadmin/", env!("SAK_VERSION")))
+        .user_agent(format!("sakadmin/{}", crate::core::VERSION))
         .timeout(Duration::from_secs(30))
         .redirect(Policy::none())
         .https_only(transport == Transport::HttpsOnly);
@@ -242,21 +242,7 @@ fn client_builder(transport: Transport, trust: Trust) -> Result<reqwest::ClientB
     Ok(builder)
 }
 
-/// an error with all its causes, so a failed request tells why it failed (no name, no
-/// connection, no certificate): `error sending request: … : invalid peer certificate`
-pub fn with_causes(error: &dyn std::error::Error) -> String {
-    let mut text = error.to_string();
-    let mut source = error.source();
-    while let Some(cause) = source {
-        let cause_text = cause.to_string();
-        if !text.contains(&cause_text) {
-            text.push_str(": ");
-            text.push_str(&cause_text);
-        }
-        source = cause.source();
-    }
-    text
-}
+pub use sak_desktop_shared::errors::with_causes;
 
 /// the time a new deployment has to answer at its public endpoint, with its certificate
 pub const API_WAIT: Duration = Duration::from_secs(300);

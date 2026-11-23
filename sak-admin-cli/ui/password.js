@@ -84,6 +84,8 @@ async function check() {
 
 input.addEventListener('input', () => {
   next.disabled = true;
+  // the answer of a check that still runs is for another password
+  asked = null;
   clearTimeout(timer);
   timer = setTimeout(check, CHECK_AFTER_MS);
 });

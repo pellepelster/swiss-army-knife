@@ -1,5 +1,11 @@
 # the texts of sakbackup in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 common:
+  checks:
+    restic:
+      name: "restic suchen"
+      passed: "restic %{version}"
+      missing: "SAK Backup braucht restic, um Backups zu machen. Installiere es, z. B. mit dem Paketmanager, und starte SAK Backup erneut."
+      failed: "%{program} läuft nicht: %{error}"
 cli:
   repository_created: "Repository %{name} erstellt: %{url}"
   plan_created: "Backup-Plan %{name} von %{host} in %{repository} erstellt."
@@ -13,6 +19,9 @@ cli:
   removed: "%{count} ältere Snapshots entfernt."
   expire_failed: "Das Backup ist fertig, aber die älteren Snapshots konnten nicht entfernt werden: %{error}"
   unknown_snapshot: "Das Repository hat keinen Snapshot mit dieser ID."
+  cancelled: "Der Lauf wurde abgebrochen."
+  running: "Ein anderes Backup oder eine Wiederherstellung läuft gerade."
+  needs_init: "Das Repository hat noch kein Backup. Starte das Backup erneut, um es mit einem Passwort anzulegen."
   restored_partly: "Neuesten Snapshot von %{plan} unter %{target} wiederhergestellt, aber %{count} Dateien konnten nicht geschrieben werden."
   skipped: "Übersprungen: %{message}"
   unknown_repository: "Du hast kein Repository %{name}."
@@ -31,6 +40,9 @@ cli:
   repository_missing: "Die SAK-Instanz hat keine Daten des Repositorys, aber sein Passwort ist auf diesem Computer gemerkt, es hatte also Backups. Es wird nicht neu erstellt: Prüfe die SAK-Instanz."
   empty: "Der Snapshot %{snapshot} hat keine Datei: Ist ein Laufwerk nicht eingehängt? Kein älterer Snapshot wurde entfernt."
 ui:
+  quit: "Beenden"
+  update:
+    restart_while_running: "Ein Backup oder eine Wiederherstellung läuft gerade, starte neu, wenn das fertig ist."
   title: "SAK Backup"
   intro: "Melde dich im Browser bei deiner SAK-Instanz an, um ihre Backups zu verwalten."
   nav:

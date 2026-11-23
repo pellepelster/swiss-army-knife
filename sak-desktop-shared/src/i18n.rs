@@ -130,12 +130,14 @@ pub fn window_texts(
         .collect()
 }
 
-/// the texts of the window this crate has (below `ui.`, e.g. the sign-in), in the language the
-/// app set; an app adds them to its own
+/// the texts of the window this crate has (below `ui.` and `common.`: the sign-in, the update), in
+/// the language the app set; an app adds them to its own
 pub fn shared_texts() -> HashMap<String, String> {
-    window_texts(keys(crate::_rust_i18n_backend(), "en"), &["ui."], |key| {
-        rust_i18n::t!(key).to_string()
-    })
+    window_texts(
+        keys(crate::_rust_i18n_backend(), "en"),
+        &["ui.", "common."],
+        |key| rust_i18n::t!(key).to_string(),
+    )
 }
 
 #[cfg(test)]

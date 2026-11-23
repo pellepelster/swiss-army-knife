@@ -1,6 +1,7 @@
 // what the pages share: a card for each row (UX-11) with a ⋮ menu at its right end (UX-12) and its
 // common entries, a button, the field of a name, the choice of a repository, the host name of this
 // computer, and the errors of a call of the api
+import { menu } from './shared/menu.js';
 import { setFailure, setStatus, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -71,7 +72,7 @@ export function row(name, content, onOpen, entries, actions = []) {
   const buttons = document.createElement('div');
   buttons.className = 'row-actions';
   buttons.append(...actions);
-  item.append(body, buttons, menu(name, entries));
+  item.append(body, buttons, rowMenu(name, entries));
   return item;
 }
 
@@ -100,42 +101,25 @@ export function unavailableDelete(reason) {
   return entry(text('ui.delete'), () => {}, { disabled: reason, danger: true });
 }
 
-function menu(name, entries) {
+// the ⋮ menu of a row (shared/menu.js), below its button at the right end of the row
+function rowMenu(name, entries) {
   const wrapper = document.createElement('div');
   wrapper.className = 'row-menu';
   const list = document.createElement('ul');
-  list.className = 'dropdown-menu dropdown-menu-end';
+  list.className = 'dropdown-menu menu-end';
   list.setAttribute('role', 'menu');
-  const toggle = button('btn btn-outline-secondary btn-sm', '⋮', (event) => {
-    event.stopPropagation();
-    const open = !list.classList.contains('show');
-    closeMenus();
-    list.classList.toggle('show', open);
-    toggle.setAttribute('aria-expanded', String(open));
-  });
+  const toggle = button('btn btn-outline-secondary btn-sm', '⋮', () => {});
   toggle.setAttribute('aria-label', text('ui.actions', { name }));
   toggle.setAttribute('aria-haspopup', 'menu');
-  toggle.setAttribute('aria-expanded', 'false');
   list.append(...entries.map((each) => {
     const line = document.createElement('li');
     line.append(each);
     return line;
   }));
   wrapper.append(toggle, list);
+  menu(toggle, list);
   return wrapper;
 }
-
-export function closeMenus() {
-  for (const open of document.querySelectorAll('.row-menu .dropdown-menu.show')) {
-    open.classList.remove('show');
-    open.previousElementSibling?.setAttribute('aria-expanded', 'false');
-  }
-}
-
-document.addEventListener('click', closeMenus);
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') closeMenus();
-});
 
 // the text of an error of a call: the messages of the api, or what failed
 export function message(error) {

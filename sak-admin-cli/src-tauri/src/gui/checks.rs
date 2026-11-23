@@ -1,11 +1,12 @@
 //! the checks of core on the splash screen: each event goes to the splash screen, what the checks
 //! find goes into the state of the window. A failure shows on the splash screen, in the row of its
-//! check or, when no check failed, as the error of the command; then the user can only quit
+//! check or, when no check failed, as the error of the command; then the user can only quit (the
+//! command `quit` of sak_desktop_shared::checks)
 
 use crate::core::checks::{self, CheckEvent, Next, ProviderTokensCheck};
 use crate::core::container::ContainerRuntime;
 use crate::core::providers::ProviderTokens;
-use rust_i18n::t;
+use sak_desktop_shared::checks::send;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager};
 
@@ -30,16 +31,4 @@ pub async fn run_checks(app: AppHandle, on_event: Channel<CheckEvent>) -> Result
         Next::Ready
     };
     send(&on_event, CheckEvent::Finished { next })
-}
-
-fn send(on_event: &Channel<CheckEvent>, event: CheckEvent) -> Result<(), String> {
-    on_event
-        .send(event)
-        .map_err(|e| t!("common.checks.splash_not_updated", error = e).to_string())
-}
-
-/// the quit of the splash screen: exit code 1 after a check failed, else 0
-#[tauri::command]
-pub fn quit(app: AppHandle, failed: bool) {
-    app.exit(if failed { 1 } else { 0 });
 }

@@ -1,5 +1,10 @@
-// no console window next to the app in windows release builds
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// no console window next to the app in windows release builds; there the commands of cli/
+// print nothing. The feature `console` builds the console program of windows, sakbackup-cli.exe,
+// whose commands print to the terminal they run in (desktop:build)
+#![cfg_attr(
+    all(not(debug_assertions), not(feature = "console")),
+    windows_subsystem = "windows"
+)]
 
 //! sakbackup: the window that manages the backups of a SAK instance, signed in through the
 //! browser (sak-desktop-shared), or, with a command as the first argument, the command line (cli)

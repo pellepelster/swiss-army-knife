@@ -1,65 +1,9 @@
-//! the commands of the footer about the version of sakadmin and its update. The footer asks github
-//! only when the user clicks, its button names github first; after an update it restarts sakadmin
-//! with the new version
+//! the restart of sakadmin after an update. The version in the footer and the update itself are the
+//! commands of sak_desktop_shared::update, for `core::APP`
 
-use crate::core::update::{self, RECEIVER, Status};
 use crate::gui::state::RunningWork;
 use rust_i18n::t;
-use serde::Serialize;
 use tauri::{AppHandle, State};
-
-/// the version in the footer and who a check asks
-#[derive(Serialize)]
-pub struct VersionResponse {
-    version: &'static str,
-    receiver: &'static str,
-}
-
-/// what a check or an install found: the message to show, the newer version when there is one,
-/// and whether an install replaced sakadmin, so a restart starts the new version
-#[derive(Serialize)]
-pub struct UpdateResponse {
-    message: String,
-    newest: Option<String>,
-    installed: bool,
-}
-
-#[tauri::command]
-pub fn version() -> VersionResponse {
-    VersionResponse {
-        version: crate::core::VERSION,
-        receiver: RECEIVER,
-    }
-}
-
-#[tauri::command]
-pub async fn check_update() -> Result<UpdateResponse, String> {
-    let status = update::check().await?;
-    let newest = match &status {
-        Status::Newer { newest, .. } => Some(newest.clone()),
-        _ => None,
-    };
-    Ok(UpdateResponse {
-        message: status.message(),
-        newest,
-        installed: false,
-    })
-}
-
-/// the new version runs from the next start of sakadmin
-#[tauri::command]
-pub async fn install_update() -> Result<UpdateResponse, String> {
-    let status = update::install().await?;
-    let newest = match &status {
-        Status::Newer { newest, .. } => Some(newest.clone()),
-        _ => None,
-    };
-    Ok(UpdateResponse {
-        message: status.installed_message(),
-        installed: newest.is_some(),
-        newest,
-    })
-}
 
 /// starts sakadmin again, the binary it was started from, which an install replaced. Refused while a
 /// deployment is changed, a restart would stop it halfway; a provisioning left is stopped first

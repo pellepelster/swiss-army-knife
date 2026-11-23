@@ -1,0 +1,92 @@
+/* what the windows of the desktop apps share: the base of every page, what views.js sets, the menu of
+   menu.js and the dialogs (confirm-dialog.js). Linked before the style.css of the app, which has
+   the layout of its pages and may override a rule. Every color is a var(--sak-…), never a literal */
+
+html, body {
+  height: 100%;
+}
+
+/* the view fills the window above the footer (update.css) */
+body {
+  /* an app, not a document: only what is typed in is meant to be selected */
+  user-select: none;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+/* one view at a time (show() of views.js) */
+.view {
+  flex: 1;
+  min-height: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* a line that explains or says how something went (setStatus of views.js): muted and small */
+.hint {
+  margin: 0;
+  color: var(--sak-muted);
+  font-size: var(--sak-text-sm);
+}
+
+/* a failure (setFailure of views.js), after .hint so it wins: the danger color that is dark enough
+   for text */
+.status-failed {
+  color: var(--sak-danger-text);
+}
+
+/* a list without bullets and without space around it */
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* the buttons of a form or of the steps of a wizard, bottom right (UX-9) */
+.form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sak-space-2);
+}
+
+/* a disabled button says why in its tooltip (UX-8): bootstrap takes the pointer from a disabled
+   button, which hides the tooltip. It still takes no click */
+.btn:disabled[title],
+.dropdown-item:disabled[title] {
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* a menu of menu.js below its toggle, at its right end. The page has no popper: the menu is placed
+   by hand, its parent is positioned */
+.menu-end {
+  top: 100%;
+  right: 0;
+  left: auto;
+  margin-top: var(--sak-space-1);
+}
+
+/* a dialog and what is behind it; its form has the title, the content and the buttons one under the
+   other */
+.dialog {
+  width: min(32rem, 100% - 2rem);
+  border: 1px solid var(--sak-line);
+  border-radius: var(--sak-radius-lg);
+  background: var(--sak-surface);
+  color: var(--sak-ink);
+  padding: var(--sak-space-4);
+}
+
+.dialog::backdrop {
+  background: color-mix(in srgb, var(--sak-ink) 40%, transparent);
+}
+
+.dialog > form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sak-space-3);
+}

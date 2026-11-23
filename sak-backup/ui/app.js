@@ -1,6 +1,9 @@
 // the session kept from the start before or the sign-in (shared/login.js), then the pages behind the navigation on the left and the menu of
 // the user at the top right; rust keeps the session (sak-desktop-shared)
 import { displayName, showLogin, signOut, startSession } from './shared/login.js';
+import { closeMenu, menu } from './shared/menu.js';
+import { runChecks } from './shared/checks.js';
+import { showVersion } from './shared/update.js';
 import { loadTexts, show, text } from './shared/views.js';
 import { initPlans, showPlans } from './plans.js';
 import { initRepositories, showRepositories } from './repositories.js';
@@ -8,7 +11,6 @@ import { initRun } from './run.js';
 import { initSnapshots, showSnapshots } from './snapshots.js';
 
 const menuToggle = document.getElementById('user-menu-toggle');
-const menu = document.getElementById('user-menu');
 
 const LOGIN = { title: 'ui.title', intro: 'ui.intro', onSignedIn: showShell };
 
@@ -78,32 +80,10 @@ document.getElementById('nav').addEventListener('click', (event) => {
   if (link) openPage(link.dataset.page);
 });
 
-function closeMenu() {
-  menu.classList.remove('show');
-  menuToggle.setAttribute('aria-expanded', 'false');
-}
-
-menuToggle.addEventListener('click', (event) => {
-  event.stopPropagation();
-  const open = !menu.classList.contains('show');
-  menu.classList.toggle('show', open);
-  menuToggle.setAttribute('aria-expanded', String(open));
-  if (open) menu.querySelector('[role=menuitem]').focus();
-});
-
-document.addEventListener('click', (event) => {
-  if (!menu.contains(event.target)) closeMenu();
-});
-
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && menu.classList.contains('show')) {
-    closeMenu();
-    menuToggle.focus();
-  }
-});
+// the menu of the user (shared/menu.js), which closes itself after a click on an entry
+menu(menuToggle, document.getElementById('user-menu'));
 
 document.getElementById('sign-out').addEventListener('click', async () => {
-  closeMenu();
   await signOut();
   login();
 });
@@ -112,4 +92,8 @@ await loadTexts();
 for (const element of document.querySelectorAll('[data-text-label]')) {
   element.setAttribute('aria-label', text(element.dataset.textLabel));
 }
+await showVersion();
+// restic first (shared/checks.js): without it nothing can be backed up; after a failure the splash
+// screen stays
+await runChecks();
 await startSession(LOGIN);

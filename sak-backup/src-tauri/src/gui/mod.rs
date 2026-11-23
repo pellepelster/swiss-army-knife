@@ -23,6 +23,8 @@ pub fn run() {
     tauri::Builder::default()
         .manage(crate::core::run::Runs::default())
         .manage(crate::core::passwords::PasswordStore::default())
+        // what the commands of the update compare and replace (sak_desktop_shared::update)
+        .manage(crate::core::APP)
         .setup(|app| {
             app.manage(sak_desktop_shared::window::session_manager(app));
             app.manage(sak_desktop_shared::window::instance_store(app)?);
@@ -38,6 +40,12 @@ pub fn run() {
             sak_desktop_shared::window::login,
             sak_desktop_shared::window::cancel_login,
             sak_desktop_shared::window::logout,
+            sak_desktop_shared::update::version,
+            sak_desktop_shared::update::check_update,
+            sak_desktop_shared::update::install_update,
+            commands::restart,
+            commands::run_checks,
+            sak_desktop_shared::checks::quit,
             commands::host,
             commands::repositories,
             commands::create_repository,
@@ -60,8 +68,11 @@ pub fn run() {
 }
 
 // the language and the texts of the page: its own below `ui.` and `common.` in locales/, and the
-// ones of sak-desktop-shared (the sign-in); english for the ones missing in the language
+// ones of sak-desktop-shared (the sign-in, the update); english for the ones missing in the language
 sak_desktop_shared::ui_text_commands!(shared: true);
+
+#[cfg(test)]
+mod window_fixtures;
 
 #[cfg(test)]
 mod tests {
@@ -80,117 +91,17 @@ mod tests {
         assert!(own.iter().all(|key| !shared.contains_key(key)));
     }
 
-    /// the commands the window registers, by name, with the arguments of the page for the ones of
-    /// commands.rs (snake case); None for the shared ones, whose arguments sak-desktop-shared checks
-    fn registered() -> std::collections::BTreeMap<String, Option<std::collections::BTreeSet<String>>>
-    {
-        let source = include_str!("mod.rs");
-        let list = source
-            .split("generate_handler![")
-            .nth(1)
-            .unwrap()
-            .split(']')
-            .next()
-            .unwrap();
-        let commands = include_str!("commands.rs");
-        list.split(',')
-            .map(|entry| entry.trim())
-            .filter(|entry| !entry.is_empty())
-            .map(|entry| {
-                let name = entry.rsplit("::").next().unwrap().to_string();
-                let arguments = entry.starts_with("commands::").then(|| {
-                    let after = commands
-                        .split(&format!("fn {name}("))
-                        .nth(1)
-                        .unwrap_or_else(|| panic!("{name} is not in commands.rs"));
-                    // up to the parenthesis that closes the parameters
-                    let mut depth = 0;
-                    let end = after
-                        .char_indices()
-                        .find(|(_, c)| {
-                            match c {
-                                '(' | '<' => depth += 1,
-                                ')' | '>' if depth > 0 => depth -= 1,
-                                ')' => return true,
-                                _ => {}
-                            }
-                            false
-                        })
-                        .unwrap()
-                        .0;
-                    let signature = &after[..end];
-                    signature
-                        .split(',')
-                        .filter_map(|parameter| parameter.split_once(':'))
-                        .filter(|(_, kind)| !kind.contains("State<") && !kind.contains("AppHandle"))
-                        .map(|(argument, _)| argument.trim().to_string())
-                        .collect()
-                });
-                (name, arguments)
-            })
-            .collect()
-    }
-
-    /// every `invoke` of the page: the command and the names of its arguments, in snake case
-    fn invoked() -> Vec<(String, String, std::collections::BTreeSet<String>)> {
-        let ui = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../ui");
-        let mut files: Vec<_> = std::fs::read_dir(&ui)
-            .unwrap()
-            .chain(std::fs::read_dir(ui.join("shared")).unwrap())
-            .map(|entry| entry.unwrap().path())
-            .filter(|path| path.extension().is_some_and(|extension| extension == "js"))
-            .collect();
-        files.sort();
-        let snake = |name: &str| {
-            name.chars()
-                .flat_map(|c| {
-                    if c.is_ascii_uppercase() {
-                        vec!['_', c.to_ascii_lowercase()]
-                    } else {
-                        vec![c]
-                    }
-                })
-                .collect::<String>()
-        };
-        let mut calls = Vec::new();
-        for file in files {
-            let source = std::fs::read_to_string(&file).unwrap();
-            for call in source.split("invoke('").skip(1) {
-                let (name, rest) = call.split_once('\'').unwrap();
-                let arguments = rest
-                    .trim_start()
-                    .strip_prefix(',')
-                    .and_then(|rest| rest.trim_start().strip_prefix('{'))
-                    .map(|rest| {
-                        rest.split('}')
-                            .next()
-                            .unwrap()
-                            .split(',')
-                            .map(|argument| argument.split(':').next().unwrap().trim())
-                            .filter(|argument| !argument.is_empty())
-                            .map(snake)
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let file = file.file_name().unwrap().to_string_lossy().into_owned();
-                calls.push((file, name.to_string(), arguments));
-            }
-        }
-        calls
-    }
-
-    #[test]
-    fn every_invoke_of_the_page_names_a_command_with_its_arguments() {
-        let registered = registered();
-        let calls = invoked();
-        assert!(calls.len() > 20, "{calls:?}");
-        for (file, name, arguments) in &calls {
-            let command = registered
-                .get(name)
-                .unwrap_or_else(|| panic!("{file} invokes {name}, no command of the window"));
-            if let Some(expected) = command {
-                assert_eq!(arguments, expected, "{file} invokes {name}");
-            }
-        }
-    }
+    // every invoke of the page names a command of the window with its arguments: the ones of
+    // commands.rs, `locale` and `ui_texts` of this file, and the ones of sak-desktop-shared
+    sak_desktop_shared::command_tests!(
+        handler: include_str!("mod.rs"),
+        sources: |module| match module {
+            "" => include_str!("mod.rs"),
+            "commands" => include_str!("commands.rs"),
+            other => panic!("the test knows no source of the module {other}"),
+        },
+        ui: concat!(env!("CARGO_MANIFEST_DIR"), "/../ui"),
+        unused: [],
+        invokes: 20,
+    );
 }

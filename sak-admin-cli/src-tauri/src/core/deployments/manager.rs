@@ -1013,7 +1013,7 @@ fn keep_settings(
         admin_email,
         smtp,
         acme_ca: Some(provisioning.acme_ca),
-        version: Some(env!("SAK_VERSION").to_string()),
+        version: Some(crate::core::VERSION.to_string()),
         deployed_at: Some(chrono::Utc::now().to_rfc3339()),
     };
     let message = match crate::core::local::write_settings(

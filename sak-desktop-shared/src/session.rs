@@ -301,16 +301,16 @@ impl SessionManager {
             .bearer_auth(&token)
             .send()
             .await
-            .map_err(|_| RestoreError::Unreachable)?;
+            .map_err(unreachable)?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
             return Err(RestoreError::Expired);
         }
         let user = response
             .error_for_status()
-            .map_err(|_| RestoreError::Unreachable)?
+            .map_err(unreachable)?
             .json::<User>()
             .await
-            .map_err(|_| RestoreError::Unreachable)?;
+            .map_err(unreachable)?;
         *self.session.lock().unwrap() = Some(Session {
             address,
             api,
@@ -492,10 +492,10 @@ impl SessionManager {
             .send()
             .await
             .and_then(|response| response.error_for_status())
-            .map_err(|_| LoginError::NoInstance)?
+            .map_err(no_instance)?
             .json::<WellKnown>()
             .await
-            .map_err(|_| LoginError::NoInstance)?;
+            .map_err(no_instance)?;
         let mut api = Url::parse(announced.api.trim()).map_err(|_| LoginError::NoInstance)?;
         if !secure(&api, address.http()) || api.host().is_none() {
             return Err(LoginError::NoInstance);
@@ -552,8 +552,21 @@ impl SessionManager {
 }
 
 fn failed(error: reqwest::Error) -> LoginError {
-    // without the url, it names only the address the user typed anyway
-    LoginError::Failed(error.without_url().to_string())
+    // with its causes; without the url, it names only the address the user typed anyway
+    LoginError::Failed(crate::errors::with_causes(&error.without_url()))
+}
+
+/// the instance did not answer the sign-in kept: the user reads that it is not reached, the cause
+/// is a line of the standard error, for who looks for it
+fn unreachable(error: reqwest::Error) -> RestoreError {
+    eprintln!("{}", crate::errors::with_causes(&error.without_url()));
+    RestoreError::Unreachable
+}
+
+/// nothing at the address answers as a SAK instance, the cause as for `unreachable`
+fn no_instance(error: reqwest::Error) -> LoginError {
+    eprintln!("{}", crate::errors::with_causes(&error.without_url()));
+    LoginError::NoInstance
 }
 
 /// the page of the web app that asks the user to connect the app

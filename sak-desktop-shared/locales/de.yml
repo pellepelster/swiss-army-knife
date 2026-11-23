@@ -1,9 +1,38 @@
 # the texts of sak-desktop-shared in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 common:
+  checks:
+    not_finished: "Eine Prüfung wurde nicht beendet: %{error}"
+    splash_not_updated: "Der Startbildschirm konnte nicht aktualisiert werden: %{error}"
+  update:
+    checking: "Frage %{receiver} nach dem neuesten Release von %{app}…"
+    no_release: "Dieses %{app} (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
+    up_to_date: "%{app} %{version} ist aktuell."
+    newer: "%{app} %{newest} ist verfügbar, dies ist %{current}."
+    installing: "Lade %{app} %{version} von %{receiver}…"
+    installed: "%{app} ist von %{current} auf %{newest} aktualisiert. Starte %{app} erneut, um es zu verwenden."
+    unreachable: "%{url} ist nicht erreichbar: %{error}"
+    failed: "%{url} hat %{status} geantwortet."
+    not_https: "%{url} ist keine https-Adresse, %{app} fragt github nur über https."
+    not_github: "%{url} ist keine Adresse von github, %{app} lädt nur von github herunter."
+    unreadable: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
+    no_asset: "Das Release %{version} hat kein %{name}."
+    checksum_mismatch: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
+    signature_invalid: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
+    no_binary: "%{name} enthält kein %{binary}, nichts wurde geändert."
+    not_replaced: "%{app} unter %{path} konnte nicht ersetzt werden: %{error}"
 cli:
   refused: "Die SAK-Instanz hat es abgelehnt (%{status})."
   failed: "Es ist fehlgeschlagen: %{error}"
+  update:
+    hint: "%{app} update installiert es."
 ui:
+  update:
+    version: "%{app} %{version}"
+    check: "Nach Updates suchen"
+    idle: "Fragt %{receiver} nach dem neuesten Release von %{app}."
+    install: "Auf %{version} aktualisieren"
+    restart: "Neu starten"
+    restart_hint: "Starte neu, um %{app} %{version} zu verwenden."
   login:
     address: "SAK-Adresse"
     address_hint: "Die Adresse deiner SAK-Instanz, z. B. sak.example.org"

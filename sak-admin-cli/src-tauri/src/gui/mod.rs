@@ -34,12 +34,14 @@ pub fn run() {
         .manage(DeploymentManager)
         .manage(deployments::FrontendUrls::default())
         .manage(state::RunningWork::default())
+        // what the commands of the update compare and replace (sak_desktop_shared::update)
+        .manage(crate::core::APP)
         .manage(state::CheckedDeployment::default())
         .manage(state::LoadedSettings::default())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             checks::run_checks,
-            checks::quit,
+            sak_desktop_shared::checks::quit,
             i18n::locale,
             i18n::ui_texts,
             providers::list_provider_types,
@@ -60,9 +62,9 @@ pub fn run() {
             deployments::cancel_apply,
             deployments::check_deployment_password,
             maintenance::run_maintenance,
-            update::version,
-            update::check_update,
-            update::install_update,
+            sak_desktop_shared::update::version,
+            sak_desktop_shared::update::check_update,
+            sak_desktop_shared::update::install_update,
             update::restart
         ])
         .build(tauri::generate_context!())
@@ -76,6 +78,24 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
+    // every invoke of the page names a command of the window with its arguments. sakadmin has no
+    // sign-in, so its page does not load shared/login.js
+    sak_desktop_shared::command_tests!(
+        handler: include_str!("mod.rs"),
+        sources: |module| match module {
+            "checks" => include_str!("checks.rs"),
+            "deployments" => include_str!("deployments.rs"),
+            "i18n" => include_str!("i18n.rs"),
+            "maintenance" => include_str!("maintenance.rs"),
+            "providers" => include_str!("providers.rs"),
+            "update" => include_str!("update.rs"),
+            other => panic!("the test knows no source of the module {other}"),
+        },
+        ui: concat!(env!("CARGO_MANIFEST_DIR"), "/../ui"),
+        unused: ["login.js"],
+        invokes: 20,
+    );
+
     /// every color of the page is a token of sak-theme; the stylesheet has no color of its own
     #[test]
     fn the_stylesheet_has_no_color_of_its_own() {

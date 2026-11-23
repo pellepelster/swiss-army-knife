@@ -2,8 +2,7 @@
 // SAK_BACKUP_REPO_PASSWORD, the kept one or the one the dialog asks for, the newest first, and
 // deletes one with the data no other snapshot needs; a snapshot of a backup of the user shows the
 // name of the backup plan
-import { confirmAction } from './confirm-dialog.js';
-import { askPassword, passwordFromEnvironment } from './password-dialog.js';
+import { passwordFromEnvironment, withPassword } from './password-dialog.js';
 import {
   badge,
   copyEntry,
@@ -15,7 +14,8 @@ import {
   entry,
   thisHost,
 } from './rows.js';
-import { WRONG, runFailure } from './run.js';
+import { runFailure } from './run.js';
+import { confirmAction } from './shared/confirm-dialog.js';
 import { setFailure, setStatus, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -81,32 +81,9 @@ function snapshotRow(snapshot) {
   return item;
 }
 
-// calls `call` with no password first, so rust takes the one of the variable or the kept one, then
-// as long as the dialog gives one; { value } of the call, or null when the dialog was cancelled.
-// Another failure is thrown
-async function withPassword(action, call) {
-  let password = null;
-  let remember = false;
-  for (;;) {
-    try {
-      return { value: await call(password, remember) };
-    } catch (failure) {
-      if (failure?.kind !== 'no_password' && !WRONG[failure?.kind]) throw failure;
-      const asked = await askPassword({
-        title: action,
-        action,
-        hint: listed.name,
-        failure: WRONG[failure.kind] ? text(WRONG[failure.kind]) : '',
-      });
-      if (asked === null) return null;
-      ({ password, remember } = asked);
-    }
-  }
-}
-
 // the failure of a call of restic, next to the list (UX-15)
 function failed(failure, template) {
-  const said = runFailure(failure, shell, (error) => text(template, { error }));
+  const said = runFailure(failure, shell, listed?.name, (error) => text(template, { error }));
   if (said !== null) setFailure(status, said);
 }
 
@@ -118,7 +95,7 @@ form.addEventListener('submit', async (event) => {
   list.replaceChildren();
   setStatus(status, text('ui.snapshots.loading'));
   try {
-    const done = await withPassword(text('ui.snapshots.show'), (password, remember) =>
+    const done = await withPassword({ title: text('ui.snapshots.show'), hint: name }, (password, remember) =>
       invoke('snapshots', { repositoryId: listed.id, password, remember }),
     );
     if (done === null) {
@@ -145,11 +122,12 @@ async function deleteSnapshot(snapshot, time, item) {
     title: text('ui.snapshots.delete_title', { id: snapshot.shortId }),
     message: text('ui.snapshots.delete_confirm', { time, repository: listed.name }),
     action: text('ui.delete'),
+    danger: true,
   });
   if (!confirmed) return;
   setStatus(status, text('ui.snapshots.deleting', { id: snapshot.shortId }));
   try {
-    const done = await withPassword(text('ui.delete'), (password, remember) =>
+    const done = await withPassword({ title: text('ui.delete'), hint: listed.name }, (password, remember) =>
       invoke('delete_snapshot', { repositoryId: listed.id, snapshotId: snapshot.id, password, remember }),
     );
     if (done === null) {

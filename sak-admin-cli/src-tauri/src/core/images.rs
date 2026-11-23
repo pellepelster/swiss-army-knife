@@ -3,13 +3,14 @@
 //! signature of that digest is verified: signed keyless by the workflow at the tag of the release
 //! (`<version>`, `<version>-rc`) or at main (`latest`) (`mise run image:sign`). The sigstore bundle
 //! is next to the digest in the registry (cosign 3: an index tagged `sha256-<hex>`, ghcr.io has no
-//! referrers api), checked offline against the trusted root built into sakadmin, as in `update.rs`.
+//! referrers api), checked offline against the trusted root built into sakadmin, as the zip of an
+//! update is (`sak_desktop_shared::sigstore`, which has the signer, the check and the client).
 //! A tag no workflow pushes (set with SAK_DOCKER_IMAGE_TAG) has no signer: pulled by tag, unchecked
 
 use crate::core::config::with_causes;
 use reqwest::Client;
-use reqwest::redirect::{Attempt, Policy};
 use rust_i18n::t;
+use sak_desktop_shared::sigstore::{self, Identity, SIGNER_ISSUER, Signed};
 use semver::Version;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -19,11 +20,6 @@ use std::time::Duration;
 
 const REGISTRY: &str = "ghcr.io";
 const OWNER: &str = "pellepelster";
-
-/// who signs the images: the workflow of the repository at a ref, with a certificate of sigstore
-const SIGNER_WORKFLOW: &str =
-    "https://github.com/pellepelster/swiss-army-knife/.github/workflows/swiss-army-knife.yml";
-const SIGNER_ISSUER: &str = "https://token.actions.githubusercontent.com";
 
 /// the media type of a bundle of sigstore, the artifact type of the manifests of the signatures
 const BUNDLE: &str = "application/vnd.dev.sigstore.bundle.v0.3+json";
@@ -48,14 +44,14 @@ pub fn tagged(name: &str, tag: &str) -> String {
 /// `<version>` and `<version>-rc`, at main for `latest`; none for a tag no workflow pushes
 fn signer(tag: &str) -> Option<String> {
     if tag == "latest" {
-        return Some(format!("{SIGNER_WORKFLOW}@refs/heads/main"));
+        return Some(sigstore::signer_at_branch("main"));
     }
     let version = Version::parse(tag.strip_suffix("-rc").unwrap_or(tag)).ok()?;
     // a version of its own with -rc, e.g. 1.2.3-rc.1, is no tag of the workflow
     version
         .pre
         .is_empty()
-        .then(|| format!("{SIGNER_WORKFLOW}@refs/tags/v{version}"))
+        .then(|| sigstore::signer_at_tag(&version))
 }
 
 /// the image `name` of the tag of sakadmin (`core::image_tag`) as it is pulled and run:
@@ -137,10 +133,12 @@ impl Registry {
         if bundles.is_empty() {
             return Err(t!("common.images.not_signed", image = image).to_string());
         }
-        // one signature by the signer is enough, others may be there
+        // one signature by the signer is enough, others may be there: each bundle signs the digest
+        // (an in-toto statement whose subject is the digest)
         let mut errors = Vec::new();
         for bundle in &bundles {
-            match verify_signed_by(&digest, bundle, signer, SIGNER_ISSUER) {
+            let identity = Identity::Uri(signer.to_string());
+            match sigstore::verify(Signed::Sha256(&digest), bundle, identity, SIGNER_ISSUER) {
                 Ok(()) => return Ok(format!("{REGISTRY}/{repository}@{digest}")),
                 Err(error) => errors.push(error),
             }
@@ -334,58 +332,12 @@ fn is_sha256(digest: &str) -> bool {
 /// https only (plain http for the tests), redirects only to ghcr.io and the storage of github,
 /// where ghcr.io sends a blob
 fn client(https_only: bool) -> Result<Client, String> {
-    Client::builder()
-        .user_agent(concat!("sakadmin/", env!("SAK_VERSION")))
-        .timeout(Duration::from_secs(60))
-        .redirect(Policy::custom(follow_to_github))
-        .https_only(https_only)
-        .build()
-        .map_err(|error| error.to_string())
-}
-
-fn follow_to_github(attempt: Attempt) -> reqwest::redirect::Action {
-    let allowed = attempt.url().scheme() == "https"
-        && attempt
-            .url()
-            .host_str()
-            .is_some_and(|host| host == REGISTRY || host.ends_with(".githubusercontent.com"));
-    if allowed && attempt.previous().len() < 5 {
-        attempt.follow()
-    } else {
-        attempt.stop()
-    }
-}
-
-/// the bundle signs the image `digest` (an in-toto statement whose subject is the digest) with a
-/// certificate of sigstore for `identity` of `issuer`, logged in the transparency log; all against
-/// the trusted root of sigstore built into sakadmin
-fn verify_signed_by(
-    digest: &str,
-    bundle: &[u8],
-    identity: &str,
-    issuer: &str,
-) -> Result<(), String> {
-    use sigstore_verify::trust_root::{SIGSTORE_PRODUCTION_TRUSTED_ROOT, TrustedRoot};
-    use sigstore_verify::types::{Artifact, ArtifactDigest, Bundle, Sha256Hash};
-    use sigstore_verify::{IdentityMatcher, VerificationPolicy};
-    let hex = digest
-        .strip_prefix("sha256:")
-        .ok_or_else(|| format!("no sha-256: {digest}"))?;
-    let hash = Sha256Hash::from_hex(hex).map_err(|error| error.to_string())?;
-    let root = TrustedRoot::from_json(SIGSTORE_PRODUCTION_TRUSTED_ROOT)
-        .map_err(|error| error.to_string())?;
-    let bundle = std::str::from_utf8(bundle)
-        .map_err(|error| error.to_string())
-        .and_then(|json| Bundle::from_json(json).map_err(|error| error.to_string()))?;
-    let policy = VerificationPolicy::new(IdentityMatcher::Uri(identity.to_string()), issuer);
-    sigstore_verify::verify(
-        Artifact::from_digest(ArtifactDigest::sha256(hash)),
-        &bundle,
-        &policy,
-        &root,
+    sigstore::github_client(
+        &format!("sakadmin/{}", crate::core::VERSION),
+        Duration::from_secs(60),
+        https_only,
+        |host| host == REGISTRY || host.ends_with(".githubusercontent.com"),
     )
-    .map(|_| ())
-    .map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -428,19 +380,22 @@ mod tests {
 
     #[test]
     fn a_signature_is_verified_for_its_digest_and_its_signer() {
-        assert_eq!(
-            verify_signed_by(SIGNED, BUNDLE_JSON, SIGNER, SIGNER_ISSUER),
-            Ok(())
-        );
+        let check = |digest: &str, bundle: &[u8], signer: &str, issuer: &str| {
+            sigstore::verify(
+                Signed::Sha256(digest),
+                bundle,
+                Identity::Uri(signer.to_string()),
+                issuer,
+            )
+        };
+        assert_eq!(check(SIGNED, BUNDLE_JSON, SIGNER, SIGNER_ISSUER), Ok(()));
         // another digest, another signer, another issuer, no bundle
         let other = format!("sha256:{}", "0".repeat(64));
-        assert!(verify_signed_by(&other, BUNDLE_JSON, SIGNER, SIGNER_ISSUER).is_err());
-        let main = format!("{SIGNER_WORKFLOW}@refs/heads/main");
-        assert!(verify_signed_by(SIGNED, BUNDLE_JSON, &main, SIGNER_ISSUER).is_err());
-        assert!(
-            verify_signed_by(SIGNED, BUNDLE_JSON, SIGNER, "https://accounts.google.com").is_err()
-        );
-        assert!(verify_signed_by(SIGNED, b"{}", SIGNER, SIGNER_ISSUER).is_err());
+        assert!(check(&other, BUNDLE_JSON, SIGNER, SIGNER_ISSUER).is_err());
+        let main = sigstore::signer_at_branch("main");
+        assert!(check(SIGNED, BUNDLE_JSON, &main, SIGNER_ISSUER).is_err());
+        assert!(check(SIGNED, BUNDLE_JSON, SIGNER, "https://accounts.google.com").is_err());
+        assert!(check(SIGNED, b"{}", SIGNER, SIGNER_ISSUER).is_err());
     }
 
     fn sha256(bytes: &[u8]) -> String {
@@ -521,7 +476,7 @@ mod tests {
 
     #[tokio::test]
     async fn an_image_without_the_signature_of_its_signer_is_refused() {
-        let main = format!("{SIGNER_WORKFLOW}@refs/heads/main");
+        let main = sigstore::signer_at_branch("main");
         let server = registry(Some(BUNDLE_JSON)).await;
         let error = mock(&server)
             .verified(BACKEND, "1.2.3", &main)

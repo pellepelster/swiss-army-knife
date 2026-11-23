@@ -1,7 +1,8 @@
-use super::{Check, CheckResult, Found, Progress};
+use super::{CheckResult, Found, Progress};
 use crate::core::providers::ProviderType;
 use crate::core::runtime::block_on;
 use rust_i18n::t;
+use sak_desktop_shared::checks::Check;
 
 /// the provider tokens given to sakadmin, each validated and given back, named by where it came
 /// from: for the window the variables that are set (e.g. HCLOUD_TOKEN), for the command line
@@ -37,7 +38,7 @@ impl ProviderTokensCheck {
     }
 }
 
-impl Check for ProviderTokensCheck {
+impl Check<Found> for ProviderTokensCheck {
     fn id(&self) -> &'static str {
         "provider_tokens"
     }

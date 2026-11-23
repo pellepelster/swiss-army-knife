@@ -1,12 +1,10 @@
 // the backup plans (BACKUP-5, BACKUP-6): their list, a card each with a ⋮ menu, and the form that creates
 // one or changes one of this computer: a repository of the user and the paths to back up. A backup plan
 // of another computer opens read only
-import { confirmAction } from './confirm-dialog.js';
 import { createRepositoryButton } from './repositories.js';
 import {
   badge,
   button,
-  closeMenus,
   createButton,
   disable,
   entry,
@@ -22,7 +20,9 @@ import {
   unavailableDelete,
 } from './rows.js';
 import { onRunsChanged, runningPlan, showRun, startRestore, startRun } from './run.js';
-import { setFailure, setStatus, text } from './shared/views.js';
+import { confirmAction } from './shared/confirm-dialog.js';
+import { closeMenu } from './shared/menu.js';
+import { setBusy, setFailure, setStatus, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -154,7 +154,7 @@ onRunsChanged(() => runButtons.forEach((enable) => enable()));
 // the form: empty to create a backup plan of this computer, filled to change one; read only for one of
 // another computer (BACKUP-5)
 function showForm(plan, repositories) {
-  closeMenus();
+  closeMenu();
   editing = plan;
   paths = [...(plan?.paths ?? [])];
   const readOnly = plan !== null && plan.host !== host;
@@ -263,7 +263,7 @@ form.addEventListener('submit', async (event) => {
   const keep = keepOf();
   if (keep === null) $('plan-keep-error').textContent = text('ui.plans.invalid_keep');
   if (!named || paths.length === 0 || keep === null) return;
-  submit.disabled = true;
+  setBusy(form, true);
   setStatus(formStatus, text('ui.saving'));
   const plan = { name: name.value.trim(), repositoryId: Number(repository.value), host, paths, ...keep };
   try {
@@ -276,8 +276,9 @@ form.addEventListener('submit', async (event) => {
   } catch (error) {
     if (signedOut(error, shell)) return;
     setStatus(formStatus, '');
-    submit.disabled = false;
     saveFailed(error, FIELD_OF, (field) => $(`plan-${field}-error`), formStatus);
+  } finally {
+    setBusy(form, false);
   }
 });
 

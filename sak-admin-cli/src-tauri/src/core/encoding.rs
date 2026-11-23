@@ -1,21 +1,6 @@
-//! hex and random bytes, the one place sakadmin makes them, and text of the server made safe to print
+//! hex and random bytes (of sak-desktop-shared), and text of the server made safe to print
 
-/// the bytes as lower case hex, two digits each
-pub fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
-
-/// `N` bytes of the random source of the system
-pub fn random<const N: usize>() -> Result<[u8; N], String> {
-    let mut bytes = [0u8; N];
-    getrandom::fill(&mut bytes).map_err(|error| error.to_string())?;
-    Ok(bytes)
-}
-
-/// `N` random bytes as hex, `2 * N` digits
-pub fn random_hex<const N: usize>() -> Result<String, String> {
-    Ok(hex(&random::<N>()?))
-}
+pub use sak_desktop_shared::encoding::{hex, random, random_hex};
 
 /// a line of the server or of ansible as sakadmin prints it: every control character but a tab becomes
 /// U+FFFD, so a server that is taken over can not send escape sequences to the terminal
@@ -44,12 +29,5 @@ mod tests {
         );
         assert_eq!(printable("a\rb\u{9b}c"), "a\u{FFFD}b\u{FFFD}c");
         assert_eq!(printable("Grüße"), "Grüße");
-    }
-
-    #[test]
-    fn hex_has_two_lower_case_digits_a_byte_and_random_bytes_differ() {
-        assert_eq!(hex(&[0x00, 0x0f, 0xab, 0xff]), "000fabff");
-        assert_eq!(random_hex::<16>().unwrap().len(), 32);
-        assert_ne!(random::<16>().unwrap(), random::<16>().unwrap());
     }
 }
