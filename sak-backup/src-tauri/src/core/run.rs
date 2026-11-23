@@ -41,7 +41,10 @@ impl Runs {
         }
         drop(child);
         self.0.cancelled.store(false, Ordering::SeqCst);
-        Ok(Run(self.clone()))
+        Ok(Run {
+            runs: self.clone(),
+            lock: None,
+        })
     }
 
     /// whether a backup, a restore or a change of the snapshots goes on
@@ -52,12 +55,25 @@ impl Runs {
     }
 }
 
-/// a backup that goes on (`Runs::begin`); it is over when this goes
-pub(crate) struct Run(Runs);
+/// a backup, a restore or a delete of a snapshot that goes on (`Runs::begin`); it is over when this
+/// goes. Its repository is locked for every other sakbackup of the user (`lock`)
+pub(crate) struct Run {
+    runs: Runs,
+    lock: Option<std::fs::File>,
+}
 
 impl Run {
     fn cancelled(&self) -> bool {
-        self.0.0.cancelled.load(Ordering::SeqCst)
+        self.runs.0.cancelled.load(Ordering::SeqCst)
+    }
+
+    /// the repository of `account` for this run only, among all sakbackups of the user: the window,
+    /// a second window, the command line of a timer. Released when the run goes, also when the
+    /// process ends (DA-33)
+    pub(crate) fn lock(&mut self, account: &str) -> Result<(), RunError> {
+        let dir = sak_desktop_shared::cli::config_dir(crate::core::IDENTIFIER).join("locks");
+        self.lock = Some(lock_in(&dir, account)?);
+        Ok(())
     }
 
     /// a command of restic in this run that `cancel` stops, e.g. forget or prune of the expiry: its
@@ -93,7 +109,7 @@ impl Run {
                 .map(|pipe| Box::new(pipe) as Box<dyn Read + Send>),
         );
         let child = Arc::new(Mutex::new(child));
-        *self.0.0.child.lock().unwrap() = Some(child.clone());
+        *self.runs.0.child.lock().unwrap() = Some(child.clone());
         // a cancel that came while it started
         if self.cancelled() {
             let _ = child.lock().unwrap().kill();
@@ -104,7 +120,7 @@ impl Run {
             }
             std::thread::sleep(Duration::from_millis(50));
         };
-        *self.0.0.child.lock().unwrap() = None;
+        *self.runs.0.child.lock().unwrap() = None;
         let (stdout, stderr) = (
             stdout.join().unwrap_or_default(),
             stderr.join().unwrap_or_default(),
@@ -122,8 +138,29 @@ impl Run {
 
 impl Drop for Run {
     fn drop(&mut self) {
-        self.0.0.starting.store(false, Ordering::SeqCst);
-        *self.0.0.child.lock().unwrap() = None;
+        self.runs.0.starting.store(false, Ordering::SeqCst);
+        *self.runs.0.child.lock().unwrap() = None;
+    }
+}
+
+/// the lock file of the repository of `account` in `dir`, held: none when another process holds it
+fn lock_in(dir: &std::path::Path, account: &str) -> Result<std::fs::File, RunError> {
+    std::fs::create_dir_all(dir).map_err(failed)?;
+    // the address of the repository as a name of a file
+    let name: String = account
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(dir.join(format!("{name}.lock")))
+        .map_err(failed)?;
+    match file.try_lock() {
+        Ok(()) => Ok(file),
+        Err(std::fs::TryLockError::WouldBlock) => Err(RunError::RunningElsewhere),
+        Err(std::fs::TryLockError::Error(error)) => Err(failed(error)),
     }
 }
 
@@ -219,6 +256,8 @@ pub enum RunError {
     },
     /// another run goes on
     Running,
+    /// another sakbackup runs restic on the repository, e.g. the command line next to the window
+    RunningElsewhere,
     /// the repository has no snapshot of the backup plan to restore, or none at all
     NoSnapshot,
     /// the repository has no snapshot of the id
@@ -336,8 +375,9 @@ pub async fn back_up(
 ) -> Result<RunSummary, RunError> {
     // one run from here: a cancel while the instance is asked or the password is looked up stops it
     // before restic, one during the expiry stops forget or prune
-    let run = runs.begin()?;
+    let mut run = runs.begin()?;
     let prepared = prepare(sessions, id).await?;
+    run.lock(&prepared.account)?;
     let account = prepared.account.clone();
     let Some(chosen) = password_of(passwords, &account, given.typed).await else {
         return Err(if prepared.first {
@@ -417,7 +457,7 @@ fn backup(
     init: bool,
     on_event: impl Fn(RunEvent) + Send + Sync + Clone + 'static,
 ) -> Result<RunSummary, RunError> {
-    let runs = &run.0;
+    let runs = &run.runs;
     let result = run_restic_now(runs, restic, plan, init, on_event);
     *runs.0.child.lock().unwrap() = None;
     if run.cancelled() {
@@ -958,6 +998,28 @@ mod integration {
             String::from_utf8_lossy(&check.stderr)
         );
         let _ = std::fs::remove_dir_all(&work);
+    }
+
+    #[test]
+    fn a_repository_is_locked_for_one_sakbackup_at_a_time() {
+        let dir = std::env::temp_dir().join(format!(
+            "sakbackup-locks-test-{}-{}",
+            std::process::id(),
+            Instant::now().elapsed().as_nanos()
+        ));
+        let account = "https://api.example.org/restic/3/";
+        let held = lock_in(&dir, account).unwrap();
+        // another sakbackup (another open of the file) is refused, another repository is not
+        assert_eq!(
+            lock_in(&dir, account).unwrap_err(),
+            RunError::RunningElsewhere
+        );
+        let other = lock_in(&dir, "https://api.example.org/restic/4/").unwrap();
+        // the run ends, its lock goes with it
+        drop(held);
+        let again = lock_in(&dir, account).unwrap();
+        drop((other, again));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

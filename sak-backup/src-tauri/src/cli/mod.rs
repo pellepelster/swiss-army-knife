@@ -20,7 +20,7 @@ use std::io::IsTerminal;
 use std::path::PathBuf;
 
 /// the identifier of the app, its config directory and its entry in the keychain (tauri.conf.json)
-const IDENTIFIER: &str = "io.pelle.sak.backup";
+use crate::core::IDENTIFIER;
 
 pub const ADDRESS_VARIABLE: &str = "SAK_BACKUP_ADDRESS";
 pub const SESSION_VARIABLE: &str = "SAK_BACKUP_SESSION_TOKEN";
@@ -552,8 +552,9 @@ async fn command(command: Command) -> Result<(), String> {
         Command::Snapshot(SnapshotCommand::Delete { id, repo }) => {
             let repository =
                 id_of(&sessions, REPOSITORIES, &repo, "cli.unknown_repository").await?;
+            let runs = Runs::default();
             with_password(|given, _| {
-                snapshots::delete(&sessions, &passwords, repository, id.clone(), given)
+                snapshots::delete(&sessions, &runs, &passwords, repository, id.clone(), given)
             })
             .await?;
             println!("{}", t!("cli.snapshot_deleted", id = id, repository = repo));
@@ -561,8 +562,9 @@ async fn command(command: Command) -> Result<(), String> {
         Command::Restore { plan, target } => {
             let id = id_of(&sessions, PLANS, &plan, "cli.unknown_plan").await?;
             let shown = target.display().to_string();
+            let runs = Runs::default();
             let skipped = with_password(|given, _| {
-                restore::restore(&sessions, &passwords, id, target.clone(), given)
+                restore::restore(&sessions, &runs, &passwords, id, target.clone(), given)
             })
             .await?;
             // the others are restored, the command still fails
@@ -864,6 +866,7 @@ fn message(error: &RunError) -> String {
         // appears new only on the second look still ends here
         RunError::Cancelled => t!("cli.cancelled").to_string(),
         RunError::Running => t!("cli.running").to_string(),
+        RunError::RunningElsewhere => t!("cli.running_elsewhere").to_string(),
         RunError::NeedsInit => t!("cli.needs_init").to_string(),
         RunError::Failed { message } => sak_desktop_shared::cli::failed_message(message),
     }

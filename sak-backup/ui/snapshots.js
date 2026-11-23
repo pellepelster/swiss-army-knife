@@ -14,7 +14,7 @@ import {
   entry,
   thisHost,
 } from './rows.js';
-import { runFailure } from './run.js';
+import { runFailure, runningPlan } from './run.js';
 import { confirmAction } from './shared/confirm-dialog.js';
 import { setFailure, setStatus, text } from './shared/views.js';
 
@@ -76,7 +76,11 @@ function snapshotRow(snapshot) {
   if (plan) badges.push(badge(plan.name));
   const detail = rowDetail(snapshot.paths.join(', '), snapshot.paths.join('\n'));
   const copy = copyEntry(text('ui.snapshots.copy_id'), snapshot.id, status, text('ui.snapshots.copied', { id: snapshot.shortId }));
-  const remove = entry(text('ui.delete'), () => deleteSnapshot(snapshot, time, item), { danger: true });
+  // not while a backup or a restore runs: one run of restic at a time (DA-33)
+  const remove = entry(text('ui.delete'), () => deleteSnapshot(snapshot, time, item), {
+    danger: true,
+    disabled: runningPlan() === null ? null : text('ui.plans.run_busy'),
+  });
   const item = row(snapshot.shortId, [rowName(time), ...badges, detail], null, [copy, remove]);
   return item;
 }

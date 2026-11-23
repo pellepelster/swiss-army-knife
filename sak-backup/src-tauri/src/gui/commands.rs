@@ -211,7 +211,7 @@ pub async fn restore_backup(
         typed: password,
         remember,
     };
-    let restored = restore::restore(&sessions, &passwords, u64::from(id), target, given)
+    let restored = restore::restore(&sessions, &runs, &passwords, u64::from(id), target, given)
         .await
         .map(|skipped| RestoreSummary { skipped });
     super::tray::idle(&app);
@@ -252,7 +252,15 @@ pub async fn delete_snapshot(
         typed: password,
         remember,
     };
-    let deleted = snapshots::delete(&sessions, &passwords, repository_id, snapshot_id, given).await;
+    let deleted = snapshots::delete(
+        &sessions,
+        &runs,
+        &passwords,
+        repository_id,
+        snapshot_id,
+        given,
+    )
+    .await;
     super::tray::idle(&app);
     deleted
 }

@@ -14,5 +14,8 @@ pub mod run;
 pub mod snapshots;
 
 /// sakbackup as its release has it, what its update looks for (sak_desktop_shared::update)
+/// the identifier of tauri.conf.json: the config directory of the window and of the command line
+pub const IDENTIFIER: &str = "io.pelle.sak.backup";
+
 pub const APP: sak_desktop_shared::update::App =
     sak_desktop_shared::update::App::new("sakbackup", "sak-backup");

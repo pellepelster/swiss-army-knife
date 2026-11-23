@@ -3,7 +3,7 @@
 
 use crate::core::passwords::{Given, PasswordStore, password_of, run_with};
 use crate::core::restic::{Restic, error_of};
-use crate::core::run::{RunError, failed};
+use crate::core::run::{Run, RunError, Runs, failed};
 use sak_desktop_shared::session::SessionManager;
 use serde::{Deserialize, Serialize};
 
@@ -38,7 +38,7 @@ pub async fn snapshots(
     repository_id: u64,
     given: Given,
 ) -> Result<Snapshots, RunError> {
-    let listed = with_restic(sessions, passwords, repository_id, given, list).await?;
+    let listed = with_restic(sessions, passwords, repository_id, given, None, list).await?;
     Ok(Snapshots {
         initialized: listed.is_some(),
         snapshots: listed.unwrap_or_default(),
@@ -49,15 +49,23 @@ pub async fn snapshots(
 /// --prune`)
 pub async fn delete(
     sessions: &SessionManager,
+    runs: &Runs,
     passwords: &PasswordStore,
     repository_id: u64,
     snapshot_id: String,
     given: Given,
 ) -> Result<(), RunError> {
     snapshot(&snapshot_id)?;
-    with_restic(sessions, passwords, repository_id, given, move |restic| {
-        forget(restic, &snapshot_id)
-    })
+    // one run at a time, of this process and of every other sakbackup on the repository (DA-33)
+    let run = runs.begin()?;
+    with_restic(
+        sessions,
+        passwords,
+        repository_id,
+        given,
+        Some(run),
+        move |restic| forget(restic, &snapshot_id),
+    )
     .await?
     .ok_or(RunError::UnknownSnapshot)
 }
@@ -65,11 +73,13 @@ pub async fn delete(
 /// runs restic on the repository with the password typed, else the one of SAK_BACKUP_REPO_PASSWORD,
 /// else the kept one, which it then keeps or forgets (`run_with`); none for a repository restic has
 /// not initialized yet, without asking restic
+/// `holding` is the run that changes the repository, which locks it; none for a look at it
 async fn with_restic<T: Send + 'static>(
     sessions: &SessionManager,
     passwords: &PasswordStore,
     repository_id: u64,
     given: Given,
+    mut holding: Option<Run>,
     run: impl FnOnce(&Restic) -> Result<T, RunError> + Send + 'static,
 ) -> Result<Option<T>, RunError> {
     let access = crate::core::restic::access(sessions, repository_id).await?;
@@ -77,6 +87,9 @@ async fn with_restic<T: Send + 'static>(
         return Ok(None);
     }
     let account = access.account();
+    if let Some(holding) = holding.as_mut() {
+        holding.lock(&account)?;
+    }
     let chosen = password_of(passwords, &account, given.typed)
         .await
         .ok_or(RunError::NoPassword)?;
@@ -88,6 +101,7 @@ async fn with_restic<T: Send + 'static>(
         chosen,
         given.remember,
         move |password| {
+            let _holding = holding;
             run(&Restic {
                 program: &program,
                 repository: &repository,

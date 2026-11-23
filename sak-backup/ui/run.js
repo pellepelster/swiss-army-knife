@@ -19,6 +19,7 @@ export function runFailure(failure, shell, repository, failed) {
     no_restic: () => text('ui.plans.run_no_restic'),
     cancelled: () => text('ui.plans.run_cancelled'),
     running: () => text('ui.plans.run_busy'),
+    running_elsewhere: () => text('ui.plans.run_elsewhere'),
     no_snapshot: () => text('ui.plans.no_snapshot'),
     unknown_snapshot: () => text('ui.snapshots.unknown'),
     other_computer: () => text('ui.plans.run_other_computer', { host: failure.host }),

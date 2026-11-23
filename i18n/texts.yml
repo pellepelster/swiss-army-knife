@@ -2430,6 +2430,9 @@ sak_backup:
         en: "A backup plan of the computer %{host} runs on that computer."
         de: "Ein Backup-Plan des Computers %{host} läuft auf diesem Computer."
       run_busy: { en: "Another backup or restore runs.", de: "Ein anderes Backup oder eine Wiederherstellung läuft." }
+      run_elsewhere:
+        en: "Another sakbackup works on this repository, e.g. the command line. Try again when it is done."
+        de: "Ein anderes sakbackup arbeitet mit diesem Repository, z. B. die Kommandozeile. Versuche es erneut, wenn es fertig ist."
       run_password: { en: "Password of the repository", de: "Passwort des Repositorys" }
       run_password_repeat: { en: "Repeat the password", de: "Passwort wiederholen" }
       run_password_hint:
@@ -2587,6 +2590,9 @@ sak_backup:
     unknown_snapshot: { en: "The repository has no snapshot of this id.", de: "Das Repository hat keinen Snapshot mit dieser ID." }
     cancelled: { en: "The run was cancelled.", de: "Der Lauf wurde abgebrochen." }
     running: { en: "Another backup or restore is running.", de: "Ein anderes Backup oder eine Wiederherstellung läuft gerade." }
+    running_elsewhere:
+      en: "Another sakbackup works on this repository, try again when it is done."
+      de: "Ein anderes sakbackup arbeitet mit diesem Repository, versuche es erneut, wenn es fertig ist."
     needs_init:
       en: "The repository has no backup yet. Run the backup again to create it with a password."
       de: "Das Repository hat noch kein Backup. Starte das Backup erneut, um es mit einem Passwort anzulegen."

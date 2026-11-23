@@ -5,7 +5,7 @@
 
 use crate::core::passwords::{Given, PasswordStore, password_of, run_with};
 use crate::core::restic::{PLAN_TAG, Plan};
-use crate::core::run::{RunError, failed, prepare};
+use crate::core::run::{RunError, Runs, failed, prepare};
 use crate::core::snapshots::{Snapshot, list};
 use sak_desktop_shared::session::SessionManager;
 use std::path::PathBuf;
@@ -14,6 +14,7 @@ use std::path::PathBuf;
 /// they were. The files restic could not write, each with why; it restored the others
 pub async fn restore(
     sessions: &SessionManager,
+    runs: &Runs,
     passwords: &PasswordStore,
     id: u64,
     target: PathBuf,
@@ -22,11 +23,14 @@ pub async fn restore(
     if !target.is_absolute() {
         return Err(failed(target.display()));
     }
+    // one run at a time, of this process and of every other sakbackup on the repository (DA-33)
+    let mut run = runs.begin()?;
     let prepared = prepare(sessions, id).await?;
     if prepared.first {
         return Err(RunError::NoSnapshot);
     }
     let account = prepared.account.clone();
+    run.lock(&account)?;
     let chosen = password_of(passwords, &account, given.typed)
         .await
         .ok_or(RunError::NoPassword)?;
@@ -36,6 +40,7 @@ pub async fn restore(
         chosen,
         given.remember,
         move |password| {
+            let _run = run;
             let restic = prepared.restic(password);
             let snapshots = list(&restic)?;
             let snapshot = newest_of(&snapshots, &prepared.plan()).ok_or(RunError::NoSnapshot)?;

@@ -50,7 +50,11 @@ start to its end (`Runs::begin`), so a cancel while the instance is asked or the
 restic, and one during the expiry kills forget or prune; the snapshot is done then and the expiry says it was
 cancelled. `DA-34`: the tray says nothing runs again after a backup, a restore or a delete of a
 snapshot, whatever it showed. `DA-35`: closed during a run without a tray, the window asks as the tray's Quit does. Both
-were not tried with a tray, the tests of the window have none.
+were not tried with a tray, the tests of the window have none. `DA-33`: a backup, a restore and a delete of a snapshot are one run at a time
+(`Runs::begin`), and each locks its repository for every other sakbackup of the user (a lock file in the config
+directory, `try_lock`), so the command line next to the window is refused with its own text; the snapshots page offers
+no delete while a run goes on. Left: a restore can not be cancelled, and the app has no single instance (the lock makes
+a second window harmless).
 
 ## What is good
 
@@ -101,19 +105,6 @@ Hetzner api then prints without its inner cause (DNS, TLS, refused). `config.rs:
 Fix: `sak_desktop_shared::errors::with_causes` in the three helpers.
 
 ### sakbackup
-
-#### `DA-33` "One run at a time" covers the backup only, and one process only (read; the lock failures suspected)
-
-`restore::restore` (`core/restore.rs:15-46`) and `snapshots::delete` (`core/snapshots.rs:167-180`) do not go through
-`Runs`; the window blocks a restore during a backup in JS (`plans.js:407-411`), the snapshots page does not
-(`snapshots.js:248-271`). A delete (`forget --prune`, an exclusive lock) during a backup fails on the lock, and a
-restore can not be cancelled at all. The command line has its own `Runs` (`cli/mod.rs:478`) and the app has no single
-instance, so a second window or a `sakbackup run` from a timer runs next to the window; the second expiry then fails on
-the lock. `restart` sees only its own process (`gui/commands.rs:194-199`).
-
-Fix: every restic process through `Runs` (an exclusive guard answering `Running`), read by run.js and snapshots.js
-instead of their own state; a lock file per repository in core for both faces, and
-`tauri-plugin-single-instance`.
 
 #### `DA-36` `sakbackup plan set` changes a plan of another computer (read, checked)
 
