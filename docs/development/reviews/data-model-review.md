@@ -14,6 +14,10 @@ tables), the repositories of `sak-model` and the services that read through them
 [SYSTEM.md](../architecture/SYSTEM.md#model). The question: bugs, gaps between the rules and the schema, and what the
 schema could check itself.
 
+**Checked again:** 2026-11-23, with the changesets up to `0010-unique-positions` (still 19 tables): `DM-5` is fixed,
+`DM-2` is left with the delete of a repository, the others are open. A repository of restic keeps its data on the
+volume or in the S3 storage, whichever the settings name.
+
 What is good: every delete is a soft delete, and every name that must be unique has a partial unique index on the live
 rows (`MODEL-3`); every table has `owner`, `created_at`, `updated_at` and `deleted_at`, which `SchemaTest` enforces
 (`MODEL-4`, `MODEL-5`); the access checks are in the sql of the repositories, a backup plan checks in its own
@@ -40,8 +44,9 @@ transaction, and what happens to its files on the storage (`MODEL-7`, `MODEL-8`)
 
 ### `DM-3` The timestamps are declared in two ways
 
-The tables of `createTable` have their timestamps as `TEXT`; the tables written in plain sql (`grocery_items`,
-`grocery_categories`, `todo_items`, `redirects`) as `TIMESTAMP`, which sqlite gives the numeric affinity. It works, the
+The tables of `createTable` and `s3_buckets` (made again in plain sql by `0007`) have their timestamps as `TEXT`; the
+tables written in plain sql in `0001` and `0002` (`grocery_items`, `grocery_categories`, `todo_items`, `redirects`) as
+`TIMESTAMP`, which sqlite gives the numeric affinity. It works, the
 values are text that is no number, but one way reads better; the primary keys are written in two ways as well.
 
 ### `DM-4` Foreign keys without an index

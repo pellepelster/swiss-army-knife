@@ -11,12 +11,15 @@ weight: 6
 
 **Checked again:** 2026-11-23, every finding listed is still open; the fixed ones are in the history of git. `SC-3`
 is fixed: the Dependabot alerts are on (`vulnerability-alerts` answers 204), the security updates stay off. `SC-4`
-is fixed for the zips of sakadmin and sakbackup: each is signed in the job that builds it (`mise run desktop:sign`),
-the job `release` has no id token and only checks the signatures before it publishes.
+is fixed for the zips and the linux packages (deb, rpm, AppImage) of sakadmin and sakbackup: each is signed in the job
+that builds it (`mise run desktop:sign`), the job `release` has no id token and only checks the signatures before it
+publishes. A deb or an rpm the user installs is checked by the sha-256 the docs show; the update of an app installed
+with a package only says that there is one. The ruleset of the tags `v*` lets an admin of the repository bypass it.
 
-Scope: the signing of the zips of sakadmin and of the images with cosign (`mise run desktop:sign`,
-`admin-cli:release`, `image:sign`), their verification in sakadmin (`sakadmin update`, `core/images.rs`, `SAKADM-12`
-in [SYSTEM.md](../architecture/SYSTEM.md)), the workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the
+Scope: the signing of the files of the release of sakadmin and sakbackup and of the images with cosign (`mise run
+desktop:sign`, `admin-cli:release`, `image:sign`), their verification in the update of both apps
+(`sak-desktop-shared/src/update.rs`, `sigstore.rs`) and in sakadmin (`core/images.rs`, `SAKADM-12` in
+[SAKADMIN.md](../architecture/components/SAKADMIN.md)), the workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the
 repository on GitHub. The question: what could make a signature of the workflow certify something that was not built
 from this repository.
 

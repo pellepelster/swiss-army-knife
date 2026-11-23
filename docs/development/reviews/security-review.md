@@ -9,7 +9,8 @@ weight: 8
 
 **Created:** 2026-11-12
 
-**Checked again:** 2026-11-22, every finding listed is still open; the fixed ones are in the history of git.
+**Checked again:** 2026-11-23, every finding listed is still open; the fixed ones (since the last check `SEC-8` and
+`SEC-38`) are in the history of git.
 
 Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`), the routes and the data of the backend
 (`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and the
@@ -129,8 +130,8 @@ A deploy "as it is" completes its settings from `GET /api/v1/deployment` (`Detec
 mode and the root domain of the server come before the labels of the project. Root on the server, without a token
 of the cloud, can answer another zone of the same project; the next deploy plans the records of the deployment in
 that zone, pointing at the server. `check_root_domain` asks for a zone of the project without a conflict, the plan
-shows the change, the command line asks only before it destroys. Whether the removal of the old records counts as
-that was not traced.
+shows the change; the command line and the window ask before a plan that deletes or replaces (`DA-26`), a plan that
+only changes records asks nothing. Whether the removal of the old records counts as a delete was not traced.
 
 Fix: the dns mode and the root domain from the labels, an answer of the server that differs is an error; from the
 server only the user mode and the mail server.
@@ -161,8 +162,9 @@ Fix: `max_tokens`, a largest length of the stored text, the answer read through 
 - `SEC-26` The host filters nothing that comes in: the table of nftables has rules for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
 - `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
-  keychain, not wiped when it goes (as `SEC-24` for sakadmin); the state of a callback is compared with `!=`, not in
-  constant time (128 bits, on the loopback: no practical way to measure it).
+  keychain, not wiped when it goes (as `SEC-24` for sakadmin); the state of a callback and the secret of the start page
+  off linux are compared with `!=` and `==`, not in constant time (128 bits, on the loopback: no practical way to
+  measure them).
 - `SEC-29` A user has no quota in the file storage and its files have no delete (`DM-6` of
   [the review of the data model](data-model-review.md)): a user fills the data volume in steps of 10 MiB. The change
   streams (`…/changes`) have no largest number for a user and stay open when the session ends.

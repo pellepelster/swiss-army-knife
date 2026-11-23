@@ -36,6 +36,9 @@ progress, the look of a running plan, the deb, rpm and AppImage of linux with an
 are `DA-26` to `DA-62`. The most serious claims were checked in the code before they were written down (`DA-26`,
 `DA-27`, `DA-34`, `DA-36`, `DA-39`, `DA-41`, `DA-42`); the others are as the reviewers read them.
 
+**Checked again:** 2026-11-23, after the fixes below: every finding listed is still open, the texts follow the code
+(some lines named moved since).
+
 Fixed since the second pass: `DA-1`, the sign-in that other users of the machine could take over off linux. There
 the url the browser is started with has a secret of its sign-in now (`START_SECRET` in `session.rs`), and every other
 request of the start page is answered 404 and ends nothing; it rests on macOS and windows showing the arguments of a
@@ -148,7 +151,8 @@ Fix: the target an `Option<PathBuf>` in core, `None` for in place, the root of t
 
 `error_of` (`core/restic.rs:217-223`) takes the last line of stderr. For a locked repository restic ends with "the
 `unlock` command can be used to remove stale locks", which then reaches the user as the reason and invites unlocking
-a live lock (`DA-33` makes that likely).
+a live lock; since `DA-33` a second sakbackup is refused before restic runs, so the lock is one of another restic
+client or a stale one.
 
 Fix: the last line starting with `Fatal:` or `unable to`, else the last one; a `Locked` `RunError` with its own text;
 a test with restic's output of a lock.
@@ -194,7 +198,7 @@ never cancels a sign-in.
   picks texts for a face in two ways (`i18n::FRONTEND` in `core/i18n.rs:34-46`, `reboot_hint` in `maintenance.rs:208`);
   `ssh_config.rs` is the command line's only.
 - shared: tauri and its opener are hard dependencies of the crate (`Cargo.toml:11-12`); the tauri commands sit in the
-  same files as the logic (`update.rs` `version`/`check_update`/`install_update`, `checks.rs` `send`/`quit`, all of
+  same files as the logic (`update.rs` `version`/`check_update`/`install_update`, `checks.rs` `quit`, all of
   `window.rs`), so the crate's own tests compile webkitgtk, and the crate does not keep `DESK-2` itself.
 
 Fix: tokio instead of tauri's runtime in sakbackup's core, errors returned instead of printed; `common.*` texts and one
@@ -269,8 +273,8 @@ writing of files.
 
 #### `DA-53` sakadmin: blocking work where it holds others up (suspected)
 
-`cancel_apply` and `restart` are synchronous commands and run `docker rm --force` on the main thread
-(`provision.rs:556-575`, `gui/deployments.rs:312`); argon2 with 256 MiB runs in async commands, and the password view
+`cancel_apply`, `quit_working` and `restart` are synchronous commands and run `docker rm --force` on the main thread
+(`stop_runs` in `provision.rs`, `gui/deployments.rs`, `gui/update.rs`); argon2 with 256 MiB runs in async commands, and the password view
 starts a new check after each pause of typing, so checks can overlap with 256 MiB each.
 
 Fix: async commands or `spawn_blocking`; one derivation of the same key at a time.
@@ -292,8 +296,9 @@ Fix: `Zeroizing` buffers and one `age_identity(name, password, purpose)`; the fa
 
 #### `DA-56` sakbackup: smaller things (read; C7 suspected)
 
-- the ids of plans are `u32` in the commands (`gui/commands.rs:52`, `:61`, `:128`, `:208`), `u64` everywhere else
-- a sign-out during a run is allowed (`app.js:548-551`); after a sign-in at another instance, `runningPlan()` can mark a
+- the ids of plans are `u32` in the commands (`gui/commands.rs`: `update_plan`, `delete_plan`, `run_backup`,
+  `restore_backup`), `u64` everywhere else
+- a sign-out during a run is allowed (`app.js`, the entry of the menu); after a sign-in at another instance, `runningPlan()` can mark a
   plan with the same id there as running
 - the progress lines of the command line take `COLUMNS`, which shells seldom export, so on a narrow terminal they wrap
   and the rewrite breaks (`cli/mod.rs:703-710`); the width belongs from the terminal (`TIOCGWINSZ`)
@@ -301,7 +306,7 @@ Fix: `Zeroizing` buffers and one `age_identity(name, password, purpose)`; the fa
   right after `cancel`)
 - `has_tray()` makes a synchronous D-Bus call with a timeout of 500 ms in a window event (`tray.rs:208-234`)
 - the check of restic reports its version but asks for no minimum, although `--files-from-verbatim` and the exit code
-  3 need 0.17 (`checks.rs:176-183`)
+  3 need 0.17 (`core/checks.rs`)
 - the command line has no command to forget a kept password; the window has
 
 #### `DA-57` Shared: smaller things (read)
@@ -339,15 +344,16 @@ Fix: the shared crate's tests in the macOS and windows legs of `desktop-apps`, w
 #### `DA-60` Gaps of the tests (read)
 
 - sakadmin: the apply has no unit test (`apply_prepared`, `apply_resources`, `destroy`, `after_provisioning`, the order
-  of `keep_settings`, `delete_settings`); a cancel during a provisioning (`DA-28`); `maintenance::perform` beyond its
-  lines; `gui/checks.rs`, `providers.rs`, `update.rs`. End to end never: maintenance (update, restart, reboot), `ssh`,
-  `ssh-config`, a destroy that keeps the data followed by a create of the same name, a cancel. The window tours are one
-  happy path on fixtures: no destroy and its dialog, config deploy, maintenance, cancel or error.
-- sakbackup: a cancel during prepare or expiry (`DA-32`), a restore or delete next to a backup (`DA-33`), the tray after
-  a restore (`DA-34`), `plan set` on another computer (`DA-36`), a failing keychain (`DA-37`), restic's output of a
+  of `keep_settings`, `delete_settings`); `maintenance::perform` beyond its lines; `gui/checks.rs`, `providers.rs`,
+  `update.rs`. End to end never: maintenance (update, restart, reboot), `ssh`, `ssh-config`, a destroy that keeps the
+  data followed by a create of the same name, a cancel. The window: one happy path on fixtures and `SakadminPlanTest`
+  (the question before a plan that deletes or replaces, the one before a close during work); no destroy, config
+  deploy, maintenance, cancel or error.
+- sakbackup: a restore or delete next to a backup (`DA-33` has a test of the lock only), the tray after a restore
+  (`DA-34`), `plan set` on another computer (`DA-36`), a failing keychain (`DA-37`), restic's output of a
   lock (`DA-40`); in the window: the password dialog's flows, restore, the snapshots page and its delete, the texts of
   `runFailure`, a plan of another computer read only.
-- shared: a sign-in cancelled during the exchange (`DA-43`), a late 401 (`DA-44`), an inherited `$APPIMAGE` (`DA-42`),
+- shared: a late 401 (`DA-44`), an inherited `$APPIMAGE` (`DA-42`),
   a parallel install (`DA-57`).
 
 #### `DA-61` Fragile spots of the release (read; the first suspected)
@@ -408,13 +414,12 @@ and `hmac` in `sak-admin-cli/src-tauri/Cargo.toml` have no use in its sources. U
 Fixed since: the README of sakbackup no longer says "a window for now"; `docs:data` writes the checksums of
 sakbackup too; the installers of linux that `tauri.conf.json` configures are built. Still open:
 
-- `admin-cli:release` publishes both apps, `admin-cli:test:unit` and `admin-cli:test:integration` run all four
-  crates, `admin-cli:install` installs the tauri command line of both
+- `admin-cli:release` publishes both apps, `admin-cli:test:unit` runs all four crates and `admin-cli:test:integration`
+  the two apps, `admin-cli:install` installs the tauri command line of both
 - `sak-backup/README.md:14-15` says the lists "are empty for now"
 - `components/BACKUP.md`: "Nothing goes to a third party." An update asks github.com when the user asks; BACKUP.md has
   no rule for the update, `SAKADM-10` names sakadmin only
 - `ACCEPTED-RISKS.md`: the trusted root "is built into sakadmin"
-- `supply-chain-review.md` (`SC-4`): "The three zips"
 
 ### `DA-24` Small things of the windows (read)
 

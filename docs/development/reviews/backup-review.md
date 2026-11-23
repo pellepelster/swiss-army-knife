@@ -9,8 +9,10 @@ weight: 10
 
 **Created:** 2026-11-21
 
-**Checked again:** 2026-11-22, every finding listed is still open; the fixed ones (`BK-1`, `BK-2`, `BK-3`, `BK-5`) are
-in the history of git. `BK-18` is withdrawn: `ResticStore.save` checks and moves under the lock of the repository, so
+**Checked again:** 2026-11-23, every finding listed is still open but three items of `BK-22`, fixed with `DA-32`
+and `DA-33` of [the review of the desktop apps](desktop-apps-review.md) and with `c6233dd0`; the fixed ones (`BK-1`,
+`BK-2`, `BK-3`, `BK-5`) are in the history of git. Since the review the repositories can also be kept in the S3
+storage (`S3ResticFileStorage`): what is said of the volume below holds for the volume only. `BK-18` is withdrawn: `ResticStore.save` checks and moves under the lock of the repository, so
 the second of two writes of a config is refused.
 
 Scope: the repositories of restic and their REST backend (`io.pelle.sak.backend.restic`, `sak-model` `restic/`, the
@@ -25,8 +27,9 @@ behave).
 
 What is good: a token is 256 random bits, compared in constant time, and the login must be the repository of the path,
 so a token never reaches another repository; the names of files are a fixed set of types and 64 hex digits, no path
-leaves a repository; an upload is streamed to a staged file with its sha-256 computed on the way, the one of a file
-named by its hash checked before it is moved into place, and a failed one is removed; a download and its ranges are
+leaves a repository; an upload is streamed with its sha-256 computed on the way, the one of a file named by its hash
+checked before it shows (on the volume a staged file moved into place, in the S3 storage a multipart upload completed
+only then), and a failed one is removed or aborted; a download and its ranges are
 streamed; the token and the password reach restic in its environment only, never in arguments or the page; restic hides
 the token in what it prints; the page has no `innerHTML` and a strict CSP; a password is kept only after restic took it;
 the window asks before a restore in place and before a snapshot is deleted; `/restic` is behind TLS only.
@@ -48,8 +51,10 @@ replaced. Until then the risk is accepted in [ACCEPTED-RISKS.md](../ACCEPTED-RIS
 
 ### `BK-9` No quota: one user fills the volume for all (read)
 
-The only limit is the free space of the volume (2 GiB left). One user's backups then make every upload of everyone
-answer 507; the buckets and the files share the volume. Quotas were left for later.
+The only limit is the free space of the volume (2 GiB left, `WriteGuard`), and only while the repositories are on the
+volume: in the S3 storage there is none, a user's backups grow the bill of the bucket. On the volume, one user's
+backups make every upload of everyone answer 507; the buckets and the files share the volume. Quotas were left for
+later.
 
 Fix: a limit of bytes per repository or user, checked with the usage and the length of an upload.
 
@@ -85,9 +90,9 @@ one; the page shows 100 and "and n more".
 
 ### `BK-19` Staged files a crash leaves are never removed (read)
 
-A file in `<id>/staging/` left between the write and the move stays and takes its room on the volume, though the size
-of the repository leaves it out; the storage cleans only its own `.tmp`. An upload is also staged twice (by the store
-and by the storage), with three directory syncs.
+On the volume only: a file in `<id>/staging/` left between the write and the move stays and takes its room, though the
+size of the repository leaves it out; the storage cleans only its own `.tmp`. An upload is also staged twice (by
+`LocalResticFileStorage` and by `FilesystemLocalStorage`), with three directory syncs.
 
 Fix: the store writes the target through the storage and fails the write on a wrong hash; stale staged files go at
 the start.
@@ -111,13 +116,11 @@ Fix: leave `restic` out when linking.
   that are not absolute
 - the other `RESTIC_*` variables of the user and the proxies reach restic (`RESTIC_CACHE_DIR`, `RESTIC_CACERT`, …):
   an environment of known variables only
-- the expiry runs after the guard of one run at a time is free, a cancel does not stop it; a restore has no guard
 - a backup that skipped paths (exit 3 of restic) ends the command line with 0: a code of its own
 - the last line of standard error is the error shown: the `Fatal:` line, with the token redacted whatever restic does
-- `unreachable!` in the messages of the command line would end it with 101
-- no check of the version of restic, though `--files-from-verbatim` and exit code 3 need a recent one; restic 0.16
-  can not overwrite read-only files in a restore in place, 0.17 with `--overwrite if-changed` leaves unchanged files
-  alone
+- the check at the start shows the version of restic but asks for no minimum, though `--files-from-verbatim` and exit
+  code 3 need a recent one; restic 0.16 can not overwrite read-only files in a restore in place, 0.17 with
+  `--overwrite if-changed` leaves unchanged files alone
 - `restic snapshots --json` is read as a whole, also to look up one id, and rendered in one go
 - progress lines of restic may come 60 times a second (suspected): `RESTIC_PROGRESS_FPS`
 - the answers of the api are read without a limit of size
@@ -131,5 +134,6 @@ By risk; each names what to assert and where.
    that failed, the snapshot stays reported (sakbackup e2e)
 3. the command line when it fails: an ambiguous snapshot, no restic (restic is also looked for in `/usr/bin`, so a
    test needs a machine without it) (sakbackup e2e)
-4. `sak-backup/ui` has no automated test: the password dialogs of a run, a restore and the snapshots, the messages
-   of a failure, the skipped files, the form of a plan, the confirmations
+4. the window of sakbackup (`SakbackupWindowTest`) covers the check of restic, a running backup, the look of a running
+   plan and the excludes of a plan; not the password dialogs of a run, a restore and the snapshots, the messages of a
+   failure, the skipped files, the rest of the form of a plan, the confirmations
