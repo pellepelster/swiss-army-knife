@@ -26,14 +26,15 @@ Only the open findings are listed.
 
 ## Should fix
 
-### `DM-2` A repository of restic and a backup plan can not be deleted
+### `DM-2` A repository of restic can not be deleted
 
-Neither `ResticRepositoryRepository` nor `ResticBackupPlanRepository` has a delete, though `BACKUP-7` says "a deleted
-repository does not come back" and `insertFirst` counts the deleted rows. A repository that goes has to take its
-backup plans with it: `restic_backup_plans.repository_id` refers to it, nothing else handles them.
+`ResticRepositoryRepository` has no delete, though `BACKUP-7` says "a deleted repository does not come back" and
+`insertFirst` counts the deleted rows. A repository that goes has to take its backup plans with it:
+`restic_backup_plans.repository_id` refers to it, nothing else handles them. A backup plan can be deleted since
+2026-11-23 (`ResticBackupPlanRepository.delete`, its paths in the same transaction, `DELETE /restic/plans/{id}`).
 
-Fix: decide whether they are deleted; if so, a delete of each, the one of a repository deleting its backup plans in
-the same transaction.
+Fix: decide whether a repository is deleted; if so, a delete that deletes its backup plans and their paths in the same
+transaction, and what happens to its files on the storage (`MODEL-7`, `MODEL-8`).
 
 ## Could fix
 
