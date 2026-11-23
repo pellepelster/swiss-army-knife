@@ -42,7 +42,8 @@ request of the start page is answered 404 and ends nothing; it rests on macOS an
 process to its user and an admin only, which was not tried on either. `DA-26` and `DA-27`: the plan says whether it deletes or
 replaces something (`destroys`, computed in core, read by both faces); the window asks after the plan with what goes,
 also for a destroy, and every apply of the window names the plan it showed (`apply_checked`), so a project that
-changed since is refused (`SakadminPlanTest`).
+changed since is refused (`SakadminPlanTest`). `DA-28`: `stop_runs` counts its stops, and a provisioning that sees a stop
+since it was handed to its thread starts no container, also when the stop came before its run was tracked.
 
 ## What is good
 
@@ -73,16 +74,6 @@ changed since is refused (`SakadminPlanTest`).
 ## Should fix
 
 ### sakadmin
-
-#### `DA-28` A cancel can leave the playbook running in the background (read; the window depends on timing)
-
-The provisioning runs in `spawn_blocking`; before `RunDir::create` registers the run (`provision.rs:212`, `:497`) it
-resolves the images, on the first apply of a session over the network (`images.rs:60-80`). A cancel in that time
-aborts the future, `stop_runs` (`provision.rs:556`) finds nothing, and the thread then starts `ansible-playbook`
-against the server with nobody waiting, bounded only by `RUN_TIMEOUT` (45 min).
-
-Fix: a stop token given to the run before the `spawn_blocking`, set by `stop_runs` and checked before the container
-starts; or register the run before the images are resolved.
 
 #### `DA-29` Closing sakadmin's window during a create, deploy, destroy or reboot stops it halfway (read)
 

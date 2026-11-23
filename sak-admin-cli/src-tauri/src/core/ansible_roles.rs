@@ -240,8 +240,10 @@ impl Provisioner<AnsibleRoles> for AnsibleRolesProvisioner {
         // ansible runs as a process of its own; its lines come through a channel while it runs
         let runtime = self.runtime.clone();
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
+        // a cancel from here on stops it, also before its container is tracked
+        let since = crate::core::provision::stops();
         let provisioning = tokio::task::spawn_blocking(move || {
-            ProvisionManager.provision(&runtime, &run, &mut |output| {
+            ProvisionManager.provision(&runtime, &run, since, &mut |output| {
                 let _ = sender.send(output);
             })
         });

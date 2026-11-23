@@ -13,6 +13,7 @@ use rust_i18n::t;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, mpsc};
 
 /// where the files of a run sit inside the container
@@ -189,10 +190,14 @@ pub struct ProvisionManager;
 impl ProvisionManager {
     /// gives every line of ansible and every event of its callback to `on_output`, in order. The
     /// error names the failed task when the events tell it
+    /// `since` is `stops()` from before the run was handed to its thread: a stop since then
+    /// (`stop_runs`, e.g. a cancel while the images were verified, before the run was tracked)
+    /// starts no container
     pub fn provision(
         &self,
         runtime: &ContainerRuntime,
         run: &ProvisionRun,
+        since: u64,
         on_output: &mut dyn FnMut(ProvisionOutput),
     ) -> Result<(), ProvisionFailure> {
         let runtime = runtime
@@ -222,8 +227,9 @@ impl ProvisionManager {
         };
         dir.write("events_token", events.token())?;
 
-        // a run stopped before its container is there starts none
-        if stopped(&dir.container) {
+        // a run stopped before its container is there starts none, also one stopped before it was
+        // tracked (DA-28)
+        if !may_start(&dir.container, since) {
             return Err(t!("common.provision.stopped").to_string().into());
         }
         let mut child = container_command(runtime, &dir, events.port())?
@@ -556,10 +562,24 @@ impl Drop for RunDir {
 /// the start of the name of a run directory; the process id of its sakadmin follows
 const RUN_PREFIX: &str = "sakadmin-run-";
 
+/// how often `stop_runs` ran: a provisioning compares it with the count from before it started,
+/// so a stop that came before its run was tracked stops it too
+static STOPS: AtomicU64 = AtomicU64::new(0);
+
+pub fn stops() -> u64 {
+    STOPS.load(Ordering::SeqCst)
+}
+
+/// whether the run of `container` may start it: neither it was stopped nor any run since `since`
+fn may_start(container: &str, since: u64) -> bool {
+    !stopped(container) && stops() == since
+}
+
 /// stops the containers of the runs and removes their directories, for when no `Drop` runs any
 /// more (a signal, a cancel, the window closes). A container not there yet is removed once it
-/// starts
+/// starts, a run not tracked yet starts none (`stops`)
 pub fn stop_runs() {
+    STOPS.fetch_add(1, Ordering::SeqCst);
     let runs: Vec<(PathBuf, String, String)> = RUNS
         .lock()
         .map(|mut runs| {
@@ -911,6 +931,23 @@ pub(crate) mod tests {
         assert!(other.path.exists());
         stop_runs();
         assert!(!other.path.exists());
+    }
+
+    #[test]
+    fn a_stop_before_the_run_is_tracked_keeps_its_container_from_starting() {
+        // the count from before the run went to its thread, then a cancel while the images are
+        // verified: the run is tracked after it, not stopped, and still starts nothing
+        let since = stops();
+        stop_runs();
+        let container = format!("{RUN_PREFIX}test-untracked-{}", std::process::id());
+        track(PathBuf::new(), "podman-not-there", &container);
+        assert!(!stopped(&container));
+        assert!(!may_start(&container, since));
+        // a run that began after the stop starts
+        assert!(may_start(&container, stops()));
+        if let Ok(mut runs) = RUNS.lock() {
+            runs.retain(|run| run.container != container);
+        }
     }
 
     #[test]
