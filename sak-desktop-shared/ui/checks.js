@@ -8,6 +8,7 @@ const { invoke, Channel } = window.__TAURI__.core;
 const SHOWN_DONE_MS = 600;
 
 const list = document.getElementById('checks');
+const said = document.getElementById('checks-said');
 const errorText = document.getElementById('checks-error');
 const quitButton = document.getElementById('splash-quit');
 const rows = new Map();
@@ -52,6 +53,10 @@ function update(id, state, detail) {
   }
   if (detail !== undefined) {
     item.querySelector('.check-detail').textContent = detail;
+  }
+  // a check is read out once, when it ended
+  if ((state === 'ok' || state === 'failed') && said) {
+    said.textContent = `${item.querySelector('.check-name').textContent}: ${detail ?? ''}`;
   }
   return item;
 }

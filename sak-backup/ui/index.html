@@ -27,7 +27,9 @@
         <img class="splash-icon" src="theme/images/icon.svg" alt="">
         <h1 class="splash-title" data-text="ui.title"></h1>
         <div class="splash-checks">
-          <ul class="plain-list checks" id="checks" aria-live="polite"></ul>
+          <ul class="plain-list checks" id="checks"></ul>
+          <!-- each check once, when it passed or failed; its progress is not read out (checks.js) -->
+          <p class="visually-hidden" id="checks-said" aria-live="polite"></p>
           <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
         </div>
       </div>
@@ -63,7 +65,6 @@
           <!-- the actions of the page (UX-10), filled by the page -->
           <div class="btn-group" role="group" id="page-toolbar"></div>
         </header>
-        <p class="hint page" id="page-empty" data-text="ui.nav.empty"></p>
 
         <!-- the repositories of the instance (BACKUP-1): their list (UX-11) and the form that creates one -->
         <section class="page" id="page-repositories" hidden>
@@ -99,6 +100,8 @@
               <div class="progress-bar" id="run-bar"></div>
             </div>
             <p class="hint" id="run-status" aria-live="polite"></p>
+            <!-- how far the run is, changed each second: not read out, the bar says it (run-status says the start and the end) -->
+            <p class="hint" id="run-numbers" hidden></p>
             <p class="hint run-file" id="run-file" hidden></p>
             <ul class="run-skipped" id="run-skipped"></ul>
             <div class="form-buttons">

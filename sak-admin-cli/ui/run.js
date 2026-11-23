@@ -27,7 +27,7 @@ let running = null;
 const rows = new Map();
 
 // `<key>` for a create, `<key>_<intent>` else
-function intentText(key, intent) {
+export function intentText(key, intent) {
   return text(intent === 'create' ? key : `${key}_${intent}`);
 }
 

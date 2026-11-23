@@ -25,7 +25,9 @@
         <img class="splash-icon" src="theme/images/icon.svg" alt="">
         <h1 class="splash-title">Swiss Army Knife</h1>
         <div class="splash-checks">
-          <ul class="plain-list checks" id="checks" aria-live="polite"></ul>
+          <ul class="plain-list checks" id="checks"></ul>
+          <!-- each check once, when it passed or failed; its progress is not read out (checks.js) -->
+          <p class="visually-hidden" id="checks-said" aria-live="polite"></p>
           <p class="hint status-failed" id="checks-error" aria-live="assertive" hidden></p>
         </div>
       </div>
@@ -271,7 +273,6 @@
             <div>
               <label class="form-label" for="create-smtp-password" data-text="ui.create.smtp_password"></label>
               <input class="form-control" id="create-smtp-password" type="password" autocomplete="off">
-              <div class="form-text" id="create-smtp-password-hint" data-text="ui.create.smtp_password_again" hidden></div>
             </div>
           </div>
           <div class="smtp-from">

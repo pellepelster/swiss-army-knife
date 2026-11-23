@@ -67,12 +67,8 @@ function openPage(page) {
       link.removeAttribute('aria-current');
     }
   }
-  if (PAGES[page]) {
-    PAGES[page]();
-  } else {
-    shell.toolbar();
-    shell.page('page-empty');
-  }
+  // every entry of the navigation has its page
+  (PAGES[page] ?? showRepositories)();
 }
 
 document.getElementById('nav').addEventListener('click', (event) => {

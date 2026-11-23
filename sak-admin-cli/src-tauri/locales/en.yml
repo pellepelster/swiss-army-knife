@@ -365,7 +365,6 @@ ui:
     smtp_port: "Port"
     smtp_username: "User name"
     smtp_password: "Password"
-    smtp_password_again: "Taken from the running SAK instance, all but its password: type it again, it never leaves the backend."
     smtp_starttls: "Upgrade the connection with STARTTLS"
     smtp_from: "Sender address"
     smtp_from_hint: "The login links come from it, noreply@<root domain> unless you change it. Many mail servers only send from an address of their account or of a verified domain."

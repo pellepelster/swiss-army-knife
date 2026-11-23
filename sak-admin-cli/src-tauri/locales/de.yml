@@ -365,7 +365,6 @@ ui:
     smtp_port: "Port"
     smtp_username: "Benutzername"
     smtp_password: "Passwort"
-    smtp_password_again: "Aus der laufenden SAK-Instanz übernommen, bis auf das Passwort: gib es erneut ein, es verlässt das Backend nie."
     smtp_starttls: "Verbindung mit STARTTLS absichern"
     smtp_from: "Absenderadresse"
     smtp_from_hint: "Von ihr kommen die Login-Links, noreply@<Root-Domain>, wenn du sie nicht änderst. Viele Mailserver senden nur von einer Adresse ihres Kontos oder einer bestätigten Domain."

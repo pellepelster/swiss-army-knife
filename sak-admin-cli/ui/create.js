@@ -3,7 +3,7 @@
 // the data volume. A root domain that another deployment has in dns mode `domain` stops the plan;
 // one with deployments in dns mode `subdomain` allows only that mode
 import { openedDeployment } from './password.js';
-import { runDestroy, showPlan } from './run.js';
+import { intentText, runDestroy, showPlan } from './run.js';
 import { navigate, setBusy, setFailure, setStatus, show, text } from './shared/views.js';
 
 const { invoke } = window.__TAURI__.core;
@@ -69,9 +69,6 @@ let intent = 'create';
 let loadedSettings = null;
 
 // `<key>` for a create, `<key>_<intent>` else
-function intentText(key) {
-  return text(intent === 'create' ? key : `${key}_${intent}`);
-}
 
 function newDeployment() {
   return {
@@ -358,6 +355,15 @@ function setFormBusy(busy) {
 }
 
 // rust checks the repeat again; an opened deployment has no repeat, its password was checked on open
+// the repeated password checked as it is typed, once it has as many characters as the password (UX-6)
+for (const input of [passwordInput, repeatInput]) {
+  input.addEventListener('input', () => {
+    if (repeatInput.value.length >= passwordInput.value.length || repeatInput.classList.contains('is-invalid')) {
+      passwordsMatch();
+    }
+  });
+}
+
 function passwordsMatch() {
   const match = existing ? true : passwordInput.value === repeatInput.value;
   repeatInput.classList.toggle('is-invalid', !match);
@@ -426,8 +432,8 @@ export async function showCreate(options = {}) {
   loadedSettings = options.settings ?? null;
   nameRefusal = null;
   nameInput.classList.remove('is-invalid');
-  document.getElementById('create-title').textContent = intentText('ui.create.title');
-  document.getElementById('create-password-hint').textContent = intentText('ui.create.password_hint');
+  document.getElementById('create-title').textContent = intentText('ui.create.title', intent);
+  document.getElementById('create-password-hint').textContent = intentText('ui.create.password_hint', intent);
   repeatGroup.hidden = Boolean(existing);
   repeatInput.required = !existing;
   nameInput.readOnly = Boolean(existing);

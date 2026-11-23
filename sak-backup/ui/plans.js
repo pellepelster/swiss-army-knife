@@ -62,6 +62,8 @@ export async function showPlans() {
   shell.title(text('ui.nav.plans'));
   const create = createButton(text('ui.plans.create'), () => showForm(null, repositories));
   shell.toolbar(create);
+  // a backup plan names a repository: none to choose before they are loaded
+  disable(create, text('ui.plans.loading'));
   shell.page('page-plans');
   list.replaceChildren();
   setStatus(status, text('ui.plans.loading'));
@@ -70,6 +72,8 @@ export async function showPlans() {
     host = await thisHost();
     const [plans, loaded] = await Promise.all([invoke('plans'), invoke('repositories')]);
     repositories = loaded;
+    create.disabled = false;
+    create.removeAttribute('title');
     // without a repository there is nothing to back up into: disabled, never hidden (UX-8)
     if (repositories.length === 0) disable(create, text('ui.plans.no_repository'));
     const names = new Map(repositories.map((each) => [each.id, each.name]));
@@ -301,9 +305,10 @@ function keepOf() {
   return keep;
 }
 
+// checked as they are typed, not only on save (UX-6)
 for (const field of Object.values(KEEP)) {
   field.addEventListener('input', () => {
-    $('plan-keep-error').textContent = '';
+    $('plan-keep-error').textContent = keepOf() === null ? text('ui.plans.invalid_keep') : '';
   });
 }
 

@@ -418,20 +418,17 @@ sakbackup too; the installers of linux that `tauri.conf.json` configures are bui
 
 ### `DA-24` Small things of the windows (read)
 
-- "Create backup plan" works before the repositories are loaded (`plans.js`)
-- a live region is written on each progress event (`sak-backup/ui/run.js`, now with the rate and the time left;
-  `sak-desktop-shared/ui/checks.js`); the progress bar of sakbackup has no name (`index.html`)
-- fields checked on submit only (`UX-6`): the numbers a plan keeps (`plans.js`), the repeated password of sakadmin
-  (`create.js`)
+Fixed since the second pass: Create backup plan waits for the repositories; the numbers of a running backup are in a
+line that is not read out and its bar has a name; the checks at the start are read out once each, not at every step
+of their progress; the numbers a plan keeps and the repeated password of sakadmin are checked as they are typed; the
+page without a page of sakbackup, `#create-smtp-password-hint` and the second `intentText` are gone. Still open:
+
 - the markup of the footer of the update is in both `index.html`; `update.js` can make it
-- dead code: the page without a page of sakbackup, `#create-smtp-password-hint` of sakadmin (`index.html:274`),
-  `intentText` twice (`create.js:84`, `run.js:27`), the header with the icon in ten views of sakadmin
+- the header with the icon in ten views of sakadmin
 - `$`, `invoke` and a builder of elements are written in each module; `views.js` can export them
 - `UX-13` wants "Sign out" and "Check for updates" in a menu at the top right; both windows have the update in the
   footer and sakbackup its menu at the bottom of the navigation. Write the desktop apps into `UI-UX.md`, or change
-  the windows
-
-Unchanged in the second pass.
+  the windows: a decision of the owner, a rule changes only with its consent
 
 ## Not reviewed
 

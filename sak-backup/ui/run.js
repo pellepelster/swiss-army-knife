@@ -32,6 +32,7 @@ const $ = (id) => document.getElementById(id);
 const progress = $('run-progress');
 const bar = $('run-bar');
 const status = $('run-status');
+const numbers = $('run-numbers');
 // the file restic reads now, apart from the live region: it changes too often to be read out
 const file = $('run-file');
 const skipped = $('run-skipped');
@@ -126,6 +127,7 @@ async function run(password, init, remember) {
   changed();
   progress.hidden = true;
   file.hidden = true;
+  numbers.hidden = true;
   skipped.replaceChildren();
   close.textContent = text('ui.plans.run_cancel');
   setStatus(status, text('ui.plans.run_starting'));
@@ -135,6 +137,7 @@ async function run(password, init, remember) {
       setStatus(status, text('ui.plans.run_initializing'));
     } else if (event.kind === 'progress') {
       progress.hidden = false;
+      progress.setAttribute('aria-label', text('ui.plans.run_progress_label'));
       const now = Math.round(event.percent * 100);
       bar.style.width = `${now}%`;
       progress.setAttribute('aria-valuenow', String(now));
@@ -143,7 +146,10 @@ async function run(password, init, remember) {
         percent = now;
         changed();
       }
-      setStatus(status, progressText(event));
+      // the numbers change each second: in a line that is not read out (DA-24)
+      if (!status.textContent || status.textContent === text('ui.plans.run_starting')) setStatus(status, text('ui.plans.run_running'));
+      numbers.hidden = false;
+      numbers.textContent = progressText(event);
       // the start of a long path goes, its end tells the file (style.css)
       file.hidden = !event.current_file;
       file.textContent = event.current_file ? `\u200e${event.current_file}` : '';
@@ -151,6 +157,7 @@ async function run(password, init, remember) {
     } else if (event.kind === 'expiring') {
       progress.hidden = true;
       file.hidden = true;
+      numbers.hidden = true;
       setStatus(status, text('ui.plans.run_expiring'));
     } else if (event.kind === 'skipped') {
       const line = document.createElement('li');
@@ -162,6 +169,7 @@ async function run(password, init, remember) {
     const summary = await invoke('run_backup', { id: shown.plan.id, password, init, remember, onEvent });
     progress.hidden = true;
     file.hidden = true;
+    numbers.hidden = true;
     const done = text('ui.plans.run_done', {
       new: summary.filesNew,
       changed: summary.filesChanged,
@@ -183,6 +191,7 @@ async function run(password, init, remember) {
   } catch (failure) {
     progress.hidden = true;
     file.hidden = true;
+    numbers.hidden = true;
     setStatus(status, '');
     throw failure;
   } finally {
@@ -248,6 +257,7 @@ async function restore(target, password, remember) {
   changed();
   progress.hidden = true;
   file.hidden = true;
+  numbers.hidden = true;
   skipped.replaceChildren();
   close.textContent = text('ui.plans.run_back');
   setStatus(status, text('ui.plans.restoring', { name: shown.plan.name }));

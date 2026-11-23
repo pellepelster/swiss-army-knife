@@ -1364,9 +1364,6 @@ admin_cli:
       smtp_port: { en: "Port", de: "Port" }
       smtp_username: { en: "User name", de: "Benutzername" }
       smtp_password: { en: "Password", de: "Passwort" }
-      smtp_password_again:
-        en: "Taken from the running SAK instance, all but its password: type it again, it never leaves the backend."
-        de: "Aus der laufenden SAK-Instanz übernommen, bis auf das Passwort: gib es erneut ein, es verlässt das Backend nie."
       smtp_starttls: { en: "Upgrade the connection with STARTTLS", de: "Verbindung mit STARTTLS absichern" }
       smtp_from: { en: "Sender address", de: "Absenderadresse" }
       smtp_from_hint:
@@ -2342,7 +2339,6 @@ sak_backup:
       plans: { en: "Backup plans", de: "Backup-Pläne" }
       repositories: { en: "Repositories", de: "Repositorys" }
       snapshots: { en: "Snapshots", de: "Snapshots" }
-      empty: { en: "Nothing here yet.", de: "Hier gibt es noch nichts." }
     actions: { en: "Actions of %{name}", de: "Aktionen für %{name}" }
     delete: { en: "Delete", de: "Löschen" }
     cancel: { en: "Cancel", de: "Abbrechen" }
@@ -2467,6 +2463,8 @@ sak_backup:
       run_back: { en: "Back", de: "Zurück" }
       run_initializing: { en: "Creating the repository…", de: "Erstelle das Repository…" }
       run_starting: { en: "Starting restic…", de: "Starte restic…" }
+      run_running: { en: "The backup runs…", de: "Das Backup läuft…" }
+      run_progress_label: { en: "Progress of the backup", de: "Fortschritt des Backups" }
       run_progress:
         en: "%{files} of %{total} files, %{done} of %{size}"
         de: "%{files} von %{total} Dateien, %{done} von %{size}"
