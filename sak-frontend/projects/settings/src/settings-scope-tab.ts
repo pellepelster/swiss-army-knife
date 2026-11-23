@@ -77,6 +77,25 @@ type Requirement = NonNullable<SettingDefinition['requires']>;
                   <div class="form-text">{{ setting.description }}</div>
                 </div>
               }
+              @case ('choice') {
+                <div [class.opacity-50]="off(setting)">
+                  <label class="form-label" [for]="inputId(setting)">{{ setting.label }}</label>
+                  <select
+                    #select
+                    class="form-select"
+                    [disabled]="off(setting) || setting.readOnly"
+                    [id]="inputId(setting)"
+                    (change)="edit(setting, select.value)"
+                  >
+                    @for (choice of setting.choices ?? []; track choice.value) {
+                      <option [value]="choice.value" [selected]="value(setting) === choice.value">
+                        {{ choice.label }}
+                      </option>
+                    }
+                  </select>
+                  <div class="form-text">{{ setting.description }}</div>
+                </div>
+              }
             }
           }
         } @else {

@@ -54,8 +54,8 @@ export type HealthStatus = Schemas['HealthStatusResponse'];
 export type HealthDetail = Schemas['HealthDetailResponse'];
 export type HealthState = HealthStatus['state'];
 
-// settings: a value is a boolean or a text; the schema of a default (any primitive) is corrected in
-// SakApiDoc
+// settings: a value is a boolean or a text, the value of a choice is a text; the schema of a default
+// (any primitive) is corrected in SakApiDoc
 export type SettingValue = boolean | string;
 export type SettingRequirement = Schemas['SettingRequirementResponse'];
 export type SettingDefinition = Schemas['SettingResponse'];

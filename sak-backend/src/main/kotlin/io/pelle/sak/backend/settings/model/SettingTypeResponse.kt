@@ -11,4 +11,7 @@ enum class SettingTypeResponse {
 
     @SerialName("text")
     TEXT,
+
+    @SerialName("choice")
+    CHOICE,
 }

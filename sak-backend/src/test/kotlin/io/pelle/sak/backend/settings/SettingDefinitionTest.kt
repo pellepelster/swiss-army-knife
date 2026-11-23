@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.settings
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
 import kotlinx.serialization.json.JsonNull
@@ -42,5 +43,29 @@ class SettingDefinitionTest {
         masked.toApiJson("se") shouldBe JsonPrimitive("se")
         masked.toApiJson("") shouldBe JsonPrimitive("")
         text.toApiJson("hello") shouldBe JsonPrimitive("hello")
+    }
+
+    @Test
+    fun `a choice is one of its values`() {
+        val choices = listOf(SettingChoice("first", t("First")), SettingChoice("second", t("Second")))
+        val choice = ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), choices, default = "first")
+
+        choice.decode(choice.encode("second")) shouldBe "second"
+        // a value stored that is no choice any more
+        choice.decode("third") shouldBe null
+        choice.toApiJson("second") shouldBe JsonPrimitive("second")
+        choice.validate(JsonPrimitive("second")) shouldBe null
+        choice.read(JsonPrimitive("second")) shouldBe SettingValue(choice, "second")
+        listOf(JsonPrimitive("third"), JsonPrimitive(""), JsonPrimitive("Second"), JsonPrimitive(true), JsonNull).forEach {
+            choice.validate(it) shouldBe ErrorMessage(SettingsTexts.NOT_CHOICE, "label" to t("A choice"))
+        }
+    }
+
+    @Test
+    fun `a choice has choices, each value once, and its default is one of them`() {
+        val first = SettingChoice("first", t("First"))
+        shouldThrow<IllegalArgumentException> { ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), emptyList(), default = "first") }
+        shouldThrow<IllegalArgumentException> { ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), listOf(first, first), default = "first") }
+        shouldThrow<IllegalArgumentException> { ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), listOf(first), default = "second") }
     }
 }

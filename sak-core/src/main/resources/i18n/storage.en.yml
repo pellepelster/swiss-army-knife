@@ -1,0 +1,33 @@
+# the texts of the catalog storage in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+settings:
+  enabled:
+    label: "S3 storage"
+    description: "Configures the access to an external S3 object storage. While it is on, the backups are kept there. Backups made before are not moved."
+  endpoint_type:
+    label: "Type of endpoint"
+    description: "The provider of the S3 storage."
+    hetzner: "Hetzner Object Storage"
+  region:
+    label: "Region"
+    description: "The location of the bucket."
+    fsn1: "Falkenstein (fsn1)"
+    nbg1: "Nuremberg (nbg1)"
+    hel1: "Helsinki (hel1)"
+  bucket:
+    label: "Bucket"
+    description: "The name of the bucket."
+  access_key:
+    label: "Access key"
+    description: "The access key of the S3 credentials."
+  secret_key:
+    label: "Secret key"
+    description: "The secret key of the S3 credentials."
+  label: "Storage"
+  description: "External storage for the data of SAK"
+bucket_missing: "The S3 storage needs a bucket to be turned on."
+bucket_invalid: "A bucket name has 3 to 63 characters: lower case letters, digits, hyphens and dots, with a letter or a digit at each end."
+access_key_missing: "The S3 storage needs an access key to be turned on."
+secret_key_missing: "The S3 storage needs a secret key to be turned on."
+keys_refused: "Hetzner does not take the keys for this bucket."
+no_bucket: "There is no bucket of this name in this region."
+unchecked: "The storage could not be checked at Hetzner, please try again later."

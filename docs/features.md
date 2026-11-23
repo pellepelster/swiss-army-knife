@@ -33,6 +33,12 @@ with the robot button, for one photo or recording at a time. Providers that coll
 
 ![The settings of the AI features, turned off](screenshots/web-settings-ai-desktop.png)
 
+**S3 storage:** an admin can enter the access to a bucket of Hetzner Object Storage in the settings. It is off until
+an admin turns it on. When the admin saves these settings, the server asks Hetzner whether the bucket and the keys
+are valid. Hetzner then sees the IP address of the server, the access key and the name of the bucket. While it is
+on, SAK keeps the backups in the bucket. restic encrypts them on your computer, so Hetzner sees no content, only the
+names and sizes of the files.
+
 ## Users
 
 - **Single user:** the admin signs in with the password. No mail server needed.

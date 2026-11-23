@@ -154,6 +154,24 @@ class StoredSettingsServiceTest {
     }
 
     @Test
+    fun `a choice answers its default until one is set, also for a stored value that is no choice any more`() {
+        val choice =
+            ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), listOf(SettingChoice("first", t("First")), SettingChoice("second", t("Second"))), default = "first")
+        val scope = SettingScope(SettingScopeName("chosen"), t("Test"), t("Settings to test with."), listOf(choice))
+        val chosen = StoredSettingsService(scope, storage)
+
+        chosen.get(choice) shouldBe "first"
+        (chosen.validate(mapOf("choice" to JsonPrimitive("third"))) as Validation.Invalid).errors shouldBe
+            listOf(ErrorMessage(SettingsTexts.NOT_CHOICE, "label" to t("A choice")))
+        val valid = chosen.validate(mapOf("choice" to JsonPrimitive("second"))).shouldBeInstanceOf<Validation.Valid>()
+        chosen.set(valid.values, owner = "admin@example.org")
+        chosen.get(choice) shouldBe "second"
+
+        storage.set(scope.name, mapOf(choice.name to "third"), owner = "admin@example.org")
+        chosen.get(choice) shouldBe "first"
+    }
+
+    @Test
     fun `validates json values, every problem at once, and sets them in one go`() {
         (
             service.validate(

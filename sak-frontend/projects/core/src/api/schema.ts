@@ -5559,6 +5559,11 @@ export interface components {
     AppLinkRequest: {
       email: string;
     };
+    /** SettingChoiceResponse */
+    SettingChoiceResponse: {
+      value: string;
+      label: string;
+    };
     /** SettingRequirementResponse */
     SettingRequirementResponse: {
       scope: string;
@@ -5570,10 +5575,11 @@ export interface components {
       label: string;
       description: string;
       /** @enum {string} */
-      type: 'boolean' | 'text';
+      type: 'boolean' | 'text' | 'choice';
       default: string | boolean | number;
       maxLength?: number | null;
       mask?: number | null;
+      choices?: components['schemas']['SettingChoiceResponse'][] | null;
       readOnly: boolean;
       requires?: components['schemas']['SettingRequirementResponse'] | null;
     };
