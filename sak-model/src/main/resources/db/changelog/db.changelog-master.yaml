@@ -28,3 +28,6 @@ databaseChangeLog:
   - include:
       file: 0009-restic-plan-excludes.yaml
       relativeToChangelogFile: true
+  - include:
+      file: 0010-unique-positions.yaml
+      relativeToChangelogFile: true

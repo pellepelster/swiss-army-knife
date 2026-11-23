@@ -364,19 +364,29 @@ class NoteRepository(
                 .fetch()
                 .associateBy { it.fileId!! }
         deleteFiles(dsl, NOTES_FILES.ID.`in`(links.filterKeys { it !in fileIds }.values.map { it.id }), now)
+        // a position is unique among the live links of a note (DM-5), also after each statement: the
+        // links that move go to a position of their own below 0 first, then to their new one, so a
+        // swap never has two links at one position
+        val moved = fileIds.withIndex().mapNotNull { (position, fileId) -> links[fileId]?.takeIf { it.position != position }?.let { it.id to position } }
+        moved.forEach { (id, position) -> moveFile(dsl, id, -1 - position, now) }
         fileIds.forEachIndexed { position, fileId ->
-            val link = links[fileId]
-            if (link == null) {
-                insertFile(dsl, noteId, fileId, position, now, owner)
-            } else if (link.position != position) {
-                dsl
-                    .update(NOTES_FILES)
-                    .set(NOTES_FILES.POSITION, position)
-                    .set(NOTES_FILES.UPDATED_AT, now)
-                    .where(NOTES_FILES.ID.eq(link.id))
-                    .execute()
-            }
+            if (links[fileId] == null) insertFile(dsl, noteId, fileId, position, now, owner)
         }
+        moved.forEach { (id, position) -> moveFile(dsl, id, position, now) }
+    }
+
+    private fun moveFile(
+        dsl: DSLContext,
+        id: Int?,
+        position: Int,
+        now: Instant,
+    ) {
+        dsl
+            .update(NOTES_FILES)
+            .set(NOTES_FILES.POSITION, position)
+            .set(NOTES_FILES.UPDATED_AT, now)
+            .where(NOTES_FILES.ID.eq(id))
+            .execute()
     }
 
     private fun insertFile(

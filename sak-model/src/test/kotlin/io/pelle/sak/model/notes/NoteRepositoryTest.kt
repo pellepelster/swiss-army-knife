@@ -95,6 +95,23 @@ class NoteRepositoryTest {
     }
 
     @Test
+    fun `swaps the files of a note, each link keeps its row and gets the other position (DM-5)`() {
+        val beach = file("beach")
+        val sunset = file("sunset")
+        val dunes = file("dunes")
+        val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach, sunset)).note()
+        val (beachLink, sunsetLink) = links(note.id)
+
+        // a swap and a new file in front: every position is taken by another link before
+        repository.update("pelle@pelle.io", note.id, "holidays", "blue", emptySet(), listOf(dunes, sunset, beach)).note().fileIds shouldBe
+            listOf(dunes, sunset, beach)
+
+        repository.byId("pelle@pelle.io", note.id)!!.fileIds shouldBe listOf(dunes, sunset, beach)
+        links(note.id).filter { !it.deleted }.map { it.id to it.position }.toSet() shouldBe
+            setOf(beachLink.id to 2, sunsetLink.id to 1, links(note.id).first { it.fileId == dunes }.id to 0)
+    }
+
+    @Test
     fun `attaches a file removed from a note again with a link of its own`() {
         val beach = file("beach")
         val note = repository.insert("pelle@pelle.io", list("pelle@pelle.io"), "holidays", "blue", emptySet(), listOf(beach)).note()

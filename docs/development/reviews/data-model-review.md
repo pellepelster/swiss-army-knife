@@ -50,12 +50,6 @@ values are text that is no number, but one way reads better; the primary keys ar
 `restic_backup_plans.repository_id` and `redirects.target_bucket` have no index; `deleteCategory` changes the items
 `WHERE category_id = ?` by reading the whole table. The tables are small, an index each is cheap.
 
-### `DM-5` Positions that are not unique
-
-`s3_buckets_domains` has a unique index on `(bucket_name, position)` among the live rows; `notes_files (note_id,
-position)` and `restic_backup_plan_paths (plan_id, position)` have none. The repositories write the positions in one
-transaction, an index would only make the rule explicit.
-
 ### `DM-6` An upload is never removed
 
 A file that is uploaded and never shown by a note or an item stays for ever: there is no delete and no sweep. Since

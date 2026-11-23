@@ -186,4 +186,60 @@ class SakDatabaseTest {
             }
         }
     }
+
+    @Test
+    fun `positions taken twice before they were unique are numbered again, then each is unique (DM-5)`() {
+        Files.createDirectories(file.parent)
+        val at = "'2026-11-01 00:00:00.000'"
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            migrateIsolated(connection, "db/changelog/until-0009.yaml")
+            connection.createStatement().use { statement ->
+                listOf(
+                    "INSERT INTO note_lists (id, owner, name, shared, created_at) VALUES (1, 'a', 'Notes', 0, $at)",
+                    "INSERT INTO notes (id, owner, list_id, text, color, created_at) VALUES (1, 'a', 1, 'n', 'yellow', $at)",
+                    "INSERT INTO files (id, content_type, size, owner, created_at, resource_id) VALUES (1, 'image/png', 1, 'a', $at, 'r1')",
+                    "INSERT INTO files (id, content_type, size, owner, created_at, resource_id) VALUES (2, 'image/png', 1, 'a', $at, 'r2')",
+                    "INSERT INTO files (id, content_type, size, owner, created_at, resource_id) VALUES (3, 'image/png', 1, 'a', $at, 'r3')",
+                    // two links at 0, one at 5, and a deleted one at 0 that keeps its position
+                    "INSERT INTO notes_files (id, note_id, file_id, position, owner, created_at) VALUES (10, 1, 2, 0, 'a', $at)",
+                    "INSERT INTO notes_files (id, note_id, file_id, position, owner, created_at) VALUES (11, 1, 1, 0, 'a', $at)",
+                    "INSERT INTO notes_files (id, note_id, file_id, position, owner, created_at) VALUES (12, 1, 3, 5, 'a', $at)",
+                    "INSERT INTO notes_files (id, note_id, file_id, position, owner, created_at, deleted_at) VALUES (13, 1, 3, 0, 'a', $at, $at)",
+                    "INSERT INTO restic_repositories (id, owner, name, token, resource_id, created_at) VALUES (1, 'a', 'r', 't', 'rr', $at)",
+                    "INSERT INTO restic_backup_plans (id, owner, name, repository_id, host, created_at) VALUES (1, 'a', 'p', 1, 'h', $at)",
+                    "INSERT INTO restic_backup_plan_paths (id, plan_id, owner, path, position, created_at) VALUES (20, 1, 'a', '/b', 1, $at)",
+                    "INSERT INTO restic_backup_plan_paths (id, plan_id, owner, path, position, created_at) VALUES (21, 1, 'a', '/a', 1, $at)",
+                ).forEach { statement.executeUpdate(it) }
+            }
+            // liquibase leaves the connection without auto commit
+            connection.commit()
+        }
+
+        SakDatabase.open(file)
+
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            fun positions(sql: String) =
+                connection.createStatement().use { statement ->
+                    statement.executeQuery(sql).use { rows ->
+                        buildList { while (rows.next()) add(rows.getInt(1) to rows.getInt(2)) }
+                    }
+                }
+            // by position, then by id: the order the links had stays, the deleted one is untouched
+            positions("SELECT id, position FROM notes_files ORDER BY id") shouldBe listOf(10 to 0, 11 to 1, 12 to 2, 13 to 0)
+            positions("SELECT id, position FROM restic_backup_plan_paths ORDER BY id") shouldBe listOf(20 to 0, 21 to 1)
+            // a second live link at a taken position is refused now
+            connection.createStatement().use { statement ->
+                runCatching {
+                    statement.executeUpdate(
+                        "INSERT INTO notes_files (note_id, file_id, position, owner, created_at) VALUES (1, 1, 1, 'a', $at)",
+                    )
+                }.isFailure shouldBe true
+                runCatching {
+                    statement.executeUpdate(
+                        "INSERT INTO restic_backup_plan_paths (plan_id, owner, path, position, created_at) VALUES (1, 'a', '/c', 0, $at)",
+                    )
+                }.isFailure shouldBe true
+            }
+        }
+    }
 }
