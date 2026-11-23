@@ -19,7 +19,7 @@ import {
   message,
   thisHost,
 } from './rows.js';
-import { onRunsChanged, runningPlan, showRun, startRestore, startRun } from './run.js';
+import { onRunsChanged, runningPlan, runProgress, showRun, startRestore, startRun } from './run.js';
 import { editExcludes, patternLines } from './excludes-dialog.js';
 import { confirmAction } from './shared/confirm-dialog.js';
 import { closeMenu } from './shared/menu.js';
@@ -110,7 +110,20 @@ function planRow(plan, names, repositories) {
     if (runningPlan() === plan.id) showRun();
     else startRun(plan, repositoryName);
   });
+  // the row of the plan that runs: striped up to its percent, the whole row when there is none
+  // (style.css: .row-running), the percent by its name
+  const percent = document.createElement('span');
+  percent.className = 'row-percent';
+  percent.hidden = true;
+  const item = row(plan.name, [rowName(plan.name), percent, ...badges, detail], open, [edit, restoreHere, restoreTo, remove], [start]);
   const enable = () => {
+    const runs = runningPlan() === plan.id;
+    const progress = runs ? runProgress() : null;
+    item.classList.toggle('row-running', runs);
+    item.style.setProperty('--run-progress', `${progress ?? 100}%`);
+    percent.hidden = progress === null;
+    percent.textContent = progress === null ? '' : `${progress}%`;
+    start.classList.toggle('btn-running', runs);
     start.disabled = false;
     start.title = '';
     start.textContent = text(runningPlan() === plan.id ? 'ui.plans.run_show' : 'ui.plans.run');
@@ -130,7 +143,7 @@ function planRow(plan, names, repositories) {
   };
   enable();
   runButtons.push(enable);
-  return row(plan.name, [rowName(plan.name), ...badges, detail], open, [edit, restoreHere, restoreTo, remove], [start]);
+  return item;
 }
 
 // a backup plan goes with its paths, its repository and its snapshots stay: asked first, then the

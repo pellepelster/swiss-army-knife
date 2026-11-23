@@ -126,6 +126,60 @@ button.row-body:focus-visible {
   font-weight: 600;
 }
 
+/* the backup plan that runs: a stripe in the busy color at its left, and moving stripes in light
+   tints of it from its left up to its percent (--run-progress, plans.js), the whole row when the run
+   says none (a restore); its button filled in the busy color. Still without motion for who asks */
+.row-running {
+  border-left: 5px solid var(--sak-info);
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--sak-info) 34%, var(--sak-surface)) 0 14px,
+      color-mix(in srgb, var(--sak-info) 18%, var(--sak-surface)) 14px 28px
+    ) 0 0 / var(--run-progress, 100%) 100% no-repeat,
+    var(--sak-surface);
+  animation: row-running-stripes 1.2s linear infinite;
+}
+
+@keyframes row-running-stripes {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 40px 0, 0 0; }
+}
+
+.row-percent {
+  font-family: var(--sak-font-mono);
+  font-size: var(--sak-text-sm);
+  font-weight: 600;
+}
+
+.row-actions .btn-running,
+.row-actions .btn-running:hover {
+  background: var(--sak-info);
+  border-color: var(--sak-info);
+  color: var(--sak-accent-ink);
+}
+
+/* the entry of the backup plans while a run goes on (run.js): the pulsing led of busy */
+#nav [data-running]::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: var(--sak-space-2);
+  border-radius: 1px;
+  background: var(--sak-info);
+  vertical-align: middle;
+  animation: sak-led-pulse 0.9s ease-out infinite;
+  color: var(--sak-info);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-running,
+  #nav [data-running]::after {
+    animation: none;
+  }
+}
+
 /* a badge of a row: the line height of its font, so the text sits in the middle */
 .row-body .badge {
   line-height: 1.3;

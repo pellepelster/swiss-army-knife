@@ -41,13 +41,16 @@ let shell = null;
 // 'backup' or 'restore'; and whether restic runs for it
 let shown = null;
 let running = false;
+// the whole percent of the backup that runs, null before restic tells it and for a restore
+let percent = null;
 const listeners = new Set();
 
 export function initRun(pageShell) {
   shell = pageShell;
 }
 
-// told when a run starts or ends, so the rows change their button
+// told when a run starts or ends and when its percent changes, so the rows change their button and
+// their look
 export function onRunsChanged(listener) {
   listeners.add(listener);
 }
@@ -57,7 +60,14 @@ export function runningPlan() {
   return running ? shown.plan.id : null;
 }
 
+// how far the run is, 0 to 100, null when it does not say (style.css: .row-running)
+export function runProgress() {
+  return running ? percent : null;
+}
+
+// the entry of the backup plans in the navigation shows that a run goes on, on every page
 function changed() {
+  document.querySelector('#nav [data-page="plans"]')?.toggleAttribute('data-running', running);
   for (const listener of listeners) listener();
 }
 
@@ -111,6 +121,7 @@ close.addEventListener('click', () => {
 // one run of restic; it throws the error it ended with
 async function run(password, init, remember) {
   running = true;
+  percent = null;
   changed();
   progress.hidden = true;
   file.hidden = true;
@@ -123,9 +134,14 @@ async function run(password, init, remember) {
       setStatus(status, text('ui.plans.run_initializing'));
     } else if (event.kind === 'progress') {
       progress.hidden = false;
-      const percent = Math.round(event.percent * 100);
-      bar.style.width = `${percent}%`;
-      progress.setAttribute('aria-valuenow', String(percent));
+      const now = Math.round(event.percent * 100);
+      bar.style.width = `${now}%`;
+      progress.setAttribute('aria-valuenow', String(now));
+      // the row of the plan follows each whole percent
+      if (now !== percent) {
+        percent = now;
+        changed();
+      }
       setStatus(status, progressText(event));
       // the start of a long path goes, its end tells the file (style.css)
       file.hidden = !event.current_file;
@@ -170,6 +186,7 @@ async function run(password, init, remember) {
     throw failure;
   } finally {
     running = false;
+    percent = null;
     close.textContent = text('ui.plans.run_back');
     changed();
   }
@@ -226,6 +243,7 @@ export async function startRestore(plan, repository, target) {
 // one restore of restic, maybe skipping files; it throws the error it ended with
 async function restore(target, password, remember) {
   running = true;
+  percent = null;
   changed();
   progress.hidden = true;
   file.hidden = true;

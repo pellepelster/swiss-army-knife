@@ -90,6 +90,33 @@ class SakbackupWindowTest {
     }
 
     @Test
+    fun `the plan that runs is striped up to its percent, the navigation shows that a run goes on`() {
+        browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
+            val page = context.openWindow()
+            page.evaluate("() => { window.__sakHold = { run_backup: 1 }; }")
+            val plans = page.locator("#nav button[data-page=plans]")
+            plans.click()
+            page.locator("#plans-list button", com.microsoft.playwright.Page.LocatorOptions().setHasText("Back up now")).first().click()
+            assertThat(page.locator("#run-file")).isVisible()
+            // back on the list while the run is held at 9%
+            plans.click()
+            val row = page.locator("#plans-list li").first()
+            assertThat(row).hasClass(java.util.regex.Pattern.compile("\\brow-running\\b"))
+            assertThat(row.locator(".row-percent")).hasText("9%")
+            check(row.evaluate("(item) => item.style.getPropertyValue('--run-progress')") == "9%")
+            assertThat(row.locator(".btn-running")).hasText("Show the run")
+            assertThat(plans).hasAttribute("data-running", "")
+            page.screenshot(com.microsoft.playwright.Page.ScreenshotOptions().setPath(java.nio.file.Paths.get("build/sakbackup-plan-running.png")))
+            // the run goes on and ends: the row and the navigation are as before
+            page.evaluate("() => window.__sakResume('run_backup')")
+            assertThat(row).not().hasClass(java.util.regex.Pattern.compile("\\brow-running\\b"))
+            assertThat(row.locator(".row-percent")).isHidden()
+            assertThat(plans).not().hasAttribute("data-running", "")
+            assertThat(row.locator("button", com.microsoft.playwright.Locator.LocatorOptions().setHasText("Back up now"))).isVisible()
+        }
+    }
+
+    @Test
     fun `the excludes of a plan are edited in their dialog, with presets, and saved with the plan`() {
         browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
             val page = context.openWindow()
