@@ -1,6 +1,6 @@
 package io.pelle.sak.model.notes
 
-import io.pelle.sak.model.firstOfOwner
+import io.pelle.sak.model.lists.ListTable
 import io.pelle.sak.model.changesTo
 import io.pelle.sak.model.changedAt
 import io.pelle.sak.model.SakDatabase
@@ -60,6 +60,25 @@ class NoteRepository(
     // the created, updated and deleted times are taken from it, never from the callers
     private val clock: Clock = Clock.systemUTC(),
 ) : LabelLinks() {
+    // the lists of the notes, with how many notes are on each: the lists every list-based app has
+    // (LIST-1). No list is shown to a user yet (NOTES-1), each user has the first one alone, and a
+    // note is its owner's whatever its list is
+    private val lists =
+        ListTable(
+            database,
+            clock,
+            NOTE_LISTS,
+            NOTE_LISTS.ID,
+            NOTE_LISTS.OWNER,
+            NOTE_LISTS.NAME,
+            NOTE_LISTS.SHARED,
+            NOTE_LISTS.ICON,
+            NOTE_LISTS.CREATED_AT,
+            NOTE_LISTS.UPDATED_AT,
+            NOTE_LISTS.DELETED_AT,
+            DSL.field(DSL.selectCount().from(NOTES).where(NOTES.LIST_ID.eq(NOTE_LISTS.ID), NOTES.DELETED_AT.isNull)),
+        )
+
     // the newest first, of one label or of all when labelId is null
     fun page(
         owner: String,
@@ -114,14 +133,7 @@ class NoteRepository(
             ?.let { it.toRow(labelIds(database.dsl, listOf(id))[id].orEmpty(), fileIds(database.dsl, listOf(id))[id].orEmpty()) }
 
     // the oldest list of the owner, null when they have none
-    fun ownList(owner: String): Int? =
-        database.dsl
-            .select(NOTE_LISTS.ID)
-            .from(NOTE_LISTS)
-            .where(NOTE_LISTS.OWNER.eq(owner), NOTE_LISTS.DELETED_AT.isNull)
-            .orderBy(NOTE_LISTS.ID)
-            .limit(1)
-            .fetchOne(NOTE_LISTS.ID)
+    fun ownList(owner: String): Int? = lists.firstOwn(owner)?.id
 
     // the first list of an owner who never had a list of their own, deleted ones included (LIST-1,
     // NOTES-1); a list made at the same time, e.g. by another sign-in, wins, the name is unique per
@@ -130,15 +142,7 @@ class NoteRepository(
         owner: String,
         name: String,
     ) {
-        firstOfOwner(database, NOTE_LISTS, NOTE_LISTS.OWNER, owner) { dsl ->
-            dsl
-                .insertInto(NOTE_LISTS)
-                .set(NOTE_LISTS.OWNER, owner)
-                .set(NOTE_LISTS.NAME, name)
-                .set(NOTE_LISTS.SHARED, false)
-                .set(NOTE_LISTS.CREATED_AT, clock.instant())
-                .execute()
-        }
+        lists.insertFirst(owner, name)
     }
 
     // a new note in the list. The list and the files are checked to be the owner's in the transaction of
@@ -155,7 +159,8 @@ class NoteRepository(
         database.dsl.transactionResult { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
-            if (!dsl.fetchExists(NOTE_LISTS, NOTE_LISTS.ID.eq(listId), NOTE_LISTS.OWNER.eq(owner), NOTE_LISTS.DELETED_AT.isNull)) {
+            // the owner's own list, not one they only see: a note is its owner's alone
+            if (!lists.owns(dsl, owner, listId)) {
                 return@transactionResult NoteWriteResult.NoList
             }
             unknownFiles(dsl, owner, fileIds).takeIf { it.isNotEmpty() }?.let { return@transactionResult NoteWriteResult.UnknownFiles(it) }

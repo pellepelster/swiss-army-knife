@@ -10,8 +10,8 @@ weight: 12
 **Created:** 2026-11-22
 
 **Checked again:** 2026-11-22, after the fixes of `BA-1` to `BA-20`, `BA-22`, `BA-23` and `BA-25` to `BA-30`, which
-are in the history of git; `BA-21` and `BA-24` list what is left of them. Of `BA-22` one copy stays on purpose: the
-notes and the grocery lists each have a route `GET /settings` of their own, an app owns its settings endpoint.
+are in the history of git; `BA-24` lists what is left of it. Of `BA-22` one copy stays on purpose: the notes and the
+grocery lists each have a route `GET /settings` of their own, an app owns its settings endpoint.
 
 Scope: the Kotlin modules of the backend (`sak-backend`, `sak-model`, `sak-storage`, `sak-s3`, `sak-api`, `sak-auth`,
 `sak-logs`, `sak-dns`, `sak-ingress`, `sak-openrouter`, `sak-config`), about 19 000 lines, against `LAYER-1`, `API-1`
@@ -34,18 +34,6 @@ every time goes through `apiTime()`, every create answers 201. Caddy, victorialo
 manager (`EXT-1`). All binary data goes through `BinaryStorage`, and files, buckets and repositories of restic are
 found by their resource id only.
 
-## Could fix: duplications
-
-### `BA-21` The lists of the notes are not on `ListTable`
-
-The todo lists and the grocery lists share the work on a list (`Lists`), the checks of a name and an icon, the check
-of who sees a list, and "the first one of an owner" (`firstOfOwner`, which the first repository of restic uses too).
-Their routes and their request and response classes stay two on purpose: the api of an app is its own. One copy is
-left: `NoteRepository` works on the table of the lists of the notes itself. The notes do not show their lists in the
-api (`NOTES-1`), so they would use nothing of `ListTable` but the first list.
-
-Fix: when the notes get lists in their api, their lists go on `ListTable`.
-
 ## Could fix: inconsistencies
 
 ### `BA-24` One component has several names
@@ -54,7 +42,7 @@ Fix: when the notes get lists in their api, their lists go on `ListTable`.
   the tag and the model package `ingress`; `/deployment` has the package and the tag `config` and the only file
   named `Sak…Routes.kt`. The tags stay on purpose: they are a part of the api document.
 - The entity of the notes is in the service file with a `NoteRow` in the model; the other apps keep theirs in
-  `sak-model`. It goes with the lists of the notes (`BA-21`).
+  `sak-model`.
 - Methods: `byId`, `page`, `create` (notes, labels) and `item`, `items`, `addItem` (todo, groceries); `of(owner)`
   and `all()`.
 

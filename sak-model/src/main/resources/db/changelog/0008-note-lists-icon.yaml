@@ -1,0 +1,26 @@
+# the lists of the notes get the icon every list of a list-based app has (LIST-1), so that the notes work
+# on their lists with the code of the other list-based apps. No list of the notes is shown to a user
+# yet (NOTES-1), so no list has an icon
+databaseChangeLog:
+  # as plain sql: for sqlite, the addColumn of liquibase makes the table again through a renamed copy, and
+  # sqlite then points the foreign key of the notes at the copy. A column that may be null is added to a
+  # table that has rows as it is
+  - changeSet:
+      id: 0008-note-lists-icon
+      author: sak
+      dbms: sqlite
+      changes:
+        - sql:
+            sql: ALTER TABLE note_lists ADD COLUMN icon VARCHAR(32)
+  # the same for the code generation, which reads the schema from h2
+  - changeSet:
+      id: 0008-note-lists-icon-codegen
+      author: sak
+      dbms: h2
+      changes:
+        - addColumn:
+            tableName: note_lists
+            columns:
+              - column:
+                  name: icon
+                  type: varchar(32)

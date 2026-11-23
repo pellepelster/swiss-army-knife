@@ -152,4 +152,38 @@ class SakDatabaseTest {
             )
         }
     }
+
+    @Test
+    fun `a list of the notes from before its icon keeps its notes and is found as the first list`() {
+        Files.createDirectories(file.parent)
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            migrateIsolated(connection, "db/changelog/until-0007.yaml")
+            connection.createStatement().use { statement ->
+                statement.executeUpdate(
+                    "INSERT INTO note_lists (id, owner, name, shared, created_at) VALUES (7, 'pelle@pelle.io', 'My Notes', 0, '2026-11-01 00:00:00.000')",
+                )
+                statement.executeUpdate(
+                    "INSERT INTO notes (list_id, owner, text, color, created_at) VALUES (7, 'pelle@pelle.io', 'a note', 'yellow', '2026-11-01 00:00:00.000')",
+                )
+            }
+            // liquibase leaves the connection without auto commit
+            connection.commit()
+        }
+
+        val notes = io.pelle.sak.model.notes.NoteRepository(SakDatabase.open(file))
+
+        notes.ownList("pelle@pelle.io") shouldBe 7
+        // the owner had a list, so no second first list is made
+        notes.ensureList("pelle@pelle.io", "Other")
+        notes.ownList("pelle@pelle.io") shouldBe 7
+        notes.page("pelle@pelle.io", 0, 10, null).map { it.text } shouldBe listOf("a note")
+        // the notes still refer to their table of lists: a table made again through a copy would leave
+        // the foreign key at the copy, and no note could be added
+        (notes.insert("pelle@pelle.io", 7, "a new note", "yellow", emptySet(), emptyList()) is io.pelle.sak.model.notes.NoteWriteResult.Saved) shouldBe true
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("PRAGMA foreign_key_check").use { it.next() shouldBe false }
+            }
+        }
+    }
 }

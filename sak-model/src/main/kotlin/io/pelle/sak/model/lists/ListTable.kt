@@ -138,6 +138,24 @@ internal class ListTable<R : Record>(
         id: Int,
     ): Boolean = dsl.fetchExists(table, this.id.eq(id), visible(user))
 
+    // whether the live list is the user's own, in the transaction of dsl: for what only the owner of
+    // a list does
+    fun owns(
+        dsl: DSLContext,
+        user: String,
+        id: Int,
+    ): Boolean = dsl.fetchExists(table, this.id.eq(id), own(user))
+
+    // the oldest live list of the user's own, null when they have none
+    fun firstOwn(user: String): SakList? =
+        database.dsl
+            .select(table.asterisk(), items)
+            .from(table)
+            .where(own(user))
+            .orderBy(id)
+            .limit(1)
+            .fetchOne { it.toList() }
+
     // null when the owner has a list of the name; created runs in the same transaction with the id of
     // the new list and the time it was created, e.g. to add what the list starts with
     fun insert(
