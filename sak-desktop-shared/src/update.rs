@@ -811,13 +811,13 @@ mod tests {
             newer.installed_message(&BACKUP),
             "sakbackup is updated from 0.1.1 to 0.2.0. Start sakbackup again to use it."
         );
-        // the tests are built without VERSION, as every build that is no release
-        assert_eq!(crate::VERSION, "latest");
-        assert!(!is_release());
+        // the version of the build: latest, or the one of the tag when the release builds it
+        // (VERSION of the workflow), which then is a release
+        assert_eq!(is_release(), crate::VERSION != "latest");
         let version = version_of(&BACKUP);
         assert_eq!(
             (version.app, version.version, version.receiver),
-            ("sakbackup", "latest", "github.com")
+            ("sakbackup", crate::VERSION, "github.com")
         );
     }
 
