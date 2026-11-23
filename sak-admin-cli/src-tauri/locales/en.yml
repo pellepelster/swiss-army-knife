@@ -259,6 +259,11 @@ ui:
   quit: "Quit"
   update:
     restart_while_running: "A SAK instance is being changed, restart when it is done."
+  close:
+    title: "Quit sakadmin?"
+    text: "A SAK instance is being changed. Quitting stops it where it is; the next deploy shows what is left to do."
+    quit: "Quit"
+    stay: "Keep running"
   providers:
     title: "Provider tokens"
     empty: "No provider tokens yet. Add the API tokens of the providers Swiss Army Knife creates resources at."

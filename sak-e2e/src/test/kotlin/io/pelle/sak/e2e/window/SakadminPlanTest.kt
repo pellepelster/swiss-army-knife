@@ -82,4 +82,29 @@ class SakadminPlanTest {
         }
         Files.deleteIfExists(file)
     }
+
+    @Test
+    fun `closing the window while a SAK instance changes asks first, and only a yes quits`() {
+        browser.window().use { context ->
+            // the events of tauri: the listeners of the page, which the test calls as rust would
+            context.addInitScript(
+                "window.__sakListeners = {}; window.__TAURI__.event = { listen: async (name, listener) => { window.__sakListeners[name] = listener; } };",
+            )
+            val page = context.openWindow()
+            // the window is up with its texts, as when a create runs
+            assertThat(page.locator("#view-providers")).isVisible()
+            page.waitForFunction("() => window.__sakListeners['close-requested'] !== undefined")
+            val quits = "() => window.__sakCalls.some((call) => call.command === 'quit_working')"
+            page.evaluate("() => { window.__sakListeners['close-requested'](); }")
+            assertThat(page.locator("#confirm-dialog-title")).hasText("Quit sakadmin?")
+            assertThat(page.locator("#confirm-dialog-message")).containsText("Quitting stops it where it is")
+            assertThat(page.locator("#confirm-dialog-cancel")).hasText("Keep running")
+            page.locator("#confirm-dialog-cancel").click()
+            assertThat(page.locator("#confirm-dialog")).isHidden()
+            check(page.evaluate(quits) == false)
+            page.evaluate("() => { window.__sakListeners['close-requested'](); }")
+            page.locator("#confirm-dialog-submit").click()
+            page.waitForFunction(quits)
+        }
+    }
 }

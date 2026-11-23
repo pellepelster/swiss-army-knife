@@ -280,6 +280,14 @@ pub fn cancel_apply(running: State<'_, RunningWork>) {
     crate::core::provision::stop_runs();
 }
 
+/// quits while a work runs, after the page asked: the work stops as cancel stops it (DA-29)
+#[tauri::command]
+pub fn quit_working(app: AppHandle, running: State<'_, RunningWork>) {
+    running.cancel();
+    crate::core::provision::stop_runs();
+    app.exit(0);
+}
+
 /// whether the password is the one of the deployment, asked while it is typed
 #[tauri::command]
 pub async fn check_deployment_password(

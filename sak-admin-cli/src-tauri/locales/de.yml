@@ -259,6 +259,11 @@ ui:
   quit: "Beenden"
   update:
     restart_while_running: "Eine SAK-Instanz wird gerade geändert, starte neu, wenn das fertig ist."
+  close:
+    title: "sakadmin beenden?"
+    text: "Eine SAK-Instanz wird gerade geändert. Beenden stoppt das, wo es gerade ist; der nächste Deploy zeigt, was noch zu tun ist."
+    quit: "Beenden"
+    stay: "Weiterlaufen lassen"
   providers:
     title: "Provider-Tokens"
     empty: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen Swiss Army Knife Ressourcen erstellt."

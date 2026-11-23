@@ -39,6 +39,17 @@ pub fn run() {
         .manage(state::CheckedDeployment::default())
         .manage(state::LoadedSettings::default())
         .plugin(tauri_plugin_opener::init())
+        // closed while a create, deploy, destroy or maintenance runs, the window stays and the page
+        // asks (app.js); `quit_working` quits after a yes (DA-29)
+        .on_window_event(|window, event| {
+            use tauri::{Emitter, Manager};
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && window.state::<state::RunningWork>().is_running()
+            {
+                api.prevent_close();
+                let _ = window.emit("close-requested", ());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             checks::run_checks,
             sak_desktop_shared::checks::quit,
@@ -59,6 +70,7 @@ pub fn run() {
             deployments::check_deployment,
             deployments::apply_checked,
             deployments::cancel_apply,
+            deployments::quit_working,
             deployments::check_deployment_password,
             maintenance::run_maintenance,
             sak_desktop_shared::update::version,

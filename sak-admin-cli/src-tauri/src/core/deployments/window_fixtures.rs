@@ -454,6 +454,7 @@ fn window_fixtures() {
             "check_deployment": [checked(plan(&spec, Intent::Deploy), 2)],
             "check_deployment_password": [null],
             "cancel_apply": [null],
+            "quit_working": [null],
             "apply_checked": [null],
             "open_url": [null],
             "quit": [null],

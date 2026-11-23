@@ -1205,6 +1205,14 @@ admin_cli:
       restart_while_running:
         en: "A SAK instance is being changed, restart when it is done."
         de: "Eine SAK-Instanz wird gerade geändert, starte neu, wenn das fertig ist."
+    # the window closed while a create, deploy, destroy or maintenance runs (app.js)
+    close:
+      title: { en: "Quit sakadmin?", de: "sakadmin beenden?" }
+      text:
+        en: "A SAK instance is being changed. Quitting stops it where it is; the next deploy shows what is left to do."
+        de: "Eine SAK-Instanz wird gerade geändert. Beenden stoppt das, wo es gerade ist; der nächste Deploy zeigt, was noch zu tun ist."
+      quit: { en: "Quit", de: "Beenden" }
+      stay: { en: "Keep running", de: "Weiterlaufen lassen" }
     providers:
       title: { en: "Provider tokens", de: "Provider-Tokens" }
       empty:

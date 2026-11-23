@@ -43,7 +43,9 @@ process to its user and an admin only, which was not tried on either. `DA-26` an
 replaces something (`destroys`, computed in core, read by both faces); the window asks after the plan with what goes,
 also for a destroy, and every apply of the window names the plan it showed (`apply_checked`), so a project that
 changed since is refused (`SakadminPlanTest`). `DA-28`: `stop_runs` counts its stops, and a provisioning that sees a stop
-since it was handed to its thread starts no container, also when the stop came before its run was tracked.
+since it was handed to its thread starts no container, also when the stop came before its run was tracked. `DA-29`: closed while a SAK instance changes, the window of sakadmin stays and
+asks; a yes stops the work as cancel does and quits. Found on the way: a change of `locales/` alone rebuilt none of the
+three desktop crates, so a build kept old texts; their build scripts name `locales` now.
 
 ## What is good
 
@@ -74,14 +76,6 @@ since it was handed to its thread starts no container, also when the stop came b
 ## Should fix
 
 ### sakadmin
-
-#### `DA-29` Closing sakadmin's window during a create, deploy, destroy or reboot stops it halfway (read)
-
-`gui/mod.rs` has no `on_window_event`; `RunEvent::Exit` only calls `stop_runs()` (`gui/mod.rs:73-77`) and the apply
-futures are dropped wherever the provider calls are. `restart` refuses while work runs (`gui/update.rs:12`), the close
-does not.
-
-Fix: on `CloseRequested` while `RunningWork::is_running()`, `prevent_close()` and a confirm dialog.
 
 #### `DA-30` The window counts changes by `resourceStatus`, which is not what the apply does (read; the cases suspected)
 
