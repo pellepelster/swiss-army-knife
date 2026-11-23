@@ -104,9 +104,35 @@ fn excludes() -> Value {
             )]),
         ),
         ("update_plan", json!([plan])),
+        (
+            "run_backup",
+            json!([crate::core::run::RunSummary {
+                files_new: 2,
+                snapshot_id: "f7df".repeat(16),
+                ..Default::default()
+            }]),
+        ),
     ] {
         answers_of.insert(command.to_string(), answer);
     }
+    // a backup that reads a file with a path far wider than the window, then more of it; the test
+    // holds it after the first event, so the page shows it running
+    let deep = format!(
+        "/home/anna/.config/mozilla/firefox/xxr3ailo.default-release/storage/default/{}/idb/a-file-with-a-long-name.sqlite",
+        "https+++www.example.org+a+very+long+origin".repeat(4)
+    );
+    let progress = |percent: f64| crate::core::run::RunEvent::Progress {
+        percent,
+        files_done: 40387,
+        total_files: 490015,
+        bytes_done: 16 * 1024 * 1024 * 1024,
+        total_bytes: 186 * 1024 * 1024 * 1024,
+        bytes_per_second: Some(30 * 1024 * 1024),
+        seconds_remaining: Some(5400),
+        current_file: Some(deep.clone()),
+    };
+    answers["channels"]["run_backup"] =
+        json!([after(50, progress(0.09)), after(50, progress(0.5))]);
     answers
 }
 

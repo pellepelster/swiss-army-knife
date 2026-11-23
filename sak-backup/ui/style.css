@@ -232,9 +232,12 @@ button.row-body:focus-visible {
   display: flex;
 }
 
+/* min-width 0: a line that does not wrap, e.g. the file of a run, is cut within the page instead of
+   making it wider than the window, which would push its buttons out of sight */
 .page-fill > .page-form,
 .page-fill > .run-page {
   flex: 1;
+  min-width: 0;
   max-width: none;
 }
 

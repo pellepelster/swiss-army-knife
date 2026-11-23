@@ -68,6 +68,28 @@ class SakbackupWindowTest {
     }
 
     @Test
+    fun `a running backup with a path wider than the window keeps its page and its cancel button in the window`() {
+        browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
+            val page = context.openWindow()
+            // the run stays at its first event, a file with a very long path
+            page.evaluate("() => { window.__sakHold = { run_backup: 1 }; }")
+            page.locator("#nav button[data-page=plans]").click()
+            page.locator("#plans-list button", com.microsoft.playwright.Page.LocatorOptions().setHasText("Back up now")).first().click()
+            val file = page.locator("#run-file")
+            assertThat(file).isVisible()
+            assertThat(file).containsText("a-file-with-a-long-name.sqlite")
+            assertThat(page.locator("#run-status")).containsText("40387 of 490015 files")
+            // the path is cut within the page, the page and its button stay in the window
+            val width = page.evaluate("() => window.innerWidth").toString().toDouble()
+            val run = page.locator(".run-page").boundingBox()!!
+            check(run.x + run.width <= width) { "the run page ends at ${run.x + run.width} of $width" }
+            check(page.evaluate("() => { const f = document.getElementById('run-file'); return f.scrollWidth > f.clientWidth; }") == true) { "the path is not cut" }
+            assertThat(page.locator("#run-close")).isInViewport()
+            page.screenshot(com.microsoft.playwright.Page.ScreenshotOptions().setPath(java.nio.file.Paths.get("build/sakbackup-run-long-path.png")))
+        }
+    }
+
+    @Test
     fun `the excludes of a plan are edited in their dialog, with presets, and saved with the plan`() {
         browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
             val page = context.openWindow()
