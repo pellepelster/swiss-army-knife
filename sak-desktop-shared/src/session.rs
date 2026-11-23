@@ -213,7 +213,17 @@ pub struct SessionManager {
     timeout: Duration,
     client: reqwest::Client,
     secrets: Arc<dyn SecretStore>,
+    /// whether the url the browser is started with has a secret (`START_SECRET`)
+    start_secret: bool,
 }
+
+/// the url the browser is started with has a secret of its sign-in off linux. The url is an
+/// argument of a process there (`/usr/bin/open` on macOS, the browser on windows), and both show the
+/// arguments of a process to its user and an admin only, so no program of another user of the
+/// machine gets the state or ends the sign-in (SECURITY-3). On linux every user reads the arguments
+/// of a process (/proc/<pid>/cmdline): the url has none, and the app takes the connections of its own
+/// user only (`peer_user`)
+const START_SECRET: bool = !cfg!(target_os = "linux");
 
 impl Default for SessionManager {
     fn default() -> Self {
@@ -234,11 +244,21 @@ impl SessionManager {
                 .build()
                 .expect("a client of reqwest"),
             secrets,
+            start_secret: START_SECRET,
         }
     }
 
     pub fn with_timeout(timeout: Duration) -> Self {
         SessionManager::new(Arc::new(NoSecrets), timeout)
+    }
+
+    /// a sign-in with or without the secret in the url of the browser, whatever the system
+    #[cfg(test)]
+    fn with_start_secret(self, start_secret: bool) -> Self {
+        SessionManager {
+            start_secret,
+            ..self
+        }
     }
 
     /// takes up the session the keychain has of `address`, checked with the instance: none when
@@ -392,18 +412,32 @@ impl SessionManager {
         let verifier = random_base64::<32>()?;
         let state = random_base64::<16>()?;
         let challenge = pkce_challenge(&verifier);
-        // the url the browser is started with has no secret: other users of the machine read the
-        // arguments of a process. The state is in the redirect of the first request of /start
+        // the state is in the redirect of the first request of the start page, never in the url
+        // the browser is started with; that one has a secret of its own where only the browser of
+        // the user learns it (START_SECRET)
         let start = start_url(&address, port, &state, &challenge);
+        let start_path = if self.start_secret {
+            format!("{START_PATH}/{}", random_base64::<16>()?)
+        } else {
+            START_PATH.to_string()
+        };
         open(
-            &format!("http://127.0.0.1:{port}{START_PATH}"),
+            &format!("http://127.0.0.1:{port}{start_path}"),
             &connect_code(&challenge),
         )
         .map_err(LoginError::Browser)?;
 
         let timeout = self.timeout;
         let token = tokio::task::spawn_blocking(move || {
-            wait(&server, &start, &state, &pages, &cancel, timeout)
+            wait(
+                &server,
+                &start,
+                &start_path,
+                &state,
+                &pages,
+                &cancel,
+                timeout,
+            )
         })
         .await
         .map_err(|error| LoginError::Failed(error.to_string()))??;
@@ -604,7 +638,8 @@ fn random_base64<const N: usize>() -> Result<String, LoginError> {
     Ok(URL_SAFE_NO_PAD.encode(bytes))
 }
 
-/// the page of the app the browser is started with; its first request is led on to the instance
+/// the page of the app the browser is started with, with its secret off linux (`START_SECRET`); its
+/// first request is led on to the instance
 const START_PATH: &str = "/start";
 
 /// the page of the app the callback leads the browser on to, with no token in its url
@@ -624,11 +659,13 @@ enum Callback {
     Other,
 }
 
-fn callback(method: &tiny_http::Method, path: &str, state: &str) -> Callback {
+/// the request `path`; `start` the path of the start page of this sign-in, a start page without its
+/// secret is no start page
+fn callback(method: &tiny_http::Method, path: &str, start: &str, state: &str) -> Callback {
     let Ok(url) = Url::parse(&format!("http://127.0.0.1{path}")) else {
         return Callback::Other;
     };
-    if *method == tiny_http::Method::Get && url.path() == START_PATH && url.query().is_none() {
+    if *method == tiny_http::Method::Get && url.path() == start && url.query().is_none() {
         return Callback::Start;
     }
     if *method != tiny_http::Method::Get || url.path() != "/callback" {
@@ -649,13 +686,15 @@ fn callback(method: &tiny_http::Method, path: &str, state: &str) -> Callback {
     }
 }
 
-/// leads the first request of the start page on to `start`, the page of the instance, then waits
-/// for the browser to come back with the token of `state`. A second request of the start page
-/// ends the sign-in: whoever asked first has the state, and only one of the two is the browser of
-/// the user (SEC-33)
+/// leads the first request of the start page (`start_path`) on to `start`, the page of the
+/// instance, then waits for the browser to come back with the token of `state`. A second request
+/// of the start page ends the sign-in: whoever asked first has the state, and only one of the two
+/// is the browser of the user (SEC-33). Off linux only the browser of the user knows the start page
+/// with its secret: any other request is answered 404 and ends nothing
 fn wait(
     server: &tiny_http::Server,
     start: &Url,
+    start_path: &str,
     state: &str,
     pages: &Pages,
     cancel: &AtomicBool,
@@ -685,7 +724,7 @@ fn wait(
             continue;
         };
         // the loopback is open to every user of the machine: only the user of the app counts, so
-        // nobody else gets the state or ends the sign-in (SEC-38)
+        // nobody else gets the state or ends the sign-in (SECURITY-3)
         let peer = request.remote_addr().map(|address| address.port());
         if let (Some(peer), Some(port)) = (peer, port) {
             if peer_user(peer, port) == PeerUser::Other {
@@ -694,7 +733,7 @@ fn wait(
                 continue;
             }
         }
-        match callback(request.method(), request.url(), state) {
+        match callback(request.method(), request.url(), start_path, state) {
             Callback::Start if !started => {
                 started = true;
                 redirect(request, start);
@@ -870,8 +909,14 @@ mod tests {
 
     /// where the start page of the app leads the browser, the page of the instance
     fn started(url: &str) -> String {
-        // nothing of the sign-in is in the url the browser is started with
-        assert!(url.ends_with("/start") && !url.contains('?'), "{url}");
+        // nothing of the sign-in is in the url the browser is started with, off linux a secret of
+        // its own in its path
+        let path = Url::parse(url).unwrap().path().to_string();
+        let secret = path.strip_prefix("/start/").unwrap_or_default();
+        assert!(
+            !url.contains('?') && (path == "/start" || secret.len() == 22),
+            "{url}"
+        );
         let answer = browse(url);
         assert!(answer.starts_with("HTTP/1.1 302"), "{answer}");
         answer
@@ -1214,6 +1259,77 @@ mod tests {
     }
 
     #[test]
+    fn the_start_page_with_a_secret_is_the_only_start_page() {
+        let get = tiny_http::Method::Get;
+        let start = "/start/c2VjcmV0LW9mLXNpZ24taW4";
+        assert_eq!(callback(&get, start, start, "s"), Callback::Start);
+        // without its secret, with another one, or with more after it: no start page
+        for other in [
+            "/start",
+            "/start/",
+            "/start/c2VjcmV0LW9mLXNpZ24taW5",
+            "/start/c2VjcmV0LW9mLXNpZ24taW4/x",
+        ] {
+            assert_eq!(
+                callback(&get, other, start, "s"),
+                Callback::Other,
+                "{other}"
+            );
+        }
+        assert_eq!(
+            callback(&get, &format!("{start}?x=1"), start, "s"),
+            Callback::Other
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn with_a_secret_another_program_neither_learns_the_state_nor_ends_the_sign_in() {
+        let server = instance(session_token()).await;
+        let manager = SessionManager::default().with_start_secret(true);
+        let result = manager
+            .login(address(&server), pages(), move |url, _| {
+                let url = url.to_string();
+                std::thread::spawn(move || {
+                    // another program of the machine tries the start page without the secret
+                    let port = Url::parse(&url).unwrap().port().unwrap();
+                    for other in ["/start", "/start/guessed"] {
+                        let answer = browse(&format!("http://127.0.0.1:{port}{other}"));
+                        assert!(answer.starts_with("HTTP/1.1 404"), "{answer}");
+                        assert!(!answer.contains("state="), "{answer}");
+                    }
+                    // the browser of the user with the url it was started with signs in
+                    let (port, state, _) = opened(&url);
+                    browse(&format!(
+                        "http://127.0.0.1:{port}/callback?state={state}&token=t"
+                    ));
+                    browse(&format!("http://127.0.0.1:{port}/done"))
+                });
+                Ok(())
+            })
+            .await;
+        assert!(result.is_ok(), "{result:?}");
+        assert!(manager.user().is_some());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn with_a_secret_the_browser_of_the_user_asking_twice_still_ends_the_sign_in() {
+        let server = instance(session_token()).await;
+        let manager = SessionManager::default().with_start_secret(true);
+        let result = manager
+            .login(address(&server), pages(), move |url, _| {
+                let url = url.to_string();
+                std::thread::spawn(move || {
+                    started(&url);
+                    let second = browse(&url);
+                    assert!(second.starts_with("HTTP/1.1 409"), "{second}");
+                });
+                Ok(())
+            })
+            .await;
+        assert_eq!(result, Err(LoginError::Interfered));
+    }
+
+    #[test]
     fn the_user_of_a_connection_is_the_one_of_the_socket_of_the_client() {
         // the browser (uid 1000) from port 54321 to the app on 36901, and the end the app accepted
         let table = "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode\n\
@@ -1288,34 +1404,42 @@ mod tests {
     fn only_a_get_of_the_callback_with_the_state_counts() {
         let get = tiny_http::Method::Get;
         assert_eq!(
-            callback(&get, "/callback?state=s&token=t", "s"),
+            callback(&get, "/callback?state=s&token=t", "/start", "s"),
             Callback::Token("t".to_string())
         );
         assert_eq!(
-            callback(&get, "/callback?state=s&error=cancelled", "s"),
+            callback(&get, "/callback?state=s&error=cancelled", "/start", "s"),
             Callback::Cancelled
         );
         assert_eq!(
-            callback(&get, "/callback?state=x&token=t", "s"),
-            Callback::Other
-        );
-        assert_eq!(callback(&get, "/callback?token=t", "s"), Callback::Other);
-        assert_eq!(callback(&get, "/start", "s"), Callback::Start);
-        assert_eq!(callback(&get, "/start?x=1", "s"), Callback::Other);
-        assert_eq!(
-            callback(&tiny_http::Method::Post, "/start", "s"),
+            callback(&get, "/callback?state=x&token=t", "/start", "s"),
             Callback::Other
         );
         assert_eq!(
-            callback(&get, "/callback?state=s&token=", "s"),
+            callback(&get, "/callback?token=t", "/start", "s"),
+            Callback::Other
+        );
+        assert_eq!(callback(&get, "/start", "/start", "s"), Callback::Start);
+        assert_eq!(callback(&get, "/start?x=1", "/start", "s"), Callback::Other);
+        assert_eq!(
+            callback(&tiny_http::Method::Post, "/start", "/start", "s"),
             Callback::Other
         );
         assert_eq!(
-            callback(&get, "/other?state=s&token=t", "s"),
+            callback(&get, "/callback?state=s&token=", "/start", "s"),
             Callback::Other
         );
         assert_eq!(
-            callback(&tiny_http::Method::Post, "/callback?state=s&token=t", "s"),
+            callback(&get, "/other?state=s&token=t", "/start", "s"),
+            Callback::Other
+        );
+        assert_eq!(
+            callback(
+                &tiny_http::Method::Post,
+                "/callback?state=s&token=t",
+                "/start",
+                "s"
+            ),
             Callback::Other
         );
     }

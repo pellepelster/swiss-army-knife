@@ -29,8 +29,8 @@ Nothing found lets somebody without a session read data, get a session or get a 
 **Added 2026-11-20:** the sign-in of the desktop apps (the three commits after `fcfc50ca`): the connect token with a
 pkce challenge (`sak-auth`), the page `/connect-desktop` (`sak-frontend`), `sak-desktop-shared` (the sign-in through the
 browser, `instances.json`, the keychain) and the window of sakbackup. The question for it: what can another program or
-another user of the machine do, a link somebody sends, or a host on the way. Its findings are `SEC-36` and `SEC-38`; the
-others it had are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
+another user of the machine do, a link somebody sends, or a host on the way. Its finding is `SEC-36`; the others it
+had are fixed. The code was read; the sign-in ran against `local:run` with a script as the browser, not with a
 person in a browser. Nothing found gives a session to somebody who is not on the machine of the user.
 
 ## What is good
@@ -163,13 +163,6 @@ Fix: `max_tokens`, a largest length of the stored text, the answer read through 
 - `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
   keychain, not wiped when it goes (as `SEC-24` for sakadmin); the state of a callback is compared with `!=`, not in
   constant time (128 bits, on the loopback: no practical way to measure it).
-- `SEC-38` On macOS and windows every program of the machine can ask the page of a desktop sign-in on the loopback
-  (`/start`), which gives the state out once; the port is found by trying the ports. Another user who asks before
-  the browser of the user does, and whose callback also comes first, signs the app in as them: the browser shows a
-  failed connection, the menu of the app their name. It needs an account at the same deployment. They can also end
-  every sign-in with a request of `/start`. On linux the app takes only connections of its own user
-  (`peer_user`, from `/proc/net/tcp`), so this is closed there. To close it elsewhere the app would keep listening
-  after the sign-in for a time and sign out when a second `/start` comes. sakbackup is built for linux only so far.
 - `SEC-29` A user has no quota in the file storage and its files have no delete (`DM-6` of
   [the review of the data model](data-model-review.md)): a user fills the data volume in steps of 10 MiB. The change
   streams (`…/changes`) have no largest number for a user and stay open when the session ends.
@@ -188,8 +181,10 @@ Fix: `max_tokens`, a largest length of the stored text, the answer read through 
   2026-11-22.
 - For the desktop sign-in (2026-11-20): the window was not driven by a person, and macOS and windows not at all: what
   the Keychain and the Credential Manager give to other programs, and whether their openers show the url to other users,
-  is not checked. That linux refuses a connection of another user (`SEC-38`) rests on the tests of the parser and on the
-  sign-ins of the tests, which are of the same user; no second user tried it.
+  is not checked. That linux refuses a connection of another user rests on the tests of the parser and on the
+  sign-ins of the tests, which are of the same user; no second user tried it. That macOS and windows keep the secret
+  of the start page of a sign-in from another user rests on their showing the arguments of a process (`/usr/bin/open`,
+  the browser) to its user and an admin only, which was not tried on either.
 - The new crates (`keyring` 4.2.0 with `zbus` for the Secret Service, in the lockfiles of all three desktop
   crates) were not read; that is for [the review of the supply chain](supply-chain-review.md).
 - That tauri refuses the commands of the opener plugin to the web view without a capability file is from its

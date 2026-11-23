@@ -36,6 +36,11 @@ progress, the look of a running plan, the deb, rpm and AppImage of linux with an
 are `DA-26` to `DA-62`. The most serious claims were checked in the code before they were written down (`DA-26`,
 `DA-27`, `DA-34`, `DA-36`, `DA-39`, `DA-41`, `DA-42`); the others are as the reviewers read them.
 
+Fixed since the second pass: `DA-1`, the sign-in that other users of the machine could take over off linux. There
+the url the browser is started with has a secret of its sign-in now (`START_SECRET` in `session.rs`), and every other
+request of the start page is answered 404 and ends nothing; it rests on macOS and windows showing the arguments of a
+process to its user and an admin only, which was not tried on either.
+
 ## What is good
 
 - **One core for both faces.** sakadmin has a test that keeps tauri and clap out of its core; sakbackup's `back_up`,
@@ -46,8 +51,8 @@ are `DA-26` to `DA-62`. The most serious claims were checked in the code before 
   install kinds are handled cleanly: a package downloads nothing, an AppImage gets its own asset, the zip replaces the
   other binaries first and the running one last; each kind has a test.
 - **The sign-in** follows its design: PKCE, a state that is not on the command line, the token moved off the URL, a
-  second `/start` ends it, other users refused on linux, no redirects followed, the token only to the api recorded at
-  the sign-in. The keychain is reached through `spawn_blocking` and never logs the token.
+  second `/start` ends it, other users refused on linux and kept out by a secret of the start page elsewhere, no
+  redirects followed, the token only to the api recorded at the sign-in. The keychain is reached through `spawn_blocking` and never logs the token.
 - **Secrets:** `SECURITY-1` and `SECURITY-2` hold (the client key reaches only `ssh-add -` over stdin, nothing derived
   is stored). The run directory of sakadmin has a random name, 0700/0400, and is removed on drop, stop and signal.
   sakbackup hands the token and the password to restic only through its environment, with the competing
@@ -61,17 +66,6 @@ are `DA-26` to `DA-62`. The most serious claims were checked in the code before 
   the apps embed; the actions are pinned by SHA; the tools of the AppImage are pinned, also after the patch of their
   magic bytes; cargo runs with `--locked` everywhere.
 
-## Must decide before sakbackup is released for macOS or windows
-
-### `DA-1` The sign-in through the browser is open to other users of the machine off linux (read)
-
-The page of the sign-in on the loopback takes requests of the own user only on linux
-(`sak-desktop-shared/src/session.rs:766-769`). `SEC-38` of the [security review](security-review.md) says that this
-is closed, because "sakbackup is built for linux only so far". The workflow job `desktop-apps` builds it for macOS and
-windows.
-
-Fix: restrict the page on macOS and windows too, or accept the risk in `ACCEPTED-RISKS.md`. Correct `SEC-38` in both
-cases. Still open in the second pass.
 
 ## Should fix
 
