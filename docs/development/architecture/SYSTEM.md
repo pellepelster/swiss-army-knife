@@ -20,10 +20,8 @@ A lower level adds to the levels above and never repeats them; a rule two compon
 of the components](components/INDEX.md). Every change keeps to its level and to the levels above; a change that has to
 break a rule changes its document in the same commit and says why.
 
-Every rule has an id: the prefix of its chapter and a number, e.g. `MODEL-1`; the rules of a component have the name
-of the component as their prefix, e.g. `NOTES-1` (the rules of sakadmin `SAKADM`). An id never changes and is never
-used again, also when its rule goes; a new rule gets the next number of its chapter. Code, documents and reviews refer
-to a rule by its id.
+Every rule has an id and is written as [RULES.md](../RULES.md) says; code, documents and reviews refer to a rule by
+its id.
 
 ## Overview
 
@@ -234,7 +232,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   `.android`), one of no app in `common`, `backend`, `web` or `android`, one of sakadmin in `admin_cli`, one of
   sakbackup in `sak_backup`, one both desktop apps show in `desktop_shared`; a text two parts show alike moves to
   their `common`.
-- `I18N-2` **The texts of a desktop app have three parts.** In `admin_cli`, `cli` has the texts only the sakadmin cli
+- `I18N-2` **The desktop texts have three parts.** In `admin_cli`, `cli` has the texts only the sakadmin cli
   shows, `ui` the texts only the sakadmin ui shows, and `common` the texts both show (the messages of the core, the
   kinds and statuses of the resources, the actions of a plan). The code reads them as `cli.*`, `ui.*` and `common.*`
   from `sak-admin-cli/src-tauri/locales/`, which is generated. A text moves to `common` when both faces use it.
@@ -262,7 +260,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 ## Security
 
-- `SECURITY-1` **One secret to keep: the password of the deployment.** sakadmin derives one master key from the name and
+- `SECURITY-1` **One secret: the password of the deployment.** sakadmin derives one master key from the name and
   password of a deployment with a strong argon2id (256 MiB, 3 passes), the password taken as NFC so the way it was
   typed does not matter. Every value of the deployment is expanded from the master key with a purpose of its own, so
   none gives away another and none can be guessed more cheaply than the master key. The admin password hash is the
@@ -280,9 +278,9 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
   Nothing of it is stored on the user's machine: sakadmin derives it again for every run, so losing a machine loses
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
-- `SECURITY-2` **The ssh key must never be written to disk.** The one exception is `sakadmin ssh-config`: it writes the
+- `SECURITY-2` **The ssh key is never written to disk.** The one exception is `sakadmin ssh-config`: it writes the
   key to the directory that the user names. sakadmin never reads the key from a file.
-- `SECURITY-3` **An app is connected by a signed in session.** An app never asks for a password. A signed in session
+- `SECURITY-3` **A signed in session connects an app.** An app never asks for a password. A signed in session
   of the web app hands it a connect token: good for one exchange within 2 minutes, for a session of the same user
   with its own full time and the roles the user has at the exchange. A phone scans the token as a QR code, which
   shows only while asked for; whoever photographs it signs in as the user until it is used or expired. Before it

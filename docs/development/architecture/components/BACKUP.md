@@ -22,14 +22,14 @@ The backups of the user, made with restic on the computer of the user, into repo
 - `BACKUP-2` **One token per repository.** The deployment makes a token when it creates a repository; the token is the
   only login of the repository, and whoever has it reads and writes it. The api answers the token only when asked for
   it alone.
-- `BACKUP-3` **The password of a repository is never on the deployment.** restic encrypts a repository on the
+- `BACKUP-3` **A repository password is never on the deployment.** restic encrypts a repository on the
   computer of the user with a password the user gives for each run; the deployment keeps only what restic has encrypted.
-- `BACKUP-4` **The backups of the deployment leave the repositories out.** A backup of sakadmin (`SAKADM-8`) has the
+- `BACKUP-4` **A backup leaves the repositories out.** A backup of sakadmin (`SAKADM-8`) has the
   data of the apps, not the repositories of restic.
 - `BACKUP-5` **A backup plan** is what restic backs up and where to: a repository of the user and paths of one
   computer, named by its host name. It belongs to its owner only. The app changes and runs only the backup plans of
   the computer it runs on; it shows the others without changing them. A run of a backup plan makes a snapshot.
-- `BACKUP-6` **The paths and the excludes of a backup plan are kept on the deployment**, as user data: only their
+- `BACKUP-6` **Backup plans stay on the deployment.** Their paths and excludes are kept there as user data: only their
   owner sees them, and they go nowhere else.
 - `BACKUP-7` **A first repository.** When a user signs in who never had a repository of their own, the deployment makes
   them one named `my-backups`; a deleted repository does not come back.

@@ -32,5 +32,5 @@ domains of the bucket.
   one site.
 - `HOSTING-8` **The secret key stays in the backend.** It is stored with the bucket, but is part of no answer except
   the endpoint of the key pair.
-- `HOSTING-9` **A deleted bucket keeps its name and its objects** until it is purged; it is served nowhere and its key
-  pair is refused.
+- `HOSTING-9` **A deleted bucket keeps its name and objects.** It keeps them until it is purged; it is served nowhere
+  and its key pair is refused.

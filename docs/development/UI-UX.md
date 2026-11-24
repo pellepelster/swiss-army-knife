@@ -11,7 +11,7 @@ only sakadmin does, in its ui and its cli, is in [SAKADMIN.md](architecture/comp
 built is in [SYSTEM.md](architecture/SYSTEM.md), how the code of the web app does it in `FRONTEND-2` to `FRONTEND-6`
 of [the architecture of the components](architecture/components/INDEX.md#web-app).
 
-The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule adds a number, e.g. `UX-4.1`.
+The rules are written as [RULES.md](RULES.md) says.
 
 ## All apps
 
@@ -49,7 +49,7 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
     the three ways again.
 - `UX-8` **A button is disabled, never hidden.** A button that does not apply yet, or not to what the page or screen
   shows, stays in its place, disabled; the layout does not change under the user's hand.
-- `UX-9` **The steps of a wizard and the buttons of a form, bottom right.** The buttons that move through the steps of
+- `UX-9` **Wizard and form buttons at the bottom right.** The buttons that move through the steps of
   a wizard (back, next, cancel, plan, create), and those that end a form (cancel, save, create, add), are one grouped
   toolbar at the bottom right; back is always its leftmost button, the main action its rightmost.
 - `UX-10` **The actions of a page, top right.** The buttons that act on what the page shows (add a provider, create a
@@ -118,7 +118,7 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
 - `DESKTOP-3` **The SAK addresses are remembered on the computer.** A desktop app remembers the SAK addresses of its
   successful sign-ins, on the computer of the user only, the last one first. The sign-in screen shows the last
   address. A failed sign-in is not remembered.
-- `DESKTOP-4` **The update in the footer, the account in the navigation.** A desktop app has a footer below every view
+- `DESKTOP-4` **Update in the footer, account in the navigation.** A desktop app has a footer below every view
   with its version, one button and a line of text. The button checks for a newer version, installs it on a second
   click and offers a restart after that; the line says whom the check asks before anything is asked, and what it
   found. Nothing is asked before the user clicks. A desktop app that signs in (sakbackup) has its navigation on the

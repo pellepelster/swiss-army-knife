@@ -8,12 +8,12 @@ Read this file first. It contains rules for the complete repository.
   [`docs/development/GLOSSARY.md`](docs/development/GLOSSARY.md).
 - Every document below `docs/` starts with front matter (`title`, `description`, `weight`, a short `linkTitle` for a
   long title). A link between documents that does not resolve fails `mise run docs:build`.
-- Never add, change, move or delete a rule on your own, also when a change, a review or a fix makes it necessary or
-  incorrect. A rule is each entry with an id (e.g. `SECURITY-3`) in `docs/development/architecture/` and in
-  [UI-UX.md](docs/development/UI-UX.md), and each bullet of this file. Show the user the exact new text (and the old
-  text of a changed rule), wait for the explicit agreement, write exactly the agreed text. An agreement is for one
-  change; an instruction to move or to shorten a rule is not an agreement to its new text. When code and a rule do
-  not agree, stop and ask.
+- Never add, change, move or delete content of `docs/development/` and of this file on your own, also when a change,
+  a review or a fix makes it necessary or incorrect; the reviews in `docs/development/reviews/` are the exception.
+  Show the user the exact new text (and the old text of changed content), wait for the explicit agreement, write
+  exactly the agreed text. An agreement is for one change; an instruction to move or to shorten text is not an
+  agreement to its new text. When code and a rule do not agree, stop and ask.
+- Write and change a rule as [docs/development/RULES.md](docs/development/RULES.md) says.
 - Write each review to a file of its own in `docs/development/reviews/`. Each finding has an id that is unique among
   all reviews: the prefix of its review and a number. Delete a fixed finding, and a review without findings; its
   prefix may then be used again.
