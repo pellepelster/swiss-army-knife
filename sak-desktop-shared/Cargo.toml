@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 # the commands of the sign-in in the window (window.rs), with the browser it opens
-tauri = { version = "2.12.5", features = [] }
+tauri = { version = "2.12.6", features = [] }
 tauri-plugin-opener = "2.7.2"
 # the texts of locales/, generated from `desktop_shared` of i18n/texts.yml; the locale is the one the
 # app sets, rust_i18n has one for all crates
