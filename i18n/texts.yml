@@ -2054,9 +2054,9 @@ backups:
       total: { en: "%{size} on this page", de: "%{size} auf dieser Seite" }
       created: { en: "Created %{date}", de: "Erstellt am %{date}" }
       size: { en: "Size", de: "Größe" }
-      delete_unavailable:
-        en: "Deleting a repository is not possible yet."
-        de: "Ein Repository kann noch nicht gelöscht werden."
+      delete_failed:
+        en: "The repository %{name} could not be deleted."
+        de: "Das Repository %{name} konnte nicht gelöscht werden."
       copy_url: { en: "Copy address", de: "Adresse kopieren" }
 
 redirects:
@@ -2365,9 +2365,12 @@ sak_backup:
       created: { en: "Created %{date}", de: "Erstellt am %{date}" }
       copy_url: { en: "Copy address", de: "Adresse kopieren" }
       copied: { en: "The address of %{name} is copied.", de: "Die Adresse von %{name} ist kopiert." }
-      delete_unavailable:
-        en: "Deleting a repository is not possible yet."
-        de: "Ein Repository kann noch nicht gelöscht werden."
+      delete_title: { en: "Delete %{name}", de: "%{name} löschen" }
+      delete_confirm:
+        en: "Delete the repository %{name}? Its backup plans on every computer are deleted with it, and nothing can be backed up into it or restored from it any more."
+        de: "Repository %{name} löschen? Seine Backup-Pläne auf allen Computern werden mit ihm gelöscht, und es kann nichts mehr hinein gesichert oder daraus wiederhergestellt werden."
+      delete_running: { en: "A backup or restore runs.", de: "Ein Backup oder eine Wiederherstellung läuft." }
+      delete_failed: { en: "The repository was not deleted: %{error}", de: "Das Repository wurde nicht gelöscht: %{error}" }
       forget_password: { en: "Forget the password", de: "Gemerktes Passwort löschen" }
       forgot:
         en: "The password of %{name} is forgotten on this computer."

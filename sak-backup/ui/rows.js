@@ -94,11 +94,6 @@ export function copyEntry(label, value, status, copied) {
   });
 }
 
-// the delete of a row that is not possible yet: disabled with the reason, never hidden (UX-8)
-export function unavailableDelete(reason) {
-  return entry(text('ui.delete'), () => {}, { disabled: reason, danger: true });
-}
-
 // the ⋮ menu of a row (shared/menu.js), below its button at the right end of the row
 function rowMenu(name, entries) {
   const wrapper = document.createElement('div');

@@ -65,6 +65,18 @@ pub async fn delete_plan(sessions: &SessionManager, id: u64) -> Result<(), ApiEr
     .map(|_| ())
 }
 
+/// a soft delete of a repository of the user with its backup plans (BACKUP-9)
+pub async fn delete_repository(sessions: &SessionManager, id: u64) -> Result<(), ApiError> {
+    api::call(
+        sessions,
+        reqwest::Method::DELETE,
+        &format!("{REPOSITORIES}/{id}"),
+        None,
+    )
+    .await
+    .map(|_| ())
+}
+
 /// the item of `path` (repositories or plans) of the name; none when the user has none of it
 pub async fn by_name(
     sessions: &SessionManager,

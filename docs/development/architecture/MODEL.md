@@ -45,3 +45,6 @@ Adds to [SYSTEM.md](SYSTEM.md). The rules of this document have the prefix `MODE
   it is stored. A write that can fail in one way answers the row or nothing, a delete the row it deleted; a write
   that can fail in more than one way answers a result that names each way. No write answers only yes or no. The
   service hands its clock to the repository it makes, so both use one clock (`MODEL-4`).
+- `MODEL-10` **A soft delete keeps the data outside the database.** A delete of a row whose data is kept outside the
+  database (`MODEL-8`), e.g. the files of a repository of restic or the objects of a bucket, leaves that data where it
+  is; nobody reaches it from then on. The data is removed only when the row is purged.

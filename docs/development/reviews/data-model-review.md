@@ -11,12 +11,11 @@ weight: 11
 
 Scope: the schema of the backend as changesets `0001-initial` to `0006-drop-layout-migration-columns` make it (19
 tables), the repositories of `sak-model` and the services that read through them, against `MODEL-1` to `MODEL-8` of
-[SYSTEM.md](../architecture/MODEL.md). The question: bugs, gaps between the rules and the schema, and what the
+[MODEL.md](../architecture/MODEL.md). The question: bugs, gaps between the rules and the schema, and what the
 schema could check itself.
 
-**Checked again:** 2026-11-23, with the changesets up to `0010-unique-positions` (still 19 tables): `DM-5` is fixed,
-`DM-2` is left with the delete of a repository, the others are open. A repository of restic keeps its data on the
-volume or in the S3 storage, whichever the settings name.
+**Checked again:** 2026-11-24, with the migrations up to `V12__foreign_key_indexes`: `DM-2` to `DM-5` are fixed, `DM-6`
+is open. A repository of restic keeps its data on the volume or in the S3 storage, whichever the settings name.
 
 What is good: every delete is a soft delete, and every name that must be unique has a partial unique index on the live
 rows (`MODEL-3`); every table has `owner`, `created_at`, `updated_at` and `deleted_at`, which `SchemaTest` enforces
@@ -28,32 +27,7 @@ the deleted rows too (`MODEL-8`).
 
 Only the open findings are listed.
 
-## Should fix
-
-### `DM-2` A repository of restic can not be deleted
-
-`ResticRepositoryRepository` has no delete, though `BACKUP-7` says "a deleted repository does not come back" and
-`insertFirst` counts the deleted rows. A repository that goes has to take its backup plans with it:
-`restic_backup_plans.repository_id` refers to it, nothing else handles them. A backup plan can be deleted since
-2026-11-23 (`ResticBackupPlanRepository.delete`, its paths in the same transaction, `DELETE /restic/plans/{id}`).
-
-Fix: decide whether a repository is deleted; if so, a delete that deletes its backup plans and their paths in the same
-transaction, and what happens to its files on the storage (`MODEL-7`, `MODEL-8`).
-
 ## Could fix
-
-### `DM-3` The timestamps are declared in two ways
-
-The tables of `createTable` and `s3_buckets` (made again in plain sql by `0007`) have their timestamps as `TEXT`; the
-tables written in plain sql in `0001` and `0002` (`grocery_items`, `grocery_categories`, `todo_items`, `redirects`) as
-`TIMESTAMP`, which sqlite gives the numeric affinity. It works, the
-values are text that is no number, but one way reads better; the primary keys are written in two ways as well.
-
-### `DM-4` Foreign keys without an index
-
-`notes.list_id`, `notes_files.file_id`, `grocery_items.category_id`, `grocery_items.photo_file_id`,
-`restic_backup_plans.repository_id` and `redirects.target_bucket` have no index; `deleteCategory` changes the items
-`WHERE category_id = ?` by reading the whole table. The tables are small, an index each is cheap.
 
 ### `DM-6` An upload is never removed
 

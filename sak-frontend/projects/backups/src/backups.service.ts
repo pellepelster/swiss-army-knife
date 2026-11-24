@@ -15,4 +15,9 @@ export class BackupsService {
       params: { offset, limit: PAGE_SIZE },
     });
   }
+
+  // a soft delete with its backup plans (BACKUP-9)
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(`/api/v1/restic/repositories/${id}`);
+  }
 }

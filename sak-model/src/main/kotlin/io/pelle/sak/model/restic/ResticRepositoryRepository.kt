@@ -5,6 +5,8 @@ import io.pelle.sak.model.ResourceIds
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.jooq.tables.records.ResticRepositoriesRecord
+import io.pelle.sak.model.jooq.tables.references.RESTIC_BACKUP_PLANS
+import io.pelle.sak.model.jooq.tables.references.RESTIC_BACKUP_PLAN_PATHS
 import io.pelle.sak.model.jooq.tables.references.RESTIC_REPOSITORIES
 import org.jooq.DSLContext
 import org.jooq.exception.IntegrityConstraintViolationException
@@ -111,6 +113,37 @@ class ResticRepositoryRepository(
             ResticRepositoryInsertResult.Inserted(database.dsl.transactionResult { configuration -> insert(DSL.using(configuration), owner, name, token) })
         } catch (_: IntegrityConstraintViolationException) {
             ResticRepositoryInsertResult.NameTaken
+        }
+
+    // deletes a repository of the owner, its backup plans of every computer and their paths, in one
+    // transaction; they stay as deleted (BACKUP-9). Its token is refused from then on, as loginOf reads
+    // live rows only; its files stay until it is purged. False when the owner has no such repository
+    fun delete(
+        owner: String,
+        id: Int,
+    ): Boolean =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            val now = clock.instant()
+            val deleted =
+                dsl
+                    .update(RESTIC_REPOSITORIES)
+                    .set(RESTIC_REPOSITORIES.DELETED_AT, now)
+                    .where(RESTIC_REPOSITORIES.ID.eq(id), RESTIC_REPOSITORIES.OWNER.eq(owner), RESTIC_REPOSITORIES.DELETED_AT.isNull)
+                    .execute()
+            if (deleted == 0) return@transactionResult false
+            val plans = dsl.select(RESTIC_BACKUP_PLANS.ID).from(RESTIC_BACKUP_PLANS).where(RESTIC_BACKUP_PLANS.REPOSITORY_ID.eq(id))
+            dsl
+                .update(RESTIC_BACKUP_PLAN_PATHS)
+                .set(RESTIC_BACKUP_PLAN_PATHS.DELETED_AT, now)
+                .where(RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.`in`(plans), RESTIC_BACKUP_PLAN_PATHS.DELETED_AT.isNull)
+                .execute()
+            dsl
+                .update(RESTIC_BACKUP_PLANS)
+                .set(RESTIC_BACKUP_PLANS.DELETED_AT, now)
+                .where(RESTIC_BACKUP_PLANS.REPOSITORY_ID.eq(id), RESTIC_BACKUP_PLANS.DELETED_AT.isNull)
+                .execute()
+            true
         }
 
     private fun insert(

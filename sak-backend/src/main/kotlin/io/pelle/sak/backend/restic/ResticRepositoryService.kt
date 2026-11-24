@@ -1,6 +1,7 @@
 package io.pelle.sak.backend.restic
 
 import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.backend.isDnsLabel
 import io.pelle.sak.core.Language
 import io.pelle.sak.auth.LoginListener
@@ -56,6 +57,13 @@ class ResticRepositoryService(
         user: String,
         id: Int,
     ): String? = repository.token(user, id)
+
+    // deletes a repository of the user with its backup plans, a soft delete: its files stay in the
+    // storage until it is purged (BACKUP-9)
+    fun delete(
+        user: String,
+        id: Int,
+    ): DeleteResult = DeleteResult.of(repository.delete(user, id))
 
     // the first repository of a user who never had one (BACKUP-7), the same name in every language: it
     // is the one the command line names

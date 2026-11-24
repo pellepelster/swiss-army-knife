@@ -791,6 +791,21 @@ class SakAppsTest {
             get(port, "/api/v1/restic/repositories/$id/token", admin).statusCode() shouldBe 200
             // its name is free again
             post(port, "/api/v1/restic/plans", """{"name":"papers","repositoryId":$id,"host":"h","paths":["/a"]}""", admin).statusCode() shouldBe 201
+
+            // a repository is deleted by its owner only, once, with its backup plans; its token and its
+            // login are refused from then on, its files stay (BACKUP-9)
+            delete(port, "/api/v1/restic/repositories/$id", second).statusCode() shouldBe 404
+            delete(port, "/api/v1/restic/repositories/$id", admin).let {
+                it.statusCode() shouldBe 204
+                it.body() shouldBe ""
+            }
+            delete(port, "/api/v1/restic/repositories/$id", admin).statusCode() shouldBe 404
+            repositories(admin).map { it.string("name") } shouldBe listOf("my-backups")
+            page("").getValue("items").jsonArray shouldBe JsonArray(emptyList())
+            get(port, "/api/v1/restic/repositories/$id/token", admin).statusCode() shouldBe 404
+            request(port, "GET", "/restic/$id/config", answer = HttpResponse.BodyHandlers.ofString(), authorization = login)
+                .statusCode() shouldBe 401
+            repositories(second).map { it.string("name") }.toSet() shouldBe setOf("laptop", "my-backups")
         }
     }
 
@@ -1573,6 +1588,7 @@ class SakAppsTest {
                     "/api/v1/todo/lists/{id}/purge",
                     "/api/v1/todo/changes",
                     "/api/v1/restic/repositories",
+                    "/api/v1/restic/repositories/{id}",
                     "/api/v1/restic/repositories/{id}/token",
                     "/api/v1/restic/plans",
                     "/api/v1/restic/plans/{id}",

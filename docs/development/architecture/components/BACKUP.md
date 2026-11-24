@@ -38,11 +38,14 @@ The backups of the user, made with restic on the computer of the user, into repo
   plan, kept on the deployment with it: how many of the last, daily, weekly, monthly and yearly snapshots stay. After a
   run, the app deletes the snapshots of that backup plan the setting no longer keeps; without a setting every snapshot
   stays.
+- `BACKUP-9` **A deleted repository takes its backup plans.** Its owner deletes a repository after a confirmation that
+  names it. Its backup plans, of every computer, and their paths are deleted with it, and its token is refused from
+  then on. Its files stay until it is purged (`MODEL-10`). A deleted repository does not come back.
 
 ## API
 
-Create repositories and list them, and read the token of one; create, list, read and change backup plans; for every
-signed in user, their own only.
+Create repositories, list them and delete them, and read the token of one; create, list, read, change and delete backup
+plans; for every signed in user, their own only.
 
 ## Parts
 

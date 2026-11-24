@@ -5072,6 +5072,49 @@
                 ]
             }
         },
+        "/api/v1/restic/repositories/{id}": {
+            "delete": {
+                "tags": [
+                    "restic"
+                ],
+                "summary": "Delete a repository of restic",
+                "description": "Only its owner deletes a repository. Its backup plans of every computer go with it, its token is refused from then on; its files stay in the storage until it is purged (BACKUP-9).",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the repository",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "The repository is gone"
+                    },
+                    "404": {
+                        "description": "The user has no such repository",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
         "/api/v1/users": {
             "post": {
                 "tags": [

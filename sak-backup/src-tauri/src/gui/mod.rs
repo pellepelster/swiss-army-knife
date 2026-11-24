@@ -64,6 +64,7 @@ pub fn run() {
             commands::create_plan,
             commands::update_plan,
             commands::delete_plan,
+            commands::delete_repository,
             commands::exclude_presets,
             commands::read_excludes,
             commands::pick_paths,

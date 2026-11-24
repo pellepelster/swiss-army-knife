@@ -4403,6 +4403,55 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/restic/repositories/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete a repository of restic
+     * @description Only its owner deletes a repository. Its backup plans of every computer go with it, its token is refused from then on; its files stay in the storage until it is purged (BACKUP-9).
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The id of the repository */
+          id: number;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The repository is gone */
+        204: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description The user has no such repository */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/users': {
     parameters: {
       query?: never;

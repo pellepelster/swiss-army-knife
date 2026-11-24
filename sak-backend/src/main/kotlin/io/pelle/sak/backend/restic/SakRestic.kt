@@ -305,6 +305,26 @@ fun Route.restic(
                 errors(HttpStatusCode.NotFound, "The user has no such repository")
             }
         }
+
+        delete("/{id}") {
+            val id = call.idParameter() ?: return@delete
+            call.respondDeleted(withContext(Dispatchers.IO) { service.delete(call.owner, id) })
+        }.describe {
+            tag(RESTIC_TAG)
+            summary = "Delete a repository of restic"
+            description = "Only its owner deletes a repository. Its backup plans of every computer go with it, its token is refused from then on; its files stay in the storage until it is purged (BACKUP-9)."
+            parameters {
+                path("id") {
+                    description = "The id of the repository"
+                    required = true
+                    schema = jsonSchema<Int>()
+                }
+            }
+            responses {
+                HttpStatusCode.NoContent { description = "The repository is gone" }
+                errors(HttpStatusCode.NotFound, "The user has no such repository")
+            }
+        }
     }
 }
 

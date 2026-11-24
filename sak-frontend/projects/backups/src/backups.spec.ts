@@ -40,9 +40,9 @@ describe('Backups', () => {
 
   afterEach(() => http.verify());
 
-  const { page, open, rowMenu } = pageHelpers(() => harness);
+  const { page, open, deleteFromRow } = pageHelpers(() => harness);
 
-  it('lists the repositories with their sizes and their total, a delete disabled', async () => {
+  it('lists the repositories with their sizes and their total', async () => {
     await open('/backups');
     http
       .expectOne('/api/v1/restic/repositories?offset=0&limit=50')
@@ -62,13 +62,38 @@ describe('Backups', () => {
     );
     // no create action: the app SAK Backup creates the repositories
     expect(page().querySelector('.sak-icon-plus')).toBeNull();
+  });
 
-    const menu = await rowMenu('laptop');
-    const remove = [...menu.querySelectorAll<HTMLButtonElement>('button')].find(
-      (button) => button.textContent?.trim() === 'Delete',
-    )!;
-    expect(remove.disabled).toBe(true);
-    expect(remove.title).toBe('Deleting a repository is not possible yet.');
+  it('deletes a repository from its row and loads the list again (BACKUP-9)', async () => {
+    await open('/backups');
+    http
+      .expectOne('/api/v1/restic/repositories?offset=0&limit=50')
+      .flush(pageOf([laptop, desktop]));
+    await harness.fixture.whenStable();
+
+    await deleteFromRow('laptop');
+    http
+      .expectOne({ method: 'DELETE', url: '/api/v1/restic/repositories/1' })
+      .flush(null, { status: 204, statusText: 'No Content' });
+    await harness.fixture.whenStable();
+    http.expectOne('/api/v1/restic/repositories?offset=0&limit=50').flush(pageOf([desktop]));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid="repository-laptop"]')).toBeNull();
+  });
+
+  it('says in its row when a repository could not be deleted', async () => {
+    await open('/backups');
+    http.expectOne('/api/v1/restic/repositories?offset=0&limit=50').flush(pageOf([laptop]));
+    await harness.fixture.whenStable();
+
+    await deleteFromRow('laptop');
+    http
+      .expectOne({ method: 'DELETE', url: '/api/v1/restic/repositories/1' })
+      .flush(null, { status: 500, statusText: 'Error' });
+    await harness.fixture.whenStable();
+    expect(
+      page().querySelector('[data-testid="repository-laptop"] [role=alert]')?.textContent,
+    ).toContain('The repository laptop could not be deleted.');
   });
 
   it('says how to get a repository when there is none', async () => {

@@ -523,7 +523,7 @@ export const TEXTS = {
       total: '%{size} on this page',
       created: 'Created %{date}',
       size: 'Size',
-      delete_unavailable: 'Deleting a repository is not possible yet.',
+      delete_failed: 'The repository %{name} could not be deleted.',
       copy_url: 'Copy address',
     },
   },

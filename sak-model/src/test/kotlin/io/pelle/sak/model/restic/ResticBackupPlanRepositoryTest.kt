@@ -85,6 +85,32 @@ class ResticBackupPlanRepositoryTest {
     }
 
     @Test
+    fun `a deleted repository takes its backup plans of every computer and their paths, of the owner only (BACKUP-9)`() {
+        val laptop = repository(ANNA)
+        val other = (repositories.insert(ANNA, "nas", "token-nas") as ResticRepositoryInsertResult.Inserted).repository.id
+        val here = (plans.insert(ANNA, ResticBackupPlanValues("documents", laptop, "annas-laptop", listOf("/a", "/b"))) as ResticBackupPlanWriteResult.Saved).plan.id
+        val there = (plans.insert(ANNA, ResticBackupPlanValues("photos", laptop, "annas-desktop", listOf("/c"))) as ResticBackupPlanWriteResult.Saved).plan.id
+        val kept = (plans.insert(ANNA, ResticBackupPlanValues("music", other, "annas-laptop", listOf("/d"))) as ResticBackupPlanWriteResult.Saved).plan.id
+
+        repositories.delete(BERT, laptop) shouldBe false
+        repositories.of(ANNA).map { it.id } shouldBe listOf(laptop, other)
+        repositories.delete(ANNA, laptop) shouldBe true
+        repositories.delete(ANNA, laptop) shouldBe false
+
+        repositories.of(ANNA).map { it.id } shouldBe listOf(other)
+        // its token is refused from then on, and it is no reason for a first repository (BACKUP-7)
+        repositories.loginOf(laptop) shouldBe null
+        repositories.insertFirst(ANNA, "my-backups", "token-first") shouldBe null
+        plans.of(ANNA).map { it.id } shouldBe listOf(kept)
+        // kept as deleted, the repository, its plans and each of their paths (MODEL-3)
+        database.dsl.fetchCount(RESTIC_BACKUP_PLANS, RESTIC_BACKUP_PLANS.ID.`in`(here, there), RESTIC_BACKUP_PLANS.DELETED_AT.isNotNull) shouldBe 2
+        database.dsl.fetchCount(RESTIC_BACKUP_PLAN_PATHS, RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.`in`(here, there), RESTIC_BACKUP_PLAN_PATHS.DELETED_AT.isNotNull) shouldBe 3
+        database.dsl.fetchCount(RESTIC_BACKUP_PLAN_PATHS, RESTIC_BACKUP_PLAN_PATHS.PLAN_ID.eq(kept), RESTIC_BACKUP_PLAN_PATHS.DELETED_AT.isNull) shouldBe 1
+        // the name is free again
+        (repositories.insert(ANNA, "laptop", "token-again") is ResticRepositoryInsertResult.Inserted) shouldBe true
+    }
+
+    @Test
     fun `the excludes are kept with the plan, a change of them is a change of the plan`() {
         val laptop = repository(ANNA)
         val values = ResticBackupPlanValues("documents", laptop, "h", listOf("/a"))

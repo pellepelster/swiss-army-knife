@@ -5,17 +5,19 @@ import {
   button,
   copyEntry,
   createButton,
+  disable,
   entry,
   loadFailed,
+  message,
   nameField,
   row,
   rowDetail,
   rowName,
   saveFailed,
   signedOut,
-  unavailableDelete,
 } from './rows.js';
-import { runFailure } from './run.js';
+import { runFailure, runningPlan } from './run.js';
+import { confirmAction } from './shared/confirm-dialog.js';
 import { $, invoke, setBusy, setFailure, setStatus, text } from './shared/views.js';
 
 const list = $('repositories-list');
@@ -76,9 +78,30 @@ function repositoryRow(repository) {
       }
     })
     .catch(() => {});
-  const remove = unavailableDelete(text('ui.repositories.delete_unavailable'));
+  // a soft delete with its backup plans (BACKUP-9); not while a backup or restore runs, which may
+  // use it (UX-8)
+  const remove = entry(text('ui.delete'), () => deleteRepository(repository), { danger: true });
+  if (runningPlan() !== null) disable(remove, text('ui.repositories.delete_running'));
   // a repository has nothing to open but its address, the menu copies it
   return row(repository.name, [rowName(repository.name), created, rowDetail(repository.url)], null, [copy, forget, remove]);
+}
+
+async function deleteRepository(repository) {
+  const confirmed = await confirmAction({
+    title: text('ui.repositories.delete_title', { name: repository.name }),
+    message: text('ui.repositories.delete_confirm', { name: repository.name }),
+    action: text('ui.delete'),
+    danger: true,
+  });
+  if (!confirmed) return;
+  try {
+    await invoke('delete_repository', { id: repository.id });
+    // its password is of no use any more (BACKUP-3)
+    await invoke('forget_password', { repositoryId: repository.id }).catch(() => {});
+    await showRepositories();
+  } catch (error) {
+    if (!signedOut(error, shell)) setFailure(status, text('ui.repositories.delete_failed', { error: message(error) }));
+  }
 }
 
 function disableForget(forget) {

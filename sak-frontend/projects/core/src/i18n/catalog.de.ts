@@ -521,7 +521,7 @@ export const TEXTS = {
       total: '%{size} auf dieser Seite',
       created: 'Erstellt am %{date}',
       size: 'Größe',
-      delete_unavailable: 'Ein Repository kann noch nicht gelöscht werden.',
+      delete_failed: 'Das Repository %{name} konnte nicht gelöscht werden.',
       copy_url: 'Adresse kopieren',
     },
   },
