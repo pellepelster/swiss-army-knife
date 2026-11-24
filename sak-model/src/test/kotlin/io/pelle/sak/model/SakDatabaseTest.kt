@@ -264,6 +264,64 @@ class SakDatabaseTest {
     }
 
     @Test
+    fun `the tables made again with their timestamps as TEXT keep their rows, ids and foreign keys (DM-3)`() {
+        Files.createDirectories(file.parent)
+        val at = "'2026-11-01 00:00:00.123456789'"
+        val rows =
+            mapOf(
+                "redirects" to "SELECT id, source_domain, target_bucket, created_at, updated_at, deleted_at FROM redirects ORDER BY id",
+                "grocery_categories" to "SELECT id, list_id, name, position, created_at, deleted_at FROM grocery_categories ORDER BY id",
+                "grocery_items" to "SELECT id, list_id, name, amount, unit, category_id, checked_at, created_at, typeof(checked_at) FROM grocery_items ORDER BY id",
+                "todo_items" to "SELECT id, list_id, title, due_date, priority, done_at, created_at, typeof(created_at) FROM todo_items ORDER BY id",
+            )
+
+        fun read() =
+            java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+                rows.mapValues { (_, sql) ->
+                    connection.createStatement().use { statement ->
+                        statement.executeQuery(sql).use { result ->
+                            buildList { while (result.next()) add((1..result.metaData.columnCount).map { result.getString(it) }) }
+                        }
+                    }
+                }
+            }
+        migrateSchema(dataSource(), target = "10")
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                listOf(
+                    "INSERT INTO s3_buckets (name, resource_id, access_key_id, secret_access_key, owner, created_at) VALUES ('site', 'site00000000', 'AKsite', 'secret', 'a', $at)",
+                    "INSERT INTO redirects (id, source_domain, target_type, target_bucket, owner, created_at, updated_at) VALUES (5, 'www.example.org', 'BUCKET', 'site', 'a', $at, $at)",
+                    "INSERT INTO redirects (id, source_domain, target_type, target_domain, owner, created_at, deleted_at) VALUES (7, 'old.example.org', 'DOMAIN', 'example.org', 'a', $at, $at)",
+                    "INSERT INTO grocery_lists (id, owner, name, shared, created_at) VALUES (1, 'a', 'My Groceries', 0, $at)",
+                    "INSERT INTO grocery_categories (id, list_id, owner, name, name_key, position, created_at) VALUES (3, 1, 'a', 'Fruit', 'fruit', 0, $at)",
+                    "INSERT INTO grocery_items (id, list_id, owner, name, name_key, amount, unit, category_id, checked_at, created_at) VALUES (8, 1, 'a', 'Apples', 'apples', 1.5, 'kg', 3, $at, $at)",
+                    "INSERT INTO todo_lists (id, owner, name, shared, created_at) VALUES (1, 'a', 'My Todos', 0, $at)",
+                    "INSERT INTO todo_items (id, list_id, owner, title, due_date, priority, done_at, created_at) VALUES (9, 1, 'a', 'Call', '2026-11-30', 'high', $at, $at)",
+                ).forEach { statement.executeUpdate(it) }
+            }
+        }
+        val before = read()
+
+        SakDatabase.open(file)
+
+        read() shouldBe before
+        before.values.forEach { (it.size > 0) shouldBe true }
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("PRAGMA foreign_key_check").use { it.next() shouldBe false }
+                // the items still refer to their table of categories, not to a copy of it
+                statement.executeQuery("SELECT \"table\" FROM pragma_foreign_key_list('grocery_items') WHERE \"from\" = 'category_id'").use {
+                    it.next() shouldBe true
+                    it.getString(1) shouldBe "grocery_categories"
+                }
+                // a new row gets the next id
+                statement.executeUpdate("INSERT INTO todo_items (list_id, owner, title, created_at) VALUES (1, 'a', 'Next', $at)")
+                statement.executeQuery("SELECT max(id) FROM todo_items").use { it.getInt(1) shouldBe 10 }
+            }
+        }
+    }
+
+    @Test
     fun `a database liquibase migrated to the last change set is taken as it is, no migration runs again`() {
         liquibaseDatabase(LIQUIBASE_CHANGE_SETS)
         java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
@@ -277,7 +335,7 @@ class SakDatabaseTest {
 
         val database = SakDatabase.open(file)
 
-        versions() shouldBe listOf("10" to "BASELINE")
+        versions() shouldBe listOf("10" to "BASELINE", "11" to "SQL", "12" to "SQL")
         io.pelle.sak.model.hosting.S3BucketRepository(database).byName("site")!!.resourceId shouldBe ResourceId("site00000000")
     }
 
@@ -287,7 +345,7 @@ class SakDatabaseTest {
 
         SakDatabase.open(file)
 
-        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL")
+        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL", "11" to "SQL", "12" to "SQL")
     }
 
     @Test
@@ -304,7 +362,7 @@ class SakDatabaseTest {
     fun `a new database gets every migration`() {
         SakDatabase.open(file)
 
-        versions() shouldBe (1..10).map { it.toString() to "SQL" }
+        versions() shouldBe (1..12).map { it.toString() to "SQL" }
     }
 
     private companion object {

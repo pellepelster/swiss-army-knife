@@ -39,8 +39,7 @@ jooq {
                 name = "org.jooq.meta.sqlite.SQLiteDatabase"
                 excludes = "flyway_schema_history|sqlite_.*"
                 // the timestamps are instants, InstantConverter turns them into the utc they are
-                // stored in. They are found by name: a table liquibase made (until V10) declares
-                // them as TEXT, one of plain sql as TIMESTAMP; both hold the same text
+                // stored in. They are found by name; each is a TEXT column (V11, SchemaTest)
                 forcedTypes {
                     forcedType {
                         name = "TIMESTAMP(6)"
