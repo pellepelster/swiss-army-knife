@@ -14,8 +14,7 @@ An app to manage grocery lists.
 
 ## General
 
-- `GROCERY-1` **Grocery is a list-based app.** Grocery is a list-based app (refer to [List-based
-  apps](INDEX.md#list-based-apps)).
+- `GROCERY-1` **Grocery is a list-based app.** Grocery is a list-based app (refer to [List apps](LIST-APPS.md)).
 - `GROCERY-2` **Add an item.** A list has an input field at its top. The user types the name of an item there and
   adds it to the list; the field suggests the names of the list (`GROCERY-11`).
 - `GROCERY-3` **Check an item.** A tap checks an item: it is struck through with a red line and checked according to

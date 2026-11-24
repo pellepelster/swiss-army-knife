@@ -10,11 +10,11 @@ weight: 10
 How Swiss Army Knife (SAK) is built as a whole: its parts, how they connect, and the decisions that shape them. This is
 the first of three levels: what all components share is in [the architecture of the components](components/INDEX.md),
 each component in its own document next to it, e.g. sakadmin and its `SAKADMIN` rules in
-[SAKADMIN.md](components/SAKADMIN.md). The rules of the code are here and in those documents; what an agent does
-before all of them is in [AGENT.md](../../../AGENT.md). How the apps look and behave is in [UI-UX.md](../UI-UX.md),
-the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose in
-[ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md), what is still to do in [ISSUES.md](../ISSUES.md), and how the
-dependencies are updated in [DEPENDENCIES.md](../DEPENDENCIES.md).
+[SAKADMIN.md](components/SAKADMIN.md). The rules of the code are here and in those documents; what an agent does before
+all of them is in [AGENT.md](../../../AGENT.md). How the apps look and behave is in [UI-UX.md](../ui-ux/UI-UX.md) and the
+documents of each kind of app it names, the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose in
+[ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md), what is still to do in [ISSUES.md](../ISSUES.md), and how the dependencies
+are updated in [DEPENDENCIES.md](../DEPENDENCIES.md).
 
 A lower level adds to the levels above and never repeats them; a rule two components need moves up to [the architecture
 of the components](components/INDEX.md). Every change keeps to its level and to the levels above; a change that has to
@@ -79,8 +79,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 ## API
 
 - `API-1` **One form for every error.** Errors answer `{"errors": [{"code": "...", "message": "..."}]}`, for each
-  problem its code, the same in every language, and one readable sentence in the language of `Accept-Language`
-  (`ApiErrorResponse` with its `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an
+  problem its code, the same in every language, and one readable sentence in the language of `Accept-Language`. Inside the backend, an error that can reach a client is always an
   `ErrorMessage` (`sak-api`), a key of a catalog with its values; it becomes an `ApiErrorMessage` only at the api. A
   route answers an error with `call.respondErrors`, and every route has `installApi()` (`sak-api`), which gives an error
   nobody expected the same form.
@@ -109,43 +108,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 ## Model
 
-- `MODEL-1` **One database.** The backend keeps its data in one SQLite database on the data volume.
-- `MODEL-2` **The database is only in `sak-model`.** `sak-model` holds the schema, the entities and their
-  repositories, nothing else. Only the repository of an entity, named `<entity>Repository`, and what the repositories
-  share inside `sak-model` touch the database, jOOQ and its generated tables. No other module does.
-- `MODEL-3` **Soft delete only.** No row is ever deleted for real. A delete marks the row as deleted; every read skips
-  such rows. A value that must be unique is unique among the live rows only. A deleted bucket keeps its name taken
-  until it is purged.
-- `MODEL-4` **Every row records its time.** Every table, link tables included, has `created_at`, `updated_at` and
-  `deleted_at`, set by the repository from one clock. `created_at` is set when the row is inserted and is never null.
-  `updated_at` is null until the row really changes: an insert never sets it, and a write of the values the row
-  already has does not set it. `deleted_at` is null until the row is deleted.
-- `MODEL-5` **Every row records its owner.** Every table, link tables included, has a column `owner` that is never null.
-  It holds who created the row: the e-mail address of the user, `admin` for the admin of the password login without an
-  address, or `system` when the backend created it on its own, e.g. a setting it generates. A request of sakadmin acts
-  as the admin of the password login, so what it creates is theirs. An insert takes the owner from its caller: a route
-  from the user of the request, the backend on its own from `SYSTEM_OWNER`. The owner is set once, when the row is
-  inserted, and no update changes it.
-- `MODEL-6` **Access is checked in the repository.** A repository method on the data of a user takes the user, and
-  the check of who sees or changes the row is in its sql, so a caller can not forget it and no other change comes
-  between the check and the read or the change. The service checks the values, never the access. The exceptions are
-  the data of the whole deployment, which only the role `admin` reaches (the buckets, the redirects, the settings),
-  and the work the backend does on its own (e.g. the text found in a file).
-- `MODEL-7` **Local binary data only through `FilesystemLocalStorage`.** All binary data the backend stores on its
-  data volume (the files of the file storage, their thumbnails, the objects of the buckets, the repositories of
-  restic kept there) is written and read through `FilesystemLocalStorage` (`sak-storage`); no other code writes
-  binary data to disk. The one exception: caddy serves the objects of a bucket read only from their directory on
-  disk, which `sak-s3` hands out (`objectsDirectory`). The rule is for the local storage only: what the backend keeps
-  in the S3 storage (`BACKUP-1`) is not on disk and goes through the client of `S3StorageManager`.
-- `MODEL-8` **Data outside the database has a resource id.** A row whose data is kept outside the database (on the data
-  volume) has a `resource_id`: 12 random characters `a-z0-9`, set once when the row is inserted, unique among all rows
-  of its table, deleted rows included. The paths of that data are made only from the resource id, never from a name, an
-  id of the database or the content.
-- `MODEL-9` **A repository takes values and answers rows.** No method that a service calls takes a time or an entity
-  that was built outside the repository: an insert and an update take the values of the fields and answer the row as
-  it is stored. A write that can fail in one way answers the row or nothing, a delete the row it deleted; a write
-  that can fail in more than one way answers a result that names each way. No write answers only yes or no. The
-  service hands its clock to the repository it makes, so both use one clock (`MODEL-4`).
+How the backend keeps its data is in [MODEL.md](MODEL.md).
 
 ## External systems
 

@@ -2,8 +2,8 @@
 
 The android apps of SAK, one gradle build with a module for each app on top of `core`. What all apps share is in
 [components/INDEX.md](../docs/development/architecture/components/INDEX.md) and the system architecture; the look is in
-[UI-UX.md](../docs/development/UI-UX.md), "All apps" and "Android app" (`ANDROID-*`). Each app's `AGENTS.md` links
-its own architecture document.
+[UI-UX.md](../docs/development/ui-ux/UI-UX.md) (all apps) and [UI-UX-ANDROID.md](../docs/development/ui-ux/UI-UX-ANDROID.md)
+(`ANDROID-*`). Each app's `AGENTS.md` links its own architecture document.
 
 - **Modules.**
   - `api` (kotlin library, no android, `io.pelle.sak.api.model`): the bodies of the api, generated at build time

@@ -56,8 +56,8 @@ it. It is one binary with two faces, the sakadmin ui and the sakadmin cli (`DESK
 
 ## How it looks and behaves
 
-Adds to the rules of all apps and of the desktop apps in [UI-UX.md](../../UI-UX.md) (`UX-1` to `UX-15`,
-`DESKTOP-1` to `DESKTOP-3`).
+Adds to the rules of all apps in [UI-UX.md](../../ui-ux/UI-UX.md) and of the desktop apps in
+[UI-UX-DESKTOP.md](../../ui-ux/UI-UX-DESKTOP.md) (`UX-1` to `UX-15`, `DESKTOP-1` to `DESKTOP-3`).
 
 ### Both faces
 

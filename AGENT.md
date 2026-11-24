@@ -33,7 +33,8 @@ Read this file first. It contains rules for the complete repository.
 ## UI/UX
 
 How the apps (frontend, Android apps, desktop apps) look and behave for their users is in
-[docs/development/UI-UX.md](docs/development/UI-UX.md), what only sakadmin does in
+[docs/development/ui-ux/UI-UX.md](docs/development/ui-ux/UI-UX.md) and, for each kind of app, in `UI-UX-WEB.md`, `UI-UX-ANDROID.md`
+and `UI-UX-DESKTOP.md` next to it, what only sakadmin does in
 [SAKADMIN.md](docs/development/architecture/components/SAKADMIN.md); follow them for every change of a ui.
 
 ## Architecture

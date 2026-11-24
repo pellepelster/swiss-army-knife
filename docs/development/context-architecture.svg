@@ -1,0 +1,157 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 810" width="800" height="810" font-family="'IBM Plex Sans', system-ui, -apple-system, sans-serif" role="img" aria-labelledby="title desc">
+  <title id="title">Swiss Army Knife: its user interfaces, their apps and the documents that describe them</title>
+  <desc id="desc">On the left the documents: AGENT.md, then docs/development with INDEX.md, RULES.md, GLOSSARY.md, ui-ux/ with UI-UX.md, UI-UX-WEB.md, UI-UX-ANDROID.md and UI-UX-DESKTOP.md, and architecture/ with MODEL.md, SYSTEM.md and components/ with LIST-APPS.md and TODO.md. On the right SAK and in it the system: the server with its database, and below it the user interfaces in three rows, each with its title at the top and its apps in one column below it: the web apps (the list apps Grocery and Todo, Backups and more), the Android apps (the list apps SAK Grocery List and SAK Todo) and the GUI apps (sakadmin, sakbackup and more). AGENT.md leads to SAK, SYSTEM.md to the system, MODEL.md to the database, UI-UX.md to the user interfaces, UI-UX-WEB.md to the web apps, UI-UX-ANDROID.md to the Android apps, UI-UX-DESKTOP.md to the GUI apps, LIST-APPS.md to both containers of the list apps, TODO.md to Todo and SAK Todo; a document and what it leads to have the same color.</desc>
+  <defs>
+    <marker id="arrow-sys" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
+    <marker id="arrow-ui" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6d28d9"/></marker>
+    <marker id="arrow-web" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1d4ed8"/></marker>
+    <marker id="arrow-android" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#15803d"/></marker>
+    <marker id="arrow-server" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0e7490"/></marker>
+    <marker id="arrow-list" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#475569"/></marker>
+    <marker id="arrow-todo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#be123c"/></marker>
+    <marker id="arrow-gui" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#b45309"/></marker>
+  </defs>
+  <style>
+    /* one color for each level: the box, its heading, its arrow and its document in the tree */
+    .system { fill: #f8fafc; stroke: #475569; stroke-width: 2; }
+    .inner { fill: #f1f5f9; stroke: #334155; stroke-width: 1.5; }
+    .server { fill: #ecfeff; stroke: #0891b2; stroke-width: 1.5; }
+    .db { fill: #cffafe; stroke: #06b6d4; stroke-width: 1.2; }
+    .ui { fill: #f5f3ff; stroke: #7c3aed; stroke-width: 1.5; }
+    .web { fill: #eff6ff; stroke: #2563eb; stroke-width: 1.5; }
+    .android { fill: #f0fdf4; stroke: #16a34a; stroke-width: 1.5; }
+    .gui { fill: #fffbeb; stroke: #d97706; stroke-width: 1.5; }
+    .app-web { fill: #dbeafe; stroke: #3b82f6; stroke-width: 1.2; }
+    .app-android { fill: #dcfce7; stroke: #22c55e; stroke-width: 1.2; }
+    .app-gui { fill: #fef3c7; stroke: #f59e0b; stroke-width: 1.2; }
+    .more-web { fill: none; stroke: #3b82f6; stroke-width: 1.2; stroke-dasharray: 5 4; }
+    .more-gui { fill: none; stroke: #f59e0b; stroke-width: 1.2; stroke-dasharray: 5 4; }
+    .group { fill: #ffffff; fill-opacity: 0.6; stroke: #94a3b8; stroke-width: 1.2; }
+    .group-label { font-size: 12px; font-weight: 600; fill: #475569; }
+    .more { font-size: 14px; font-style: italic; fill: #64748b; }
+    .ink-sys { fill: #334155; }
+    .ink-ui { fill: #6d28d9; }
+    .ink-web { fill: #1d4ed8; }
+    .ink-android { fill: #15803d; }
+    .ink-gui { fill: #b45309; }
+    .ink-server { fill: #0e7490; }
+    .ink-list { fill: #475569; }
+    .ink-todo { fill: #be123c; }
+    .divider { stroke: #e2e8f0; stroke-width: 2; }
+    .h1 { font-size: 20px; font-weight: 600; }
+    .h2 { font-size: 15px; font-weight: 600; }
+    .h3 { font-size: 15px; font-weight: 600; }
+    .tree { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; fill: #1e293b; white-space: pre; }
+    .tree .dir { fill: #64748b; }
+    .tree .linked { font-weight: 600; }
+    .label { font-size: 14px; fill: #1e293b; }
+    .link { fill: none; stroke-width: 1.6; }
+    .link-sys { stroke: #334155; }
+    .link-ui { stroke: #6d28d9; }
+    .link-web { stroke: #1d4ed8; }
+    .link-android { stroke: #15803d; }
+    .link-gui { stroke: #b45309; }
+    .link-server { stroke: #0e7490; }
+    .link-list { stroke: #475569; }
+    .link-todo { stroke: #be123c; }
+  </style>
+
+  <rect x="0" y="0" width="800" height="810" fill="#ffffff"/>
+
+  <!-- the documents -->
+  <text class="tree" xml:space="preserve">
+    <tspan x="24" y="40" class="linked ink-sys">AGENT.md</tspan>
+    <tspan x="24" y="70" class="dir">docs/</tspan>
+    <tspan x="24" y="92" class="dir">└─ development/</tspan>
+    <tspan x="24" y="114">   ├─ INDEX.md</tspan>
+    <tspan x="24" y="136">   ├─ RULES.md</tspan>
+    <tspan x="24" y="158">   ├─ GLOSSARY.md</tspan>
+    <tspan x="24" y="180" class="dir">   ├─ ui-ux/</tspan>
+    <tspan x="24" y="202">   │  ├─ <tspan class="linked ink-ui">UI-UX.md</tspan></tspan>
+    <tspan x="24" y="224">   │  ├─ <tspan class="linked ink-web">UI-UX-WEB.md</tspan></tspan>
+    <tspan x="24" y="246">   │  ├─ <tspan class="linked ink-android">UI-UX-ANDROID.md</tspan></tspan>
+    <tspan x="24" y="268">   │  └─ <tspan class="linked ink-gui">UI-UX-DESKTOP.md</tspan></tspan>
+    <tspan x="24" y="290" class="dir">   └─ architecture/</tspan>
+    <tspan x="24" y="312">      ├─ <tspan class="linked ink-server">MODEL.md</tspan></tspan>
+    <tspan x="24" y="334">      ├─ <tspan class="linked ink-sys">SYSTEM.md</tspan></tspan>
+    <tspan x="24" y="356" class="dir">      └─ components/</tspan>
+    <tspan x="24" y="378">         ├─ <tspan class="linked ink-list">LIST-APPS.md</tspan></tspan>
+    <tspan x="24" y="400">         └─ <tspan class="linked ink-todo">TODO.md</tspan></tspan>
+  </text>
+
+  <!-- the divider -->
+  <line class="divider" x1="300" y1="16" x2="300" y2="794"/>
+
+  <!-- the whole system -->
+  <rect class="system" x="316" y="8" width="468" height="786" rx="10"/>
+  <text class="h1 ink-sys" x="336" y="38">Swiss Army Knife (SAK)</text>
+
+  <!-- the system: the server and the user interfaces -->
+  <rect class="inner" x="326" y="50" width="448" height="744" rx="9"/>
+  <text class="h3 ink-sys" x="344" y="72">System</text>
+  <g transform="translate(10,34)">
+    <!-- the server and its database -->
+    <rect class="server" x="328" y="50" width="424" height="80" rx="9"/>
+    <text class="h3 ink-server" x="346" y="72">Server</text>
+    <rect class="db" x="402" y="84" width="316" height="32" rx="6"/><text class="label" x="560" y="105" text-anchor="middle">Database</text>
+
+    <!-- the user interfaces, one row each: its title at the top, its apps in one column below it; the
+         space on the left of the apps is for the lines -->
+    <rect class="ui" x="328" y="140" width="424" height="598" rx="9"/>
+    <text class="h3 ink-ui" x="346" y="162">User interfaces</text>
+
+    <!-- web apps; the list apps in a container of their own -->
+    <rect class="web" x="344" y="176" width="392" height="226" rx="8"/>
+    <text class="h2 ink-web" x="402" y="198">Web apps</text>
+    <rect class="group" x="392" y="208" width="336" height="100" rx="7"/><text class="group-label" x="402" y="222">List apps</text>
+    <rect class="app-web" x="402" y="228" width="316" height="32" rx="6"/><text class="label" x="560" y="249" text-anchor="middle">Grocery</text>
+    <rect class="app-web" x="402" y="268" width="316" height="32" rx="6"/><text class="label" x="560" y="289" text-anchor="middle">Todo</text>
+    <rect class="app-web" x="402" y="318" width="316" height="32" rx="6"/><text class="label" x="560" y="339" text-anchor="middle">Backups</text>
+    <rect class="more-web" x="402" y="358" width="316" height="32" rx="6"/><text class="more" x="560" y="379" text-anchor="middle">… more apps</text>
+
+    <!-- android apps -->
+    <rect class="android" x="344" y="414" width="392" height="144" rx="8"/>
+    <text class="h2 ink-android" x="402" y="436">Android apps</text>
+    <rect class="group" x="392" y="446" width="336" height="100" rx="7"/><text class="group-label" x="402" y="460">List apps</text>
+    <rect class="app-android" x="402" y="466" width="316" height="32" rx="6"/><text class="label" x="560" y="487" text-anchor="middle">SAK Grocery List</text>
+    <rect class="app-android" x="402" y="506" width="316" height="32" rx="6"/><text class="label" x="560" y="527" text-anchor="middle">SAK Todo</text>
+
+    <!-- gui apps -->
+    <rect class="gui" x="344" y="570" width="392" height="156" rx="8"/>
+    <text class="h2 ink-gui" x="402" y="592">GUI apps</text>
+    <rect class="app-gui" x="402" y="602" width="316" height="32" rx="6"/><text class="label" x="560" y="623" text-anchor="middle">sakadmin</text>
+    <rect class="app-gui" x="402" y="642" width="316" height="32" rx="6"/><text class="label" x="560" y="663" text-anchor="middle">sakbackup</text>
+    <rect class="more-gui" x="402" y="682" width="316" height="32" rx="6"/><text class="more" x="560" y="703" text-anchor="middle">… more apps</text>
+  </g>
+
+  <!-- AGENT.md holds for the whole of SAK, SYSTEM.md for the system -->
+  <circle class="ink-sys" cx="100" cy="36" r="3"/>
+  <path class="link link-sys" d="M100 36 H314" marker-end="url(#arrow-sys)"/>
+  <circle class="ink-sys" cx="238" cy="330" r="3"/>
+  <path class="link link-sys" d="M238 330 H324" marker-end="url(#arrow-sys)"/>
+
+  <!-- MODEL.md holds for the database -->
+  <circle class="ink-server" cx="238" cy="308" r="3"/>
+  <path class="link link-server" d="M238 308 H370 V134 H410" marker-end="url(#arrow-server)"/>
+
+  <!-- UI-UX.md holds for all user interfaces, each other document of ui-ux/ for its row -->
+  <circle class="ink-ui" cx="238" cy="198" r="3"/>
+  <path class="link link-ui" d="M238 198 H336" marker-end="url(#arrow-ui)"/>
+  <circle class="ink-web" cx="238" cy="220" r="3"/>
+  <path class="link link-web" d="M238 220 H352" marker-end="url(#arrow-web)"/>
+  <circle class="ink-android" cx="238" cy="242" r="3"/>
+  <path class="link link-android" d="M238 242 H292 V464 H352" marker-end="url(#arrow-android)"/>
+  <circle class="ink-gui" cx="238" cy="264" r="3"/>
+  <path class="link link-gui" d="M238 264 H282 V621 H352" marker-end="url(#arrow-gui)"/>
+
+  <!-- the components: LIST-APPS.md for both containers of the list apps, TODO.md for the todo in every
+       user interface it has; the list apps reach the container on android below the todo -->
+  <circle class="ink-list" cx="238" cy="374" r="3"/>
+  <path class="link link-list" d="M238 374 H382 V252 H400" marker-end="url(#arrow-list)"/>
+  <path class="link link-list" d="M382 374 V570 H400" marker-end="url(#arrow-list)"/>
+  <circle class="ink-list" cx="382" cy="374" r="2.5"/>
+  <circle class="ink-todo" cx="238" cy="396" r="3"/>
+  <path class="link link-todo" d="M238 396 H392 V318 H410" marker-end="url(#arrow-todo)"/>
+  <path class="link link-todo" d="M392 396 V556 H410" marker-end="url(#arrow-todo)"/>
+  <circle class="ink-todo" cx="392" cy="396" r="2.5"/>
+</svg>

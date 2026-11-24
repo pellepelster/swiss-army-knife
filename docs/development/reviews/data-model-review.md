@@ -11,7 +11,7 @@ weight: 11
 
 Scope: the schema of the backend as changesets `0001-initial` to `0006-drop-layout-migration-columns` make it (19
 tables), the repositories of `sak-model` and the services that read through them, against `MODEL-1` to `MODEL-8` of
-[SYSTEM.md](../architecture/SYSTEM.md#model). The question: bugs, gaps between the rules and the schema, and what the
+[SYSTEM.md](../architecture/MODEL.md). The question: bugs, gaps between the rules and the schema, and what the
 schema could check itself.
 
 **Checked again:** 2026-11-23, with the changesets up to `0010-unique-positions` (still 19 tables): `DM-5` is fixed,

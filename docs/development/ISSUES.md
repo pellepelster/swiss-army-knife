@@ -99,7 +99,7 @@ the sakctl cli for my data.
 
 Today only the sakctl cli does it (`sakctl backup <name>`, `sakctl restore <name> <file>`, refer to FDR-007
 (`docs/development/fdr/FDR-007-backup.md`), which notes "The sakctl ui has no backup or restore yet."). `SAKADMIN-12` in
-UI-UX.md (`docs/development/UI-UX.md`) asks for feature parity between the sakctl ui and the sakctl cli.
+UI-UX.md (`docs/development/ui-ux/UI-UX.md`) asks for feature parity between the sakctl ui and the sakctl cli.
 
 #### What it should do
 

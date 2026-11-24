@@ -54,7 +54,7 @@ signed in user, their own only.
 | The page of the login | `sak-frontend`, `connect/`  | `/connect-desktop`, where the user confirms the connection of the app      |
 | The repositories      | `io.pelle.sak.backend.restic`, `sak-model` (`restic/`) | Their api, their REST backend, their table        |
 
-The sign-in is `DESKTOP-1` to `DESKTOP-3` in [UI-UX.md](../../UI-UX.md), `SECURITY-3` and `SECURITY-4`.
+The sign-in is `DESKTOP-1` to `DESKTOP-3` in [UI-UX-DESKTOP.md](../../ui-ux/UI-UX-DESKTOP.md), `SECURITY-3` and `SECURITY-4`.
 
 ## Privacy
 

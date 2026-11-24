@@ -13,10 +13,11 @@ How a rule of `docs/development/` is made and written. The rules of this documen
   rule. A rule is written once; other text refers to it by its id.
 - `RULE-2` **The title is the rule in short.** The title says the decision in two to eight words, e.g. **Soft delete
   only.**, not only its subject, e.g. not **Deletes.**
-- `RULE-3` **An id is a name for good.** The prefix of an id is the name of its chapter or of its component, in
-  capitals and not shortened; one subject has one prefix in all documents. A new rule gets the next number of its
-  prefix. An id never changes and is never used again, also when its rule is deleted. A rule that moves to another
-  document gets a new id there, and every reference to it changes in the same commit.
+- `RULE-3` **An id is a name for good.** The prefix of an id is the name of its chapter or of its component, in capitals
+  and not shortened; one subject has one prefix in all documents. A new rule gets the next number of its prefix. An id
+  never changes and is never used again, also when its rule is deleted. A rule that moves to another document gets a new
+  id there, and every reference to it changes in the same commit; a rule keeps its id when its prefix stays the subject
+  of the document it moves to.
 - `RULE-4` **Plain words in the present tense.** A rule is written in ASD-STE100 Simplified Technical English, with
   the words of the glossary. It says what is true, in the present tense and the active voice, e.g. "The backend keeps
   …", not "The backend should keep …". "Never" says what is forbidden. A rule does not use "should"; an example in a

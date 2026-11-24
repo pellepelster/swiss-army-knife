@@ -1,7 +1,7 @@
 ---
 title: "Architecture of the Components"
 linkTitle: "Components"
-description: "What all components of SAK share: the shared parts, the rules of list-based apps and the frontend."
+description: "What all components of SAK share: the shared parts, the list apps and the frontend."
 weight: 20
 ---
 
@@ -39,31 +39,13 @@ sakadmin is no part of the backend: it is the desktop app in `sak-admin-cli` tha
 
 ## List-based apps
 
-An app whose items belong to lists of the user keeps to these rules; the notes, the grocery lists and the todo lists
-are such apps.
-
-- `LIST-1` **A first list.** When a user signs in who never had a list of their own, each list-based app makes them a
-  private list named `My <entity>` in their language, e.g. "My Todos"; the shared lists of others do not count. The
-  owner of a list renames, shares and deletes it, the last one too; a deleted list does not come back. A new item
-  always names its list; no request makes a list on the side.
-- `LIST-2` **Shared lists.** A list has a shared flag; a shared list is shared with all other users, who can add items
-  to it and delete items from it, and change its icon and its categories. Only its owner renames, shares or unshares it
-  and deletes it. The owner of an item is who added it (`MODEL-5`), but the access follows the list (`MODEL-6`): every
-  user can delete an item of a shared list, also one another user created.
-- `LIST-3` **The lists first.** A list-based app, in the web app and on Android, opens on the overview of all lists of
-  the user: their own lists and the shared lists of the others. From there the user opens a list; a list has a back
-  action that leads to the overview. An Android app remembers the list that was open when it was left and opens it
-  again; when the user went back to the overview, or the list is gone, it opens on the overview. A sign-out forgets
-  the list.
-- `LIST-4` **Changes reach every client.** A change of a list or of its items, its deletion included, reaches every
-  open client of each user who sees the list, in the web app and on Android alike: the backend sends a server-sent
-  event with the id of the list and nothing of its data, and the client loads the list again. A client listens only
-  while it is in the foreground; when it comes back, it loads again what it shows, so it sees what changed meanwhile.
+The rules of the apps whose items belong to lists of the user are in [LIST-APPS.md](LIST-APPS.md).
 
 ## Web app
 
 - `WEB-5` **One page for each app.** Each is listed on the start page; the maintenance pages (health, settings) are
-  listed below them. The look is in [UI-UX.md](../../UI-UX.md), the rules of the code are the ones below.
+  listed below them. The look is in [UI-UX.md](../../ui-ux/UI-UX.md) and [UI-UX-WEB.md](../../ui-ux/UI-UX-WEB.md), the rules of the
+  code are the ones below.
 - `WEB-6` **Paths and tabs.** A thing is created on `/<entities>/create` and edited on `/<entities>/<id>/edit`
   (`WEB-3`). The tabs of a detail view are child routes, e.g. the tabs of a bucket or the scopes of the settings: a `nav
   nav-tabs` right above the `<router-outlet />`. Each tab starts with its card, so the card is the folder of the active

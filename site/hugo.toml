@@ -20,7 +20,17 @@ target = 'content'
 [[module.mounts]]
 source = '../docs'
 target = 'content'
-files = ['! development/architecture/components/INDEX.md', '! apps/android/INDEX.md', '! screenshots/**', '! development/design/**']
+files = ['! development/INDEX.md', '! development/ui-ux/UI-UX.md', '! development/architecture/components/INDEX.md', '! apps/android/INDEX.md', '! screenshots/**', '! development/design/**']
+
+# the overview of the documents for developers is the page of their section
+[[module.mounts]]
+source = '../docs/development/INDEX.md'
+target = 'content/development/_index.md'
+
+# the rules of all apps are the page of the section of the ui and ux
+[[module.mounts]]
+source = '../docs/development/ui-ux/UI-UX.md'
+target = 'content/development/ui-ux/_index.md'
 
 # the architecture of all components is the page of the section of the components
 [[module.mounts]]

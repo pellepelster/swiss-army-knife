@@ -15,8 +15,7 @@ and add it to the note.
 
 ## General
 
-- `NOTES-1` **The notes are a list-based app.** The notes are a list-based app (refer to [List-based
-  apps](INDEX.md#list-based-apps)). The lists are prepared but not exposed to the user: their first list (`LIST-1`), "My
+- `NOTES-1` **The notes are a list-based app.** The notes are a list-based app (refer to [List apps](LIST-APPS.md)). The lists are prepared but not exposed to the user: their first list (`LIST-1`), "My
   Notes", holds all their notes.
 
 ## Data

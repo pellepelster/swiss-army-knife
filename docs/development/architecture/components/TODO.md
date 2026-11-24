@@ -15,8 +15,7 @@ It learns nothing. It has an Android app of its own (`android/todo`), on top of 
 
 ## General
 
-- `TODO-1` **Todo is a list-based app.** Todo is a list-based app (refer to [List-based
-  apps](INDEX.md#list-based-apps)).
+- `TODO-1` **Todo is a list-based app.** Todo is a list-based app (refer to [List apps](LIST-APPS.md)).
 - `TODO-2` **Add a task.** A list has an input field at its top, with a due date and a priority next to it (`TODO-4`,
   `TODO-5`). The user types the title of a task there and adds it to the list; the field is empty again, the day and the
   priority go back to none and normal. Nothing is suggested.
