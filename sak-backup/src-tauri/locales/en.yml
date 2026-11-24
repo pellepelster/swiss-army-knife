@@ -175,7 +175,6 @@ ui:
     run_back: "Back"
     run_initializing: "Creating the repository…"
     run_starting: "Starting restic…"
-    run_running: "The backup runs…"
     run_progress_label: "Progress of the backup"
     run_progress: "%{files} of %{total} files, %{done} of %{size}"
     run_rate: "%{rate}/s processed"

@@ -143,8 +143,8 @@ async function run(password, init, remember) {
         percent = now;
         changed();
       }
-      // the numbers change each second: in a line that is not read out (DA-24)
-      if (!status.textContent || status.textContent === text('ui.plans.run_starting')) setStatus(status, text('ui.plans.run_running'));
+      // the numbers change each second: in a line that is not read out (DA-24); the start is over
+      if (status.textContent === text('ui.plans.run_starting')) setStatus(status, '');
       numbers.hidden = false;
       numbers.textContent = progressText(event);
       // the start of a long path goes, its end tells the file (style.css)

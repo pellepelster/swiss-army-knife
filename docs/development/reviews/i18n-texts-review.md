@@ -65,7 +65,7 @@ snapshots. These texts say "backup" for the data of restic:
   `sak_backup.cli.repository_missing` ("so it had backups"), `sak_backup.cli.needs_init` ("has no backup yet") →
   "snapshots".
 
-sakbackup also says "the backup" for one run of a backup plan (`sak_backup.ui.plans.run_running`, `sak_backup.ui.plans.run_failed`, `sak_backup.ui.tray.running`, …). The
+sakbackup also says "the backup" for one run of a backup plan (`sak_backup.ui.plans.run_failed`, `sak_backup.ui.tray.running`, …). The
 glossary has no word for a run. Fix: decide whether "backup" is the word for a run in sakbackup, and add it to the
 glossary.
 

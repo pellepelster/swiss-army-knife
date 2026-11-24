@@ -79,8 +79,8 @@ class SakbackupWindowTest {
             assertThat(file).isVisible()
             assertThat(file).containsText("a-file-with-a-long-name.sqlite")
             assertThat(page.locator("#run-numbers")).containsText("40387 of 490015 files")
-            // the numbers are not read out, the line that is says the backup runs
-            assertThat(page.locator("#run-status")).hasText("The backup runs…")
+            // the numbers are not read out; the line of the start is gone once the backup runs
+            assertThat(page.locator("#run-status")).hasText("")
             // the path is cut within the page, the page and its button stay in the window
             val width = page.evaluate("() => window.innerWidth").toString().toDouble()
             val run = page.locator(".run-page").boundingBox()!!

@@ -2468,7 +2468,6 @@ sak_backup:
       run_back: { en: "Back", de: "Zurück" }
       run_initializing: { en: "Creating the repository…", de: "Erstelle das Repository…" }
       run_starting: { en: "Starting restic…", de: "Starte restic…" }
-      run_running: { en: "The backup runs…", de: "Das Backup läuft…" }
       run_progress_label: { en: "Progress of the backup", de: "Fortschritt des Backups" }
       run_progress:
         en: "%{files} of %{total} files, %{done} of %{size}"
