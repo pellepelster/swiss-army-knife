@@ -1,6 +1,6 @@
 //! the window: tauri with the pages of ui/ and their commands (commands.rs, on core/). The sign-in
 //! and the session are the ones of sak-desktop-shared, the session token in the keychain of the
-//! system (SECURITY-3)
+//! system (SECURITY-4)
 
 use tauri::Manager;
 

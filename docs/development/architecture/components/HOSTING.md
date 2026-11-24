@@ -15,16 +15,18 @@ domains of the bucket.
 
 ## Data
 
-- `HOSTING-1` **A bucket** has a name, a key pair of its own and the domains it is served at. Every bucket is also
-  served at `<name>.<base domain>`.
-- `HOSTING-3` **The statistics** of a bucket (number of objects, bytes) are counted in the background and kept; a
-  write through the S3 api drops them, so they are counted again.
+- `HOSTING-1` **A bucket has its own key pair.** A bucket has a name, a key pair of its own and the domains it is served
+  at. Every bucket is also served at `<name>.<base domain>`.
+- `HOSTING-3` **Bucket statistics are counted in the background.** The statistics of a bucket (number of objects, bytes)
+  are counted in the background and kept; a write through the S3 api drops them, so they are counted again.
 
 ## API
 
-- `HOSTING-4` Create, change the domains of, and delete a bucket; read the buckets with their statistics.
-- `HOSTING-5` Read the key pair of a bucket, only on its own endpoint.
-- `HOSTING-6` The S3 api takes requests signed with the key pair of a bucket, for that bucket only.
+- `HOSTING-4` **The api manages the buckets.** Create, change the domains of, and delete a bucket; read the buckets with
+  their statistics.
+- `HOSTING-5` **A key pair has its own endpoint.** Read the key pair of a bucket, only on its own endpoint.
+- `HOSTING-6` **A key pair is for its bucket only.** The S3 api takes requests signed with the key pair of a bucket, for
+  that bucket only.
 
 ## Decisions
 

@@ -7,7 +7,7 @@ the SAK instance keeps. How it is built is in
 Everything from "The file" on is a proposal that is not built: backups the server makes on its own, defined in one
 YAML file on the server, run by systemd timers, to repositories the user chooses, without a machine of the user.
 [`backup.example.yaml`](backup.example.yaml) is an example of that file. The proposal does not replace
-`sakadmin backup` (`SAKADM-8`), the one file sakadmin pulls through ssh, and it is not what BACKUP.md describes.
+`sakadmin backup` (`SAKADMIN-6`), the one file sakadmin pulls through ssh, and it is not what BACKUP.md describes.
 
 ## The window
 

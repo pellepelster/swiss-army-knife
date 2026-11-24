@@ -24,10 +24,10 @@ None stored. Every check runs on each request, all at once.
 
 ## External systems
 
-- `HEALTH-1` **Name servers** are asked directly for the domains; they see the address of the server and the names
-  asked for.
+- `HEALTH-1` **Name servers are asked directly.** The backend asks them for the domains; they see the address of the
+  server and the names asked for.
 
 ## Decisions
 
-- `HEALTH-2` **Unknown without addresses.** Without the addresses of the server in the configuration, for example
-  locally, a domain can not be checked and is unknown.
+- `HEALTH-2` **Unknown without addresses.** Without the addresses of the server in the configuration, e.g. locally, a
+  domain can not be checked and is unknown.

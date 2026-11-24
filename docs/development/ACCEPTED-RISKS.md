@@ -35,7 +35,7 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   the server (the admin password hash) can test guesses without asking anybody. Accepted: every guess costs a strong
   argon2id, and weak passwords are refused by a strength estimate. The salt is the deployment name, not unique across
   users, because a salt to keep would be state on one machine, and two machines with the same password must manage the
-  same deployment (`SAKADM-2`); the cost per guess keeps tables out of reach.
+  same deployment (`SAKADMIN-1`); the cost per guess keeps tables out of reach.
 
 - **Label hashes are shortened.** A label value holds 63 characters, so hashes in labels keep 240 of their 256 bits;
   a collision would hide a change. Accepted: about one in 2^120, and one label per hash stays simple.

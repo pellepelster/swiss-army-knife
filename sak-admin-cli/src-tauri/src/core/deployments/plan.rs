@@ -12,7 +12,7 @@ pub struct PlanResponse {
     pub(crate) name: String,
     pub(crate) public_key: String,
     pub(crate) resources: Vec<PlannedResource>,
-    /// the apply removes or replaces a resource: both faces ask before it (CTL-1, UI-10)
+    /// the apply removes or replaces a resource: both faces ask before it (SAKADMIN-10, SAKADMIN-15)
     pub(crate) destroys: bool,
 }
 

@@ -127,7 +127,7 @@ function goes(plan) {
 }
 
 // true to apply: asked when the plan deletes or replaces something (rust's `destroys`), after the
-// plan, as the command line asks (CTL-1, UI-10). A destroy says what it deletes, red with its data
+// plan, as the command line asks (SAKADMIN-10, SAKADMIN-15). A destroy says what it deletes, red with its data
 function confirmPlan(plan, deployment) {
   if (!plan.destroys) return Promise.resolve(true);
   if (deployment.intent === 'destroy') {

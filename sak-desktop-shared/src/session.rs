@@ -1,4 +1,4 @@
-//! the sign-in of a desktop app at a SAK instance through the browser (SECURITY-3): the app
+//! the sign-in of a desktop app at a SAK instance through the browser (SECURITY-4): the app
 //! listens on `127.0.0.1` for one request, opens `<address>/connect-desktop` with its port, a
 //! random state and the pkce challenge of a verifier only it knows. The web app signs the user in,
 //! asks to confirm and sends the browser to `http://127.0.0.1:<port>/callback` with a connect
@@ -220,7 +220,7 @@ pub struct SessionManager {
 /// the url the browser is started with has a secret of its sign-in off linux. The url is an
 /// argument of a process there (`/usr/bin/open` on macOS, the browser on windows), and both show the
 /// arguments of a process to its user and an admin only, so no program of another user of the
-/// machine gets the state or ends the sign-in (SECURITY-3). On linux every user reads the arguments
+/// machine gets the state or ends the sign-in (SECURITY-4). On linux every user reads the arguments
 /// of a process (/proc/<pid>/cmdline): the url has none, and the app takes the connections of its own
 /// user only (`peer_user`)
 const START_SECRET: bool = !cfg!(target_os = "linux");
@@ -758,7 +758,7 @@ fn wait(
             continue;
         };
         // the loopback is open to every user of the machine: only the user of the app counts, so
-        // nobody else gets the state or ends the sign-in (SECURITY-3)
+        // nobody else gets the state or ends the sign-in (SECURITY-4)
         let peer = request.remote_addr().map(|address| address.port());
         if let (Some(peer), Some(port)) = (peer, port) {
             if peer_user(peer, port) == PeerUser::Other {

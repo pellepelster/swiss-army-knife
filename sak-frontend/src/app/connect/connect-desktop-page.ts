@@ -53,7 +53,7 @@ type State =
   | { readonly kind: 'failed'; readonly error: TextKey };
 
 // /connect-desktop: a desktop app on this computer asks for a session of the signed in user
-// (SECURITY-3). Only after the user confirms, the page gets a connect token bound to the challenge
+// (SECURITY-4). Only after the user confirms, the page gets a connect token bound to the challenge
 // of the app and sends the browser with it to the loopback port of the app; the code of the
 // challenge tells the user which app asks. The token is never
 // shown, it leaves the page only in that redirect

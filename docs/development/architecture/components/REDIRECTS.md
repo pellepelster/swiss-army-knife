@@ -14,10 +14,11 @@ Redirects every request for a domain to another domain, the path kept, with a pe
 
 ## Data
 
-- `REDIRECTS-1` **A redirect** has its source domain, which can not be changed, and a target: an external domain or a
-  bucket.
-- `REDIRECTS-2` **The location** is the domain a redirect leads to: the external domain, or the first domain the
-  bucket is served at. A redirect to a bucket that is served at no domain leads nowhere and is left out of caddy.
+- `REDIRECTS-1` **The source domain of a redirect is fixed.** A redirect has its source domain, which can not be
+  changed, and a target: an external domain or a bucket.
+- `REDIRECTS-2` **A redirect leads to one location.** The location is the domain a redirect leads to: the external
+  domain, or the first domain the bucket is served at. A redirect to a bucket that is served at no domain leads nowhere
+  and is left out of caddy.
 
 ## API
 
@@ -25,7 +26,8 @@ Create, change the target of, read and delete a redirect.
 
 ## Decisions
 
-- `REDIRECTS-3` **A bucket as the target** follows the bucket: a redirect leads to where the bucket is served now.
-  The bucket can not be deleted while the redirect leads to it.
-- `REDIRECTS-4` **A redirected domain** is no domain of the apps and of no bucket.
-- `REDIRECTS-5` **Caddy is configured right away** after every change, not only at the next period.
+- `REDIRECTS-3` **A redirect follows its target bucket.** A redirect to a bucket leads to where the bucket is served
+  now. The bucket can not be deleted while the redirect leads to it.
+- `REDIRECTS-4` **A redirected domain serves nothing else.** A redirected domain is no domain of the apps and of no
+  bucket.
+- `REDIRECTS-5` **Caddy is configured right away.** It is configured after every change, not only at the next period.

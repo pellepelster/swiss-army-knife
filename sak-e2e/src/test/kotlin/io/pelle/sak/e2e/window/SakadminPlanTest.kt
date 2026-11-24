@@ -18,7 +18,7 @@ import kotlinx.serialization.json.jsonObject
 import java.nio.file.Files
 
 // the window of sakadmin applies the plan it showed, by its number, and asks first when the plan
-// deletes or replaces something (CTL-1, UI-10; DA-26, DA-27). `mise run backup:test:window`
+// deletes or replaces something (SAKADMIN-10, SAKADMIN-15; DA-26, DA-27). `mise run backup:test:window`
 @Tag("window")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SakadminPlanTest {

@@ -8,7 +8,7 @@ weight: 20
 
 How the apps look and behave for the people who use them: the web app, the Android apps and the desktop apps. What
 only sakadmin does, in its ui and its cli, is in [SAKADMIN.md](architecture/components/SAKADMIN.md). How the system is
-built is in [SYSTEM.md](architecture/SYSTEM.md), how the code of the web app does it in `FRONTEND-2` to `FRONTEND-6`
+built is in [SYSTEM.md](architecture/SYSTEM.md), how the code of the web app does it in `WEB-6` to `WEB-10`
 of [the architecture of the components](architecture/components/INDEX.md#web-app).
 
 The rules are written as [RULES.md](RULES.md) says.
@@ -35,7 +35,7 @@ The rules are written as [RULES.md](RULES.md) says.
   - `UX-4.1` **Confirm first.** It asks for confirmation and says what goes. Cancel is the safe default.
   - `UX-4.2` **Undo afterwards.** It takes effect in the ui at once; a toast centered at the bottom offers to undo it
     for a short time. The backend learns it only when the time is up.
-- `UX-5` **Dates and times** are shown in the locale of the user, never in a fixed format.
+- `UX-5` **Dates and times follow the locale.** They are shown in the locale of the user, never in a fixed format.
 - `UX-6` **Fields are checked when they lose focus.** A field is checked when the user leaves it, not while typing. The
   error is shown right under the field, in the danger color. While a field is invalid, the action that depends on it
   (next, create, save) is disabled; typing in the field again clears the error until the field is left again. The
@@ -81,11 +81,12 @@ The rules are written as [RULES.md](RULES.md) says.
 - `WEB-1` **List, then detail.** Each kind of thing has a list that leads to a detail view. A list shows one page at a
   time and remembers its page in the address. Creating starts from the list; the actions on a thing are at the top right
   of its detail view, its delete also in the menu of its row (`UX-12`).
-- `WEB-2` **Detail view.** An overview on top (name, created, updated, the main facts), a tab folder below: the active
-  tab and its content are one card, the other tabs lie flat on the page; the first tab is "Configuration".
+- `WEB-2` **An overview on top, tabs below.** An overview on top (name, created, updated, the main facts), a tab folder
+  below: the active tab and its content are one card, the other tabs lie flat on the page; the first tab is
+  "Configuration".
 - `WEB-3` **No modal dialogs.** Create and edit are pages of their own, with all editable fields at once, saved or
   cancelled. A delete asks inline, in the view itself.
-- `WEB-4` **Copy to the clipboard** looks and behaves the same everywhere.
+- `WEB-4` **Copying looks the same everywhere.** Copy to the clipboard looks and behaves the same everywhere.
 
 ## Android apps
 

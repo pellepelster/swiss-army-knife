@@ -1,6 +1,6 @@
 # Frontend
 
-The rules of the code of the web app are `FRONTEND-1` to `FRONTEND-6` in [components/INDEX.md](../docs/development/architecture/components/INDEX.md#web-app), the texts are `I18N-1` in [SYSTEM.md](../docs/development/architecture/SYSTEM.md#texts). What follows adds to them.
+The rules of the code of the web app are `WEB-5` to `WEB-10` in [components/INDEX.md](../docs/development/architecture/components/INDEX.md#web-app), the texts are `I18N-1` in [SYSTEM.md](../docs/development/architecture/SYSTEM.md#texts). What follows adds to them.
 
 - One Angular application, the shell (`src/app`), and the libraries of `projects/`, compiled from their sources
   with it (`paths` of `tsconfig.json`, no build of their own):

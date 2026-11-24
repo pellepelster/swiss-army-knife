@@ -15,22 +15,25 @@ and add it to the note.
 
 ## General
 
-- `NOTES-1` **Lists.** The notes are a list-based app (refer to [List-based apps](INDEX.md#list-based-apps)). The lists
-  are prepared but not exposed to the user: their first list (`LIST-1`), "My Notes", holds all their notes.
+- `NOTES-1` **The notes are a list-based app.** The notes are a list-based app (refer to [List-based
+  apps](INDEX.md#list-based-apps)). The lists are prepared but not exposed to the user: their first list (`LIST-1`), "My
+  Notes", holds all their notes.
 
 ## Data
 
-- `NOTES-2` **A file stays** in the storage when a note no longer shows it; other notes may show it.
-- `NOTES-3` **The text discovered** in a file is kept with the file; a file is sent to the AI once.
+- `NOTES-2` **A file stays in the storage.** It stays when a note no longer shows it; other notes may show it.
+- `NOTES-3` **Discovered text is kept with its file.** The text discovered in a file is kept with the file, so a file is
+  sent to the AI once.
 
 ## API
 
-- `NOTES-4` Create, change, read and delete a note; read the notes page by page, of a label or all; read the labels the
-  notes have (`GET /api/v1/notes/labels`), the only ones the apps filter by.
-- `NOTES-5` Discover the text in a photo or a recording of the user (`POST /api/v1/files/{id}/discover/text`). Every
-  user may ask whether it can be done now (`GET /api/v1/notes/settings`, `discoverText`): the AI turned on by an admin
-  and a provider set up; the switches themselves are settings of the admins, and the backend checks them on every
-  discovery.
+- `NOTES-4` **The api manages the notes and labels.** Create, change, read and delete a note; read the notes page by
+  page, of a label or all; read the labels the notes have (`GET /api/v1/notes/labels`), the only ones the apps filter
+  by.
+- `NOTES-5` **The backend discovers the text of a file.** Discover the text in a photo or a recording of the user (`POST
+  /api/v1/files/{id}/discover/text`). Every user may ask whether it can be done now (`GET /api/v1/notes/settings`,
+  `discoverText`): the AI turned on by an admin and a provider set up; the switches themselves are settings of the
+  admins, and the backend checks them on every discovery.
 
 ## Android
 

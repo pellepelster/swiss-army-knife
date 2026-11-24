@@ -18,7 +18,7 @@ with a package only says that there is one. The ruleset of the tags `v*` lets an
 
 Scope: the signing of the files of the release of sakadmin and sakbackup and of the images with cosign (`mise run
 desktop:sign`, `admin-cli:release`, `image:sign`), their verification in the update of both apps
-(`sak-desktop-shared/src/update.rs`, `sigstore.rs`) and in sakadmin (`core/images.rs`, `SAKADM-12` in
+(`sak-desktop-shared/src/update.rs`, `sigstore.rs`) and in sakadmin (`core/images.rs`, `SAKADMIN-9` in
 [SAKADMIN.md](../architecture/components/SAKADMIN.md)), the workflow (`.github/workflows/swiss-army-knife.yml`) and the settings of the
 repository on GitHub. The question: what could make a signature of the workflow certify something that was not built
 from this repository.

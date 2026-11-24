@@ -88,7 +88,7 @@ shrink). So:
 3. The filesystem on the volume is grown too, after the resize: the provisioning (the storage role of the playbook)
    runs `resize2fs` on the mounted device, so the new space is usable.
 
-From the review `docs/development/reviews/CLI-2.md` (CP-6).
+From the review `docs/development/reviews/SAKADMIN-17.md` (CP-6).
 
 ## `#133` Back up and restore a deployment from the sakctl ui
 
@@ -98,7 +98,7 @@ As a user of the sakctl ui, I want to back up a deployment and restore a backup 
 the sakctl cli for my data.
 
 Today only the sakctl cli does it (`sakctl backup <name>`, `sakctl restore <name> <file>`, refer to FDR-007
-(`docs/development/fdr/FDR-007-backup.md`), which notes "The sakctl ui has no backup or restore yet."). `CTL-3` in
+(`docs/development/fdr/FDR-007-backup.md`), which notes "The sakctl ui has no backup or restore yet."). `SAKADMIN-12` in
 UI-UX.md (`docs/development/UI-UX.md`) asks for feature parity between the sakctl ui and the sakctl cli.
 
 #### What it should do
@@ -108,7 +108,7 @@ UI-UX.md (`docs/development/UI-UX.md`) asks for feature parity between the sakct
   a way to open its folder.
 - **Restore.** The page of a deployment offers a restore of a backup file, chosen from `~/.sak/<name>/backups/` or
   anywhere else. It says what goes (all data of the deployment is replaced, the apps are unavailable meanwhile) and
-  asks for a confirmation before it starts (`UX-4.1`, `CTL-1`), then shows each step of the server.
+  asks for a confirmation before it starts (`UX-4.1`, `SAKADMIN-10`), then shows each step of the server.
 - **The same rules as the sakctl cli** (FDR-007): only complete backups, a restore that cannot succeed changes
   nothing, one backup or restore at a time. A refusal shows the same text as the sakctl cli.
 - **Texts** in `i18n/texts.yml` (`ctl.ui`, or `ctl.common` for what both show).

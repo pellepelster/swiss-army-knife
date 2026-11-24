@@ -200,7 +200,7 @@ never cancels a sign-in.
   `ssh_config.rs` is the command line's only.
 - shared: tauri and its opener are hard dependencies of the crate (`Cargo.toml:11-12`); the tauri commands sit in the
   same files as the logic (`update.rs` `version`/`check_update`/`install_update`, `checks.rs` `quit`, all of
-  `window.rs`), so the crate's own tests compile webkitgtk, and the crate does not keep `DESK-2` itself.
+  `window.rs`), so the crate's own tests compile webkitgtk, and the crate does not keep `DESKTOP-6` itself.
 
 Fix: tokio instead of tauri's runtime in sakbackup's core, errors returned instead of printed; `common.*` texts and one
 hint enum the faces render in sakadmin; a default feature `tauri` in the shared crate gating `window`, the commands of
@@ -243,7 +243,7 @@ compiles keyring with zbus for nothing, and its page gets `login.js` and all `ui
 `login.js` as unused, `sak-admin-cli/src-tauri/src/gui/mod.rs:95`). `Install` lives in `update.rs` but `desktop.rs`
 depends on it, and the writing of files of the update is install logic (`update.rs:635-701`).
 
-Fix: a feature `sign-in` that sakbackup enables, and `DESK-1`/the README saying so; `install.rs` with `Install` and the
+Fix: a feature `sign-in` that sakbackup enables, and `DESKTOP-5`/the README saying so; `install.rs` with `Install` and the
 writing of files.
 
 ### Size and duplication
@@ -419,7 +419,7 @@ sakbackup too; the installers of linux that `tauri.conf.json` configures are bui
   the two apps, `admin-cli:install` installs the tauri command line of both
 - `sak-backup/README.md:14-15` says the lists "are empty for now"
 - `components/BACKUP.md`: "Nothing goes to a third party." An update asks github.com when the user asks; BACKUP.md has
-  no rule for the update, `SAKADM-10` names sakadmin only
+  no rule for the update, `SAKADMIN-8` names sakadmin only
 - `ACCEPTED-RISKS.md`: the trusted root "is built into sakadmin"
 
 ## Not reviewed

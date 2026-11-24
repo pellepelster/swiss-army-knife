@@ -1,4 +1,4 @@
-//! where a desktop app keeps the session token of each SAK instance (SECURITY-3): the keychain of
+//! where a desktop app keeps the session token of each SAK instance (SECURITY-4): the keychain of
 //! the system, one entry per address, never a file. Without a keychain the operations fail and
 //! the session stays in memory only
 

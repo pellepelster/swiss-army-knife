@@ -1407,7 +1407,7 @@ admin_cli:
       text_with_data:
         en: "Its DNS records, server, addresses, firewall, ssh key and its data volume with everything stored on it are deleted. This cannot be undone."
         de: "Seine DNS-Einträge, sein Server, seine Adressen, seine Firewall, sein SSH-Key und sein Datenvolume mit allem, was darauf gespeichert ist, werden gelöscht. Das kann nicht rückgängig gemacht werden."
-      # a create or deploy whose plan deletes or replaces something, after the plan (CTL-1, UI-10)
+      # a create or deploy whose plan deletes or replaces something, after the plan (SAKADMIN-10, SAKADMIN-15)
       deploy_title: { en: "Deploy %{name}?", de: "%{name} ausrollen?" }
       deploy_text:
         en: "This plan deletes or replaces: %{resources}."

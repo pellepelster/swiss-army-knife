@@ -2,7 +2,7 @@
 
 What the desktop apps of SAK (sakadmin, sakbackup) share: the sign-in through the browser, its window, the update
 from the GitHub release, the texts and the desktop entry of linux. The architecture is in
-[SYSTEM.md](../docs/development/architecture/SYSTEM.md#desktop-apps) (`DESK-1`).
+[SYSTEM.md](../docs/development/architecture/SYSTEM.md#desktop-apps) (`DESKTOP-5`).
 
 ## Its modules
 

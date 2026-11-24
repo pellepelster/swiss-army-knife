@@ -9,7 +9,7 @@ weight: 10
 
 How Swiss Army Knife (SAK) is built as a whole: its parts, how they connect, and the decisions that shape them. This is
 the first of three levels: what all components share is in [the architecture of the components](components/INDEX.md),
-each component in its own document next to it, e.g. sakadmin and its `SAKADM` rules in
+each component in its own document next to it, e.g. sakadmin and its `SAKADMIN` rules in
 [SAKADMIN.md](components/SAKADMIN.md). The rules of the code are here and in those documents; what an agent does
 before all of them is in [AGENT.md](../../../AGENT.md). How the apps look and behave is in [UI-UX.md](../UI-UX.md),
 the words in [GLOSSARY.md](../GLOSSARY.md), the weaknesses kept on purpose in
@@ -65,7 +65,7 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 | `sak-theme` | The look: design tokens and Bootstrap mapped onto them, used by all uis. |
 | `sak-admin-cli` | sakadmin: the sakadmin ui (Tauri) and the sakadmin cli in one binary, and `sak-cloud`, the library that declares the cloud resources. |
 | `sak-backup` | sakbackup: the desktop app of the backups, a window (Tauri) and a command line in one binary; it runs restic. |
-| `sak-desktop-shared` | What the desktop apps share (`DESK-1`). |
+| `sak-desktop-shared` | What the desktop apps share (`DESKTOP-5`). |
 | `sak-i18n` | Writes the texts of `i18n/texts.yml` into the files each part reads (`I18N-1`). |
 | `ansible` | The collection `pelle_io.sak` that provisions the server. |
 | `sak-e2e` | The end-to-end tests: the apps in a browser, and sakadmin against a real cloud project. |
@@ -74,29 +74,28 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 
 - `LAYER-1` **Routes → services → repositories.** All business logic is in a service of its entity, next to the routes
   that use it. A service uses only other services and its own repository. A repository is used only by its service;
-  routes use services, never repositories.
+  routes use services, never repositories. (RULE-3[OK])
 
 ## API
 
-- `API-1` **Errors** answer `{"errors": [{"code": "...", "message": "..."}]}`, for each problem its code, the same in
-  every language, and one readable sentence in the language of `Accept-Language` (`ApiErrorResponse` with its
-  `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an `ErrorMessage` (`sak-api`), a
-  key of a catalog with its values; it becomes an `ApiErrorMessage` only at the api. A route answers an error with
-  `call.respondErrors`, and every route has `installApi()` (`sak-api`), which gives an error nobody expected the same
-  form.
-- `API-2` **Lists** are paginated: `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked for with
-  `offset` and `limit`; `limit` is 50 by default and at most 100 (`DEFAULT_LIMIT`, `MAX_LIMIT` of `sak-api`). A
-  service answers a page as `Page<T>`, its items and the total; the route maps the items to their response classes
-  and answers them with the `PageRequest` of the call. The exception is the health (`GET /api/v1/health`): the
-  statuses of its few checks are one array, without pages.
-- `API-3` **Times** are ISO 8601 in UTC with milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That
-  holds for every time the api answers (when something was created, updated or computed, when a session ends, the
-  times of the logs and the metrics). A time in a response is a `String` written with `Instant.apiTime()` (`sak-api`),
-  never with `toString()`. Something that never ends has no time rather than one far away.
-- `API-4` **Request and response classes** are the boundary: a domain class never crosses the api, it is mapped to its
+- `API-1` **One form for every error.** Errors answer `{"errors": [{"code": "...", "message": "..."}]}`, for each
+  problem its code, the same in every language, and one readable sentence in the language of `Accept-Language`
+  (`ApiErrorResponse` with its `ApiErrorMessage`s). Inside the backend, an error that can reach a client is always an
+  `ErrorMessage` (`sak-api`), a key of a catalog with its values; it becomes an `ApiErrorMessage` only at the api. A
+  route answers an error with `call.respondErrors`, and every route has `installApi()` (`sak-api`), which gives an error
+  nobody expected the same form.
+- `API-2` **Lists are paginated.** A list answers `{"items": [...], "pagination": {"offset", "limit", "total"}}`, asked
+  for with `offset` and `limit`; `limit` is 50 by default and at most 100 (`DEFAULT_LIMIT`, `MAX_LIMIT` of `sak-api`). A
+  service answers a page as `Page<T>`, its items and the total; the route maps the items to their response classes and
+  answers them with the `PageRequest` of the call. The exception is the health (`GET /api/v1/health`): the statuses of
+  its few checks are one array, without pages.
+- `API-3` **Times are ISO 8601 in UTC.** They have milliseconds, always the same form: `2026-10-29T08:00:00.000Z`. That
+  holds for every time the api answers (when something was created, updated or computed, when a session ends, the times
+  of the logs and the metrics). A time in a response is a `String` written with `Instant.apiTime()` (`sak-api`), never
+  with `toString()`. Something that never ends has no time rather than one far away.
+- `API-4` **Request and response classes are the boundary.** A domain class never crosses the api, it is mapped to its
   response class. A body the api receives is a `<name>Request`, a body it answers a `<name>Response`, and so is every
-  class nested in them (e.g. `PageResponse`). The one exception is `ApiErrorMessage`, an error of an
-  `ApiErrorResponse`.
+  class nested in them (e.g. `PageResponse`). The one exception is `ApiErrorMessage`, an error of an `ApiErrorResponse`.
 - `API-6` **Missing entities.** A 404 is only for the resource of the path. An entity the request refers to that is
   not there, e.g. the list of a new item, a photo of a note or the bucket of a redirect, is a 422 with its message.
 - `API-7` **Where the code of the api is.** The routes of an app are in `io.pelle.sak.backend.<app>`, its request and
@@ -121,12 +120,12 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   `deleted_at`, set by the repository from one clock. `created_at` is set when the row is inserted and is never null.
   `updated_at` is null until the row really changes: an insert never sets it, and a write of the values the row
   already has does not set it. `deleted_at` is null until the row is deleted.
-- `MODEL-5` **Every row records its owner.** Every table, link tables included, has a column `owner` that is never
-  null. It holds who created the row: the e-mail address of the user, `admin` for the admin of the password login
-  without an address, or `system` when the backend created it on its own, for example a setting it generates. A
-  request of sakadmin acts as the admin of the password login, so what it creates is theirs. An insert takes the owner
-  from its caller: a route from the user of the request, the backend on its own from `SYSTEM_OWNER`. The owner is set
-  once, when the row is inserted, and no update changes it.
+- `MODEL-5` **Every row records its owner.** Every table, link tables included, has a column `owner` that is never null.
+  It holds who created the row: the e-mail address of the user, `admin` for the admin of the password login without an
+  address, or `system` when the backend created it on its own, e.g. a setting it generates. A request of sakadmin acts
+  as the admin of the password login, so what it creates is theirs. An insert takes the owner from its caller: a route
+  from the user of the request, the backend on its own from `SYSTEM_OWNER`. The owner is set once, when the row is
+  inserted, and no update changes it.
 - `MODEL-6` **Access is checked in the repository.** A repository method on the data of a user takes the user, and
   the check of who sees or changes the row is in its sql, so a caller can not forget it and no other change comes
   between the check and the read or the change. The service checks the values, never the access. The exceptions are
@@ -151,38 +150,40 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 ## External systems
 
 - `EXT-1` **One manager for each external system.** A class (a struct in rust) that manages resources outside the
-  process, at a cloud provider, in a container runtime or behind a remote api, is called `<name>Manager` after what
-  it manages. It is the one place they are looked up, created, changed and deleted, and the one place its clients are
-  made; the rest of the code asks it and holds no client of its own. sakadmin has one for the deployments, the
-  provisioning and the container runtime (e.g. `DeploymentManager`), the backend one for the AI provider
-  (`OpenRouterManager`) and one for the access logs in victorialogs (`AccessLogsManager`).
+  process, at a cloud provider, in a container runtime or behind a remote api, is called `<name>Manager` after what it
+  manages. It is the one place they are looked up, created, changed and deleted, and the one place its clients are made;
+  the rest of the code asks it and holds no client of its own. sakadmin has one for the deployments, the provisioning
+  and the container runtime (e.g. `DeploymentManager`), the backend one for the AI provider (`OpenRouterManager`) and
+  one for the access logs in victorialogs (`AccessLogsManager`). (RULE-3[OK])
 
 ## The server of a deployment
 
-- `SERVER-1` Four containers run as podman quadlets, all as the user `sak`: the backend, caddy, victorialogs and
-  vector. Ansible pulls their images on each run; a new image restarts its container.
+- `SERVER-1` **Four containers run as podman quadlets.** Four containers run as podman quadlets, all as the user `sak`:
+  the backend, caddy, victorialogs and vector. Ansible pulls their images on each run; a new image restarts its
+  container.
 - `SERVER-2` **One script for the maintenance.** sakadmin backs up, restores, updates, restarts the services on old
   libraries and reboots the server through ssh with one script, whose commands take turns: a reboot or a restart of the
   deployment stops it in order first and never interrupts a backup.
-- `SERVER-3` All data is on the data volume, mounted at `/storage/data`, below a directory named like the deployment
-  (`/storage/data/<name>`): the database, the files, the buckets, the state of caddy and the logs.
-- `SERVER-4` The backend configures caddy at run time through its admin api: the hosts of the apps and the domains of
-  the buckets and the redirects.
-- `SERVER-5` The hosts depend on the **dns mode**: the frontend is at
-  `sak.<base domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>` or its own domains. The
-  base domain follows the dns mode ([GLOSSARY.md](../GLOSSARY.md)).
-- `SERVER-6` The **SAK address** tells where its api is: `GET <SAK address>/.well-known/sak.json` answers
-  `{"api": "https://api.<base domain>/v1"}`, without a session. A client that knows only the SAK address, the Android
-  apps, finds the api there. At any other address than `sak.<base domain>` (the dev server of `local:run`, the
-  backend itself) the api is `/api/v1` of the same origin.
-- `SERVER-7` **The REST backend of restic** is at `api.<base domain>/restic/`, in front of the S3 api; `restic` is no
-  name of a bucket.
+- `SERVER-3` **All data is on the data volume.** All data is on the data volume, mounted at `/storage/data`, below a
+  directory named like the deployment (`/storage/data/<name>`): the database, the files, the buckets, the state of caddy
+  and the logs.
+- `SERVER-4` **The backend configures caddy at run time.** The backend configures caddy at run time through its admin
+  api: the hosts of the apps and the domains of the buckets and the redirects.
+- `SERVER-5` **The hosts follow the dns mode.** The hosts depend on the dns mode: the frontend is at `sak.<base
+  domain>`, the api at `api.<base domain>`, a bucket at `<bucket>.<base domain>` or its own domains. The base domain
+  follows the dns mode ([GLOSSARY.md](../GLOSSARY.md)).
+- `SERVER-6` **The SAK address tells where the api is.** `GET <SAK address>/.well-known/sak.json` answers `{"api":
+  "https://api.<base domain>/v1"}`, without a session. A client that knows only the SAK address, the Android apps, finds
+  the api there. At any other address than `sak.<base domain>` (the dev server of `local:run`, the backend itself) the
+  api is `/api/v1` of the same origin.
+- `SERVER-7` **restic is served below the api.** Its REST backend is at `api.<base domain>/restic/`, in front of the S3
+  api; `restic` is no name of a bucket.
 
 ## Desktop apps
 
-- `DESK-1` **The desktop apps share one crate.** Code that more than one desktop app needs is in
+- `DESKTOP-5` **The desktop apps share one crate.** Code that more than one desktop app needs is in
   `sak-desktop-shared`, never copied into an app.
-- `DESK-2` **One core, two faces.** A desktop app with a window and a command line does all its work in its core
+- `DESKTOP-6` **One core, two faces.** A desktop app with a window and a command line does all its work in its core
   (`src/core`). The core knows neither the window (`src/gui`) nor the command line (`src/cli`). Both are thin layers
   on it: they take the input, call the core and show what it answers, and neither does work the other can't do
   through the core.
@@ -200,18 +201,18 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   `sak.pelle.io/password-hash=<hash>`, a hash derived from the password: 30 bytes of the master key as hex
   (`keys::password_hash` in `sak-admin-cli`). sakadmin checks a password against it before it changes anything. The
   password itself is nowhere.
-- `CLOUD-4` **Identity.** The name label and the password hash label are the identity of a resource. Whatever creates
-  a resource sets both labels when it creates it and declares them as its identity (`with_identity`, checked by
-  `api::identity`); a resource of SAK without them is a defect. Every lookup checks them: a resource of the declared
-  name without them belongs to someone else, and nothing changes or deletes it. A destroy deletes only resources with
-  both labels; a resource without the password hash label is never deleted. A registry that may destroy declares its
-  owner labels (`Registry::owned_by`).
+- `CLOUD-4` **Two labels are the identity of a resource.** The name label and the password hash label are the identity
+  of a resource. Whatever creates a resource sets both labels when it creates it and declares them as its identity
+  (`with_identity`, checked by `api::identity`); a resource of SAK without them is a defect. Every lookup checks them: a
+  resource of the declared name without them belongs to someone else, and nothing changes or deletes it. A destroy
+  deletes only resources with both labels; a resource without the password hash label is never deleted. A registry that
+  may destroy declares its owner labels (`Registry::owned_by`).
 - `CLOUD-6` **Kinds of labels.** The plan compares the identity labels. It never compares the labels that sakadmin
   keeps on the server itself (the hashes of its ssh keys and user data) or the info labels (the version).
 - `CLOUD-7` **Own prefix.** The labels SAK declares are under `sak.pelle.io/`.
-- `CLOUD-8` **What stays.** A deploy never replaces the data volume or the primary IPs, and a destroy keeps the
-  data volume unless the user asks to delete it. Only a resource that may be replaced is `Registry::recreatable`;
-  every other resource stays.
+- `CLOUD-8` **Deploy and destroy keep the data volume.** A deploy never replaces the data volume or the primary IPs, and
+  a destroy keeps the data volume unless the user asks to delete it. Only a resource that may be replaced is
+  `Registry::recreatable`; every other resource stays.
 - `CLOUD-9` **SAK owns all labels.** sakadmin owns every label of a resource of a deployment, not only the ones under
   its prefix. The plan reports a label it did not declare as a change, and the next deploy removes it, because the
   provider replaces the labels of a resource as a whole. A label added by hand, in the console or by another tool, does
@@ -227,18 +228,18 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
 - `I18N-1` **One file of texts.** Every text a user reads, in the backend, the web apps, the android apps and the
   desktop apps, is in `i18n/texts.yml` at the root of the repository, in every language, and only there: no text is
   written into code, a template, a `strings.xml` or a locale file. `mise run i18n:generate` (`sak-i18n`), run after
-  every change of the file, writes what each part reads from it; the generated files are committed, never edited, and
-  a test fails when they are not up to date. A text of an app is in its section (`<app>.common`, `.backend`, `.web`,
+  every change of the file, writes what each part reads from it; the generated files are committed, never edited, and a
+  test fails when they are not up to date. A text of an app is in its section (`<app>.common`, `.backend`, `.web`,
   `.android`), one of no app in `common`, `backend`, `web` or `android`, one of sakadmin in `admin_cli`, one of
-  sakbackup in `sak_backup`, one both desktop apps show in `desktop_shared`; a text two parts show alike moves to
-  their `common`.
-- `I18N-2` **The desktop texts have three parts.** In `admin_cli`, `cli` has the texts only the sakadmin cli
-  shows, `ui` the texts only the sakadmin ui shows, and `common` the texts both show (the messages of the core, the
-  kinds and statuses of the resources, the actions of a plan). The code reads them as `cli.*`, `ui.*` and `common.*`
-  from `sak-admin-cli/src-tauri/locales/`, which is generated. A text moves to `common` when both faces use it.
-  `sak_backup` has the same parts for sakbackup (`sak-backup/src-tauri/locales/`). `desktop_shared` has the texts of
+  sakbackup in `sak_backup`, one both desktop apps show in `desktop_shared`; a text two parts show alike moves to their
+  `common`. (RULE-3[OK])
+- `I18N-2` **The desktop texts have three parts.** In `admin_cli`, `cli` has the texts only the sakadmin cli shows, `ui`
+  the texts only the sakadmin ui shows, and `common` the texts both show (the messages of the core, the kinds and
+  statuses of the resources, the actions of a plan). The code reads them as `cli.*`, `ui.*` and `common.*` from
+  `sak-admin-cli/src-tauri/locales/`, which is generated. A text moves to `common` when both faces use it. `sak_backup`
+  has the same parts for sakbackup (`sak-backup/src-tauri/locales/`). `desktop_shared` has the texts of
   `sak-desktop-shared`, e.g. the sign-in, which each desktop app shows next to its own. A key is in one of these
-  sections only.
+  sections only. (RULE-3[OK])
 
 ## Privacy
 
@@ -254,9 +255,8 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   (VictoriaLogs and Vector) from Docker Hub on each deploy. Each registry then sees the IP address of the machine
   that pulls and which images it pulls, nothing else. Communication with these registries is allowed; SAK cannot run
   without its images.
-- `PRIVACY-4` **User data stays.** User data leaves the backend only when the user asks for it (for example text
-  discovery), and only to providers that do not collect it: a call to OpenRouter sends
-  `provider.data_collection: deny`.
+- `PRIVACY-4` **User data stays.** User data leaves the backend only when the user asks for it (e.g. text discovery),
+  and only to providers that do not collect it: a call to OpenRouter sends `provider.data_collection: deny`.
 
 ## Security
 
@@ -280,28 +280,29 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   nothing, and anybody with the password has all of it. The password itself is stored nowhere.
 - `SECURITY-2` **The ssh key is never written to disk.** The one exception is `sakadmin ssh-config`: it writes the
   key to the directory that the user names. sakadmin never reads the key from a file.
-- `SECURITY-3` **A signed in session connects an app.** An app never asks for a password. A signed in session
-  of the web app hands it a connect token: good for one exchange within 2 minutes, for a session of the same user
-  with its own full time and the roles the user has at the exchange. A phone scans the token as a QR code, which
-  shows only while asked for; whoever photographs it signs in as the user until it is used or expired. Before it
-  signs in, the app names the SAK instance of the code and asks. A desktop app
-  gets the token through the browser of the user, after the user confirmed on a page that tells which app asks, and
-  the token is of use only to the app that asked. A desktop app keeps its session only in the keychain of the system,
-  never in a file. A signed request of sakadmin connects no app.
+- `SECURITY-3` **A signed in session connects an app.** An app never asks for a password. A signed in session of the web
+  app hands it a connect token: good for one exchange within 2 minutes, for a session of the same user with its own full
+  time and the roles the user has at the exchange. A phone scans the token as a QR code, which shows only while asked
+  for; whoever photographs it signs in as the user until it is used or expired. Before it signs in, the app names the
+  SAK instance of the code and asks. A signed request of sakadmin connects no app.
+- `SECURITY-4` **A desktop app connects through the browser.** A desktop app gets its connect token (`SECURITY-3`)
+  through the browser of the user, after the user confirmed on a page that tells which app asks; the token is of use
+  only to the app that asked. A desktop app keeps its session only in the keychain of the system, never in a file.
 
 ## Tests
 
 Each test is of one kind, by what it needs to run:
 
-- `TEST-1` **Unit tests** run standalone, with no dependencies: nothing but the tools of the build. Mock servers and
-  files in the process are allowed. A unit test that needs more is an integration test.
-- `TEST-2` **Integration tests** need resources of the machine that runs them: Docker, a browser, a specific program
-  such as `ssh-keygen`. A missing resource fails the test, unless the resource is optional.
-- `TEST-3` **End to end tests** need resources outside of the machine: cloud servers, a cloud project, its API. They
-  can take long and cost money. Images pulled from the GitHub container registry (ghcr.io), e.g. those of SAK and its
-  tools, do not count: an integration test may pull them.
-- `TEST-4` **Third-party services for tests.** A test may use a third-party service made for tests, for example a mail
-  sandbox that receives the login links and lets the test read them through its API. It sends only test data:
-  synthetic names and addresses, never data of a user.
+- `TEST-1` **Unit tests run standalone.** They run with no dependencies: nothing but the tools of the build. Mock
+  servers and files in the process are allowed. A unit test that needs more is an integration test.
+- `TEST-2` **Integration tests use resources of the machine.** They need resources of the machine that runs them:
+  Docker, a browser, a specific program such as `ssh-keygen`. A missing resource fails the test, unless the resource is
+  optional.
+- `TEST-3` **End to end tests need outside resources.** They need resources outside of the machine: cloud servers, a
+  cloud project, its API. They can take long and cost money. Images pulled from the GitHub container registry (ghcr.io),
+  e.g. those of SAK and its tools, do not count: an integration test may pull them.
+- `TEST-4` **Third-party services for tests.** A test may use a third-party service made for tests, e.g. a mail sandbox
+  that receives the login links and lets the test read them through its API. It sends only test data: synthetic names
+  and addresses, never data of a user.
 - `TEST-5` **One task for each kind.** Each part (backend, frontend, cli) has one task for each kind it has. The build
   pipeline runs the unit tests and reports their results; nothing is built into an image before they pass.
