@@ -117,8 +117,9 @@
   text-align: start;
 }
 
-button.row-body:hover,
-button.row-body:focus-visible {
+/* the whole row is raised while its body is pointed at or focused, its buttons and its menu too */
+.row-card:has(> button.row-body:hover),
+.row-card:has(> button.row-body:focus-visible) {
   background: var(--sak-raised);
 }
 
@@ -128,22 +129,38 @@ button.row-body:focus-visible {
 
 /* the backup plan that runs: a stripe in the busy color at its left, and moving stripes in light
    tints of it from its left up to its percent (--run-progress, plans.js), the whole row when the run
-   says none (a restore); its button filled in the busy color. Still without motion for who asks */
+   says none (a restore); its button filled in the busy color. Still without motion for who asks.
+   The fill is a layer of its own that grows from the left; only the stripes in it move, by one tile
+   of the pattern, so the fill stays at its place */
 .row-running {
+  position: relative;
+  isolation: isolate;
   border-left: 5px solid var(--sak-info);
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      color-mix(in srgb, var(--sak-info) 34%, var(--sak-surface)) 0 14px,
-      color-mix(in srgb, var(--sak-info) 18%, var(--sak-surface)) 14px 28px
-    ) 0 0 / var(--run-progress, 100%) 100% no-repeat,
-    var(--sak-surface);
+}
+
+.row-running::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: var(--run-progress, 100%);
+  pointer-events: none;
+  background-color: color-mix(in srgb, var(--sak-info) 18%, var(--sak-surface));
+  background-image: linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--sak-info) 34%, var(--sak-surface)) 25%,
+    transparent 25% 50%,
+    color-mix(in srgb, var(--sak-info) 34%, var(--sak-surface)) 50% 75%,
+    transparent 75%
+  );
+  background-size: 40px 40px;
+  transition: width 0.4s ease-out;
   animation: row-running-stripes 1.2s linear infinite;
 }
 
 @keyframes row-running-stripes {
-  from { background-position: 0 0, 0 0; }
-  to { background-position: 40px 0, 0 0; }
+  from { background-position: 0 0; }
+  to { background-position: 40px 0; }
 }
 
 .row-percent {
@@ -174,9 +191,10 @@ button.row-body:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .row-running,
+  .row-running::before,
   #nav [data-running]::after {
     animation: none;
+    transition: none;
   }
 }
 
