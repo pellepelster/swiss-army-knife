@@ -12,11 +12,11 @@ publish = false
 console = []
 
 [build-dependencies]
-tauri-build = { version = "2.7.4", features = [] }
+tauri-build = { version = "2.7.5", features = [] }
 
 [dependencies]
 # the icon in the tray (gui/tray.rs)
-tauri = { version = "2.12.5", features = ["tray-icon"] }
+tauri = { version = "2.12.6", features = ["tray-icon"] }
 # the pictures of the icon in the tray, the decoder of png that tauri has already
 png = "0.18.1"
 tauri-plugin-opener = "2.7.2"
