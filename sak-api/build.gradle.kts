@@ -17,6 +17,10 @@ dependencies {
     implementation(libs.ktor.serialization.kotlinx.json)
 
     testFixturesApi(libs.kotlinx.serialization.json)
+    // the contract every BlobStore keeps, run by the tests of each store
+    testFixturesApi(platform(libs.junit.bom))
+    testFixturesApi(libs.junit.jupiter)
+    testFixturesApi(libs.kotest.assertions.core)
 
     testImplementation(libs.ktor.server.test.host)
     testImplementation(testFixtures(project(":sak-core")))

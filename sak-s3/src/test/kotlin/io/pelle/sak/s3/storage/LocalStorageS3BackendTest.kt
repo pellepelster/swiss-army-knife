@@ -1,10 +1,10 @@
 package io.pelle.sak.s3.storage
 
-import io.pelle.sak.storage.model.EntityTooLargeException
-import io.pelle.sak.storage.model.InsufficientStorageException
+import io.pelle.sak.api.storage.model.EntityTooLargeException
+import io.pelle.sak.api.storage.model.InsufficientStorageException
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.model.BlobPath
-import io.pelle.sak.storage.model.BlobUsage
+import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.BlobUsage
 import io.pelle.sak.storage.FilesystemLocalStorage
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -191,7 +191,7 @@ class LocalStorageS3BackendTest {
         shouldThrow<KeyConflictException> { put("sidecar") }
         storage.headObject("bucket1", "sidecar").shouldBeNull()
         // nothing staged is left behind by the failed writes
-        tempDir.resolve(BlobPath.STAGING_DIRECTORY).toFile().list().shouldNotBeNull().shouldBeEmpty()
+        tempDir.resolve(FilesystemLocalStorage.STAGING_DIRECTORY).toFile().list().shouldNotBeNull().shouldBeEmpty()
     }
 
     @Test

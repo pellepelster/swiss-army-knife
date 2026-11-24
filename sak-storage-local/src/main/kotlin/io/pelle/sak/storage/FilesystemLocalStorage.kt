@@ -1,12 +1,12 @@
 package io.pelle.sak.storage
 
-import io.pelle.sak.storage.model.BlobPathConflictException
-import io.pelle.sak.storage.model.BlobChangedException
-import io.pelle.sak.storage.model.BlobContent
-import io.pelle.sak.storage.model.BlobInfo
-import io.pelle.sak.storage.model.BlobListEntry
-import io.pelle.sak.storage.model.BlobPath
-import io.pelle.sak.storage.model.BlobUsage
+import io.pelle.sak.api.storage.LocalStorage
+import io.pelle.sak.api.storage.StagedWrite
+import io.pelle.sak.api.storage.model.BlobPathConflictException
+import io.pelle.sak.api.storage.model.BlobChangedException
+import io.pelle.sak.api.storage.model.BlobInfo
+import io.pelle.sak.api.storage.model.BlobListEntry
+import io.pelle.sak.api.storage.model.BlobPath
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -24,6 +24,7 @@ import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
 import java.time.Clock
 import java.time.Duration
+import java.time.Instant
 import java.util.UUID
 import kotlin.io.path.exists
 import kotlin.io.path.isRegularFile
@@ -81,25 +82,45 @@ class FilesystemLocalStorage(
     staleAfter: Duration = DEFAULT_STALE_AFTER,
     private val clock: Clock = Clock.systemUTC(),
 ) : LocalStorage {
-    private val tmpDir = rootPath.resolve(BlobPath.STAGING_DIRECTORY)
+    private val tmpDir = rootPath.resolve(STAGING_DIRECTORY)
 
     init {
-        removeStale(staleAfter)
+        removeStale(clock.instant().minus(staleAfter))
     }
-
-    override fun write(
-        path: BlobPath,
-        content: InputStream,
-    ): BlobInfo = write(path) { output -> content.use { it.copyTo(output) } }
 
     override fun write(
         path: BlobPath,
         content: (OutputStream) -> Unit,
     ): BlobInfo {
-        val target = resolve(path)
-        if (Files.isDirectory(target)) throw BlobPathConflictException(path)
-        Files.createDirectories(tmpDir)
+        if (Files.isDirectory(resolve(path))) throw BlobPathConflictException(path)
+        return commit(staged(content), path)
+    }
 
+    override fun stage(content: InputStream): StagedWrite {
+        val staged = staged { output -> content.use { it.copyTo(output) } }
+        return object : StagedWrite {
+            override val info = info(staged)
+
+            override fun commit(path: BlobPath) = commit(staged, path)
+
+            override fun discard() {
+                Files.deleteIfExists(staged)
+            }
+        }
+    }
+
+    // the staged files older than before, as a write that never ended leaves them
+    override fun removeStale(before: Instant): Int {
+        var removed = 0
+        walk(tmpDir) { file, attributes ->
+            if (attributes.lastModifiedTime().toInstant().isBefore(before) && Files.deleteIfExists(file)) removed++
+        }
+        return removed
+    }
+
+    // what content writes, in a file of its own in the staging directory, on the disk
+    private fun staged(content: (OutputStream) -> Unit): Path {
+        Files.createDirectories(tmpDir)
         val staged = tmpDir.resolve(UUID.randomUUID().toString())
         try {
             FileChannel.open(staged, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW).use { channel ->
@@ -112,8 +133,18 @@ class FilesystemLocalStorage(
             Files.deleteIfExists(staged)
             throw e
         }
-        // the parent only now, a write that fails before leaves no directory behind
+        return staged
+    }
+
+    // the staged file moved to the path at once; the parent only now, a write that fails before leaves
+    // no directory behind. A failed move removes the staged file
+    private fun commit(
+        staged: Path,
+        path: BlobPath,
+    ): BlobInfo {
+        val target = resolve(path)
         try {
+            if (Files.isDirectory(target)) throw BlobPathConflictException(path)
             createParent(target, path)
             moveIntoPlace(staged, target, path)
         } catch (e: Throwable) {
@@ -121,7 +152,6 @@ class FilesystemLocalStorage(
             throw e
         }
         fsyncDirectory(target.parent)
-
         return info(target)
     }
 
@@ -166,13 +196,6 @@ class FilesystemLocalStorage(
         }
     }
 
-    override fun content(path: BlobPath): BlobContent? {
-        val info = stat(path) ?: return null
-        return BlobContent(info.size) {
-            openRange(path, 0, info.size, info.size) ?: throw NoSuchFileException(path.toString())
-        }
-    }
-
     override fun stat(path: BlobPath): BlobInfo? {
         val file = resolve(path)
         if (!file.isRegularFile()) return null
@@ -211,10 +234,11 @@ class FilesystemLocalStorage(
         return info(target)
     }
 
-    override fun delete(path: BlobPath) {
+    override fun delete(path: BlobPath): Boolean {
         val file = resolve(path)
-        Files.deleteIfExists(file)
+        val deleted = Files.deleteIfExists(file)
         pruneEmptyParents(file.parent)
+        return deleted
     }
 
     override fun deleteTree(path: BlobPath) {
@@ -223,17 +247,13 @@ class FilesystemLocalStorage(
         pruneEmptyParents(dir.parent)
     }
 
-    override fun list(prefix: BlobPath): List<BlobListEntry> {
-        val entries = mutableListOf<BlobListEntry>()
-        forEach(prefix) { entries.add(it) }
-        return entries.sortedBy { it.path }
-    }
-
     override fun forEach(
         prefix: BlobPath,
         visit: (BlobListEntry) -> Unit,
     ) {
         val dir = resolve(prefix)
+        // a blob at the prefix is not below it (ST-3)
+        if (!Files.isDirectory(dir)) return
         walk(dir) { file, attributes ->
             visit(BlobListEntry(dir.relativize(file).map { it.toString() }, attributes.size(), attributes.lastModifiedTime().toInstant()))
         }
@@ -247,16 +267,6 @@ class FilesystemLocalStorage(
         } catch (_: NoSuchFileException) {
             emptyList()
         }
-    }
-
-    override fun usage(prefix: BlobPath): BlobUsage {
-        var blobs = 0L
-        var bytes = 0L
-        walk(resolve(prefix)) { _, attributes ->
-            blobs++
-            bytes += attributes.size()
-        }
-        return BlobUsage(blobs, bytes)
     }
 
     // every file below dir; a file or directory that goes while it is walked (another delete, a
@@ -307,17 +317,16 @@ class FilesystemLocalStorage(
         )
     }
 
-    // the staged files older than staleAfter
-    private fun removeStale(staleAfter: Duration) {
-        val before = clock.instant().minus(staleAfter)
-        walk(tmpDir) { file, attributes ->
-            if (attributes.lastModifiedTime().toInstant().isBefore(before)) Files.deleteIfExists(file)
-        }
-    }
-
     override fun directory(path: BlobPath): Path = resolve(path)
 
-    private fun resolve(path: BlobPath): Path = path.segments.fold(rootPath) { current, component -> current.resolve(component) }
+    // the rules of the file system of the volume, besides those of every path (BlobPath)
+    private fun resolve(path: BlobPath): Path {
+        require(path.segments.firstOrNull() != STAGING_DIRECTORY) { "'$STAGING_DIRECTORY' is reserved for staged writes" }
+        path.segments.forEach { segment ->
+            require(segment.toByteArray(Charsets.UTF_8).size <= MAX_SEGMENT_BYTES) { "the segment '$segment' is longer than a name of a file" }
+        }
+        return path.segments.fold(rootPath) { current, component -> current.resolve(component) }
+    }
 
     // a blob on the way to the target (e.g. the blob 'a' for the path 'a/b') makes the
     // directory creation fail
@@ -371,5 +380,12 @@ class FilesystemLocalStorage(
 
     companion object {
         val DEFAULT_STALE_AFTER: Duration = Duration.ofHours(1)
+
+        // where a write is staged, below the root: no path of a blob starts with it
+        const val STAGING_DIRECTORY = ".tmp"
+
+        // the longest name of a file the file systems of the data volume take, in bytes of UTF-8: a
+        // longer segment is refused before a write, not when the blob is moved into place
+        const val MAX_SEGMENT_BYTES = 255
     }
 }

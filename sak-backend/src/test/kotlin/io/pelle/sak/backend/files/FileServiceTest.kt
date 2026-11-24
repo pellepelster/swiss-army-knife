@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.files
 
+import io.pelle.sak.storage.FilesystemLocalStorage
 import io.pelle.sak.storage.WriteGuard
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.ints.shouldBeGreaterThan
@@ -8,8 +9,8 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.StoredFile
-import io.pelle.sak.storage.model.BlobContent
-import io.pelle.sak.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.BlobPath
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.Color
@@ -66,8 +67,8 @@ class FileServiceTest {
         Files.readAllBytes(stored(second)) shouldBe content
         // the uploads went, nothing but the two files and the empty staging directory stay
         Files.list(dir).use { it.toList() }.map { it.fileName.toString() }.toSet() shouldBe
-            setOf(first.resourceId.value, second.resourceId.value, BlobPath.STAGING_DIRECTORY)
-        Files.list(dir.resolve(BlobPath.STAGING_DIRECTORY)).use { it.count() } shouldBe 0
+            setOf(first.resourceId.value, second.resourceId.value, FilesystemLocalStorage.STAGING_DIRECTORY)
+        Files.list(dir.resolve(FilesystemLocalStorage.STAGING_DIRECTORY)).use { it.count() } shouldBe 0
     }
 
     @Test
@@ -139,7 +140,7 @@ class FileServiceTest {
             pool.shutdownNow()
         }
         // nothing is left staged
-        Files.list(dir.resolve(BlobPath.STAGING_DIRECTORY)).use { it.count() } shouldBe 0
+        Files.list(dir.resolve(FilesystemLocalStorage.STAGING_DIRECTORY)).use { it.count() } shouldBe 0
     }
 
     @Test

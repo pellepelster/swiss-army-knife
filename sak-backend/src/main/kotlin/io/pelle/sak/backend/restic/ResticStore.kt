@@ -3,9 +3,11 @@ package io.pelle.sak.backend.restic
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.core.logCause
 import io.pelle.sak.model.ResourceId
+import io.pelle.sak.storage.LocalBlobStore
+import io.pelle.sak.api.storage.LocalStorage
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.LocalStorage
 import java.io.InputStream
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 
@@ -57,7 +59,7 @@ class ResticStore(
     private val storage: () -> ResticFileStorage,
 ) {
     // on the data volume only
-    constructor(storage: LocalStorage, guard: WriteGuard) : this(LocalResticFileStorage(storage, guard))
+    constructor(storage: LocalStorage, guard: WriteGuard) : this(BlobResticFileStorage(LocalBlobStore(storage, guard)))
 
     constructor(storage: ResticFileStorage) : this({ storage })
 
@@ -158,6 +160,9 @@ class ResticStore(
     // instance left without their row; never deleted, nobody reaches them
     fun leftovers(known: Set<ResourceId>): List<String> = storage().leftovers(known)
 
+    // removes the uploads a stopped backend left in the storage that is the one now (ST-2); how many
+    fun removeStale(before: Instant): Int = storage().removeStale(before)
+
     // false when there was no such file
     fun delete(
         repository: ResourceId,
@@ -165,8 +170,8 @@ class ResticStore(
     ): Boolean {
         val storage = storage()
         return locked(repository) {
-            val size = storage.size(repository, file) ?: return@locked false
-            storage.delete(repository, file)
+            // the delete answers the size, one question to the storage (ST-7)
+            val size = storage.delete(repository, file) ?: return@locked false
             changed(storage, repository, -size)
             true
         }

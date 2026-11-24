@@ -1,11 +1,10 @@
-package io.pelle.sak.storage.model
+package io.pelle.sak.api.storage.model
 
 class BlobPath(
     val segments: List<String>,
 ) {
     init {
         segments.forEach { requireValidSegment(it) }
-        require(segments.firstOrNull() != STAGING_DIRECTORY) { "'$STAGING_DIRECTORY' is reserved for staged writes" }
     }
 
     fun resolve(vararg segments: String) = resolve(segments.toList())
@@ -22,13 +21,9 @@ class BlobPath(
 
     override fun hashCode() = segments.hashCode()
 
+    // the rules of every store: no empty segment, none that leads elsewhere, no slash, no NUL. A store
+    // may have more, e.g. the volume a longest name (FilesystemLocalStorage)
     companion object {
-        const val STAGING_DIRECTORY = ".tmp"
-
-        // the longest name of a file the file systems of the data volume take, in bytes of UTF-8:
-        // a longer segment is refused here, not when the blob is moved into place
-        const val MAX_SEGMENT_BYTES = 255
-
         private val NUL: Char = Char(0)
 
         fun requireValidSegment(segment: String) =
@@ -37,8 +32,7 @@ class BlobPath(
                     segment != "." &&
                     segment != ".." &&
                     !segment.contains('/') &&
-                    !segment.contains(NUL) &&
-                    segment.toByteArray(Charsets.UTF_8).size <= MAX_SEGMENT_BYTES,
+                    !segment.contains(NUL),
             ) {
                 "invalid storage path segment '$segment'"
             }

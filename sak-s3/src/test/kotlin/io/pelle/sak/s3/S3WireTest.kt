@@ -12,7 +12,7 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
-import io.pelle.sak.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.BlobPath
 import io.pelle.sak.storage.FilesystemLocalStorage
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterAll

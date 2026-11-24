@@ -7,7 +7,7 @@ import io.pelle.sak.backend.Checked
 import io.pelle.sak.backend.orElse
 import io.pelle.sak.backend.result
 import io.pelle.sak.backend.DeleteResult
-import io.pelle.sak.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.BlobContent
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.api.Page
 import io.pelle.sak.core.TextKey

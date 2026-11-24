@@ -9,7 +9,7 @@ import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import java.net.http.HttpClient
 import java.time.Duration
-import io.pelle.sak.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.BlobContent
 
 // reads the text in an image with a vision model through openrouter's chat completions; the image
 // goes along as data url, streamed from the storage (base64Body), as openrouter can not fetch it

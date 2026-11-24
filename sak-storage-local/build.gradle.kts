@@ -7,4 +7,6 @@ plugins {
 // the interface it implements, LocalStorage, and its blob paths are in sak-api
 dependencies {
     api(project(":sak-api"))
+
+    testImplementation(testFixtures(project(":sak-api")))
 }

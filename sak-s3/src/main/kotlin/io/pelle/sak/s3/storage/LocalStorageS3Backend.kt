@@ -1,11 +1,12 @@
 package io.pelle.sak.s3.storage
 
+import io.pelle.sak.storage.FilesystemLocalStorage
 import java.time.Instant
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.LocalStorage
-import io.pelle.sak.storage.model.BlobPath
-import io.pelle.sak.storage.model.BlobPathConflictException
-import io.pelle.sak.storage.model.BlobUsage
+import io.pelle.sak.api.storage.LocalStorage
+import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.BlobPathConflictException
+import io.pelle.sak.api.storage.model.BlobUsage
 import java.io.InputStream
 import java.io.SequenceInputStream
 import java.nio.file.Path
@@ -413,7 +414,7 @@ class LocalStorageS3Backend(
         if (segments.any { it.isEmpty() || it == "." || it == ".." || it.contains(NUL) }) throw InvalidKeyException(key)
         // a segment is the name of a file, the last one also of its sidecar (<name>.json)
         val bytes = segments.map { it.toByteArray(Charsets.UTF_8).size }
-        if (bytes.any { it > BlobPath.MAX_SEGMENT_BYTES } || bytes.last() + SIDECAR_SUFFIX.length > BlobPath.MAX_SEGMENT_BYTES) {
+        if (bytes.any { it > FilesystemLocalStorage.MAX_SEGMENT_BYTES } || bytes.last() + SIDECAR_SUFFIX.length > FilesystemLocalStorage.MAX_SEGMENT_BYTES) {
             throw KeyTooLongException(key)
         }
         return segments

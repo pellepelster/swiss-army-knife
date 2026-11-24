@@ -14,7 +14,7 @@ import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
-import io.pelle.sak.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.BlobPath
 import io.pelle.sak.storage.FilesystemLocalStorage
 import io.pelle.sak.storage.WriteGuard
 import kotlinx.coroutines.runBlocking
@@ -27,10 +27,11 @@ import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.HexFormat
 
-// where the files of the repositories are in a bucket and which of them count, against the S3 api of SAK
-// itself; the objects themselves, whole or not at all, are tested in S3StorageTest
+// where the files of the repositories are and which of them count, the same on every BlobStore: here in a
+// bucket, against the S3 api of SAK itself, where the repositories are below backend/data/restic. The
+// blobs themselves, whole or not at all, are the contract of a BlobStore (BlobStoreContract)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class S3ResticFileStorageTest {
+class BlobResticFileStorageTest {
     private val rootDir: Path = Files.createTempDirectory("s3-restic-test")
 
     private val access =
@@ -57,14 +58,14 @@ class S3ResticFileStorageTest {
             }
         }
 
-    private lateinit var storage: S3ResticFileStorage
+    private lateinit var storage: BlobResticFileStorage
 
     @BeforeAll
     fun start() {
         server.start()
         val port = runBlocking { server.engine.resolvedConnectors().first().port }
         // two objects a page, so a listing has more than one
-        storage = S3ResticFileStorage(S3Bucket(S3Endpoint("http://localhost:$port/s3", "fsn1"), "the-bucket", "the-deployment", "the-access-key", "the/secret+key"), pageSize = 2)
+        storage = BlobResticFileStorage.s3(S3Bucket(S3Endpoint("http://localhost:$port/s3", "fsn1"), "the-bucket", "the-deployment", "the-access-key", "the/secret+key"), pageSize = 2)
     }
 
     @AfterAll
@@ -136,8 +137,9 @@ class S3ResticFileStorageTest {
         storage.leftovers(setOf(known)).contains(repository.value) shouldBe true
         storage.leftovers(setOf(known)).contains(known.value) shouldBe false
 
-        storage.delete(repository, file) shouldBe true
-        storage.delete(repository, file) shouldBe false
+        // the size it removed, then none (ST-7)
+        storage.delete(repository, file) shouldBe 10L
+        storage.delete(repository, file) shouldBe null
         storage.size(repository, file) shouldBe null
         storage.exists(repository) shouldBe false
         storage.leftovers(setOf(known)).contains(repository.value) shouldBe false

@@ -3,6 +3,7 @@ package io.pelle.sak.backend.restic
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.storage.FilesystemLocalStorage
+import io.pelle.sak.storage.LocalBlobStore
 import io.pelle.sak.storage.WriteGuard
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -18,7 +19,7 @@ class ResticStoreTest {
     lateinit var tempDir: Path
 
     private fun storage(name: String): ResticFileStorage {
-        val volume = LocalResticFileStorage(FilesystemLocalStorage(Files.createDirectories(tempDir.resolve(name))), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0))
+        val volume = BlobResticFileStorage(LocalBlobStore(FilesystemLocalStorage(Files.createDirectories(tempDir.resolve(name))), WriteGuard({ Long.MAX_VALUE }, minFreeBytes = 0)))
         return object : ResticFileStorage by volume {
             override val place = name
         }

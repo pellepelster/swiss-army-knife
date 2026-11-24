@@ -16,8 +16,8 @@ import io.pelle.sak.backend.Secret
 import io.pelle.sak.backend.isValidDomain
 import io.pelle.sak.model.hosting.S3Bucket
 import io.pelle.sak.model.hosting.S3BucketRepository
-import io.pelle.sak.storage.LocalStorage
-import io.pelle.sak.storage.model.BlobPath
+import io.pelle.sak.api.storage.LocalStorage
+import io.pelle.sak.api.storage.model.BlobPath
 import java.security.SecureRandom
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList

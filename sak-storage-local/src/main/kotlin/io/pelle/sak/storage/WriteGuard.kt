@@ -1,7 +1,7 @@
 package io.pelle.sak.storage
 
-import io.pelle.sak.storage.model.InsufficientStorageException
-import io.pelle.sak.storage.model.EntityTooLargeException
+import io.pelle.sak.api.storage.model.InsufficientStorageException
+import io.pelle.sak.api.storage.model.EntityTooLargeException
 import java.io.FilterInputStream
 import java.io.InputStream
 

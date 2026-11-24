@@ -8,6 +8,8 @@ import io.pelle.sak.s3.storage.S3BucketStorage
 import io.pelle.sak.auth.Role
 import io.pelle.sak.backend.hosting.removeStaleUploads
 import io.pelle.sak.backend.hosting.STALE_UPLOAD_CHECK
+import java.time.Instant
+import io.pelle.sak.backend.hosting.STALE_UPLOAD_AGE
 import io.pelle.sak.core.logCause
 import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.auth.LoginListener
@@ -41,14 +43,14 @@ import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.notes.NoteService
 import io.pelle.sak.backend.grocery.GroceryService
 import io.pelle.sak.backend.todo.TodoService
-import io.pelle.sak.storage.LocalStorage
+import io.pelle.sak.api.storage.LocalStorage
 import io.pelle.sak.storage.FilesystemLocalStorage
+import io.pelle.sak.storage.LocalBlobStore
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.backend.restic.resticRest
 import io.pelle.sak.backend.restic.ResticStore
 import io.pelle.sak.backend.restic.ResticSettingsService
-import io.pelle.sak.backend.restic.LocalResticFileStorage
-import io.pelle.sak.backend.restic.S3ResticFileStorage
+import io.pelle.sak.backend.restic.BlobResticFileStorage
 import io.pelle.sak.backend.restic.ResticRepositoryService
 import io.pelle.sak.backend.restic.ResticBackupPlanService
 import io.pelle.sak.backend.restic.RESTIC_PATH_PREFIX
@@ -145,11 +147,13 @@ fun resticStore(
 ): ResticStore {
     Files.createDirectories(config.resticDir)
     val volume =
-        LocalResticFileStorage(
-            FilesystemLocalStorage(config.resticDir),
-            WriteGuard({ Files.getFileStore(config.resticDir).usableSpace }, config.minFreeBytes, ResticStore.MAX_FILE_BYTES),
+        BlobResticFileStorage(
+            LocalBlobStore(
+                FilesystemLocalStorage(config.resticDir),
+                WriteGuard({ Files.getFileStore(config.resticDir).usableSpace }, config.minFreeBytes, ResticStore.MAX_FILE_BYTES),
+            ),
         )
-    return ResticStore { s3Storage.bucket()?.takeIf { resticSettings.s3() }?.let(::S3ResticFileStorage) ?: volume }
+    return ResticStore { s3Storage.bucket()?.takeIf { resticSettings.s3() }?.let { BlobResticFileStorage.s3(it) } ?: volume }
 }
 
 fun Application.sak(config: SakConfig): SakServices {
@@ -213,6 +217,11 @@ fun Application.sak(config: SakConfig): SakServices {
     reportResticLeftovers(resticStore, resticService)
     // so the first list of the repositories does not wait for it
     jobs.once("count the repositories of restic") { resticStore.count(resticService.resourceIds()) }
+    // the uploads of packs a stopped backend left, in the bucket as on the volume (ST-2)
+    jobs.every("remove the unfinished uploads of the repositories of restic", STALE_UPLOAD_CHECK) {
+        val removed = resticStore.removeStale(Instant.now().minus(STALE_UPLOAD_AGE))
+        if (removed > 0) logger.info { "removed $removed unfinished uploads of the repositories of restic" }
+    }
 
     routing {
         route(S3_PATH_PREFIX) {

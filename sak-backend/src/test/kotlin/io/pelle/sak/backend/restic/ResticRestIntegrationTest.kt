@@ -7,7 +7,7 @@ import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
-import io.pelle.sak.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.BlobPath
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -84,7 +84,7 @@ class ResticRestIntegrationTest {
         try {
             val port = runBlocking { server.engine.resolvedConnectors().first().port }
             val bucket = S3Bucket(S3Endpoint("http://localhost:$port/s3", "fsn1"), "backups", "the-deployment", "the-access-key", "the/secret+key")
-            block(ResticStore(S3ResticFileStorage(bucket)), dir)
+            block(ResticStore(BlobResticFileStorage.s3(bucket)), dir)
         } finally {
             server.stop()
         }

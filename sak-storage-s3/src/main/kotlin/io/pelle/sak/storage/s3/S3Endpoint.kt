@@ -1,13 +1,39 @@
 package io.pelle.sak.storage.s3
 
+import com.github.davidmoten.aws.lw.client.Client
 import io.pelle.sak.core.TextKey
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 // where the requests to an S3 storage go: the url of its api without a bucket, and the region the
 // requests are signed for
 data class S3Endpoint(
     val url: String,
     val region: String,
-)
+) {
+    // the client of the storage, signing with the keys: with retries, it asks again after an answer that
+    // may be another one the next time (never after a 403); without, it asks once
+    fun client(
+        accessKey: String,
+        secretKey: String,
+        connectTimeout: Duration,
+        readTimeout: Duration,
+        retries: Boolean,
+    ): Client {
+        val signed =
+            Client
+                .s3()
+                .region(region)
+                .accessKey(accessKey)
+                .secretKey(secretKey)
+                .baseUrlFactory { _, _ -> url.trimEnd('/') + "/" }
+        val retried = if (retries) signed.retryStatusCodes(429, 500, 502, 503) else signed.retryMaxAttempts(1)
+        return retried
+            .connectTimeout(connectTimeout.toMillis(), TimeUnit.MILLISECONDS)
+            .readTimeout(readTimeout.toMillis(), TimeUnit.MILLISECONDS)
+            .build()
+    }
+}
 
 // a value to choose, e.g. a provider or a region, and its label
 data class S3Choice(

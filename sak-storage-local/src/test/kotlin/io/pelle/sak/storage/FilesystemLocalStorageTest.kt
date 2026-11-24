@@ -1,11 +1,11 @@
 package io.pelle.sak.storage
 
-import io.pelle.sak.storage.model.BlobPathConflictException
-import io.pelle.sak.storage.model.BlobChangedException
+import io.pelle.sak.api.storage.model.BlobPathConflictException
+import io.pelle.sak.api.storage.model.BlobChangedException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.storage.model.BlobPath
-import io.pelle.sak.storage.model.BlobUsage
+import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.BlobUsage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.ByteArrayInputStream
@@ -36,7 +36,7 @@ class FilesystemLocalStorageTest {
 
     private fun read(vararg segments: String) = storage.open(path(*segments))?.use { String(it.readAllBytes()) }
 
-    private fun staged() = Files.list(root.resolve(BlobPath.STAGING_DIRECTORY)).use { it.count() }
+    private fun staged() = Files.list(root.resolve(FilesystemLocalStorage.STAGING_DIRECTORY)).use { it.count() }
 
     @Test
     fun `a blob is a file below the root, a segment for each directory`() {
@@ -177,8 +177,9 @@ class FilesystemLocalStorageTest {
         Files.exists(root.resolve("x").resolve("y")) shouldBe false
         Files.exists(root.resolve("x")) shouldBe true
 
-        storage.delete(path("x", "b"))
-        storage.delete(path("x", "b"))
+        storage.delete(path("x", "b")) shouldBe true
+        // whether there was one
+        storage.delete(path("x", "b")) shouldBe false
         Files.exists(root.resolve("x")) shouldBe false
         Files.exists(root) shouldBe true
     }
@@ -214,7 +215,7 @@ class FilesystemLocalStorageTest {
         write("1", "p", "a", "z")
         write("2", "p", "b")
         write("3", "q")
-        Files.writeString(Files.createDirectories(root.resolve(BlobPath.STAGING_DIRECTORY)).resolve("running"), "xx")
+        Files.writeString(Files.createDirectories(root.resolve(FilesystemLocalStorage.STAGING_DIRECTORY)).resolve("running"), "xx")
 
         storage.children(path()) shouldBe listOf("p", "q")
         storage.children(path("p")) shouldBe listOf("a", "b")
@@ -225,7 +226,7 @@ class FilesystemLocalStorageTest {
     @Test
     fun `the root lists and counts no staged write, a tree of it keeps the root and the staged writes`() {
         write("a", "p", "a")
-        val staged = Files.writeString(Files.createDirectories(root.resolve(BlobPath.STAGING_DIRECTORY)).resolve("running"), "xx")
+        val staged = Files.writeString(Files.createDirectories(root.resolve(FilesystemLocalStorage.STAGING_DIRECTORY)).resolve("running"), "xx")
 
         storage.list(path()).map { it.path } shouldBe listOf("p/a")
         storage.usage(path()) shouldBe BlobUsage(1, 1)
@@ -239,7 +240,7 @@ class FilesystemLocalStorageTest {
     @Test
     fun `what a write left staged long ago goes when the storage starts, a write that runs stays`() {
         val now = Instant.parse("2026-11-02T12:00:00Z")
-        val staging = Files.createDirectories(root.resolve(BlobPath.STAGING_DIRECTORY))
+        val staging = Files.createDirectories(root.resolve(FilesystemLocalStorage.STAGING_DIRECTORY))
         val stale = Files.writeString(staging.resolve("stale"), "x")
         Files.setLastModifiedTime(stale, FileTime.from(now.minus(Duration.ofHours(2))))
         val running = Files.writeString(staging.resolve("running"), "x")
@@ -266,11 +267,29 @@ class FilesystemLocalStorageTest {
     @Test
     fun `a listing and a usage while blobs and their directories go leave the gone ones out`() {
         repeat(200) { write("x", "h", "d$it", "f") }
-        val deletes = (0 until 200).map { { storage.delete(path("h", "d$it", "f")) } }
+        val deletes = (0 until 200).map { { storage.delete(path("h", "d$it", "f")); Unit } }
         val reads = (0 until 200).map { { storage.list(path("h")); storage.usage(path("h")); Unit } }
 
         concurrently(deletes + reads) shouldBe emptyList()
         storage.list(path("h")) shouldBe emptyList()
+    }
+
+    @Test
+    fun `a segment is at most 255 bytes of UTF-8, the longest name of a file, on the volume only (ST-11)`() {
+        storage.write(path("a".repeat(255)), "x".byteInputStream()).size shouldBe 1
+        // a path of every store, but no name of a file on the volume
+        val long = BlobPath(listOf("a".repeat(256)))
+        shouldThrow<IllegalArgumentException> { storage.write(long, "x".byteInputStream()) }
+        // two bytes each
+        storage.write(path("ä".repeat(127)), "x".byteInputStream())
+        shouldThrow<IllegalArgumentException> { storage.write(path("ä".repeat(128)), "x".byteInputStream()) }
+    }
+
+    @Test
+    fun `the staging directory is no path of a blob on the volume, below the root it is a name like any other (ST-11)`() {
+        val staged = BlobPath(listOf(FilesystemLocalStorage.STAGING_DIRECTORY, "a"))
+        shouldThrow<IllegalArgumentException> { storage.write(staged, "x".byteInputStream()) }
+        storage.write(path("a", FilesystemLocalStorage.STAGING_DIRECTORY), "x".byteInputStream()).size shouldBe 1
     }
 
     // runs the actions on 8 threads at once, answers what they threw

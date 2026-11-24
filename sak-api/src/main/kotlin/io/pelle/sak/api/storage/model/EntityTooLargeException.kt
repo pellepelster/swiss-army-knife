@@ -1,4 +1,4 @@
-package io.pelle.sak.storage.model
+package io.pelle.sak.api.storage.model
 
 // a content larger than its store takes
 class EntityTooLargeException(

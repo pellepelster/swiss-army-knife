@@ -2,7 +2,7 @@ package io.pelle.sak.storage.s3
 
 import com.github.davidmoten.aws.lw.client.Client
 import com.github.davidmoten.aws.lw.client.Request
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 // a bucket of an S3 storage with the client that reaches it (aws-lightweight-client-java), made by
 // S3StorageManager only (EXT-1). Every object of a deployment is below the name of the deployment, so
@@ -16,17 +16,7 @@ class S3Bucket(
     private val secretKey: String,
 ) {
     // asks again after an answer that may be another one the next time, never after a 403
-    val client: Client =
-        Client
-            .s3()
-            .region(endpoint.region)
-            .accessKey(accessKey)
-            .secretKey(secretKey)
-            .baseUrlFactory { _, _ -> endpoint.url.trimEnd('/') + "/" }
-            .retryStatusCodes(429, 500, 502, 503)
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .build()
+    val client: Client = endpoint.client(accessKey, secretKey, Duration.ofSeconds(10), Duration.ofSeconds(60), retries = true)
 
     init {
         require(prefix.isNotEmpty() && '/' !in prefix) { "the prefix of the objects is one segment of a key" }

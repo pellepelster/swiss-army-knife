@@ -1,4 +1,4 @@
-package io.pelle.sak.storage.model
+package io.pelle.sak.api.storage.model
 
 // a blob can not be written where a parent of its path is a blob or where it has children
 class BlobPathConflictException(

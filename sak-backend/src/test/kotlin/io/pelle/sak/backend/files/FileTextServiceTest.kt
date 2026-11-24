@@ -7,7 +7,7 @@ import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.openrouter.SpeechTranscriber
 import io.pelle.sak.openrouter.TextRecognitionException
 import io.pelle.sak.openrouter.TextRecognizer
-import io.pelle.sak.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.BlobContent
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path

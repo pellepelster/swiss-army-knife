@@ -1,6 +1,6 @@
-package io.pelle.sak.storage.model
+package io.pelle.sak.api.storage.model
 
-import kotlinx.io.IOException
+import java.io.IOException
 
 // the blob was replaced since its size was taken
 class BlobChangedException(

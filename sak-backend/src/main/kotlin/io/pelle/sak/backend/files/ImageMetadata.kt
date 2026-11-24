@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.files
 
-import io.pelle.sak.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.BlobContent
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

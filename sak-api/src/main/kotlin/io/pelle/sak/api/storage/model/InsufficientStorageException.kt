@@ -1,4 +1,4 @@
-package io.pelle.sak.storage.model
+package io.pelle.sak.api.storage.model
 
 // the data volume has no room for the write
 class InsufficientStorageException(

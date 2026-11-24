@@ -45,12 +45,10 @@ import io.pelle.sak.model.restic.ResticBackupPlan
 import io.pelle.sak.model.restic.ResticBackupPlanValues
 import io.pelle.sak.model.restic.ResticKeep
 import io.pelle.sak.model.restic.ResticRepository
-import io.pelle.sak.storage.model.EntityTooLargeException
-import io.pelle.sak.storage.model.InsufficientStorageException
-import io.pelle.sak.storage.model.BlobChangedException
+import io.pelle.sak.api.storage.model.EntityTooLargeException
+import io.pelle.sak.api.storage.model.InsufficientStorageException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.nio.file.NoSuchFileException
 import java.time.Duration
 import java.util.Base64
 
@@ -446,14 +444,8 @@ private class ResticRequest(
             return call.respond(HttpStatusCode.RequestedRangeNotSatisfiable)
         }
         val (offset, length) = range?.let { it.first to it.last - it.first + 1 } ?: (0L to size)
-        val content =
-            try {
-                io { store.open(repository, file, offset, length, size) }
-            } catch (_: BlobChangedException) {
-                null
-            } catch (_: NoSuchFileException) {
-                null
-            } ?: return call.respond(HttpStatusCode.NotFound)
+        // null when the file is gone or another took its place since its size was taken
+        val content = io { store.open(repository, file, offset, length, size) } ?: return call.respond(HttpStatusCode.NotFound)
         call.response.header(HttpHeaders.AcceptRanges, "bytes")
         if (range != null) call.response.header(HttpHeaders.ContentRange, "bytes ${range.first}-${range.last}/$size")
         call.respondOutputStream(ContentType.Application.OctetStream, if (range == null) HttpStatusCode.OK else HttpStatusCode.PartialContent, length) {

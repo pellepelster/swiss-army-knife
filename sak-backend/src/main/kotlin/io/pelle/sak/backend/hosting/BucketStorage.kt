@@ -5,7 +5,7 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
 import io.pelle.sak.s3.storage.S3BucketPathResolver
 import io.pelle.sak.s3.storage.S3Limits
-import io.pelle.sak.storage.LocalStorage
+import io.pelle.sak.api.storage.LocalStorage
 import io.pelle.sak.storage.FilesystemLocalStorage
 import io.pelle.sak.storage.WriteGuard
 import java.nio.file.Files

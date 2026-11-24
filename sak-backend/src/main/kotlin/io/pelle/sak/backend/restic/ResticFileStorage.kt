@@ -2,9 +2,10 @@ package io.pelle.sak.backend.restic
 
 import io.pelle.sak.model.ResourceId
 import java.io.InputStream
+import java.time.Instant
 
 // the files of the repositories of restic, wherever they are kept: on the data volume
-// (LocalResticFileStorage) or in the bucket of the S3 storage (S3ResticFileStorage). ResticStore
+// or in the bucket of the S3 storage, both as BlobResticFileStorage on their BlobStore. ResticStore
 // keeps what does not depend on the place: a file is never replaced, and the bytes of a repository
 interface ResticFileStorage {
     // which storage it is, e.g. "volume": the bytes of a repository are counted for each
@@ -44,11 +45,11 @@ interface ResticFileStorage {
         maxBytes: Long,
     ): ResticStagedFile?
 
-    // false when there was no such file
+    // the size of the file it removed, null when there was none
     fun delete(
         repository: ResourceId,
         file: ResticFile,
-    ): Boolean
+    ): Long?
 
     // whether the repository has a file of one of the types
     fun hasFiles(
@@ -64,6 +65,9 @@ interface ResticFileStorage {
 
     // what is there under a resource id that is not in `known`; never deleted
     fun leftovers(known: Set<ResourceId>): List<String>
+
+    // removes the uploads a stopped backend left, started before `before` (ST-2); how many
+    fun removeStale(before: Instant): Int
 }
 
 // a file that is taken and not yet in its place

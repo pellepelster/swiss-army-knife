@@ -1,15 +1,17 @@
-package io.pelle.sak.storage
+package io.pelle.sak.api.storage
 
-import io.pelle.sak.storage.model.BlobPathConflictException
-import io.pelle.sak.storage.model.BlobChangedException
-import io.pelle.sak.storage.model.BlobContent
-import io.pelle.sak.storage.model.BlobInfo
-import io.pelle.sak.storage.model.BlobListEntry
-import io.pelle.sak.storage.model.BlobPath
-import io.pelle.sak.storage.model.BlobUsage
+import io.pelle.sak.api.storage.model.BlobPathConflictException
+import io.pelle.sak.api.storage.model.BlobChangedException
+import io.pelle.sak.api.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.BlobInfo
+import io.pelle.sak.api.storage.model.BlobListEntry
+import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.BlobUsage
 import java.io.InputStream
 import java.io.OutputStream
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
+import java.time.Instant
 
 
 // blobs at paths. A blob is written as a whole and shows at its path at once, a reader never sees half
@@ -23,13 +25,22 @@ interface LocalStorage {
     fun write(
         path: BlobPath,
         content: InputStream,
-    ): BlobInfo
+    ): BlobInfo = write(path) { output -> content.use { it.copyTo(output) } }
 
     // the same for what content writes; the stream it gets is the storage's to close
     fun write(
         path: BlobPath,
         content: (OutputStream) -> Unit,
     ): BlobInfo
+
+    // writes all of the stream to where no reader sees it, and closes the stream; the caller commits it
+    // to its path or discards it. What is never committed goes with removeStale, or when the storage
+    // starts
+    fun stage(content: InputStream): StagedWrite
+
+    // removes what was staged before `before` and never committed or discarded, e.g. by a write the
+    // backend stopped in; how many
+    fun removeStale(before: Instant): Int
 
     // the blob at the path to read, the caller closes it; null when there is none
     fun open(path: BlobPath): InputStream?
@@ -55,15 +66,19 @@ interface LocalStorage {
     ): BlobInfo?
 
     // removes the blob at the path, nothing when there is none. A path with blobs below it is no blob:
-    // it fails, deleteTree removes those
-    fun delete(path: BlobPath)
+    // it fails, deleteTree removes those. Whether there was one
+    fun delete(path: BlobPath): Boolean
 
     // removes every blob below the path and the blob at it, nothing when there is none
     fun deleteTree(path: BlobPath)
 
     // every blob below the prefix, relative to it, sorted by its path; none when there is nothing. It
     // holds them all: forEach is for a listing too large for that
-    fun list(prefix: BlobPath): List<BlobListEntry>
+    fun list(prefix: BlobPath): List<BlobListEntry> {
+        val entries = mutableListOf<BlobListEntry>()
+        forEach(prefix) { entries.add(it) }
+        return entries.sortedBy { it.path }
+    }
 
     // every blob below the prefix, relative to it, in no order and without keeping them: for a listing
     // too large to hold, e.g. the packs of a repository of restic
@@ -77,15 +92,38 @@ interface LocalStorage {
     fun children(path: BlobPath): List<String>
 
     // counted without listing every blob, blobs that disappear while counting are left out
-    fun usage(prefix: BlobPath): BlobUsage
+    fun usage(prefix: BlobPath): BlobUsage {
+        var blobs = 0L
+        var bytes = 0L
+        forEach(prefix) {
+            blobs++
+            bytes += it.size
+        }
+        return BlobUsage(blobs, bytes)
+    }
 
     // the content of the blob at the path, null when there is none; its open() fails with a
     // NoSuchFileException when the blob went since, with a BlobChangedException when another
     // replaced it
-    fun content(path: BlobPath): BlobContent?
+    fun content(path: BlobPath): BlobContent? {
+        val info = stat(path) ?: return null
+        return BlobContent(info.size) {
+            openRange(path, 0, info.size, info.size) ?: throw NoSuchFileException(path.toString())
+        }
+    }
 
     // the directory on disk the blobs below the path are in, for a reader that reads them there
     // itself; it must not write there
     fun directory(path: BlobPath): Path
 }
 
+// a content written where no reader sees it, until it is committed to its path at once
+interface StagedWrite {
+    val info: BlobInfo
+
+    // moves it to the path, replacing a blob there; a BlobPathConflictException as for a write
+    fun commit(path: BlobPath): BlobInfo
+
+    // removes it; nothing after a commit
+    fun discard()
+}

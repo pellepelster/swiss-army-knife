@@ -1,9 +1,7 @@
 package io.pelle.sak.storage.s3
 
-import com.github.davidmoten.aws.lw.client.Client
 import com.github.davidmoten.aws.lw.client.HttpMethod
 import java.time.Duration
-import java.util.concurrent.TimeUnit
 
 enum class S3KeyStatus {
     // the bucket is there and the keys may use it
@@ -41,17 +39,7 @@ class HeadBucketKeyCheck(
         accessKey: String,
         secretKey: String,
     ): S3KeyStatus {
-        val client =
-            Client
-                .s3()
-                .region(endpoint.region)
-                .accessKey(accessKey)
-                .secretKey(secretKey)
-                .baseUrlFactory { _, _ -> endpoint.url.trimEnd('/') + "/" }
-                .retryMaxAttempts(1)
-                .connectTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
-                .readTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
-                .build()
+        val client = endpoint.client(accessKey, secretKey, timeout, timeout, retries = false)
         val status =
             try {
                 client.path(bucket).method(HttpMethod.HEAD).response().statusCode()

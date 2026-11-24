@@ -6,7 +6,7 @@ import io.kotest.matchers.shouldBe
 import io.pelle.sak.backend.restic.ResticFile
 import io.pelle.sak.backend.restic.ResticFileSaveResult
 import io.pelle.sak.backend.restic.ResticStore
-import io.pelle.sak.backend.restic.S3ResticFileStorage
+import io.pelle.sak.backend.restic.BlobResticFileStorage
 import io.pelle.sak.model.ResourceId
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -35,7 +35,7 @@ class S3BucketIntegrationTest {
             System.getenv("HETZNER_S3_SECRET_KEY").orEmpty(),
         )
 
-    private val storage = S3ResticFileStorage(bucket, pageSize = 2)
+    private val storage = BlobResticFileStorage.s3(bucket, pageSize = 2)
 
     private val store = ResticStore(storage)
 

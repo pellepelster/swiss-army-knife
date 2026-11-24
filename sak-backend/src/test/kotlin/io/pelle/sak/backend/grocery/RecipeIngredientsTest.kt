@@ -3,7 +3,7 @@ package io.pelle.sak.backend.grocery
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.openrouter.OpenRouterIngredientRecognizer
-import io.pelle.sak.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.BlobContent
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.booleanOrNull

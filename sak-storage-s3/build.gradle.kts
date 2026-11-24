@@ -11,7 +11,8 @@ dependencies {
     // its client and requests are part of S3Bucket
     api(libs.aws.lightweight.client)
 
-    // a local S3 api to check keys against
+    testImplementation(testFixtures(project(":sak-api")))
+    // a local S3 api to check keys and keep objects
     testImplementation(project(":sak-s3"))
     testImplementation(project(":sak-storage-local"))
     testImplementation(libs.ktor.server.netty)
