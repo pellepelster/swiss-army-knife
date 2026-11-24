@@ -11,7 +11,7 @@ data class StorageUsage(
 )
 
 // what keeps data and tells how much
-interface StorageUsageReporter {
+fun interface StorageUsageReporter {
     // counted live, on each call
     fun storageUsage(): StorageUsage
 }

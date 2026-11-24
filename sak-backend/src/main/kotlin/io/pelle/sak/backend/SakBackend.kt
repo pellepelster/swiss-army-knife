@@ -34,6 +34,7 @@ import io.pelle.sak.backend.notes.NotesSettingsService
 import io.pelle.sak.backend.settings.SettingsRegistry
 import io.pelle.sak.backend.openrouter.OpenRouterManager
 import io.pelle.sak.backend.storage.S3StorageManager
+import io.pelle.sak.backend.storage.StorageUsageService
 import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService
@@ -125,6 +126,8 @@ class SakServices(
     val bucketStorage: S3BucketStorage,
     // where the backend runs what it does on its own
     val jobs: BackgroundJobs,
+    // what the storages keep
+    val storageUsage: StorageUsageService,
     // the roles of an address, asked with every request of a session; none without a login
     val rolesOf: ((email: String) -> Set<Role>)?,
 ) {
@@ -195,10 +198,11 @@ fun Application.sak(config: SakConfig): SakServices {
     val labelService = LabelService(database)
     // the guard asks the volume of the directory, so it is there before the first upload
     Files.createDirectories(config.filesDir)
+    val fileStorage = FilesystemLocalStorage(config.filesDir)
     val fileService =
         FileService(
             database,
-            config.filesDir,
+            fileStorage,
             guard = WriteGuard({ Files.getFileStore(config.filesDir).usableSpace }, config.minFreeBytes, FileService.DEFAULT_MAX_SIZE),
         )
     val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber, notesSettings::aiEnabled)
@@ -213,6 +217,9 @@ fun Application.sak(config: SakConfig): SakServices {
     val resticBackupPlanService = ResticBackupPlanService(database)
     val accessCallback = BucketKeysAccessCallback(bucketService)
     bucketService.start(jobs, storage)
+    // what the storages keep, counted now and every 15 minutes
+    val storageUsage = StorageUsageService(mapOf("files" to fileStorage, "buckets" to bucketBlobs, "restic" to resticStore), jobs)
+    storageUsage.start()
     reportLeftovers(bucketService, fileService)
     reportResticLeftovers(resticStore, resticService)
     // so the first list of the repositories does not wait for it
@@ -254,6 +261,7 @@ fun Application.sak(config: SakConfig): SakServices {
             accessLogsManager = AccessLogsManager(config.logs.victorialogsUrl),
             bucketStorage = storage,
             jobs = jobs,
+            storageUsage = storageUsage,
             rolesOf = rolesOf,
         )
 

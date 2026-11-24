@@ -18,7 +18,7 @@ import java.time.Instant
 // of one; what a write that ended without its blob left behind (e.g. the backend stopped) goes when
 // the storage starts. A path has a blob or blobs below it, never both. A path that has neither is not
 // there: the storage keeps no empty directory, a delete or a move takes away what it leaves empty
-interface LocalStorage {
+interface LocalStorage : StorageUsageReporter {
     // writes all of the stream as the blob at the path, replacing a blob there, and closes the stream.
     // A BlobPathConflictException when the path has blobs below it or a blob is on the way to it; a
     // write that fails leaves the blob that was there
@@ -110,6 +110,12 @@ interface LocalStorage {
         return BlobContent(info.size) {
             openRange(path, 0, info.size, info.size) ?: throw NoSuchFileException(path.toString())
         }
+    }
+
+    // all the blobs of the storage, counted now: its bytes and its files; a staged write is not counted
+    override fun storageUsage(): StorageUsage {
+        val usage = usage(BlobPath(emptyList()))
+        return StorageUsage(usage.bytes, usage.blobs, Instant.now())
     }
 
     // the directory on disk the blobs below the path are in, for a reader that reads them there

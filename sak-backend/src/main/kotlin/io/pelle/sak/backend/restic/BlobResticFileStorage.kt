@@ -93,6 +93,9 @@ class BlobResticFileStorage(
 
     override fun removeStale(before: Instant) = store.removeStale(before)
 
+    // all of the store, the files of restic and what else is there
+    override fun storageUsage() = store.storageUsage()
+
     companion object {
         // below the deployment in the bucket, as the directory of the repositories is on the data volume
         private val S3_ROOT = BlobPath(listOf("backend", "data", "restic"))

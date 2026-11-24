@@ -1,5 +1,6 @@
 package io.pelle.sak.backend.restic
 
+import io.pelle.sak.api.storage.StorageUsageReporter
 import io.pelle.sak.model.ResourceId
 import java.io.InputStream
 import java.time.Instant
@@ -7,7 +8,7 @@ import java.time.Instant
 // the files of the repositories of restic, wherever they are kept: on the data volume
 // or in the bucket of the S3 storage, both as BlobResticFileStorage on their BlobStore. ResticStore
 // keeps what does not depend on the place: a file is never replaced, and the bytes of a repository
-interface ResticFileStorage {
+interface ResticFileStorage : StorageUsageReporter {
     // which storage it is, e.g. "volume": the bytes of a repository are counted for each
     val place: String
 

@@ -79,13 +79,14 @@ class FileService(
         guard: WriteGuard? = null,
     ) : this(database, FilesystemLocalStorage(dir), clock, maxSize, guard)
 
-    // no resource id of a directory that is there without a file, e.g. from a restore of the instance
-    private constructor(
+    // on a storage that is also counted elsewhere (StorageUsageService); no resource id of a directory
+    // that is there without a file, e.g. from a restore of the instance
+    constructor(
         database: SakDatabase,
         storage: LocalStorage,
-        clock: Clock,
-        maxSize: Long,
-        guard: WriteGuard?,
+        clock: Clock = Clock.systemUTC(),
+        maxSize: Long = DEFAULT_MAX_SIZE,
+        guard: WriteGuard? = null,
     ) : this(FileRepository(database, clock, free = storage::isFree), storage, maxSize, guard)
 
     // the file and size whose thumbnail is being made, by its resource id and the size

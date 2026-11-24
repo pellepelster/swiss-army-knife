@@ -2,6 +2,7 @@ package io.pelle.sak.backend.restic
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.core.logCause
+import io.pelle.sak.api.storage.StorageUsageReporter
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.storage.LocalBlobStore
 import io.pelle.sak.api.storage.LocalStorage
@@ -57,7 +58,7 @@ data class ResticFile(
 // never replaced, and a reader never sees half of one
 class ResticStore(
     private val storage: () -> ResticFileStorage,
-) {
+) : StorageUsageReporter {
     // on the data volume only
     constructor(storage: LocalStorage, guard: WriteGuard) : this(BlobResticFileStorage(LocalBlobStore(storage, guard)))
 
@@ -159,6 +160,9 @@ class ResticStore(
     // what is in the storage of repositories that are not in `known`, e.g. the ones a restore of the
     // instance left without their row; never deleted, nobody reaches them
     fun leftovers(known: Set<ResourceId>): List<String> = storage().leftovers(known)
+
+    // all of the storage that is the one now: the repositories in the other one are not counted
+    override fun storageUsage() = storage().storageUsage()
 
     // removes the uploads a stopped backend left in the storage that is the one now (ST-2); how many
     fun removeStale(before: Instant): Int = storage().removeStale(before)
