@@ -1,19 +1,17 @@
 package io.pelle.sak.core
 
 import androidx.annotation.StringRes
+import io.pelle.sak.api.model.ExchangeResponse
 import io.pelle.sak.api.model.InfoResponse
 import io.pelle.sak.core.api.ApiException
 import io.pelle.sak.core.api.SakApi
-import io.pelle.sak.core.qr.QrScan
+import io.pelle.sak.core.qr.QrConnect
 import io.pelle.sak.core.qr.QrSwitch
 import io.pelle.sak.core.session.PendingLogin
 import io.pelle.sak.core.session.SessionStore
 import io.pelle.sak.core.session.Stored
 import io.pelle.sak.core.update.AppUpdate
-import io.pelle.sak.core.update.UpdateException
-import io.pelle.sak.core.update.Updater
-import io.pelle.sak.core.update.isRelease
-import io.pelle.sak.core.update.newer
+import io.pelle.sak.core.update.UpdateOffer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -21,7 +19,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -89,37 +88,29 @@ interface AppScreen : Screen {
     ): AppScreen
 }
 
-// the logic every app shares, without android. An app shows its own screen once the user is signed in
-// (showApp) and reacts to the session going (the hooks). apiOf makes the api of a url with a session
-// token or none. Every change of the session (a sign-in, the sign-out, its end, another deployment)
-// counts up the epoch; what a request of an older epoch answers changes nothing
+// the logic every app shares, without android: the deployment, the sign-in, the session and its
+// requests (request), with the connect by a QR code (qr) and the update of the app (updates). An app
+// shows its own screen once the user is signed in (showApp) and reacts to the session going (the
+// hooks). apiOf makes the api of a url with a session token or none. Every change of the session (a
+// sign-in, the sign-out, its end, another deployment) counts up the epoch; what a request of an older
+// epoch answers changes nothing
 abstract class SakModel<A : SakApi>(
-    protected val store: SessionStore,
+    setup: SakSetup,
     protected val apiOf: (url: String, token: String?) -> A,
-    protected val scope: CoroutineScope,
-    // the debug build takes a whole url of the api, e.g. of the backend of local:run
-    private val allowUrl: Boolean,
-    protected val clock: Clock = Clock.systemUTC(),
-    // the version of the app, 1.4.2 of a release, latest of every other build
-    private val appVersion: String = "latest",
-    // none in the build of google play, which updates the app itself: the model offers no update
-    private val updater: Updater? = Updater { error("no updater") },
-    // the nonce of each login request
-    private val nonce: () -> String = ::randomNonce,
 ) {
+    protected val store: SessionStore = setup.store
+    protected val scope: CoroutineScope = setup.scope
+    protected val clock: Clock = setup.clock
+    private val allowUrl = setup.allowUrl
+    private val lasting = setup.lasting
+    private val nonce = setup.nonce
+
     protected val state = MutableStateFlow<Screen>(Screen.Starting)
 
-    // the app updates itself to the version of the deployment, not in the build of google play (UX-13)
-    val updates: Boolean get() = updater != null
     val screen: StateFlow<Screen> = state.asStateFlow()
 
-    // where work goes that must not end with the screen, e.g. the last save when the app closes; the
-    // scope of the process in the app (SakProcess), the scope of the model in the tests
-    var lasting: CoroutineScope = scope
-
-    // the activity stopped for a change of the configuration, e.g. a rotation: the next one that starts
-    // is the same app in the foreground (SakActivity)
-    internal var configurationChanging = false
+    // the changes that wait for their undo, committed and dropped together (undoWindow)
+    private val undos = mutableListOf<UndoWindow<*>>()
 
     // start(), which a link of a cold start waits for, so its screen does not come after the app's
     private var starting: Job? = null
@@ -127,20 +118,38 @@ abstract class SakModel<A : SakApi>(
     // one login link or QR code at a time
     private val links = Mutex()
 
-    private val scanning = MutableStateFlow<QrScan?>(null)
-
-    // the scan of a QR code of the web app, over the screen while it is open; null when closed
-    val scan: StateFlow<QrScan?> = scanning.asStateFlow()
-
-    // the code that waits for the user to confirm the switch of the session
-    private var confirming: ConnectCode? = null
-
-    // the work of the code scanned, cancelled when the scan closes
-    private var exchanging: Job? = null
-
     // counts up with every change of the session
     @Volatile
     private var epoch = 0
+
+    // the connect by the QR code of the web app; the session it brings replaces the one before (switch)
+    val qr =
+        QrConnect(
+            scope,
+            allowUrl,
+            links,
+            switchOf = { to ->
+                starting?.join()
+                val stored = store.load()
+                QrSwitch(stored.address ?: stored.apiUrl, to, if (signedIn(stored)) stored.email.orEmpty() else null)
+            },
+            discover = ::discover,
+            exchange = { url, token -> apiOf(url, null).connectExchange(token) },
+            switch = ::switch,
+        )
+
+    // the update of the app to the version of the deployment, on the screen of the app (UX-13)
+    val updates =
+        UpdateOffer(
+            scope,
+            store,
+            clock,
+            setup.appVersion,
+            setup.updater,
+            deployment = { url -> apiOf(url, null).info().version },
+            screen = { state.value as? AppScreen },
+            show = { state.value = it },
+        )
 
     // work that is done also when the screen, the activity or the model goes, e.g. a save the user
     // expects to happen
@@ -155,12 +164,39 @@ abstract class SakModel<A : SakApi>(
     // the session ended: what is still to send is not sent
     protected open fun sessionEnding() {}
 
-    // the session or the deployment went: what the app keeps of it goes (e.g. photos fetched)
-    protected open fun clearSession() {}
+    // the session or the deployment went, also for the session of a QR code: what the app keeps of it
+    // goes (e.g. photos fetched), a stream opened with the old token goes; last, after the new screen
+    // shows (endSession)
+    protected open fun sessionGone() {}
 
-    // the session or the deployment changed, e.g. a stream opened with the old token goes; after the
-    // screen changed
-    protected open fun sessionChanged() {}
+    // a change that waits for its undo of millis (UX-4.2): committed when the app goes to the
+    // background and before the sign-out, dropped when the session ended
+    protected fun <T : Any> undoWindow(
+        millis: () -> Long,
+        send: (T) -> Job,
+    ): UndoWindow<T> = UndoWindow(scope, millis, send).also { undos += it }
+
+    // the changes that wait for their undo are sent now; their requests
+    protected fun commitUndos(): List<Job> = undos.mapNotNull { it.commit() }
+
+    // the requests of the changes committed last, e.g. for a load to wait for
+    protected fun committedUndos(): List<Job> = undos.mapNotNull { it.committed }
+
+    // the app is seen, also on its first start; not again after a rotation (SakActivity)
+    open fun foreground() {}
+
+    // the app is no longer seen, not on a rotation: what waits for its undo is sent now, it would be
+    // lost with the app
+    open fun background() {
+        commitUndos()
+    }
+
+    // the user leaves the session: what waits for its undo is sent first, then what the app still has
+    private suspend fun leaving() {
+        val committed = commitUndos()
+        signingOut()
+        committed.joinAll()
+    }
 
     // where the app was left: the app while the session lasts, else the sign-in, else the deployment
     fun start() {
@@ -211,123 +247,51 @@ abstract class SakModel<A : SakApi>(
         return url
     }
 
-    // the scan of a QR code opens; the ui asks for the camera now, not before
-    fun scanQr() {
-        if (scanning.value == null) scanning.value = QrScan()
+    // the session of a QR code at url replaces the one before, whose app sends first what it still has
+    // (as on the sign-out); false when it could not be stored, the session stays then
+    private suspend fun switch(
+        url: String,
+        address: String,
+        session: ExchangeResponse,
+    ): Boolean {
+        if (signedIn(store.load())) attempt { leaving() }
+        return endSession(
+            forget = { attempt { store.save(Stored(apiUrl = url, address = address)) } != null },
+            show = {
+                qr.switched()
+                signedIn(url, session.sessionToken, session.email, session.expiresAt)
+            },
+        )
     }
 
-    // the scan closes, what its code still asked of the deployment changes nothing
-    fun closeScan() {
-        exchanging?.cancel()
-        exchanging = null
-        confirming = null
-        scanning.value = null
-    }
-
-    // the camera was refused, or allowed in the settings of the app afterwards
-    fun cameraDenied() = scanning.update { it?.copy(denied = true) }
-
-    fun cameraAllowed() = scanning.update { it?.copy(denied = false) }
-
-    // after a code that did not sign in: the next code is taken
-    fun scanAgain() = scanning.update { if (it?.busy == false && it.confirm == null) it.copy(error = null) else it }
-
-    // the text of a QR code the camera read: a code of the web app (connectCode) signs in to its
-    // deployment once the user confirmed it, the address of the code shown: any host can make a code
-    // (SECURITY-3), and a session there or elsewhere is replaced. One code at
-    // a time: the camera reads the same code again and again, it is taken while nothing else runs and
-    // no error waits for the user (scanAgain)
-    fun signInWithQr(text: String) {
-        val current = scanning.value ?: QrScan()
-        if (current.busy || current.confirm != null || current.error != null) return
-        val code = connectCode(text, allowUrl)
-        if (code == null) {
-            scanning.value = current.copy(error = uiText(R.string.error_qr_no_sak))
-            return
-        }
-        scanning.value = current.copy(busy = true)
-        exchanging =
-            scope.launch {
-                starting?.join()
-                val stored = store.load()
-                confirming = code
-                val from = stored.address ?: stored.apiUrl
-                val user = if (signedIn(stored)) stored.email.orEmpty() else null
-                scanning.update { it?.copy(busy = false, confirm = QrSwitch(from, code.address, user)) }
-            }
-    }
-
-    // the user confirmed that the code replaces the session
-    fun confirmQr() {
-        val code = confirming ?: return
-        confirming = null
-        scanning.update { it?.copy(busy = true, confirm = null) }
-        exchanging = scope.launch { exchange(code) }
-    }
-
-    // the code of a QR code exchanged at its deployment; the session it brings replaces the one before,
-    // whose app sends first what it still has (as on the sign-out). A failure leaves the session as it
-    // was and says why
-    private suspend fun exchange(code: ConnectCode) =
-        links.withLock {
-            val unreachable = uiText(R.string.error_qr_unreachable, code.address)
-            val url =
-                try {
-                    discover(code.address)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    return@withLock qrFailed(unreachable)
-                }
-            val exchanged =
-                try {
-                    apiOf(url, null).connectExchange(code.token)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: ApiException) {
-                    return@withLock qrFailed(
-                        when (e.status) {
-                            401 -> uiText(R.string.error_qr_invalid)
-                            429 -> uiText(R.string.error_too_many_attempts)
-                            else -> e.text
-                        },
-                    )
-                } catch (e: IOException) {
-                    return@withLock qrFailed(unreachable)
-                } catch (e: Exception) {
-                    return@withLock qrFailed(uiText(R.string.error_qr_not_used))
-                }
-            // the code is used up: the switch is done also when the scan closes meanwhile
-            withContext(NonCancellable) {
-                if (signedIn(store.load())) runCatchingNonCancel { signingOut() }
-                epoch++
-                try {
-                    store.save(Stored(apiUrl = url, address = code.address))
-                } catch (e: Exception) {
-                    return@withContext qrFailed(uiText(R.string.error_qr_not_used))
-                }
-                clearSession()
-                confirming = null
-                scanning.value = null
-                signedIn(url, exchanged.sessionToken, exchanged.email, exchanged.expiresAt)
-                sessionChanged()
-            }
-        }
-
-    private fun qrFailed(text: UiText) {
-        scanning.update { it?.copy(busy = false, error = text) }
+    // the session goes, in one order for each of its ends (changeDeployment, signOut, sessionEnded, the
+    // switch by a QR code): what it still answers changes nothing (the epoch), forget lets go of what is
+    // kept of it (false when it could not: nothing more changes), the new screen shows (show), then the
+    // hook of the app (sessionGone). The hook goes last: the change stream calls sessionEnded from its
+    // job, which the restart of the stream in sessionGone cancels, so nothing that suspends may follow
+    private suspend fun endSession(
+        forget: suspend () -> Boolean,
+        show: suspend () -> Unit,
+    ): Boolean {
+        epoch++
+        if (!forget()) return false
+        show()
+        sessionGone()
+        return true
     }
 
     // back to the deployment, the session and a pending login go; what is still asked of the old
     // deployment changes nothing
     fun changeDeployment() =
         scope.launch {
-            epoch++
-            // a store that fails to write is no reason to stay
-            runCatchingNonCancel { store.save(Stored()) }
-            clearSession()
-            sessionChanged()
-            state.value = Screen.Deployment()
+            endSession(
+                forget = {
+                    // a store that fails to write is no reason to stay
+                    attempt { store.save(Stored()) }
+                    true
+                },
+                show = { state.value = Screen.Deployment() },
+            )
         }
 
     // a link to the address, with a nonce of this request; also again to the same address
@@ -446,79 +410,20 @@ abstract class SakModel<A : SakApi>(
     // does not keep the user signed in
     fun signOut() =
         scope.launch {
-            runCatchingNonCancel { signingOut() }
-            epoch++
-            store.update { it.copy(token = null, email = null, expiresAt = null, pending = null, app = emptyMap()) }
-            clearSession()
-            sessionChanged()
-            showSignIn(store.load())
+            attempt { leaving() }
+            endSession(
+                forget = {
+                    store.update { it.withoutSession().copy(pending = null) }
+                    true
+                },
+                show = { showSignIn(store.load()) },
+            )
         }
-
-    // the check for updates of the menu: the version of the deployment asked for again; a newer one is
-    // offered as on the start, else the app says why there is none
-    fun checkUpdate() {
-        if (!updates) return
-        val app = state.value as? AppScreen ?: return
-        if (app.update != null) return
-        state.value = app.withUpdate(null, uiText(R.string.update_checking))
-        scope.launch {
-            val notice =
-                try {
-                    val url = store.load().apiUrl ?: return@launch
-                    val deployment = apiOf(url, null).info().version
-                    val version = newer(appVersion, deployment)
-                    when {
-                        version != null -> {
-                            (state.value as? AppScreen)?.let { state.value = it.withUpdate(AppUpdate(version), null) }
-                            return@launch
-                        }
-                        !isRelease(appVersion) -> uiText(R.string.update_app_no_release)
-                        !isRelease(deployment) -> uiText(R.string.update_deployment_no_release)
-                        else -> uiText(R.string.update_current, appVersion)
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    failure(e, R.string.error_deployment_unreachable)
-                }
-            (state.value as? AppScreen)?.let { state.value = it.withUpdate(it.update, notice) }
-        }
-    }
-
-    fun dismissUpdateNotice() {
-        (state.value as? AppScreen)?.let { state.value = it.withUpdate(it.update, null) }
-    }
-
-    // the app of the version of the deployment is downloaded and handed to the installer of android,
-    // which asks the user; the app ends when it is installed
-    fun update() {
-        val updater = updater ?: return
-        val app = state.value as? AppScreen ?: return
-        val update = app.update ?: return
-        if (update.busy) return
-        state.value = app.withUpdate(update.copy(busy = true, error = null), app.updateNotice)
-        scope.launch {
-            val error =
-                try {
-                    updater.install(update.version)
-                    null
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: IOException) {
-                    uiText(R.string.error_update_not_downloaded)
-                } catch (e: UpdateException) {
-                    e.text
-                } catch (e: Exception) {
-                    uiText(R.string.error_update_not_installed)
-                }
-            (state.value as? AppScreen)?.let { state.value = it.withUpdate(update.copy(busy = false, error = error), it.updateNotice) }
-        }
-    }
 
     // a request of the signed in user with the api of their session; nothing without one, e.g. signed
     // out meanwhile. A session that ended leads to the sign-in, another failure goes to failed with
     // its text, or the fallback when it has none; the answer of a session that is no longer the one
-    // stored changes nothing. The answer, null when there is none
+    // stored changes nothing, also when it worked. The answer, null when there is none
     protected suspend fun <T> request(
         @StringRes fallback: Int,
         failed: (UiText) -> Unit,
@@ -529,7 +434,7 @@ abstract class SakModel<A : SakApi>(
         val token = stored.token ?: return null
         val since = epoch
         return try {
-            call(apiOf(url, token))
+            call(apiOf(url, token)).takeIf { since == epoch }
         } catch (e: CancellationException) {
             throw e
         } catch (e: ApiException) {
@@ -544,9 +449,9 @@ abstract class SakModel<A : SakApi>(
         }
     }
 
-    // the session ended: the sign-in says why; what the app reacts with after the screen changed goes
-    // last, e.g. the stream of the old session, which may be the one that found the end. token is the
-    // one that was refused: a newer session stored meanwhile stays; null ends any
+    // the session ended: the sign-in says why, what waits for its undo and what the app still has to
+    // send are not sent. token is the one that was refused: a newer session stored meanwhile stays;
+    // null ends any
     protected suspend fun sessionEnded(
         e: ApiException,
         token: String? = null,
@@ -557,27 +462,25 @@ abstract class SakModel<A : SakApi>(
                 it
             } else {
                 ended = true
-                it.copy(token = null, email = null, expiresAt = null, app = emptyMap())
+                it.withoutSession()
             }
         }
         if (!ended) return
-        epoch++
-        sessionEnding()
-        clearSession()
-        showSignIn(store.load(), error = e.text)
-        sessionChanged()
+        endSession(
+            forget = {
+                undos.forEach { it.drop() }
+                sessionEnding()
+                true
+            },
+            show = { showSignIn(store.load(), error = e.text) },
+        )
     }
 
     // the text of a failure: the one the backend sent, a lost connection, else the fallback
     protected fun failure(
         e: Exception,
         @StringRes fallback: Int,
-    ): UiText =
-        when (e) {
-            is ApiException -> e.text
-            is IOException -> uiText(R.string.error_connection)
-            else -> uiText(fallback)
-        }
+    ): UiText = failureText(e, fallback)
 
     // the session of a sign-in at url; a login link that was pending is used up. Nothing when the
     // deployment changed meanwhile
@@ -602,32 +505,24 @@ abstract class SakModel<A : SakApi>(
         startApp(store.load())
     }
 
-    // a failure of a hook or the store is not the end of what called it
-    private suspend fun runCatchingNonCancel(block: suspend () -> Unit) {
-        try {
-            block()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-        }
-    }
+    // the screen of the app once the start is done, null when it starts with another screen (the
+    // deployment, the sign-in)
+    protected suspend fun awaitApp(): AppScreen? = state.first { it !is Screen.Starting } as? AppScreen
 
     private fun signedIn(stored: Stored) = stored.token != null && stored.expiresAt?.isAfter(clock.instant()) == true
 
-    // the screen of the app, the name of the user and the update the deployment offers
+    // the screen of the app, the name of the user and the update the deployment offers (updates)
     private fun startApp(stored: Stored) {
         showApp(stored)
+        // what is answered for another session than the one shown changes nothing
+        val since = epoch
         // the name an admin gave the user, shown instead of the address; without it the address stays
         scope.launch {
             val url = stored.apiUrl ?: return@launch
-            val name = runCatching { apiOf(url, stored.token).whoAmI().name }.getOrNull() ?: return@launch
-            (state.value as? AppScreen)?.let { state.value = it.withUser(name) }
+            val name = attempt { apiOf(url, stored.token).whoAmI().name } ?: return@launch
+            if (since == epoch) (state.value as? AppScreen)?.let { state.value = it.withUser(name) }
         }
-        if (updates) scope.launch {
-            val url = stored.apiUrl ?: return@launch
-            val version = runCatching { newer(appVersion, apiOf(url, null).info().version) }.getOrNull() ?: return@launch
-            (state.value as? AppScreen)?.let { state.value = it.withUpdate(AppUpdate(version), it.updateNotice) }
-        }
+        updates.started(stored) { since == epoch }
     }
 
     protected suspend fun showSignIn(
@@ -651,9 +546,21 @@ abstract class SakModel<A : SakApi>(
     }
 
     companion object {
-        val NOT_ASKED = uiText(R.string.error_not_asked)
+        // the minutes a login this app asked for is taken (PENDING_FOR)
+        val NOT_ASKED = uiText(R.string.error_not_asked, PENDING_FOR.toMinutes())
     }
 }
+
+// the text of a failure: the one the backend sent, a lost connection, else the fallback
+internal fun failureText(
+    e: Exception,
+    @StringRes fallback: Int,
+): UiText =
+    when (e) {
+        is ApiException -> e.text
+        is IOException -> uiText(R.string.error_connection)
+        else -> uiText(fallback)
+    }
 
 // whether the deployment runs in the multi user mode (UX-7)
 private fun InfoResponse.UserMode.multiUser() = this == InfoResponse.UserMode.MULTI

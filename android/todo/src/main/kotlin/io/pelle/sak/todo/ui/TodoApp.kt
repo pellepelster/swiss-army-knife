@@ -7,25 +7,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.core.ui.Busy
 import io.pelle.sak.core.ui.ListSettingsScreen
-import io.pelle.sak.core.ui.ListTexts
 import io.pelle.sak.core.ui.ListsHome
 import io.pelle.sak.core.ui.UndoTime
 import io.pelle.sak.todo.ListsScreen
+import io.pelle.sak.todo.TODO_TEXTS
 import io.pelle.sak.todo.R
 import io.pelle.sak.todo.TodoModel
 import io.pelle.sak.todo.UNDO_MS
 import io.pelle.sak.todo.summary
-
-// the texts of the app on the screens of the lists of core
-internal val TODO_TEXTS =
-    ListTexts(
-        appName = R.string.todo_app_name,
-        create = R.string.todo_form_create,
-        allLists = R.string.todo_all_lists,
-        chooseIcon = R.string.todo_form_choose_icon,
-        noIcon = R.string.todo_form_no_icon,
-        deleteList = R.string.todo_form_delete_list,
-    )
 
 @Composable
 fun TodoApp(model: TodoModel) {

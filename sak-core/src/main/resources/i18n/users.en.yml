@@ -1,7 +1,7 @@
 # the texts of the catalog users in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 invalid_email: "An e-mail address like name@example.org is needed."
 invalid_name: "A user name must have at most %{max} characters and no control characters."
-exists: "A user of the address exists."
+exists: "A user with this address already exists."
 not_a_user: "There is no such user."
 no_mail_server: "No mail server is set up, no e-mail is sent."
 app_link_not_sent: "The e-mail could not be sent, check the mail server."

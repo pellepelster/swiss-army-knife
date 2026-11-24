@@ -30,7 +30,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -80,12 +79,12 @@ fun SakContent(
     content: @Composable () -> Unit,
 ) {
     val screen by model.screen.collectAsStateWithLifecycle()
-    val scan by model.scan.collectAsStateWithLifecycle()
+    val scan by model.qr.scan.collectAsStateWithLifecycle()
     val open = scan
     Box(Modifier.fillMaxSize()) {
         Box(if (open != null) Modifier.fillMaxSize().clearAndSetSemantics {} else Modifier.fillMaxSize()) {
             when (val current = screen) {
-                is Screen.Deployment -> DeploymentScreen(appName, current, model::connect, model::scanQr)
+                is Screen.Deployment -> DeploymentScreen(appName, current, model::connect, model.qr::open)
                 is Screen.SignIn -> SignInScreen(current, model)
                 else -> content()
             }
@@ -111,7 +110,7 @@ fun QrScanScreen(
     val permission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
             granted = allowed
-            if (allowed) model.cameraAllowed() else model.cameraDenied()
+            if (allowed) model.qr.cameraAllowed() else model.qr.cameraDenied()
         }
     LaunchedEffect(Unit) {
         if (!granted && !asked) {
@@ -123,14 +122,13 @@ fun QrScanScreen(
     LifecycleResumeEffect(Unit) {
         if (!granted && context.mayUseCamera()) {
             granted = true
-            model.cameraAllowed()
+            model.qr.cameraAllowed()
         }
         onPauseOrDispose {}
     }
     // the keyboard of the field below goes
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) { keyboard?.hide() }
-    BackHandler(onBack = model::closeScan)
     if (scan.denied && !granted) {
         CameraDenied(context, model)
     } else {
@@ -138,7 +136,7 @@ fun QrScanScreen(
     }
     scan.confirm?.let { switch ->
         AlertDialog(
-            onDismissRequest = model::closeScan,
+            onDismissRequest = model.qr::close,
             // a first sign-in, a switch of the deployment, or the same one again (SECURITY-3)
             title = {
                 Text(
@@ -162,13 +160,13 @@ fun QrScanScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = model::confirmQr, modifier = Modifier.testTag("qr-confirm")) {
+                TextButton(onClick = model.qr::confirm, modifier = Modifier.testTag("qr-confirm")) {
                     Text(stringResource(if (switch.new || switch.same) R.string.login_sign_in else R.string.qr_switch))
                 }
             },
             dismissButton = {
-                TextButton(onClick = model::closeScan, modifier = Modifier.testTag("qr-stay")) {
-                    Text(stringResource(if (switch.signedIn) R.string.qr_stay else R.string.qr_cancel))
+                TextButton(onClick = model.qr::close, modifier = Modifier.testTag("qr-stay")) {
+                    Text(stringResource(if (switch.signedIn) R.string.qr_stay else R.string.cancel))
                 }
             },
         )
@@ -184,18 +182,20 @@ private fun Scanner(
     camera: QrCamera,
     model: SakModel<*>,
 ) {
+    // over the camera, not a Page: its back arrow is drawn here
+    BackHandler(onBack = model.qr::close)
     var torch by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
     val hasLight = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH) }
     BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black).testTag("qr-scanner")) {
         val landscape = maxWidth > maxHeight
-        if (granted) camera.Preview(torch, model::signInWithQr, Modifier.fillMaxSize())
+        if (granted) camera.Preview(torch, model.qr::scanned, Modifier.fillMaxSize())
         Viewfinder(Modifier.fillMaxSize())
         Row(
             Modifier.align(Alignment.TopStart).fillMaxWidth().safeDrawingPadding().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FilledTonalIconButton(onClick = model::closeScan, modifier = Modifier.testTag("qr-back")) {
+            FilledTonalIconButton(onClick = model.qr::close, modifier = Modifier.testTag("qr-back")) {
                 Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.qr_back))
             }
             Spacer(Modifier.weight(1f))
@@ -226,7 +226,7 @@ private fun Scanner(
                 when {
                     scan.error != null -> {
                         Error(scan.error)
-                        Button(onClick = model::scanAgain, modifier = Modifier.testTag("qr-scan-again")) { Text(stringResource(R.string.qr_scan_again)) }
+                        Button(onClick = model.qr::scanAgain, modifier = Modifier.testTag("qr-scan-again")) { Text(stringResource(R.string.qr_scan_again)) }
                     }
                     scan.busy ->
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -269,11 +269,9 @@ private fun CameraDenied(
     Surface(Modifier.fillMaxSize().testTag("qr-denied")) {
         Page(
             stringResource(R.string.qr_scan),
-            navigationIcon = {
-                IconButton(onClick = model::closeScan, modifier = Modifier.testTag("qr-back")) {
-                    Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.qr_back))
-                }
-            },
+            onBack = model.qr::close,
+            back = stringResource(R.string.qr_back),
+            backTag = "qr-back",
         ) { padding ->
             Form(padding) {
                 Text(stringResource(R.string.qr_denied))
@@ -286,7 +284,7 @@ private fun CameraDenied(
                     },
                     modifier = Modifier.testTag("qr-settings"),
                 ) { Text(stringResource(R.string.qr_open_settings)) }
-                OutlinedButton(onClick = model::closeScan, modifier = Modifier.testTag("qr-without-code")) {
+                OutlinedButton(onClick = model.qr::close, modifier = Modifier.testTag("qr-without-code")) {
                     Text(stringResource(R.string.qr_without_code))
                 }
             }

@@ -15,10 +15,10 @@ form:
 list:
   task: "Aufgabe"
   not_added: "Die Aufgabe konnte nicht hinzugefügt werden."
-  not_done: "Die Aufgabe konnte nicht erledigt werden."
+  not_done: "Die Aufgabe konnte nicht als erledigt markiert werden."
   items_not_loaded: "Die Aufgaben konnten nicht geladen werden."
-  done_of: "%{title} erledigen"
-  purge: "Erledigte entfernen"
+  done_of: "%{title} als erledigt markieren"
+  purge: "Erledigte Aufgaben entfernen"
   purged: "Erledigte Aufgaben entfernt"
   nothing_to_purge: "Die Liste hat keine erledigten Aufgaben."
   not_purged: "Die erledigten Aufgaben konnten nicht entfernt werden."
@@ -34,7 +34,7 @@ list:
   remove_due_date: "Fälligkeitsdatum entfernen"
   no_due_date_yet: "Die Aufgabe hat kein Fälligkeitsdatum."
   due_date_not_saved: "Das Fälligkeitsdatum konnte nicht gespeichert werden."
-  due_date: "Fällig am"
+  due_date: "Fälligkeitsdatum"
   due: "fällig %{date}"
   overdue: "überfällig seit %{date}"
 priority:

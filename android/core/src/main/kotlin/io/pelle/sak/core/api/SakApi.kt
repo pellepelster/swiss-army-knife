@@ -4,6 +4,7 @@ import io.pelle.sak.api.model.ApiErrorResponse
 import io.pelle.sak.api.model.ConnectExchangeRequest
 import io.pelle.sak.api.model.ExchangeRequest
 import io.pelle.sak.api.model.ExchangeResponse
+import io.pelle.sak.api.model.FileResponse
 import io.pelle.sak.api.model.InfoResponse
 import io.pelle.sak.api.model.LoginRequest
 import io.pelle.sak.api.model.PasswordLoginRequest
@@ -35,6 +36,7 @@ import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.readLine
 import io.pelle.sak.core.R
+import io.pelle.sak.core.attempt
 import io.pelle.sak.core.UiText
 import io.pelle.sak.core.uiText
 import kotlinx.coroutines.flow.Flow
@@ -156,11 +158,26 @@ open class SakApi(
                 session()
             }.answer(R.string.error_user_not_read)
 
+    // a file of the user, e.g. a scaled jpeg or a wav; answers its id. failure is the text of a failure
+    suspend fun upload(
+        content: ByteArray,
+        type: ContentType,
+        @StringRes failure: Int,
+    ): FileResponse =
+        client
+            .post("$url/files") {
+                session()
+                longTransfer()
+                contentType(type)
+                setBody(content)
+            }.answer(failure)
+
     // every page of a list; a page shorter than asked for is the last, and at most MAX_PAGES are asked
-    // for, so a server that ignores the offset ends it too
+    // for, so a server that ignores the offset ends it too. query is added to each page, e.g. a filter
     protected suspend inline fun <reified T> all(
         path: String,
         @StringRes failure: Int,
+        query: Map<String, String> = emptyMap(),
     ): List<T> {
         val all = mutableListOf<T>()
         repeat(MAX_PAGES) {
@@ -168,6 +185,7 @@ open class SakApi(
                 client
                     .get(path) {
                         session()
+                        query.forEach { (name, value) -> parameter(name, value) }
                         parameter("offset", all.size)
                         parameter("limit", PAGE_LIMIT)
                     }.answer(failure)
@@ -233,7 +251,7 @@ open class SakApi(
             @StringRes failure: Int,
             @StringRes unauthorized: Int = R.string.error_session_ended,
         ): ApiException {
-            val messages = runCatching { ApiJson.decodeFromString<ApiErrorResponse>(response.bodyAsText()).errors.map { it.message } }.getOrNull()
+            val messages = attempt { ApiJson.decodeFromString<ApiErrorResponse>(response.bodyAsText()).errors.map { it.message } }
             val text =
                 when {
                     !messages.isNullOrEmpty() -> UiText.Plain(messages.joinToString(" "))

@@ -32,10 +32,13 @@
     <string name="downloading">Wird heruntergeladen…</string>
     <string name="update">Aktualisieren</string>
     <string name="update_check">Nach Updates suchen</string>
+    <string name="update_later">Später</string>
     <string name="update_checking">Suche nach Updates…</string>
     <string name="update_current">Die App ist aktuell, Version %1$s.</string>
     <string name="update_app_no_release">Dieser Build der App ist kein Release, er wird nicht aktualisiert.</string>
     <string name="update_deployment_no_release">Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App.</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="photo_close">Foto schließen</string>
     <string name="sign_in_password_hint">Bei einer SAK-Instanz mit einem Benutzer mit dem Passwort anmelden.</string>
     <string name="sign_in_email_hint">Bei einer SAK-Instanz mit mehreren Benutzern per E-Mail anmelden.</string>
     <string name="sign_in_email">Per E-Mail anmelden</string>
@@ -45,7 +48,7 @@
     <string name="qr_hint">In der Web-App angemeldet? Öffne dort „App verbinden“ und scanne den QR-Code.</string>
     <string name="qr_or_address">Oder gib die SAK-Adresse ein:</string>
     <string name="qr_point">Richte die Kamera auf den QR-Code, den die Web-App zeigt.</string>
-    <string name="qr_signing_in">Anmeldung läuft…</string>
+    <string name="qr_signing_in">Wird angemeldet…</string>
     <string name="qr_scan_again">Erneut scannen</string>
     <string name="qr_back">Zurück</string>
     <string name="qr_torch_on">Licht einschalten</string>
@@ -62,7 +65,6 @@
     <string name="qr_new_title">Bei dieser SAK-Instanz anmelden?</string>
     <string name="qr_new_text">Der QR-Code meldet dich bei %1$s an. Mach nur weiter, wenn es deine SAK-Instanz ist.</string>
     <string name="qr_switch_signed_out_text">Die App ist für %1$s eingerichtet. Der QR-Code meldet dich stattdessen bei %2$s an.</string>
-    <string name="qr_cancel">Abbrechen</string>
     <string name="no_lists">Du hast noch keine Liste, erstelle oben mit dem Plus eine.</string>
     <string name="shared_with_all">Mit allen Benutzern geteilt</string>
     <string name="shared_badge">Geteilt</string>
@@ -77,7 +79,7 @@
     <string name="error_no_sak">Das ist keine SAK-Instanz.</string>
     <string name="error_link_not_requested">Der Login-Link konnte nicht angefordert werden.</string>
     <string name="error_link_not_used">Der Login-Link konnte nicht benutzt werden.</string>
-    <string name="error_not_asked">Dieser Login-Link wurde nicht in dieser App angefordert oder ist älter als 15 Minuten. Fordere einen neuen an.</string>
+    <string name="error_not_asked">Dieser Login-Link wurde nicht in dieser App angefordert oder ist älter als %1$s Minuten. Fordere einen neuen an.</string>
     <string name="error_password_not_checked">Das Passwort konnte nicht geprüft werden.</string>
     <string name="error_password_wrong">Das Passwort ist falsch.</string>
     <string name="error_user_not_read">Der Benutzer konnte nicht gelesen werden.</string>

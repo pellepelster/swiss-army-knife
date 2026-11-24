@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- the camera writes the photo of an item into the cache of the app (ui/Photos.kt) -->
-<paths>
-    <cache-path name="photos" path="photos/" />
-</paths>

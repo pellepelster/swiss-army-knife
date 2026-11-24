@@ -1,8 +1,8 @@
 # the texts of the catalog auth in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
-invalid_email: "No valid e-mail address."
+invalid_email: "An e-mail address like name@example.org is needed."
 invalid_nonce: "An app sends a nonce of 16 to 128 characters."
 invalid_challenge: "A desktop app sends a PKCE challenge or verifier as RFC 7636 defines it."
-link_invalid: "The login link is not valid, or it was used or expired."
+link_invalid: "The login link is invalid, expired or was already used."
 code_invalid: "The QR code is not valid, or it was used or expired. Show a new one."
 wrong_password: "The password is wrong."
 mail_subject: "Sign in to %{app}"

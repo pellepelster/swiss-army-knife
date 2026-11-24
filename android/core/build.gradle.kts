@@ -1,9 +1,11 @@
 // what every android app of SAK shares
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     id("sak.android.library")
+}
+
+sakLibrary {
+    compose()
 }
 
 android {
@@ -11,10 +13,6 @@ android {
 
     // sak.android.app adds the same icons to each app
     sourceSets.getByName("main").res.srcDir(rootProject.file("../sak-theme/images/android/icons"))
-
-    buildFeatures {
-        compose = true
-    }
 }
 
 dependencies {
@@ -43,4 +41,5 @@ dependencies {
     api(project(":api"))
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

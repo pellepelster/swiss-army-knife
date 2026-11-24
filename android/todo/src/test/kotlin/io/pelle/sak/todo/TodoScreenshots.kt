@@ -7,17 +7,20 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.core.session.MemorySessionStore
-import io.pelle.sak.core.session.Stored
+import io.pelle.sak.api.model.TodoItemResponse.Priority.HIGH
+import io.pelle.sak.api.model.TodoItemResponse.Priority.LOW
 import io.pelle.sak.core.ui.SakContent
+import io.pelle.sak.testing.sakSetup
 import io.pelle.sak.testing.FakeBackend
 import io.pelle.sak.testing.Screenshots
-import io.pelle.sak.testing.URL
+import io.pelle.sak.testing.answerOn
 import io.pelle.sak.testing.fakeCamera
 import io.pelle.sak.testing.page
+import io.pelle.sak.testing.settle
+import io.pelle.sak.testing.signedIn
+import io.pelle.sak.testing.signedOut
 import io.pelle.sak.todo.ui.TodoApp
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -44,55 +47,30 @@ class TodoScreenshots {
 
     private val backend =
         FakeBackend().apply {
-            answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi"}"""
             answers["GET /todo/lists"] =
                 HttpStatusCode.OK to
                 page(
-                    list(1, "Home", "🏠", items = 5, shared = true),
-                    list(2, "Work", "💼", items = 3),
-                    """{"id":3,"name":"Garden","icon":"🌻","shared":true,"mine":false,"items":2,"createdAt":"2026-11-10T08:00:00.000Z"}""",
+                    list(1, "Home", shared = true, icon = "🏠", items = 5),
+                    list(2, "Work", icon = "💼", items = 3),
+                    list(3, "Garden", shared = true, mine = false, icon = "🌻", items = 2),
                 )
             answers["GET /todo/lists/1/items"] =
                 HttpStatusCode.OK to
                 page(
-                    item(1, "Pay the taxes", "high", "2026-05-31"),
-                    item(2, "Book the flights", "high"),
-                    item(3, "Fix the door", "normal"),
-                    item(4, "Buy a birthday gift for Anna", "normal", "2099-12-24"),
-                    item(5, "Tidy the attic", "low"),
-                    item(6, "Water the plants", "normal", done = true),
-                    item(7, "Call the plumber", "high", done = true),
+                    item(1, 1, "Pay the taxes", "2026-05-31", HIGH),
+                    item(2, 1, "Book the flights", priority = HIGH),
+                    item(3, 1, "Fix the door"),
+                    item(4, 1, "Buy a birthday gift for Anna", "2099-12-24"),
+                    item(5, 1, "Tidy the attic", priority = LOW),
+                    item(6, 1, "Water the plants", doneAt = DONE),
+                    item(7, 1, "Call the plumber", priority = HIGH, doneAt = DONE),
                 )
         }
 
-    private fun list(
-        id: Int,
-        name: String,
-        icon: String,
-        items: Int,
-        shared: Boolean = false,
-    ) = """{"id":$id,"name":"$name","icon":"$icon","shared":$shared,"mine":true,"items":$items,"createdAt":"2026-11-10T08:00:00.000Z"}"""
-
-    private fun item(
-        id: Int,
-        title: String,
-        priority: String,
-        dueDate: String? = null,
-        done: Boolean = false,
-    ) = """{"id":$id,"listId":1,"title":"$title","priority":"$priority","createdAt":"2026-11-10T08:00:00.000Z"${dueDate?.let { ",\"dueDate\":\"$it\"" } ?: ""}${if (done) ",\"doneAt\":\"2026-11-11T08:00:00Z\"" else ""}}"""
-
     private fun TestScope.signedIn(): TodoModel {
-        backend.dispatcher = StandardTestDispatcher(testScheduler)
-        val stored = Stored(apiUrl = URL, address = "https://sak.example.org", token = "t", email = "anna@example.org", expiresAt = now.plusSeconds(3600))
-        return TodoModel(MemorySessionStore(stored), backend::api, this, allowUrl = false, clock = Clock.fixed(now, ZoneOffset.UTC)).also { it.start() }
-    }
-
-    // what the app and compose started is done
-    private fun TestScope.settle() {
-        repeat(3) {
-            advanceUntilIdle()
-            compose.waitForIdle()
-        }
+        backend.answerOn(this)
+        val stored = signedIn(now.plusSeconds(3600), email = "anna@example.org")
+        return TodoModel(sakSetup(MemorySessionStore(stored), Clock.fixed(now, ZoneOffset.UTC)), backend::api).also { it.start() }
     }
 
     @Test
@@ -100,7 +78,7 @@ class TodoScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
-            screenshots.shoot("todo-lists") { settle() }
+            screenshots.shoot("todo-lists") { settle(compose) }
         }
 
     @Test
@@ -108,28 +86,28 @@ class TodoScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
-            settle()
+            settle(compose)
             model.open(1)
-            screenshots.shoot("todo-list") { settle() }
+            screenshots.shoot("todo-list") { settle(compose) }
         }
 
     @Test
     fun signIn() =
         runTest {
-            backend.dispatcher = StandardTestDispatcher(testScheduler)
-            val model = TodoModel(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org")), backend::api, this, allowUrl = false).also { it.start() }
+            backend.answerOn(this)
+            val model = TodoModel(sakSetup(MemorySessionStore(signedOut())), backend::api).also { it.start() }
             screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
-            screenshots.shoot("todo-sign-in") { settle() }
+            screenshots.shoot("todo-sign-in") { settle(compose) }
         }
 
     // the scan of the QR code of the web app, over the sign-in, the camera a fake
     private fun TestScope.scanning(): TodoModel {
         fakeCamera()
-        backend.dispatcher = StandardTestDispatcher(testScheduler)
-        val model = TodoModel(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org")), backend::api, this, allowUrl = false).also { it.start() }
+        backend.answerOn(this)
+        val model = TodoModel(sakSetup(MemorySessionStore(signedOut())), backend::api).also { it.start() }
         screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
-        settle()
-        model.scanQr()
+        settle(compose)
+        model.qr.open()
         return model
     }
 
@@ -137,7 +115,7 @@ class TodoScreenshots {
     fun scan() =
         runTest {
             scanning()
-            screenshots.shoot("todo-scan") { settle() }
+            screenshots.shoot("todo-scan") { settle(compose) }
         }
 
     @Test
@@ -145,7 +123,7 @@ class TodoScreenshots {
     fun scanLandscape() =
         runTest {
             scanning()
-            screenshots.shoot("todo-scan-land") { settle() }
+            screenshots.shoot("todo-scan-land") { settle(compose) }
         }
 
     @Test
@@ -153,9 +131,9 @@ class TodoScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
-            settle()
+            settle(compose)
             model.openSettings(1)
-            screenshots.shoot("todo-list-settings") { settle() }
+            screenshots.shoot("todo-list-settings") { settle(compose) }
         }
 
     // a phone in landscape
@@ -165,7 +143,7 @@ class TodoScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
-            screenshots.shoot("todo-lists-land") { settle() }
+            screenshots.shoot("todo-lists-land") { settle(compose) }
         }
 
     @Test
@@ -174,9 +152,9 @@ class TodoScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
-            settle()
+            settle(compose)
             model.open(1)
-            screenshots.shoot("todo-list-land") { settle() }
+            screenshots.shoot("todo-list-land") { settle(compose) }
         }
 
     // the date picker of a new task over the list, on a phone in landscape: its OK must be in reach
@@ -186,10 +164,10 @@ class TodoScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.todo_app_name)) { TodoApp(model) } }
-            settle()
+            settle(compose)
             model.open(1)
-            settle()
+            settle(compose)
             compose.onNodeWithTag("item-due").performClick()
-            screenshots.shoot("todo-due-picker-land", screen = true) { settle() }
+            screenshots.shoot("todo-due-picker-land", screen = true) { settle(compose) }
         }
 }

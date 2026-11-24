@@ -95,7 +95,7 @@ private fun Page.tour(
     type(locator("#smtp-test-to"), "admin@example.org")
     step("create-smtp-test")
     locator("#smtp-test button[value=send]").click()
-    assertThat(locator("#create-smtp-status")).containsText("took the test e-mail to admin@example.org")
+    assertThat(locator("#create-smtp-status")).containsText("accepted the test e-mail to admin@example.org")
     locator("#create-smtp-test").scrollIntoViewIfNeeded()
     step("create-smtp")
     locator("#create-user-mode-single").check()

@@ -38,6 +38,7 @@ private val EXPIRES_AT = longPreferencesKey("expires_at")
 private val PENDING_API_URL = stringPreferencesKey("pending_api_url")
 private val PENDING_STARTED_AT = longPreferencesKey("pending_started_at")
 private val PENDING_NONCE = stringPreferencesKey("pending_nonce")
+private val UPDATE_CHECKED_AT = longPreferencesKey("update_checked_at")
 
 // each value of Stored.app is a key of its own with this prefix
 private const val APP_PREFIX = "app."
@@ -83,6 +84,7 @@ class DataStoreSessionStore(
                     .filterKeys { it.name.startsWith(APP_PREFIX) }
                     .mapNotNull { (key, value) -> (value as? String)?.let { key.name.removePrefix(APP_PREFIX) to it } }
                     .toMap(),
+            updateCheckedAt = preferences[UPDATE_CHECKED_AT]?.let(Instant::ofEpochMilli),
         )
 
     private fun write(
@@ -101,6 +103,7 @@ class DataStoreSessionStore(
             preferences[PENDING_NONCE] = cipher.encrypt(it.nonce)
         }
         stored.app.forEach { (name, value) -> preferences[stringPreferencesKey(APP_PREFIX + name)] = value }
+        stored.updateCheckedAt?.let { preferences[UPDATE_CHECKED_AT] = it.toEpochMilli() }
     }
 }
 

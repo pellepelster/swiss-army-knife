@@ -17,7 +17,7 @@ common:
     not_github: "%{url} ist keine Adresse von github, %{app} lädt nur von github herunter."
     unreadable: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
     no_asset: "Das Release %{version} hat kein %{name}."
-    checksum_mismatch: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
+    checksum_mismatch: "Die Prüfsumme von %{name} stimmt nicht, nichts wurde geändert."
     signature_invalid: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
     no_binary: "%{name} enthält kein %{binary}, nichts wurde geändert."
     not_replaced: "%{app} unter %{path} konnte nicht ersetzt werden: %{error}"
@@ -25,7 +25,7 @@ cli:
   refused: "Die SAK-Instanz hat es abgelehnt (%{status})."
   failed: "Es ist fehlgeschlagen: %{error}"
   update:
-    hint: "%{app} update installiert es."
+    hint: "Führe %{app} update aus, um es zu installieren."
 ui:
   update:
     version: "%{app} %{version}"

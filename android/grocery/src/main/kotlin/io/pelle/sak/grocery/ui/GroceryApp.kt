@@ -18,26 +18,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.pelle.sak.api.model.GroceryItemResponse
 import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.ui.Busy
-import io.pelle.sak.core.ui.ListTexts
 import io.pelle.sak.core.ui.ListsHome
+import io.pelle.sak.core.ui.LocalPhotoCapture
 import io.pelle.sak.core.ui.UndoTime
 import io.pelle.sak.grocery.summary
 import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.ListsScreen
+import io.pelle.sak.grocery.GROCERY_TEXTS
 import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.UNDO_MS
 import io.pelle.sak.grocery.amountText
-
-// the texts of the app on the screens of the lists of core
-internal val GROCERY_TEXTS =
-    ListTexts(
-        appName = R.string.grocery_app_name,
-        create = R.string.grocery_form_create,
-        allLists = R.string.grocery_all_lists,
-        chooseIcon = R.string.grocery_form_choose_icon,
-        noIcon = R.string.grocery_form_no_icon,
-        deleteList = R.string.grocery_form_delete_list,
-    )
 
 // No items to buy, 1 item to buy, 3 items to buy
 @Composable
@@ -49,7 +39,7 @@ fun GroceryApp(model: GroceryModel) {
     val screen by model.screen.collectAsStateWithLifecycle()
     // longer when the accessibility settings of the phone ask for more time
     UndoTime(UNDO_MS) { model.undoMs = it }
-    CompositionLocalProvider(LocalPhotoPicker provides rememberPhotoPicker(model)) {
+    CompositionLocalProvider(LocalPhotoCapture provides rememberGroceryPhotos(model)) {
         when (val current = screen) {
             is ListsScreen -> GroceryScreen(current, model)
             else -> Busy()

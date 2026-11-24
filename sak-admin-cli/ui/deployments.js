@@ -93,7 +93,7 @@ export async function showDeployments() {
   try {
     const deployments = await invoke('list_deployments');
     list.replaceChildren(...deployments.map(deployment));
-    setStatus(status, deployments.length === 0 ? text('common.deployments.empty') : '');
+    setStatus(status, deployments.length === 0 ? text('ui.deployments.empty') : '');
   } catch (error) {
     setFailure(status, String(error));
   }

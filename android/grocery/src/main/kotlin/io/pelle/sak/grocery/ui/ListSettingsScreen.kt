@@ -1,6 +1,5 @@
 package io.pelle.sak.grocery.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,13 +21,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -49,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -77,8 +73,12 @@ import io.pelle.sak.core.ui.ListIcon
 import io.pelle.sak.core.ui.ListSettingsScreen
 import io.pelle.sak.core.ui.MenuIcon
 import io.pelle.sak.core.ui.Error
+import io.pelle.sak.core.ui.DeleteMenuEntry
+import io.pelle.sak.core.ui.MenuEntry
 import io.pelle.sak.core.ui.Form
 import io.pelle.sak.core.ui.Page
+import io.pelle.sak.core.ui.onLeave
+import io.pelle.sak.grocery.GROCERY_TEXTS
 import io.pelle.sak.grocery.GroceryModel
 import io.pelle.sak.grocery.ListSettings
 import io.pelle.sak.grocery.R
@@ -92,12 +92,12 @@ internal fun ListSettingsScreen(
     model: GroceryModel,
 ) {
     ListSettingsScreen(
-        settings,
+        settings.fields,
         fromList,
         GROCERY_TEXTS,
         model,
         refreshing = settings.categoriesLoading,
-        onRefresh = model::refreshCategories.takeIf { settings.id != null },
+        onRefresh = model::refreshCategories.takeIf { settings.fields.id != null },
     ) { Categories(settings, model) }
 }
 
@@ -252,7 +252,6 @@ private fun CategoryRow(
     onSize: (Int) -> Unit,
     model: GroceryModel,
 ) {
-    var focused by remember { mutableStateOf(false) }
     var picking by rememberSaveable { mutableStateOf(false) }
     var menu by rememberSaveable { mutableStateOf(false) }
     var confirming by rememberSaveable { mutableStateOf(false) }
@@ -334,58 +333,39 @@ private fun CategoryRow(
             modifier =
                 Modifier
                     .weight(1f)
-                    .onFocusChanged {
-                        if (focused && !it.isFocused) model.saveCategoryName(category.id)
-                        focused = it.isFocused
-                    }.testTag("category-name-${category.id}"),
+                    .onLeave { model.saveCategoryName(category.id) }
+                    .testTag("category-name-${category.id}"),
         )
         Box {
             IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-category-${category.id}")) {
                 MenuIcon(category.name)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.grocery_form_choose_icon)) },
-                    onClick = {
-                        menu = false
-                        picking = true
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.grocery_form_no_icon)) },
-                    onClick = {
-                        menu = false
-                        model.setCategoryIcon(category.id, null)
-                    },
+                MenuEntry(
+                    stringResource(R.string.grocery_form_choose_icon),
+                    close = { menu = false },
+                ) { picking = true }
+                MenuEntry(
+                    stringResource(R.string.grocery_form_no_icon),
+                    close = { menu = false },
                     enabled = category.icon != null,
-                )
-                DropdownMenuItem(
-                    text = { Text(up) },
-                    onClick = {
-                        menu = false
-                        model.moveCategory(category.id, up = true)
-                    },
+                ) { model.setCategoryIcon(category.id, null) }
+                MenuEntry(
+                    up,
+                    close = { menu = false },
                     enabled = !first,
                     modifier = Modifier.testTag("category-up-${category.id}"),
-                )
-                DropdownMenuItem(
-                    text = { Text(down) },
-                    onClick = {
-                        menu = false
-                        model.moveCategory(category.id, up = false)
-                    },
+                ) { model.moveCategory(category.id, up = true) }
+                MenuEntry(
+                    down,
+                    close = { menu = false },
                     enabled = !last,
                     modifier = Modifier.testTag("category-down-${category.id}"),
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(CoreR.string.shared_delete)) },
-                    onClick = {
-                        menu = false
-                        confirming = true
-                    },
-                    colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+                ) { model.moveCategory(category.id, up = false) }
+                DeleteMenuEntry(
+                    close = { menu = false },
                     modifier = Modifier.testTag("delete-category-${category.id}"),
-                )
+                ) { confirming = true }
             }
         }
     }

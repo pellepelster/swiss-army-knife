@@ -1,7 +1,6 @@
 package io.pelle.sak.grocery.api
 
 import androidx.annotation.StringRes
-import io.pelle.sak.api.model.FileResponse
 import io.pelle.sak.api.model.GroceryCategoryOrderRequest
 import io.pelle.sak.api.model.GroceryCategoryRequest
 import io.pelle.sak.api.model.GroceryCategoryResponse
@@ -80,7 +79,7 @@ class GroceryApi(
         listId: Int,
         checked: Boolean = false,
     ): List<GroceryItemResponse> =
-        all("$url/grocery/lists/$listId/items" + if (checked) "?checked=true" else "", R.string.grocery_list_items_not_loaded)
+        all("$url/grocery/lists/$listId/items", R.string.grocery_list_items_not_loaded, if (checked) mapOf("checked" to "true") else emptyMap())
 
     // GROCERY-2; without a category it takes the one of the latest item of its name
     suspend fun addItem(
@@ -141,29 +140,6 @@ class GroceryApi(
                 session()
             }.answer<Unit>(R.string.grocery_item_not_deleted)
     }
-
-    // a jpeg scaled down already; answers the id of its file
-    suspend fun uploadPhoto(jpeg: ByteArray): Int =
-        client
-            .post("$url/files") {
-                session()
-                longTransfer()
-                contentType(ContentType.Image.JPEG)
-                setBody(jpeg)
-            }.answer<FileResponse>(R.string.grocery_photo_not_attached)
-            .id
-
-    // a photo to discover the items in (GROCERY-16), a jpeg scaled down already; answers the id of its
-    // file
-    suspend fun uploadDiscoverPhoto(jpeg: ByteArray): Int =
-        client
-            .post("$url/files") {
-                session()
-                longTransfer()
-                contentType(ContentType.Image.JPEG)
-                setBody(jpeg)
-            }.answer<FileResponse>(R.string.grocery_discover_not_read)
-            .id
 
     // the items the AI discovers in an uploaded photo (GROCERY-16); nothing is added to a list
     suspend fun discoverItems(fileId: Int): List<GroceryDiscoveredItemResponse> =

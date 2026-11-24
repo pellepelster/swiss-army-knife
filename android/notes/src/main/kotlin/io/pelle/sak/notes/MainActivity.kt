@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.viewModelScope
 import io.pelle.sak.core.SakActivity
+import io.pelle.sak.core.ui.PhotoScaling
 import io.pelle.sak.notes.ui.NotesApp
 import kotlinx.coroutines.async
 
@@ -16,7 +17,7 @@ class MainActivity : SakActivity() {
 
     override val signinScheme = "io.pelle.sak.notes"
 
-    override val sakModel get() = viewModel.model
+    override val sakViewModel get() = viewModel
 
     override val appName = R.string.notes_app_name
 
@@ -35,20 +36,11 @@ class MainActivity : SakActivity() {
             }
         val shared = shared(intent.action, intent.type, streams, intent.getCharSequenceExtra(Intent.EXTRA_TEXT)) ?: return false
         val attached = shared.photos.take(MAX_PHOTOS)
-        val scaled = viewModel.viewModelScope.async { attached.map { uri -> scaledPhoto(applicationContext, uri) } }
+        val scaled = viewModel.viewModelScope.async { attached.map { uri -> PhotoScaling.read(applicationContext, uri) } }
         val reads: List<suspend () -> ByteArray?> =
             attached.indices.map { index -> suspend { scaled.await()[index] } } +
                 List(shared.photos.size - attached.size) { suspend { null } }
         viewModel.model.createWithPhotos(reads, shared.text)
         return true
     }
-
-    // the notes have no stream of changes: loaded again when the app comes back to the front, the typed
-    // text saved when it goes; a rotation does neither, so a recording goes on and an undo stays
-    override fun onRestart() {
-        super.onRestart()
-        viewModel.model.resume()
-    }
-
-    override fun background() = viewModel.model.pause()
 }

@@ -11,20 +11,45 @@ its own architecture document.
     schemas the apps use listed in `api/build.gradle.kts`. `core` passes it on to every app.
   - `core` (library, `io.pelle.sak.core`): what every app needs. The deployment and the sign-in by link or password
     (`SakModel`, the screens `Screen.Deployment` and `Screen.SignIn`, the composables `DeploymentScreen` and
-    `SignInScreen`), the session kept encrypted (`session/`), the base of the api (`SakApi`, `sakClient`,
-    `ApiException`), the update check (`update/`, `AndroidUpdater` takes the name of the app of its apk), the
-    theme (`SakTheme`), the parts of a screen (`Page`, `Form`, `Error`, `AccountMenu`, `UpdateBanner`,
-    `ConfirmDelete`) and the texts of no app. What the list-based apps (grocery, todo) share is in `lists/` and
-    `ui/Lists.kt`: `ListsModel` (on top of `SakModel`: a list opened, the settings of a list created, saved and
-    deleted, a list deleted from the home) over `ListsApi` (the list calls each app's api implements), the
-    `ChangeStream` and the screens of the lists.
-  - `testing` (library): what the tests of every app share, a fake backend (`FakeBackend`, `page()`) and the
-    english texts (`english()`), on the jvm.
+    `SignInScreen`), the session kept encrypted (`session/`), what every model takes besides its api
+    (`SakSetup`), the connect by the QR code of the web app (`qr/`: `QrConnect`, `SakModel.qr`, which calls
+    back into `SakModel` for the switch of the session), the base of the api (`SakApi`, `sakClient`,
+    `ApiException`), the update (`update/`: `UpdateOffer`, `SakModel.updates`, with the check of the start
+    and of the menu, UX-13; `AndroidUpdater` takes the name of the app of its apk), the
+    theme (`SakTheme`), the parts of a screen (`Page`, whose `onBack` draws the back arrow and takes the back
+    of the system, `Form`, `Error`, `AccountMenu`, `UpdateBanner`, `ConfirmDelete`, `MenuEntry` and the red
+    `DeleteMenuEntry`), the photos (`ui/Photos.kt`: `rememberPhotoCapture`, the camera or the picker for a
+    target of the app, kept over a rotation and the end of the process, with the camera file and its
+    `FileProvider` of the manifest of core; `PhotoScaling` and its `read`; `RemoteImage`; `PhotoViewer`, a
+    photo in full), the cache of the photos and files fetched (`ByteCache`), a call whose failure is no
+    error (`attempt`), a change that waits for its undo (`UndoWindow`, made by `SakModel.undoWindow`, which
+    sends it when the app goes to the background and before the sign-out and drops it when the session ends)
+    and the texts of no app. Every end of a session (another deployment, the sign-out, its end, the switch
+    by a QR code) goes through one sequence of `SakModel` (`endSession`): the epoch, the store, the new
+    screen, then the hook `sessionGone()` of the app, always last. `SakModel.foreground()` and `background()` say when the app is seen (from
+    `SakActivity`, not on a rotation). What the list-based apps (grocery, todo) share is in `lists/` and
+    `ui/Lists.kt`: `ListsModel` (on top of `SakModel`: the lists and the list open with the counter of the
+    list shown, `show` and `load`, a list that went leads to the home, an entry added to the list open, the
+    settings of a list (`ListFields`) created, saved and deleted, a list deleted from the home, and the
+    `ChangeStream` while the app is seen, with the hooks `listChanged` and `reconnected`) over `ListsApi` (the
+    list calls each app's api implements), and the screens of the lists. An app makes its screen of the lists
+    (`appScreen`), resets it for the list shown (`opened`) and loads the entries of the list open (`loaded`).
+  - `testing` (library): what the tests of every app share, a fake backend (`FakeBackend`, `page()`,
+    `answerOn()`, the answer of `/info` of many users by default), the english texts (`english()`), the
+    `SakSetup` of a model in a test (`sakSetup()`, with an updater that fails when it is called), the fixtures
+    (`Fixtures.kt`: the address `ADDRESS`, `signedIn()` and `signedOut()`, the answers of core built of the
+    generated classes and encoded with `ApiJson`) and, on robolectric, the activities, `shows()`, `settle()` and
+    the screenshots. Its tests (`SakModelTest`, `ListsModelTest`) test `SakModel` and `ListsModel` with an app as
+    small as possible; the tests of an app test only what the app adds. Each app has one file of fixtures
+    (e.g. `GroceryFixtures.kt`: `list()`, `item()` …) of the generated classes, for its model, rotation and
+    screenshot tests.
   - one module for each app, e.g. `grocery` (`io.pelle.sak.grocery`): its model extends `SakModel`, of a list-based
     app `ListsModel` (its screen once the user is signed in is an `AppScreen`, of a list-based app a
     `ListsAppScreen`), its api extends `SakApi` (and implements `ListsApi`), its activity extends `SakActivity`
-    (which takes the login links of its scheme, once) and its view model `SakViewModel` (the store of the session,
-    the updater, the client of the process). An app names itself to the backend when it asks for a login link
+    (which takes the login links of its scheme, once, and tells the model when the app is seen) and its view
+    model `SakViewModel` (the `SakSetup` of its model, made once: the store of the session, the scope of the
+    model and the scope of the process for the lasting work, the updater; the client of the process, whether
+    the activity stops for a rotation). An app names itself to the backend when it asks for a login link
     (`LoginRequest.Client`, e.g. `GROCERY_ANDROID`), so the signin page of the web app hands the link on to that
     app only; the request carries a nonce the exchange needs. What an app keeps with the session goes into
     `Stored.app` (its own names, e.g. the list open last), work that must not end with the screen (the last save
@@ -33,18 +58,21 @@ its own architecture document.
   with a phone attached) and `android:install <app>` (the phone attached by usb, `ANDROID_SERIAL` names one of
   several). The sdk is installed by `android:sdk`, without the emulator (enough for a build and an install) by
   `android:sdk:build`.
-- **Conventions.** What every module shares is in the convention plugins of `build-logic` (an included build):
-  `sak.android.library` (`core`, `testing`: the sdks of `SakSdk`, java 17) and `sak.android.app` (the apps: the
-  sdks, java 17, the version of SAK, the signing, the build types, the flavors, r8, the test property
-  `sak.app.package`). A module keeps its namespace, its applicationId and its own dependencies; compose, ktor and the api come with `core`.
-  The rules of r8 for every app are in `proguard-rules.pro`.
+- **Conventions.** What every module shares is in the convention plugins of `build-logic` (an included build;
+  the root build brings the android plugin and the compose plugin, the convention plugins apply them by id):
+  `sak.android.library` (`core`, `testing`: the sdks of `SakSdk`, java 17, the test property `sak.app.package`,
+  compose with `sakLibrary { compose() }`) and `sak.android.app` (the apps: the sdks, java 17, compose, the version
+  of SAK, the signing, the build types, the flavors, r8, the test property `sak.app.package`, and the dependencies
+  every app has: `:core`, `:testing` for the tests, the tooling and the test manifest of compose for debug). The
+  build file of an app has only its namespace, its applicationId and what is its own; ktor and the api come with
+  `core`. The rules of r8 for every app are in `proguard-rules.pro`.
 - **Version.** `VERSION` is `latest` (every build but a release, versionCode 1) or a release `x.y.z`, whose
   versionCode is `x*1_000_000 + y*1_000 + z` (1.4.2 is 1004002); any other `VERSION`, or a minor or patch of 1000
   or more, fails the build (`SakVersion` of `build-logic`).
 - **Distributions.** Every app has the flavors `github` and `play` (dimension `distribution`). `github` is the apk of
   the github release, which updates itself (`AndroidUpdater`). `play` is the bundle for google play, which updates
   the app and forbids an app to install itself: `BuildConfig.SELF_UPDATE` is false, so `SakViewModel` has no updater
-  and the model offers no update and no "Check for updates" (`SakModel.updates`), and `play/AndroidManifest.xml`
+  and the model offers no update and no "Check for updates" (`SakModel.updates.enabled`), and `play/AndroidManifest.xml`
   removes `REQUEST_INSTALL_PACKAGES` and the receiver of the update. The tasks of mise run, install and test
   `github`; `android:build` builds both.
 - **Google Play.** `android:play:build` writes `build/sak-<app>-<VERSION>.aab` of each app and

@@ -16,8 +16,8 @@
 #
 # A text has every language, `{ en: "…", de: "…" }`, with the same %{name} placeholders; a text
 # that is the same in every language, a name, is a plain string. A plural (android only) has the
-# forms of the language, `en: { one: "%{count} item", other: "%{count} items" }`. German uses "du"
-# in sakadmin and no form of address elsewhere, the words are the ones of the glossary.
+# forms of the language, `en: { one: "%{count} item", other: "%{count} items" }`. German uses the
+# informal "du" in every text, the words are the ones of the glossary.
 
 common:
   login:
@@ -68,7 +68,7 @@ backend:
     invalid_name:
       en: "A repository or backup plan name must have 1 to 63 lower case letters, digits and hyphens, and start and end with a letter or digit."
       de: "Der Name eines Repositorys oder Backup-Plans muss 1 bis 63 Kleinbuchstaben, Ziffern und Bindestriche haben und mit einem Buchstaben oder einer Ziffer beginnen und enden."
-    repository_exists: { en: "A repository of the name exists.", de: "Ein Repository mit diesem Namen gibt es schon." }
+    repository_exists: { en: "A repository with this name already exists.", de: "Ein Repository mit diesem Namen gibt es schon." }
     invalid_host:
       en: "A host name must have at most 253 letters, digits, '.', '-' and '_'."
       de: "Ein Hostname darf höchstens 253 Buchstaben, Ziffern, '.', '-' und '_' haben."
@@ -76,12 +76,12 @@ backend:
     too_many_paths: { en: "A backup plan can have at most %{max} paths.", de: "Ein Backup-Plan kann höchstens %{max} Pfade haben." }
     double_path: { en: "A path must be in a backup plan only once.", de: "Ein Pfad darf nur einmal in einem Backup-Plan sein." }
     invalid_path:
-      en: "%{path} is no absolute path like /home/anna/Documents."
+      en: "%{path} is not an absolute path like /home/anna/Documents."
       de: "%{path} ist kein absoluter Pfad wie /home/anna/Documents."
     unknown_repository:
       en: "There is no such repository, or you can not see it."
       de: "Dieses Repository gibt es nicht, oder du kannst es nicht sehen."
-    plan_exists: { en: "A backup plan of the name exists.", de: "Einen Backup-Plan mit diesem Namen gibt es schon." }
+    plan_exists: { en: "A backup plan with this name already exists.", de: "Einen Backup-Plan mit diesem Namen gibt es schon." }
     too_many_excludes:
       en: "The excludes of a backup plan can have at most %{max} lines and %{bytes} bytes."
       de: "Die Ausschlüsse eines Backup-Plans können höchstens %{max} Zeilen und %{bytes} Bytes haben."
@@ -100,7 +100,7 @@ backend:
       label: { en: "Restic backups", de: "Restic-Backups" }
       description: { en: "Where the restic backups are kept", de: "Wo die Restic-Backups liegen" }
   auth:
-    invalid_email: { en: "No valid e-mail address.", de: "Keine gültige E-Mail-Adresse." }
+    invalid_email: { en: "An e-mail address like name@example.org is needed.", de: "Eine E-Mail-Adresse wie name@example.org ist nötig." }
     invalid_nonce:
       en: "An app sends a nonce of 16 to 128 characters."
       de: "Eine App sendet eine Nonce mit 16 bis 128 Zeichen."
@@ -108,8 +108,8 @@ backend:
       en: "A desktop app sends a PKCE challenge or verifier as RFC 7636 defines it."
       de: "Eine Desktop-App sendet eine PKCE-Challenge oder einen PKCE-Verifier, wie RFC 7636 sie festlegt."
     link_invalid:
-      en: "The login link is not valid, or it was used or expired."
-      de: "Der Login-Link ist nicht gültig, oder er wurde benutzt oder ist abgelaufen."
+      en: "The login link is invalid, expired or was already used."
+      de: "Der Login-Link ist ungültig, abgelaufen oder wurde schon benutzt."
     code_invalid:
       en: "The QR code is not valid, or it was used or expired. Show a new one."
       de: "Der QR-Code ist nicht gültig, oder er wurde benutzt oder ist abgelaufen. Zeige einen neuen an."
@@ -167,7 +167,7 @@ backend:
     invalid_name:
       en: "A label name must have 1 to %{max} characters and no control characters."
       de: "Ein Labelname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
-    exists: { en: "A label of the name exists.", de: "Ein Label mit diesem Namen gibt es schon." }
+    exists: { en: "A label with this name already exists.", de: "Ein Label mit diesem Namen gibt es schon." }
   openrouter:
     settings:
       enabled:
@@ -188,9 +188,9 @@ backend:
         description: { en: "The model that transcribes recordings.", de: "Das Modell, das Aufnahmen verschriftlicht." }
       label: { en: "AI", de: "KI" }
       description: { en: "Configure all AI features", de: "Alle KI-Funktionen einrichten" }
-    key_refused: { en: "OpenRouter does not take the API key.", de: "OpenRouter nimmt den API-Schlüssel nicht an." }
+    key_refused: { en: "OpenRouter does not accept the API key.", de: "OpenRouter nimmt den API-Schlüssel nicht an." }
     key_missing:
-      en: "The AI needs an API key of OpenRouter to be turned on."
+      en: "The AI features need an API key of OpenRouter to be turned on."
       de: "Die KI-Funktionen brauchen einen API-Schlüssel von OpenRouter, um eingeschaltet zu werden."
     key_unchecked:
       en: "The API key could not be checked at OpenRouter, please try again later."
@@ -252,7 +252,7 @@ backend:
       en: "The S3 storage needs a secret key to be turned on."
       de: "Der S3-Speicher braucht einen Secret Key, um eingeschaltet zu werden."
     keys_refused:
-      en: "Hetzner does not take the keys for this bucket."
+      en: "Hetzner does not accept the keys for this bucket."
       de: "Hetzner nimmt die Schlüssel für diesen Bucket nicht an."
     no_bucket:
       en: "There is no bucket of this name in this region."
@@ -264,7 +264,7 @@ backend:
     invalid_name:
       en: "A user name must have at most %{max} characters and no control characters."
       de: "Ein Benutzername darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
-    exists: { en: "A user of the address exists.", de: "Einen Benutzer mit dieser Adresse gibt es schon." }
+    exists: { en: "A user with this address already exists.", de: "Einen Benutzer mit dieser Adresse gibt es schon." }
     not_a_user: { en: "There is no such user.", de: "Diesen Benutzer gibt es nicht." }
     no_mail_server:
       en: "No mail server is set up, no e-mail is sent."
@@ -522,7 +522,7 @@ web:
       de: "anmelden darf, ist ein Link unterwegs. Öffne ihn in diesem Browser, um fortzufahren."
     signing_in: { en: "Signing in…", de: "Wird angemeldet…" }
     sending: { en: "Sending…", de: "Wird gesendet…" }
-    wrong_password: { en: "The password is not right.", de: "Das Passwort ist nicht richtig." }
+    wrong_password: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
     rate_limited:
       en: "Too many login attempts, please try again later."
       de: "Zu viele Anmeldeversuche, bitte versuche es später erneut."
@@ -552,6 +552,7 @@ android:
   downloading: { en: "Downloading…", de: "Wird heruntergeladen…" }
   update: { en: "Update", de: "Aktualisieren" }
   update_check: { en: "Check for updates", de: "Nach Updates suchen" }
+  update_later: { en: "Later", de: "Später" }
   update_checking: { en: "Checking for updates…", de: "Suche nach Updates…" }
   update_current: { en: "The app is up-to-date, version %{version}.", de: "Die App ist aktuell, Version %{version}." }
   update_app_no_release:
@@ -561,6 +562,9 @@ android:
     en: "Your SAK instance runs no release, there is no update for the app."
     de: "Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App."
   ok: "OK"
+  cancel: { en: "Cancel", de: "Abbrechen" }
+  # what a screen reader says a tap on a photo shown in full does
+  photo_close: { en: "Close the photo", de: "Foto schließen" }
   # the three ways to sign in, the QR code first (UX-7)
   sign_in_password_hint:
     en: "Sign in to a single user SAK instance with a password."
@@ -583,7 +587,7 @@ android:
     point:
       en: "Point the camera at the QR code the web app shows."
       de: "Richte die Kamera auf den QR-Code, den die Web-App zeigt."
-    signing_in: { en: "Signing in…", de: "Anmeldung läuft…" }
+    signing_in: { en: "Signing in…", de: "Wird angemeldet…" }
     scan_again: { en: "Scan again", de: "Erneut scannen" }
     back: { en: "Back", de: "Zurück" }
     torch_on: { en: "Turn on the light", de: "Licht einschalten" }
@@ -611,7 +615,6 @@ android:
     switch_signed_out_text:
       en: "The app is set up for %{from}. The QR code signs you in to %{to} instead."
       de: "Die App ist für %{from} eingerichtet. Der QR-Code meldet dich stattdessen bei %{to} an."
-    cancel: { en: "Cancel", de: "Abbrechen" }
   # the lists of the list-based apps (grocery, todo): the home, the settings of a list (components/INDEX.md)
   no_lists:
     en: "You have no list yet, create one with the plus at the top."
@@ -632,15 +635,15 @@ android:
     no_deployment:
       en: "No SAK instance answers at this address."
       de: "Unter dieser Adresse antwortet keine SAK-Instanz."
-    no_sak_address: { en: "This is no SAK address.", de: "Das ist keine SAK-Adresse." }
-    no_sak: { en: "This is no SAK instance.", de: "Das ist keine SAK-Instanz." }
+    no_sak_address: { en: "This is not a SAK address.", de: "Das ist keine SAK-Adresse." }
+    no_sak: { en: "This is not a SAK instance.", de: "Das ist keine SAK-Instanz." }
     link_not_requested:
       en: "The login link could not be requested."
       de: "Der Login-Link konnte nicht angefordert werden."
     link_not_used: { en: "The login link could not be used.", de: "Der Login-Link konnte nicht benutzt werden." }
     not_asked:
-      en: "This login link was not requested in this app, or it is older than 15 minutes. Request a new one."
-      de: "Dieser Login-Link wurde nicht in dieser App angefordert oder ist älter als 15 Minuten. Fordere einen neuen an."
+      en: "This login link was not requested in this app, or it is older than %{minutes} minutes. Request a new one."
+      de: "Dieser Login-Link wurde nicht in dieser App angefordert oder ist älter als %{minutes} Minuten. Fordere einen neuen an."
     password_not_checked: { en: "The password could not be checked.", de: "Das Passwort konnte nicht geprüft werden." }
     password_wrong: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
     user_not_read: { en: "The user could not be read.", de: "Der Benutzer konnte nicht gelesen werden." }
@@ -655,7 +658,7 @@ android:
       en: "Too many attempts, please try again later."
       de: "Zu viele Versuche, bitte versuche es später erneut."
     qr_no_sak:
-      en: "This is no QR code of SAK. Scan the code the web app shows under “Connect an app”."
+      en: "This is not a QR code of SAK. Scan the code the web app shows under “Connect an app”."
       de: "Das ist kein QR-Code von SAK. Scanne den Code, den die Web-App unter „App verbinden“ zeigt."
     qr_invalid:
       en: "The QR code is not valid, or it was used or expired. Show a new one in the web app."
@@ -697,9 +700,9 @@ admin_cli:
         de: "%{path} lässt sich mit dem Passwort der SAK-Instanz nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
     checks:
       container_runtime:
-        name: { en: "Verify container runtime", de: "docker oder podman prüfen" }
-        running: { en: "Verifying container runtime…", de: "Prüfe docker oder podman…" }
-        done: { en: "Found %{text}", de: "Verwende %{text}" }
+        name: { en: "Verify container runtime", de: "Container-Laufzeit prüfen" }
+        running: { en: "Verifying container runtime…", de: "Prüfe die Container-Laufzeit…" }
+        done: { en: "Found %{text}", de: "%{text} gefunden" }
         passed: { en: "%{runtime} %{version}", de: "%{runtime} %{version}" }
         needed:
           en: "Swiss Army Knife needs docker or podman to run containers. Install one of them, make sure it runs containers without sudo, and start Swiss Army Knife again."
@@ -745,7 +748,7 @@ admin_cli:
       duplicate: { en: "This token was already added.", de: "Dieses Token wurde bereits hinzugefügt." }
       hetzner:
         token_hint:
-          en: "Create a token with the permissions read & write in the Hetzner Cloud console for your project."
+          en: "Create a token with the permissions read & write in the Hetzner Cloud console of your project, under Security → API tokens."
           de: "Erstelle ein Token mit den Berechtigungen Lesen & Schreiben in der Hetzner Cloud Console deines Projekts, unter Sicherheit → API-Tokens."
         unreachable:
           en: "The Hetzner Cloud API could not be reached: %{error}"
@@ -870,15 +873,15 @@ admin_cli:
         en: "A value of the mail server has a line break."
         de: "Ein Wert des Mailservers hat einen Zeilenumbruch."
       invalid_smtp_from:
-        en: "The sender address %{from} is no e-mail address. %{hint}"
+        en: "The sender address %{from} is not an e-mail address. %{hint}"
         de: "Die Absenderadresse %{from} ist keine E-Mail-Adresse. %{hint}"
       invalid_admin_email:
-        en: "The e-mail address of the admin is no e-mail address like admin@example.org. %{hint}"
+        en: "The e-mail address of the admin is not valid, it must be like admin@example.org. %{hint}"
         de: "Die E-Mail-Adresse des Admins ist keine E-Mail-Adresse wie admin@example.org. %{hint}"
       admin_email_single:
         en: "A single user SAK instance has no e-mail login, its admin signs in with the password. %{hint}"
         de: "Eine SAK-Instanz mit einem Benutzer hat kein E-Mail-Login, ihr Admin meldet sich mit dem Passwort an. %{hint}"
-      unnamed: { en: "an entry without a name", de: "ein Eintrag ohne SAK-Namen" }
+      unnamed: { en: "an entry without a SAK name", de: "ein Eintrag ohne SAK-Namen" }
       no_zones:
         en: "The project has no DNS zone. Create the zone of the root domain first, SAK does not create it."
         de: "Das Projekt hat keine DNS-Zone. Erstelle zuerst die Zone der Root-Domain, SAK erstellt sie nicht."
@@ -886,7 +889,7 @@ admin_cli:
         en: "Select the root domain of the SAK instance, one of: %{domains}."
         de: "Wähle die Root-Domain der SAK-Instanz, eine von: %{domains}."
       unknown_root_domain:
-        en: "%{domain} is no DNS zone of the project. Create the zone first, or select one of: %{domains}."
+        en: "%{domain} is not a DNS zone of the project. Create the zone first, or select one of: %{domains}."
         de: "%{domain} ist keine DNS-Zone des Projekts. Erstelle zuerst die Zone oder wähle eine von: %{domains}."
       domain_taken:
         en: "The SAK instance %{by} manages %{domain} in domain mode already. A root domain has only one SAK instance in domain mode."
@@ -919,15 +922,12 @@ admin_cli:
       not_compared:
         en: "%{name} could not be compared with what a deploy declares: %{error}"
         de: "%{name} konnte nicht mit dem verglichen werden, was ein Ausrollen anlegt: %{error}"
-      empty:
-        en: "No SAK instance found. Create one with the button at the top."
-        de: "Keine SAK-Instanz gefunden. Erstelle eine mit dem Knopf oben."
     config:
       unreachable:
         en: "The backend at %{url} could not be reached: %{error}"
         de: "Das Backend unter %{url} ist nicht erreichbar: %{error}"
       unreadable:
-        en: "The backend answered something that is no configuration: %{error}"
+        en: "The backend answered something that is not a configuration: %{error}"
         de: "Das Backend hat etwas geantwortet, das keine Konfiguration ist: %{error}"
       refused:
         en: "The backend refused the signature of this password. Deploy the SAK instance, so the backend knows its key."
@@ -955,13 +955,13 @@ admin_cli:
         de: "Die SAK-Instanz antwortet nicht innerhalb von %{seconds} Sekunden unter %{url}, zuletzt: %{error}. Neue DNS-Einträge und das TLS-Zertifikat brauchen manchmal eine Weile: versuche es später mit einem erneuten Ausrollen, von der SAK-Instanz geht nichts verloren."
       no_smtp: { en: "No mail server", de: "Kein Mailserver" }
       not_https:
-        en: "The api %{url} is no https address, sakadmin asks the api over https only."
+        en: "The api %{url} is not an https address, sakadmin asks the api over https only."
         de: "Die API %{url} ist keine https-Adresse, sakadmin fragt die API nur über https."
     smtp:
       sent:
-        en: "The mail server %{host} took the test e-mail to %{to}. If it does not arrive, look in the spam folder."
+        en: "The mail server %{host} accepted the test e-mail to %{to}. If it does not arrive, look in the spam folder."
         de: "Der Mailserver %{host} hat die Test-E-Mail an %{to} angenommen. Kommt sie nicht an, sieh im Spam-Ordner nach."
-      invalid_to: { en: "%{to} is no e-mail address.", de: "%{to} ist keine E-Mail-Adresse." }
+      invalid_to: { en: "%{to} is not an e-mail address.", de: "%{to} ist keine E-Mail-Adresse." }
       no_root_domain:
         en: "Choose the root domain or a sender address first: without a sender address the test e-mail comes from noreply@<root domain>."
         de: "Wähle zuerst die Root-Domain oder eine Absenderadresse: Ohne Absenderadresse kommt die Test-E-Mail von noreply@<Root-Domain>."
@@ -1030,7 +1030,7 @@ admin_cli:
         de: "%{script} auf dem Server endete mit Exit-Code %{code}."
       busy:
         en: "Another backup, restore, update, restart or reboot runs on the server, try again when it is done."
-        de: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
+        de: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung, ein Neustart der Dienste oder des Servers, versuche es erneut, wenn das fertig ist."
       failed: { en: "The server failed: %{error}", de: "Der Server ist fehlgeschlagen: %{error}" }
       unreadable:
         en: "The server answered something that is not readable: %{error}"
@@ -1083,30 +1083,34 @@ admin_cli:
         en: "No service runs old libraries, none was restarted."
         de: "Kein Dienst nutzt alte Bibliotheken, keiner wurde neu gestartet."
   cli:
+    deployments:
+      empty:
+        en: "No SAK instance found. Create one with sakadmin deploy."
+        de: "Keine SAK-Instanz gefunden. Erstelle eine mit sakadmin deploy."
     mail:
       reading: { en: "Reading the mail server of %{name}…", de: "Lese den Mailserver von %{name}…" }
       sending: { en: "Sending a test e-mail to %{to} from %{from}…", de: "Sende eine Test-E-Mail an %{to} von %{from}…" }
       no_smtp:
-        en: "The SAK instance %{name} has no mail server: give one with --smtp-host."
+        en: "The SAK instance %{name} has no mail server: set one with --smtp-host."
         de: "Die SAK-Instanz %{name} hat keinen Mailserver: Gib einen mit --smtp-host an."
       no_host:
-        en: "No mail server: give the name of a SAK instance or --smtp-host."
+        en: "No mail server: name a SAK instance or use --smtp-host."
         de: "Kein Mailserver: Gib den Namen einer SAK-Instanz oder --smtp-host an."
     hint:
-      user_mode: { en: "Give it with --user-mode.", de: "Gib ihn mit --user-mode an." }
-      smtp_host: { en: "Give it with --smtp-host.", de: "Gib ihn mit --smtp-host an." }
+      user_mode: { en: "Set it with --user-mode.", de: "Gib ihn mit --user-mode an." }
+      smtp_host: { en: "Set it with --smtp-host.", de: "Gib ihn mit --smtp-host an." }
       admin_email:
-        en: "Give it correctly with --admin-email, or leave it out."
+        en: "Set it correctly with --admin-email, or leave it out."
         de: "Gib sie richtig mit --admin-email an, oder lass sie weg."
       admin_email_single:
         en: "Leave out --admin-email, or choose --user-mode multi."
         de: "Lass --admin-email weg, oder wähle --user-mode multi."
       root_domain: { en: "Deploy it once with --root-domain.", de: "Rolle sie einmal mit --root-domain aus." }
       smtp_password:
-        en: "Give it again with SAK_SMTP_PASSWORD or --smtp-password."
+        en: "Set it again with SAK_SMTP_PASSWORD or --smtp-password."
         de: "Gib es erneut mit SAK_SMTP_PASSWORD oder --smtp-password an."
       smtp_from:
-        en: "Give it correctly with --smtp-from, or leave it out for noreply@<root domain>."
+        en: "Set it correctly with --smtp-from, or leave it out for noreply@<root domain>."
         de: "Gib sie korrekt mit --smtp-from an, oder lass sie weg für noreply@<Root-Domain>."
     destroyed:
       en: "The SAK instance %{name} is destroyed, its data volume stays."
@@ -1152,10 +1156,10 @@ admin_cli:
       en: "%{path} is the ssh key of %{name}, not encrypted: it gives root on the server. Delete the directory when you no longer need it."
       de: "%{path} ist der SSH-Key von %{name}, unverschlüsselt: er gibt root auf dem Server. Lösche das Verzeichnis, wenn du es nicht mehr brauchst."
     ssh_config_exists:
-      en: "%{path} exists, sakadmin replaces no file. Delete it or give another directory, nothing was written."
+      en: "%{path} exists, sakadmin replaces no file. Delete it or choose another directory, nothing was written."
       de: "%{path} existiert, sakadmin ersetzt keine Datei. Lösche sie oder gib ein anderes Verzeichnis an, nichts wurde geschrieben."
     ssh_config_bad_directory:
-      en: "The directory %{path} has a quote or a line break in its name, an ssh configuration cannot name it. Give another directory."
+      en: "The directory %{path} has a quote or a line break in its name, an ssh configuration cannot name it. Choose another directory."
       de: "Das Verzeichnis %{path} hat ein Anführungszeichen oder einen Zeilenumbruch im Namen, eine ssh-Konfiguration kann es nicht nennen. Gib ein anderes Verzeichnis an."
     ssh_config_not_written:
       en: "%{path} could not be written: %{error}"
@@ -1171,13 +1175,13 @@ admin_cli:
       en: "The plan deletes or replaces what is marked WARN above. Type the name of %{name} to continue: "
       de: "Der Plan löscht oder legt neu an, was oben mit WARN markiert ist. Gib den Namen von %{name} ein, um fortzufahren: "
     plan_no_terminal:
-      en: "No terminal to confirm a plan that deletes or replaces resources: give --yes to apply it to %{name}."
+      en: "No terminal to confirm a plan that deletes or replaces resources: use --yes to apply it to %{name}."
       de: "Kein Terminal, um einen Plan zu bestätigen, der löscht oder neu anlegt: gib --yes an, um ihn auf %{name} anzuwenden."
     restore_confirm:
       en: "The data of %{name} is replaced with the backup %{path}. Type the name to continue: "
       de: "Die Daten von %{name} werden durch die Sicherung %{path} ersetzt. Gib den Namen ein, um fortzufahren: "
     restore_no_terminal:
-      en: "No terminal to confirm the restore: give --yes to replace the data of %{name}."
+      en: "No terminal to confirm the restore: use --yes to replace the data of %{name}."
       de: "Kein Terminal, um die Wiederherstellung zu bestätigen: gib --yes an, um die Daten von %{name} zu ersetzen."
     maintenance:
       reboot_hint:
@@ -1232,6 +1236,9 @@ admin_cli:
     back: { en: "Back", de: "Zurück" }
     deployments:
       title: { en: "SAK instances", de: "SAK-Instanzen" }
+      empty:
+        en: "No SAK instance found. Create one with the button at the top."
+        de: "Keine SAK-Instanz gefunden. Erstelle eine mit dem Knopf oben."
       create: { en: "Create SAK instance", de: "SAK-Instanz erstellen" }
       loading: { en: "Looking for SAK instances at the providers…", de: "Suche SAK-Instanzen bei den Providern…" }
     deployment:
@@ -1257,7 +1264,7 @@ admin_cli:
           en: "The configuration this machine kept at the deploy of %{when}. The SAK instance did not answer: %{error}"
           de: "Die Konfiguration, die dieser Rechner beim Ausrollen am %{when} abgelegt hat. Die SAK-Instanz hat nicht geantwortet: %{error}"
         source_none:
-          en: "No configuration is known: the SAK instance did not answer (%{error}) and this machine kept none. Give one with \"Config…\"."
+          en: "No configuration is known: the SAK instance did not answer (%{error}) and this machine kept none. Enter one with \"Config…\"."
           de: "Keine Konfiguration bekannt: Die SAK-Instanz hat nicht geantwortet (%{error}) und dieser Rechner hat keine abgelegt. Gib eine mit „Konfiguration…“ an."
         not_read: { en: "The configuration could not be read: %{error}", de: "Die Konfiguration konnte nicht gelesen werden: %{error}" }
         admin: { en: "Admin", de: "Admin" }
@@ -1411,7 +1418,7 @@ admin_cli:
       force_deploy: { en: "Force deploy", de: "Erzwungen ausrollen" }
       title_create: { en: "Creating %{name}", de: "%{name} wird erstellt" }
       title_deploy: { en: "Redeploying %{name}", de: "%{name} wird neu ausgerollt" }
-      title_destroy: { en: "Destroying %{name}", de: "%{name} wird gelöscht" }
+      title_destroy: { en: "Destroying %{name}", de: "%{name} wird zerstört" }
       deploying:
         en: "Deploying… A server that must change is replaced. The data volume and the IP addresses stay."
         de: "Rolle aus… Ein Server, der sich ändern muss, wird ersetzt. Das Datenvolume und die IP-Adressen bleiben."
@@ -1533,25 +1540,25 @@ grocery:
       de: "Ein Artikelname muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
     invalid_amount:
       en: "An amount must be a positive number up to %{max} with at most 3 decimal places."
-      de: "Eine Menge muss eine positive Zahl bis %{max} mit höchstens 3 Nachkommastellen sein."
+      de: "Eine Anzahl muss eine positive Zahl bis %{max} mit höchstens 3 Nachkommastellen sein."
     invalid_unit:
       en: "A unit must have at most %{max} characters and no control characters."
       de: "Eine Einheit darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
-    unit_without_amount: { en: "A unit needs an amount.", de: "Eine Einheit braucht eine Menge." }
+    unit_without_amount: { en: "A unit needs an amount.", de: "Eine Einheit braucht eine Anzahl." }
     unknown_category:
       en: "There is no such category on the list."
       de: "Diese Kategorie gibt es auf der Liste nicht."
     invalid_category_name:
       en: "A category name must have 1 to %{max} characters and no control characters."
       de: "Ein Kategoriename muss 1 bis %{max} Zeichen und keine Steuerzeichen haben."
-    category_exists: { en: "A category of the name exists.", de: "Eine Kategorie mit diesem Namen gibt es schon." }
+    category_exists: { en: "A category with this name already exists.", de: "Eine Kategorie mit diesem Namen gibt es schon." }
     too_many_categories:
       en: "A list can have at most %{max} categories."
       de: "Eine Liste kann höchstens %{max} Kategorien haben."
     invalid_category_order:
       en: "The order must name every category of the list once."
       de: "Die Reihenfolge muss jede Kategorie der Liste einmal nennen."
-    list_exists: { en: "A list of the name exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
+    list_exists: { en: "A list with this name already exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
     unknown_list:
       en: "There is no such list, or you can not see it."
       de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
@@ -1650,7 +1657,6 @@ grocery:
     item_rename: { en: "Rename", de: "Umbenennen" }
     item_name_invalid: { en: "An item name must have 1 to 128 characters.", de: "Ein Artikelname muss 1 bis 128 Zeichen haben." }
     item_not_renamed: { en: "The item could not be renamed.", de: "Der Artikel konnte nicht umbenannt werden." }
-    cancel: { en: "Cancel", de: "Abbrechen" }
     show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
     settings_of: { en: "Settings of %{list}", de: "Einstellungen von %{list}" }
     nothing_to_buy: { en: "Nothing to buy.", de: "Nichts zu kaufen." }
@@ -1705,7 +1711,7 @@ hosting:
     invalid_name:
       en: "A bucket name must have 3 to 63 lower case letters, digits and hyphens, start and end with a letter or digit, and must not be reserved for the apps or the api."
       de: "Ein Bucketname muss 3 bis 63 Kleinbuchstaben, Ziffern und Bindestriche haben, mit einem Buchstaben oder einer Ziffer beginnen und enden und darf nicht für die Apps oder die API reserviert sein."
-    name_taken: { en: "A bucket of the name exists.", de: "Einen Bucket mit diesem Namen gibt es schon." }
+    name_taken: { en: "A bucket with this name already exists.", de: "Einen Bucket mit diesem Namen gibt es schon." }
     subdomain_taken:
       en: "The subdomain of the name is already a domain of another bucket, a redirect, the apps or the api."
       de: "Die Subdomain des Namens ist schon eine Domain eines anderen Buckets, einer Weiterleitung, der Apps oder der API."
@@ -1844,7 +1850,7 @@ hosting:
         en: "It only uploads what changed and deletes what is gone. The site is served at the domains of the bucket once their DNS records point at the server."
         de: "Es lädt nur hoch, was sich geändert hat, und löscht, was weg ist. Die Site wird unter den Domains des Buckets ausgeliefert, sobald ihre DNS-Einträge auf den Server zeigen."
     logs:
-      label: { en: "Logs", de: "Zugriffslogs" }
+      label: { en: "Access logs", de: "Zugriffslogs" }
       unknown:
         en: "The bucket is not served at a domain, it has no access logs."
         de: "Der Bucket wird unter keiner Domain ausgeliefert, er hat keine Zugriffslogs."
@@ -2058,7 +2064,7 @@ redirects:
     invalid_domains:
       en: "Both domains must be valid and differ, and the redirected one must be neither one of the apps or the api nor one of a bucket."
       de: "Beide Domains müssen gültig und verschieden sein, und die weitergeleitete darf weder eine der Apps oder der API noch eine eines Buckets sein."
-    exists: { en: "A redirect of the domain exists.", de: "Eine Weiterleitung dieser Domain gibt es schon." }
+    exists: { en: "A redirect of this domain already exists.", de: "Eine Weiterleitung dieser Domain gibt es schon." }
     unknown_bucket: { en: "There is no such bucket.", de: "Diesen Bucket gibt es nicht." }
     bucket_not_served:
       en: "The bucket is not served at a domain."
@@ -2172,11 +2178,11 @@ todo:
     list:
       task: { en: "Task", de: "Aufgabe" }
       not_added: { en: "The task could not be added.", de: "Die Aufgabe konnte nicht hinzugefügt werden." }
-      not_done: { en: "The task could not be marked done.", de: "Die Aufgabe konnte nicht erledigt werden." }
+      not_done: { en: "The task could not be marked done.", de: "Die Aufgabe konnte nicht als erledigt markiert werden." }
       items_not_loaded: { en: "The tasks could not be loaded.", de: "Die Aufgaben konnten nicht geladen werden." }
-      done_of: { en: "Mark %{title} done", de: "%{title} erledigen" }
+      done_of: { en: "Mark %{title} done", de: "%{title} als erledigt markieren" }
       # the purge of the done tasks of a list (TODO-6)
-      purge: { en: "Remove done tasks", de: "Erledigte entfernen" }
+      purge: { en: "Remove done tasks", de: "Erledigte Aufgaben entfernen" }
       purged: { en: "Done tasks removed", de: "Erledigte Aufgaben entfernt" }
       nothing_to_purge: { en: "The list has no done tasks.", de: "Die Liste hat keine erledigten Aufgaben." }
       not_purged: { en: "The done tasks could not be removed.", de: "Die erledigten Aufgaben konnten nicht entfernt werden." }
@@ -2194,7 +2200,7 @@ todo:
       remove_due_date: { en: "Remove due date", de: "Fälligkeitsdatum entfernen" }
       no_due_date_yet: { en: "The task has no due date.", de: "Die Aufgabe hat kein Fälligkeitsdatum." }
       due_date_not_saved: { en: "The due date could not be saved.", de: "Das Fälligkeitsdatum konnte nicht gespeichert werden." }
-      due_date: { en: "Due date", de: "Fällig am" }
+      due_date: { en: "Due date", de: "Fälligkeitsdatum" }
       due: { en: "due %{date}", de: "fällig %{date}" }
       overdue: { en: "overdue since %{date}", de: "überfällig seit %{date}" }
     # the priority of a task (TODO-5)
@@ -2242,7 +2248,6 @@ todo:
     # the name of the app, also the title of the deployment screen
     app_name: "SAK Todo"
     item_title_invalid: { en: "A title must have 1 to 256 characters.", de: "Ein Titel muss 1 bis 256 Zeichen haben." }
-    cancel: { en: "Cancel", de: "Abbrechen" }
     ok: { en: "OK", de: "OK" }
     nothing_to_do: { en: "Nothing to do.", de: "Nichts zu tun." }
     no_due_date: { en: "No due date", de: "Kein Fälligkeitsdatum" }
@@ -2266,7 +2271,7 @@ todo:
     invalid_priority:
       en: "A priority must be high, normal or low."
       de: "Eine Priorität muss hoch, normal oder niedrig sein."
-    list_exists: { en: "A list of the name exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
+    list_exists: { en: "A list with this name already exists.", de: "Eine Liste mit diesem Namen gibt es schon." }
     unknown_list:
       en: "There is no such list, or you can not see it."
       de: "Diese Liste gibt es nicht, oder du kannst sie nicht sehen."
@@ -2314,7 +2319,7 @@ sak_backup:
       file_too_large:
         en: "The file has more than %{max} bytes, more than a backup plan takes."
         de: "Die Datei hat mehr als %{max} Bytes, mehr als ein Backup-Plan aufnimmt."
-      file_not_text: { en: "The file is no text.", de: "Die Datei ist kein Text." }
+      file_not_text: { en: "The file is not a text file.", de: "Die Datei ist kein Text." }
     # the icon in the tray of the panel and its menu (gui/tray.rs)
     tray:
       show: { en: "Show SAK Backup", de: "SAK Backup anzeigen" }
@@ -2363,10 +2368,10 @@ sak_backup:
       delete_unavailable:
         en: "Deleting a repository is not possible yet."
         de: "Ein Repository kann noch nicht gelöscht werden."
-      forget_password: { en: "Forget the password", de: "Passwort vergessen" }
+      forget_password: { en: "Forget the password", de: "Gemerktes Passwort löschen" }
       forgot:
         en: "The password of %{name} is forgotten on this computer."
-        de: "Das Passwort von %{name} ist auf diesem Computer vergessen."
+        de: "Das Passwort von %{name} wird auf diesem Computer nicht mehr gemerkt."
       none_kept:
         en: "No password of this repository is remembered on this computer."
         de: "Auf diesem Computer ist kein Passwort dieses Repositorys gemerkt."
@@ -2386,7 +2391,7 @@ sak_backup:
       other_computer: { en: "Computer %{host}", de: "Computer %{host}" }
       other_computer_hint:
         en: "A backup plan of the computer %{host} is changed on that computer."
-        de: "Ein Backup-Plan des Computers %{host} wird auf diesem Computer geändert."
+        de: "Ein Backup-Plan des Computers %{host} wird dort geändert."
       this_computer: { en: "Backs up this computer, %{host}.", de: "Sichert diesen Computer, %{host}." }
       excludes: { en: "What to leave out", de: "Was ausgelassen wird" }
       excludes_edit: { en: "Edit excludes…", de: "Ausschlüsse bearbeiten…" }
@@ -2403,7 +2408,7 @@ sak_backup:
         de: "Backup-Plan %{name} löschen? Seine Pfade werden nicht mehr von ihm gesichert. Sein Repository und die Snapshots darin bleiben."
       delete_other_computer:
         en: "A backup plan of the computer %{host} is deleted on that computer."
-        de: "Ein Backup-Plan des Computers %{host} wird auf diesem Computer gelöscht."
+        de: "Ein Backup-Plan des Computers %{host} wird dort gelöscht."
       delete_failed: { en: "The backup plan was not deleted: %{error}", de: "Der Backup-Plan wurde nicht gelöscht: %{error}" }
       repository: { en: "Repository", de: "Repository" }
       paths: { en: "What to back up", de: "Was gesichert wird" }
@@ -2424,7 +2429,7 @@ sak_backup:
       run: { en: "Back up now", de: "Jetzt sichern" }
       run_other_computer:
         en: "A backup plan of the computer %{host} runs on that computer."
-        de: "Ein Backup-Plan des Computers %{host} läuft auf diesem Computer."
+        de: "Ein Backup-Plan des Computers %{host} läuft dort."
       run_busy: { en: "Another backup or restore runs.", de: "Ein anderes Backup oder eine Wiederherstellung läuft." }
       run_elsewhere:
         en: "Another sakbackup works on this repository, e.g. the command line. Try again when it is done."
@@ -2488,14 +2493,14 @@ sak_backup:
         en: "This is not the password of the repository."
         de: "Das ist nicht das Passwort des Repositorys."
       run_wrong_kept:
-        en: "The repository refused the remembered password. Give the password here; the remembered one stays until you forget it in the menu of the repository."
-        de: "Das Repository hat das gemerkte Passwort abgelehnt. Gib das Passwort hier an; das gemerkte bleibt, bis du es im Menü des Repositorys vergisst."
+        en: "The repository refused the remembered password. Enter the password here; the remembered one stays until you forget it in the menu of the repository."
+        de: "Das Repository hat das gemerkte Passwort abgelehnt. Gib das Passwort hier an; das gemerkte bleibt, bis du es im Menü des Repositorys löschst."
       remember: { en: "Remember the password on this computer", de: "Passwort auf diesem Computer merken" }
       remember_hint:
         en: "It is kept in the keychain of this computer, and backups then run without asking. The SAK instance never gets it."
         de: "Es wird im Schlüsselbund dieses Computers gespeichert, und Backups laufen dann ohne Nachfrage. Die SAK-Instanz bekommt es nie."
       run_wrong_environment:
-        en: "SAK_BACKUP_REPO_PASSWORD is not the password of this repository. Give it here."
+        en: "SAK_BACKUP_REPO_PASSWORD is not the password of this repository. Enter it here."
         de: "SAK_BACKUP_REPO_PASSWORD ist nicht das Passwort dieses Repositorys. Gib es hier an."
       run_no_restic:
         en: "restic is not installed on this computer. Install it, e.g. with the package manager, and try again."
@@ -2509,7 +2514,7 @@ sak_backup:
       run_init_environment_action: { en: "Create and back up", de: "Erstellen und sichern" }
       run_repository_missing:
         en: "The SAK instance has no data of %{repository}, but its password is remembered on this computer, so it had backups. It is not created again. Check the SAK instance, or forget the password in the menu of the repository to start a new one."
-        de: "Die SAK-Instanz hat keine Daten von %{repository}, aber sein Passwort ist auf diesem Computer gemerkt, es hatte also Backups. Es wird nicht neu erstellt. Prüfe die SAK-Instanz, oder vergiss das Passwort im Menü des Repositorys, um ein neues zu beginnen."
+        de: "Die SAK-Instanz hat keine Daten von %{repository}, aber sein Passwort ist auf diesem Computer gemerkt, es hatte also Backups. Es wird nicht neu erstellt. Prüfe die SAK-Instanz, oder lösche das gemerkte Passwort im Menü des Repositorys, um ein neues zu beginnen."
       run_empty:
         en: "The snapshot has no file: is a disk not mounted? No older snapshot was removed."
         de: "Der Snapshot hat keine Datei: Ist ein Laufwerk nicht eingehängt? Kein älterer Snapshot wurde entfernt."
@@ -2565,7 +2570,7 @@ sak_backup:
     snapshot_deleted: { en: "Deleted the snapshot %{id} of %{repository}.", de: "Snapshot %{id} von %{repository} gelöscht." }
     plan_changed: { en: "Changed the backup plan %{name}.", de: "Backup-Plan %{name} geändert." }
     no_change:
-      en: "Give --keep-*, --exclude, --exclude-file, --preset or --[no-]exclude-caches to change the backup plan."
+      en: "Use --keep-*, --exclude, --exclude-file, --preset or --[no-]exclude-caches to change the backup plan."
       de: "Gib --keep-*, --exclude, --exclude-file, --preset oder --[no-]exclude-caches an, um den Backup-Plan zu ändern."
     exclude_file_unreadable: { en: "%{file} can not be read: %{error}", de: "%{file} kann nicht gelesen werden: %{error}" }
     excludes_unsupported:
@@ -2603,7 +2608,7 @@ sak_backup:
     not_signed_in:
       en: "Not signed in: sign in with the window of sakbackup, or set SAK_BACKUP_ADDRESS and SAK_BACKUP_SESSION_TOKEN."
       de: "Nicht angemeldet: Melde dich im Fenster von sakbackup an, oder setze SAK_BACKUP_ADDRESS und SAK_BACKUP_SESSION_TOKEN."
-    invalid_address: { en: "%{address} is no SAK address.", de: "%{address} ist keine SAK-Adresse." }
+    invalid_address: { en: "%{address} is not a SAK address.", de: "%{address} ist keine SAK-Adresse." }
     password_prompt: { en: "Password of the repository: ", de: "Passwort des Repositorys: " }
     password_repeat: { en: "Repeat the password: ", de: "Passwort wiederholen: " }
     passwords_differ: { en: "The passwords are not the same.", de: "Die Passwörter sind nicht gleich." }
@@ -2619,7 +2624,7 @@ sak_backup:
       de: "Dieser Backup-Plan gehört zum Computer %{host}; er läuft dort."
     no_snapshot: { en: "The backup plan has no snapshot yet.", de: "Der Backup-Plan hat noch keinen Snapshot." }
     needs_init_environment:
-      en: "The repository has no backup yet: give --init to create it with the password of SAK_BACKUP_REPO_PASSWORD."
+      en: "The repository has no backup yet: use --init to create it with the password of SAK_BACKUP_REPO_PASSWORD."
       de: "Das Repository hat noch kein Backup: Gib --init an, um es mit dem Passwort aus SAK_BACKUP_REPO_PASSWORD zu erstellen."
     repository_missing:
       en: "The SAK instance has no data of the repository, but its password is remembered on this computer, so it had backups. It is not created again: check the SAK instance."
@@ -2642,7 +2647,7 @@ desktop_shared:
         en: "Asking %{receiver} for the newest release of %{app}…"
         de: "Frage %{receiver} nach dem neuesten Release von %{app}…"
       no_release:
-        en: "This %{app} (%{version}) is no release, there is no version to compare it with."
+        en: "This %{app} (%{version}) is not a release, there is no version to compare it with."
         de: "Dieses %{app} (%{version}) ist kein Release, es gibt keine Version, mit der es verglichen werden kann."
       up_to_date: { en: "%{app} %{version} is up-to-date.", de: "%{app} %{version} ist aktuell." }
       newer:
@@ -2661,18 +2666,18 @@ desktop_shared:
       unreachable: { en: "%{url} could not be reached: %{error}", de: "%{url} ist nicht erreichbar: %{error}" }
       failed: { en: "%{url} answered %{status}.", de: "%{url} hat %{status} geantwortet." }
       not_https:
-        en: "%{url} is no https address, %{app} asks github over https only."
+        en: "%{url} is not an https address, %{app} asks github over https only."
         de: "%{url} ist keine https-Adresse, %{app} fragt github nur über https."
       not_github:
-        en: "%{url} is no address of github, %{app} downloads from github only."
+        en: "%{url} is not an address of github, %{app} downloads from github only."
         de: "%{url} ist keine Adresse von github, %{app} lädt nur von github herunter."
       unreadable:
         en: "The newest release on %{receiver} could not be read: %{error}"
         de: "Das neueste Release auf %{receiver} konnte nicht gelesen werden: %{error}"
       no_asset: { en: "The release %{version} has no %{name}.", de: "Das Release %{version} hat kein %{name}." }
       checksum_mismatch:
-        en: "The sha-256 of %{name} is not the one of its checksum, nothing was changed."
-        de: "Die SHA-256 von %{name} ist nicht die seiner Prüfsumme, nichts wurde geändert."
+        en: "The checksum of %{name} does not match, nothing was changed."
+        de: "Die Prüfsumme von %{name} stimmt nicht, nichts wurde geändert."
       signature_invalid:
         en: "%{name} is not signed by the release workflow of %{version}, nothing was changed: %{error}"
         de: "%{name} ist nicht vom Release-Workflow von %{version} signiert, nichts wurde geändert: %{error}"
@@ -2760,4 +2765,4 @@ desktop_shared:
     refused: { en: "The SAK instance refused it (%{status}).", de: "Die SAK-Instanz hat es abgelehnt (%{status})." }
     failed: { en: "It failed: %{error}", de: "Es ist fehlgeschlagen: %{error}" }
     update:
-      hint: { en: "Run %{app} update to install it.", de: "%{app} update installiert es." }
+      hint: { en: "Run %{app} update to install it.", de: "Führe %{app} update aus, um es zu installieren." }

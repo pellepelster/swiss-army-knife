@@ -232,7 +232,7 @@ class AuthRoutesTest {
         authTest {
             client.login("not-an-address").let {
                 it.status shouldBe HttpStatusCode.BadRequest
-                it.bodyAsText() shouldBe """{"errors":[{"code":"auth.invalid_email","message":"No valid e-mail address."}]}"""
+                it.bodyAsText() shouldBe """{"errors":[{"code":"auth.invalid_email","message":"An e-mail address like name@example.org is needed."}]}"""
             }
             client.login("Admin <admin@example.org>").status shouldBe HttpStatusCode.BadRequest
             client.post("/api/v1/auth/login/link") { contentType(ContentType.Application.Json); setBody("{}") }.status shouldBe
@@ -251,7 +251,7 @@ class AuthRoutesTest {
 
             client.login("not-an-address").let {
                 it.status shouldBe HttpStatusCode.BadRequest
-                it.bodyAsText() shouldBe """{"errors":[{"code":"auth.invalid_email","message":"No valid e-mail address."}]}"""
+                it.bodyAsText() shouldBe """{"errors":[{"code":"auth.invalid_email","message":"An e-mail address like name@example.org is needed."}]}"""
             }
             withTimeoutOrNull(500) { mails.receive() } shouldBe null
         }

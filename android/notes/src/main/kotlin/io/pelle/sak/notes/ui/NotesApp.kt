@@ -3,16 +3,11 @@ package io.pelle.sak.notes.ui
 import io.pelle.sak.api.model.NoteResponse
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
 import android.media.MediaPlayer
-import android.net.Uri
 import android.util.Log
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,7 +35,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -63,7 +57,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -73,8 +66,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -90,10 +81,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -103,7 +91,15 @@ import io.pelle.sak.core.ui.AccountMenu
 import io.pelle.sak.core.ui.Busy
 import io.pelle.sak.core.ui.ConfirmDelete
 import io.pelle.sak.core.ui.Error
+import io.pelle.sak.core.ui.DeleteMenuEntry
+import io.pelle.sak.core.ui.MenuEntry
+import io.pelle.sak.core.ui.MenuIcon
 import io.pelle.sak.core.ui.Page
+import io.pelle.sak.core.ui.LocalPhotoCapture
+import io.pelle.sak.core.ui.PhotoCapture
+import io.pelle.sak.core.ui.PhotoViewer
+import io.pelle.sak.core.ui.RemoteImage
+import io.pelle.sak.core.ui.rememberPhotoCapture
 import io.pelle.sak.core.ui.resolve
 import io.pelle.sak.core.ui.UpdateBanner
 import io.pelle.sak.core.ui.UpdateNotice
@@ -119,12 +115,10 @@ import io.pelle.sak.notes.MAX_RECORDINGS
 import io.pelle.sak.notes.MAX_TEXT_LENGTH
 import io.pelle.sak.notes.NOTE_COLORS
 import io.pelle.sak.notes.NotesModel
-import io.pelle.sak.notes.scaledPhoto
 import io.pelle.sak.notes.NotesScreen
 import io.pelle.sak.notes.R
 import io.pelle.sak.notes.RecordingFor
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -182,7 +176,7 @@ fun NotesApp(model: NotesModel) {
     val open = (screen as? NotesScreen)?.open
     LaunchedEffect(open) { player.stop() }
     CompositionLocalProvider(
-        LocalPhotoPicker provides rememberPhotoPicker(model),
+        LocalPhotoCapture provides rememberNotesPhotos(model),
         LocalMicrophone provides rememberMicrophone(model),
         LocalPlayer provides player,
     ) {
@@ -203,84 +197,15 @@ fun NotesApp(model: NotesModel) {
     }
 }
 
-private class PhotoPicker(
-    val hasCamera: Boolean,
-    val take: (noteId: Int) -> Unit,
-    val choose: (noteId: Int) -> Unit,
-)
-
-private val LocalPhotoPicker = staticCompositionLocalOf<PhotoPicker> { error("no photo picker") }
-
 private val LocalMicrophone = staticCompositionLocalOf<(RecordingFor) -> Unit> { error("no microphone") }
 
-// the camera and the photo picker, at the root of the app: their note is kept in the saved state
+// the camera and the photo picker, at the root of the app; the target is a note or NEW
 @Composable
-private fun rememberPhotoPicker(model: NotesModel): PhotoPicker {
-    val context = LocalContext.current
-    var pending by rememberSaveable { mutableStateOf<Int?>(null) }
-    // a file of the cache, shared with the camera app by the file provider
-    val cameraFile = remember { File(context.cacheDir, "photos/camera.jpg") }
-    val cameraUri =
-        remember {
-            cameraFile.parentFile?.mkdirs()
-            FileProvider.getUriForFile(context, "${context.packageName}.photos", cameraFile)
-        }
-
-    fun send(
-        uri: Uri,
-        done: () -> Unit = {},
-    ) {
-        val noteId = pending ?: return
-        pending = null
-        val read: suspend () -> ByteArray? = {
-            try {
-                scaledPhoto(context, uri)
-            } finally {
-                // also when the read is cancelled: the file of the camera goes
-                withContext(NonCancellable + Dispatchers.IO) { done() }
-            }
-        }
-        if (noteId == NEW) model.createWithPhoto(read) else model.addPhoto(noteId, read)
+private fun rememberNotesPhotos(model: NotesModel): PhotoCapture =
+    rememberPhotoCapture { target, read, _ ->
+        // the model calls every read once, also of a photo it drops, so the file of the camera goes
+        if (target == NEW) model.createWithPhoto(read) else model.addPhoto(target, read)
     }
-    val camera =
-        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-            // the file of the camera (with its EXIF) goes also when no photo was taken
-            if (taken) {
-                send(cameraUri) { cameraFile.delete() }
-            } else {
-                pending = null
-                cameraFile.delete()
-            }
-        }
-    // the app declares CAMERA for the QR scan (core), so android lets the camera app take a photo for
-    // it only once the user allowed the camera
-    val permission =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
-            if (allowed) camera.launch(cameraUri) else pending = null
-        }
-    val picker =
-        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-            if (uri != null) send(uri) else pending = null
-        }
-    val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
-    return remember(camera, permission, picker) {
-        PhotoPicker(
-            hasCamera,
-            take = { noteId ->
-                pending = noteId
-                if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                    camera.launch(cameraUri)
-                } else {
-                    permission.launch(Manifest.permission.CAMERA)
-                }
-            },
-            choose = { noteId ->
-                pending = noteId
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
-        )
-    }
-}
 
 @Composable
 private fun rememberMicrophone(model: NotesModel): (RecordingFor) -> Unit {
@@ -312,9 +237,9 @@ private fun WallScreen(
     screen: NotesScreen,
     model: NotesModel,
 ) {
-    val picker = LocalPhotoPicker.current
+    val picker = LocalPhotoCapture.current
     val microphone = LocalMicrophone.current
-    var photoMenu by remember { mutableStateOf(false) }
+    var photoMenu by rememberSaveable { mutableStateOf(false) }
     val busy = screen.creating || screen.recording != null
     Page(
         stringResource(R.string.notes_app_name),
@@ -348,8 +273,8 @@ private fun WallScreen(
                 verticalItemSpacing = 12.dp,
             ) {
                 val full = StaggeredGridItemSpan.FullLine
-                screen.update?.let { item(span = full) { UpdateBanner(it, model::update) } }
-                screen.updateNotice?.let { item(span = full) { UpdateNotice(it, model::dismissUpdateNotice) } }
+                screen.update?.let { item(span = full) { UpdateBanner(it, model.updates::install, model.updates::later) } }
+                screen.updateNotice?.let { item(span = full) { UpdateNotice(it, model.updates::dismissNotice) } }
                 if (screen.creating) item(span = full) { Text(stringResource(R.string.notes_uploading)) }
                 screen.error?.let { item(span = full) { Message(it, model::dismissError) } }
                 screen.notice?.let { item(span = full) { Message(it, model::dismissNotice, error = false) } }
@@ -371,28 +296,22 @@ private fun WallScreen(
 @Composable
 private fun PhotoMenu(
     expanded: Boolean,
-    picker: PhotoPicker,
+    picker: PhotoCapture,
     noteId: Int,
     dismiss: () -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = dismiss) {
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.notes_photo_take)) },
+        MenuEntry(
+            stringResource(R.string.notes_photo_take),
+            close = dismiss,
             leadingIcon = { Icon(painterResource(R.drawable.ic_camera), contentDescription = null) },
             enabled = picker.hasCamera,
-            onClick = {
-                dismiss()
-                picker.take(noteId)
-            },
-        )
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.notes_photo_choose)) },
+        ) { picker.take(noteId) }
+        MenuEntry(
+            stringResource(R.string.notes_photo_choose),
+            close = dismiss,
             leadingIcon = { Icon(painterResource(R.drawable.ic_image), contentDescription = null) },
-            onClick = {
-                dismiss()
-                picker.choose(noteId)
-            },
-        )
+        ) { picker.choose(noteId) }
     }
 }
 
@@ -429,7 +348,7 @@ private fun NoteCard(
     note: NoteResponse,
     model: NotesModel,
 ) {
-    var menu by remember { mutableStateOf(false) }
+    var menu by rememberSaveable { mutableStateOf(false) }
     val deleting = note.id in screen.deletingNow
     Card(
         colors = CardDefaults.cardColors(containerColor = noteColor(note.color), contentColor = NOTE_INK),
@@ -450,19 +369,13 @@ private fun NoteCard(
                         val deletingText = stringResource(R.string.notes_deleting)
                         CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp).semantics { contentDescription = deletingText }, strokeWidth = 2.dp)
                     } else {
-                        IconButton(onClick = { menu = true }) {
-                            Icon(painterResource(CoreR.drawable.ic_menu), contentDescription = stringResource(R.string.notes_note_menu), tint = NOTE_INK)
+                        // named by the first line of its text, as the menu of a row of a list
+                        IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-note-${note.id}")) {
+                            MenuIcon(note.text.lineSequence().first().trim().ifBlank { stringResource(R.string.notes_this_note) })
                         }
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(CoreR.string.shared_delete), color = MaterialTheme.colorScheme.error) },
-                            onClick = {
-                                menu = false
-                                model.askDelete(note.id)
-                            },
-                            modifier = Modifier.testTag("delete-${note.id}"),
-                        )
+                        DeleteMenuEntry(close = { menu = false }, modifier = Modifier.testTag("delete-note-${note.id}")) { model.askDelete(note.id) }
                     }
                 }
             }
@@ -502,15 +415,13 @@ private fun Thumbnail(
     full: Boolean = false,
     recording: Boolean = false,
 ) {
-    val bitmap by produceState<ImageBitmap?>(null, fileId, full) {
-        value =
-            model.file(fileId, thumbnail = !full, recording = recording)?.let { bytes ->
-                withContext(Dispatchers.Default) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
-            }
-    }
-    Box(modifier.background(NOTE_INK.copy(alpha = 0.08f)), contentAlignment = Alignment.Center) {
-        bitmap?.let { Image(it, contentDescription = null, contentScale = if (full) ContentScale.Fit else ContentScale.FillWidth, modifier = Modifier.fillMaxWidth()) }
-    }
+    RemoteImage(
+        fileId to full,
+        NOTE_INK.copy(alpha = 0.08f),
+        if (full) ContentScale.Fit else ContentScale.FillWidth,
+        modifier,
+        imageModifier = Modifier.fillMaxWidth(),
+    ) { model.file(fileId, thumbnail = !full, recording = recording) }
 }
 
 // back leads to the wall, the typed text is saved first
@@ -521,20 +432,15 @@ private fun NoteScreen(
     note: NoteResponse,
     model: NotesModel,
 ) {
-    BackHandler { model.open(null) }
-    val picker = LocalPhotoPicker.current
+    val picker = LocalPhotoCapture.current
     val microphone = LocalMicrophone.current
-    var menu by remember { mutableStateOf(false) }
-    var viewing by remember { mutableStateOf<Int?>(null) }
+    var menu by rememberSaveable { mutableStateOf(false) }
     val deleting = note.id in screen.deletingNow
     Page(
         stringResource(R.string.notes_note),
+        onBack = { model.open(null) },
+        back = stringResource(R.string.notes_back_to_notes),
         bottomBar = { BottomBars(screen, model) },
-        navigationIcon = {
-            IconButton(onClick = { model.open(null) }, modifier = Modifier.testTag("back")) {
-                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.notes_back_to_notes))
-            }
-        },
         actions = {
             Box {
                 // disabled while the note is deleted, a second delete does nothing
@@ -546,13 +452,11 @@ private fun NoteScreen(
                     }
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.notes_delete_note), color = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            menu = false
-                            model.askDelete(note.id)
-                        },
-                    )
+                    DeleteMenuEntry(
+                        close = { menu = false },
+                        text = stringResource(R.string.notes_delete_note),
+                        modifier = Modifier.testTag("delete-note-${note.id}"),
+                    ) { model.askDelete(note.id) }
                 }
             }
         },
@@ -580,13 +484,13 @@ private fun NoteScreen(
                         NoteText(note, model)
                         ColorChoice(note, model)
                         Labels(screen, note, model)
-                        Media(screen, note, model, picker, microphone) { viewing = it }
+                        Media(screen, note, model, picker, microphone)
                     }
                 }
             }
         }
     }
-    viewing?.let { fileId -> PhotoDialog(fileId, model) { viewing = null } }
+    screen.viewing?.let { fileId -> PhotoViewer(close = { model.viewPhoto(null) }) { Thumbnail(fileId, model, Modifier.fillMaxWidth(), full = true) } }
 }
 
 // kept here while typing so the answers of the saves do not move the cursor
@@ -669,10 +573,10 @@ private fun Labels(
             }
         }
         // disabled, not hidden, once the note has MAX_LABELS (UX-8)
-        val known = screen.labels.filter { name -> note.labels.none { it.name == name } && (label.isBlank() || name.contains(label.trim().lowercase())) }
+        val known = screen.suggestions(note, label)
         if (known.isNotEmpty()) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                known.take(12).forEach { name ->
+                known.forEach { name ->
                     FilterChip(selected = false, enabled = !full, onClick = { model.addLabel(note.id, name) }, label = { Text("#$name") })
                 }
             }
@@ -704,11 +608,10 @@ private fun Media(
     screen: NotesScreen,
     note: NoteResponse,
     model: NotesModel,
-    picker: PhotoPicker,
+    picker: PhotoCapture,
     microphone: (RecordingFor) -> Unit,
-    view: (Int) -> Unit,
 ) {
-    var photoMenu by remember { mutableStateOf(false) }
+    var photoMenu by rememberSaveable { mutableStateOf(false) }
     val uploading = note.id in screen.uploading
     val photosFull = note.photos.size >= MAX_PHOTOS
     val recordingsFull = note.recordings.size >= MAX_RECORDINGS
@@ -724,7 +627,7 @@ private fun Media(
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(role = Role.Button) { view(photo.id) }
+                        .clickable(role = Role.Button) { model.viewPhoto(photo.id) }
                         .semantics { contentDescription = name }
                         .testTag("photo-${photo.id}"),
                 )
@@ -873,19 +776,6 @@ private fun Message(
         }
         IconButton(onClick = dismiss) {
             Icon(painterResource(R.drawable.ic_xmark), contentDescription = stringResource(R.string.notes_dismiss), modifier = Modifier.size(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun PhotoDialog(
-    fileId: Int,
-    model: NotesModel,
-    close: () -> Unit,
-) {
-    Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxSize().background(Color.Black).clickable(onClick = close), contentAlignment = Alignment.Center) {
-            Thumbnail(fileId, model, Modifier.fillMaxWidth(), full = true)
         }
     }
 }

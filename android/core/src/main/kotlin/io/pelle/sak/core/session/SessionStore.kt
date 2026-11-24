@@ -27,7 +27,13 @@ data class Stored(
     // what the app keeps with the session, by its own names (e.g. the list open last of the grocery
     // lists); they go with the session, at the sign-out, its end and another deployment
     val app: Map<String, String> = emptyMap(),
-)
+    // when the app last learned the version of the deployment, by itself at its start or by the check
+    // for updates of the menu (UX-13); it stays with the deployment, also over a sign-out
+    val updateCheckedAt: Instant? = null,
+) {
+    // what stays when the session goes: the deployment, a pending login and when the version was learned
+    fun withoutSession() = copy(token = null, email = null, expiresAt = null, app = emptyMap())
+}
 
 // where the app keeps what it stores; the token never in plain text (KeystoreCipher). update changes
 // what is stored at once, so two changes at the same time do not undo each other

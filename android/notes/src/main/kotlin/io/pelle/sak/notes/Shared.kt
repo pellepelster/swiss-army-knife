@@ -1,12 +1,6 @@
 package io.pelle.sak.notes
 
-import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.util.Log
-import io.pelle.sak.core.ui.PhotoScaling
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 // what another app shares with the notes: its photos (content uris) and a text, e.g. a caption
 data class Shared<T>(
@@ -28,17 +22,3 @@ fun <T> shared(
     if (photos.isEmpty()) return null
     return Shared(photos, text?.toString().orEmpty())
 }
-
-// the photo scaled by PhotoScaling; null when it can not be read
-suspend fun scaledPhoto(
-    context: Context,
-    uri: Uri,
-): ByteArray? =
-    withContext(Dispatchers.IO) {
-        try {
-            PhotoScaling.jpeg(context, uri)
-        } catch (e: Exception) {
-            Log.w("sak-notes", "a shared photo could not be read", e)
-            null
-        }
-    }

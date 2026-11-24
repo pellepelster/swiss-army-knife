@@ -3,13 +3,16 @@ import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.getByType
 
-// the conventions of every app; the module keeps its namespace, its applicationId and its own
-// dependencies
+// the conventions of every app: compose, core, testing for the tests; the module keeps its namespace,
+// its applicationId and its own dependencies
 class SakAndroidAppPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         target.pluginManager.apply("com.android.application")
+        target.pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
         val sak = SakVersion.of(System.getenv("VERSION"))
         // the keystore mise run android:release:build decodes out of the secrets (github:secrets:update)
         val keystore = System.getenv("ANDROID_KEYSTORE_FILE")
@@ -90,6 +93,16 @@ class SakAndroidAppPlugin : Plugin<Project> {
                 sourceCompatibility = JavaVersion.VERSION_17
                 targetCompatibility = JavaVersion.VERSION_17
             }
+        }
+        val libs = target.extensions.getByType<VersionCatalogsExtension>().named("libs")
+        target.dependencies.apply {
+            // the deployment, the sign-in, the session, the api, compose and ktor come with core (api)
+            add("implementation", target.project(":core"))
+            add("debugImplementation", libs.findLibrary("compose-ui-tooling").get())
+            // the activity the screenshots show the app in (testing, Screenshots.kt), in the debug build only
+            add("debugImplementation", libs.findLibrary("compose-ui-test-manifest").get())
+            // the fake backend, the fixtures and the english texts of the tests
+            add("testImplementation", target.project(":testing"))
         }
         // a release is never unsigned; latest may be
         val unsigned = !sak.latest && keystore == null

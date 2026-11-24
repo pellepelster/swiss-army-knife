@@ -651,7 +651,7 @@ mod integration {
         let path = documents.to_str().unwrap();
         instance.run(&["plan", "create", "documents", "--repo", "my-backups", path]);
         let said = instance.fail(&["run", "documents"]);
-        assert!(said.contains("give --init"), "{said}");
+        assert!(said.contains("use --init"), "{said}");
         assert!(instance.restic_dirs().is_empty());
         instance.run(&["run", "documents", "--init"]);
 

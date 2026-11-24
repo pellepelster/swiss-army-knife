@@ -2,18 +2,21 @@ package io.pelle.sak.todo
 
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.api.model.TodoItemResponse
+import io.pelle.sak.api.model.TodoItemResponse.Priority.HIGH
 import io.pelle.sak.core.Screen
+import io.pelle.sak.core.lists.ChangeStream
 import io.pelle.sak.core.session.MemorySessionStore
-import io.pelle.sak.core.session.Stored
 import io.pelle.sak.core.session.openList
 import io.pelle.sak.core.session.withOpenList
-import io.pelle.sak.core.update.Updater
 import io.pelle.sak.testing.FakeBackend
-import io.pelle.sak.testing.URL
+import io.pelle.sak.testing.sakSetup
+import io.pelle.sak.testing.answerOn
+import io.pelle.sak.testing.changed
+import io.pelle.sak.testing.refused
+import io.pelle.sak.testing.signedIn
 import io.pelle.sak.testing.english
 import io.pelle.sak.testing.page
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -36,35 +39,18 @@ class TodoModelTest {
 
     private val backend =
         FakeBackend().apply {
-            answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi"}"""
             answers["GET /todo/lists"] = HttpStatusCode.OK to page(list(1, "Home"), list(2, "Party", shared = true))
             answers["GET /todo/lists/1/items"] =
                 HttpStatusCode.OK to page(item(10, 1, "Fix the door"), item(11, 1, "Paint the fence", "2026-12-24"))
             answers["GET /todo/lists/2/items"] = HttpStatusCode.OK to page()
         }
 
-    private fun list(
-        id: Int,
-        name: String,
-        shared: Boolean = false,
-    ) = """{"id":$id,"name":"$name","shared":$shared,"mine":true,"items":0,"createdAt":"2026-11-12T07:00:00.000Z"}"""
-
-    private fun item(
-        id: Int,
-        listId: Int,
-        title: String,
-        dueDate: String? = null,
-        priority: String = "normal",
-    ) = """{"id":$id,"listId":$listId,"title":"$title","priority":"$priority","createdAt":"2026-11-12T07:00:00.000Z"${dueDate?.let { ",\"dueDate\":\"$it\"" } ?: ""}}"""
-
     private fun signedInStore(openList: Int? = 1) =
-        MemorySessionStore(
-            Stored(apiUrl = URL, address = "https://sak.example.org", token = "t", email = "admin", expiresAt = now.plusSeconds(60)).withOpenList(openList),
-        )
+        MemorySessionStore(signedIn(now.plusSeconds(60)).withOpenList(openList))
 
     private fun TestScope.model(store: MemorySessionStore): TodoModel {
-        backend.dispatcher = StandardTestDispatcher(testScheduler)
-        return TodoModel(store, backend::api, this, allowUrl = false, clock = Clock.fixed(now, ZoneOffset.UTC), updater = Updater { error("no update expected") })
+        backend.answerOn(this)
+        return TodoModel(sakSetup(store, Clock.fixed(now, ZoneOffset.UTC)), backend::api)
     }
 
     private fun TestScope.signedIn(openList: Int? = 1): TodoModel = model(signedInStore(openList)).also { it.start() }
@@ -136,7 +122,7 @@ class TodoModelTest {
     @Test
     fun `a task the backend refuses keeps its title and day and shows why`() =
         runTest {
-            backend.answers["POST /todo/items"] = HttpStatusCode.BadRequest to """{"errors":[{"code":"todo.invalid_due_date","message":"A due date must be a day as yyyy-mm-dd."}]}"""
+            backend.answers["POST /todo/items"] = HttpStatusCode.BadRequest to refused("A due date must be a day as yyyy-mm-dd.", "todo.invalid_due_date")
             val model = signedIn()
             advanceUntilIdle()
             model.typed("Taxes")
@@ -148,18 +134,16 @@ class TodoModelTest {
             assertEquals(LocalDate.parse("2026-05-31"), model.lists().itemDue)
         }
 
-    private fun done(item: String) = item.dropLast(1) + ""","doneAt":"2026-11-12T08:00:00Z"}"""
-
     @Test
     fun `a task done is struck through at once and the backend learns it, done again it is open again`() =
         runTest {
-            backend.answers["PUT /todo/items/10/done"] = HttpStatusCode.OK to done(item(10, 1, "Fix the door"))
+            backend.answers["PUT /todo/items/10/done"] = HttpStatusCode.OK to item(10, 1, "Fix the door", doneAt = DONE)
             val model = signedIn()
             advanceUntilIdle()
             val door = model.lists().items.first()
 
             backend.answers["GET /todo/lists/1/items"] =
-                HttpStatusCode.OK to page(done(item(10, 1, "Fix the door")), item(11, 1, "Paint the fence", "2026-12-24"))
+                HttpStatusCode.OK to page(item(10, 1, "Fix the door", doneAt = DONE), item(11, 1, "Paint the fence", "2026-12-24"))
             model.done(door)
             assertTrue(model.lists().items.first { it.id == 10 }.doneAt != null)
             advanceUntilIdle()
@@ -178,7 +162,7 @@ class TodoModelTest {
     @Test
     fun `the priority of a task changes from its menu, the list loads with it in its new place, a refused one shows why`() =
         runTest {
-            backend.answers["PUT /todo/items/11/priority"] = HttpStatusCode.OK to item(11, 1, "Paint the fence", "2026-12-24", "high")
+            backend.answers["PUT /todo/items/11/priority"] = HttpStatusCode.OK to item(11, 1, "Paint the fence", "2026-12-24", HIGH)
             val model = signedIn()
             advanceUntilIdle()
             val fence = model.lists().items.first { it.id == 11 }
@@ -188,7 +172,7 @@ class TodoModelTest {
             assertTrue(backend.requests.none { it.contains("/priority") })
 
             backend.answers["GET /todo/lists/1/items"] =
-                HttpStatusCode.OK to page(item(11, 1, "Paint the fence", "2026-12-24", "high"), item(10, 1, "Fix the door"))
+                HttpStatusCode.OK to page(item(11, 1, "Paint the fence", "2026-12-24", HIGH), item(10, 1, "Fix the door"))
             model.setPriority(fence, Priority.HIGH)
             advanceUntilIdle()
             assertTrue(backend.requests.contains("""PUT /todo/items/11/priority {"priority":"high"}"""))
@@ -249,7 +233,7 @@ class TodoModelTest {
     fun `a task is renamed from its menu, an invalid or unchanged title is not sent, a refused one shows why`() =
         runTest {
             backend.answers["PUT /todo/items/10"] = HttpStatusCode.OK to item(10, 1, "Fix the gate")
-            backend.answers["PUT /todo/items/11"] = HttpStatusCode.BadRequest to """{"errors":[{"code":"test.refused","message":"no"}]}"""
+            backend.answers["PUT /todo/items/11"] = HttpStatusCode.BadRequest to refused("no")
             val model = signedIn()
             advanceUntilIdle()
 
@@ -357,7 +341,7 @@ class TodoModelTest {
             model.refresh()
             advanceUntilIdle()
             assertEquals(listOf("Paint the fence"), model.titles())
-            assertEquals("Fix the ga", model.lists().renaming?.title)
+            assertEquals("Fix the ga", model.lists().renaming?.name)
             model.back()
             assertNull(model.lists().renaming)
             assertEquals(1, model.lists().open)
@@ -386,7 +370,7 @@ class TodoModelTest {
     @Test
     fun `a purge takes the done tasks away at once, undo brings them back, the backend purges once the undo ran out`() =
         runTest {
-            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(done(item(10, 1, "Fix the door")), item(11, 1, "Paint the fence"))
+            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(10, 1, "Fix the door", doneAt = DONE), item(11, 1, "Paint the fence"))
             backend.answers["POST /todo/lists/1/purge"] = HttpStatusCode.NoContent to ""
             val model = signedIn()
             advanceUntilIdle()
@@ -424,11 +408,11 @@ class TodoModelTest {
             model.purge()
             assertNull(model.lists().undo)
 
-            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(done(item(10, 1, "Fix the door")))
+            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(10, 1, "Fix the door", doneAt = DONE))
             model.refresh()
             advanceUntilIdle()
             model.purge()
-            model.stopped()
+            model.background()
             advanceUntilIdle()
             assertEquals(listOf("""POST /todo/lists/1/purge {"itemIds":[10]}"""), backend.requests.filter { it.contains("/purge") })
         }
@@ -436,7 +420,7 @@ class TodoModelTest {
     @Test
     fun `a purge the backend refuses shows why and the done tasks again`() =
         runTest {
-            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(done(item(10, 1, "Fix the door")))
+            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(10, 1, "Fix the door", doneAt = DONE))
             backend.answers["POST /todo/lists/1/purge"] = HttpStatusCode.InternalServerError to ""
             val model = signedIn()
             advanceUntilIdle()
@@ -449,8 +433,8 @@ class TodoModelTest {
     @Test
     fun `a purge takes only the done tasks shown, a task done meanwhile stays struck through and is not purged, also over a load`() =
         runTest {
-            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(11, 1, "Paint the fence"), done(item(10, 1, "Fix the door")))
-            backend.answers["PUT /todo/items/11/done"] = HttpStatusCode.OK to done(item(11, 1, "Paint the fence"))
+            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(11, 1, "Paint the fence"), item(10, 1, "Fix the door", doneAt = DONE))
+            backend.answers["PUT /todo/items/11/done"] = HttpStatusCode.OK to item(11, 1, "Paint the fence", doneAt = DONE)
             backend.answers["POST /todo/lists/1/purge"] = HttpStatusCode.NoContent to ""
             val model = signedIn()
             advanceUntilIdle()
@@ -458,7 +442,7 @@ class TodoModelTest {
             model.purge()
             assertEquals(listOf("Paint the fence"), model.titles())
             model.done(model.lists().items.single())
-            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(done(item(11, 1, "Paint the fence")), done(item(10, 1, "Fix the door")))
+            backend.answers["GET /todo/lists/1/items"] = HttpStatusCode.OK to page(item(11, 1, "Paint the fence", doneAt = DONE), item(10, 1, "Fix the door", doneAt = DONE))
             advanceTimeBy(UNDO_MS / 2)
             runCurrent()
             // struck through in its place, the load after the done keeps the purged one away
@@ -473,7 +457,7 @@ class TodoModelTest {
     fun `undo brings the done tasks back in their places without asking the backend`() =
         runTest {
             backend.answers["GET /todo/lists/1/items"] =
-                HttpStatusCode.OK to page(item(12, 1, "Call", priority = "high"), done(item(10, 1, "Fix the door")), item(11, 1, "Paint the fence"))
+                HttpStatusCode.OK to page(item(12, 1, "Call", priority = HIGH), item(10, 1, "Fix the door", doneAt = DONE), item(11, 1, "Paint the fence"))
             val model = signedIn()
             advanceUntilIdle()
             model.purge()
@@ -511,73 +495,27 @@ class TodoModelTest {
         }
 
     @Test
-    fun `a task added while another list opens changes nothing there`() =
-        runTest {
-            backend.answers["POST /todo/items"] = HttpStatusCode.BadRequest to """{"errors":[{"code":"todo.invalid_title","message":"Refused."}]}"""
-            val model = signedIn()
-            advanceUntilIdle()
-            model.typed("Taxes")
-            model.addItem()
-            model.back()
-            model.open(2)
-            model.typed("Cake")
-            advanceUntilIdle()
-            assertEquals(2, model.lists().open)
-            assertEquals("Cake", model.lists().itemTitle)
-            assertNull(model.lists().error)
-            assertTrue(!model.lists().adding)
-        }
-
-    @Test
-    fun `the list deleted from its settings leads to the home, also on the next start`() =
-        runTest {
-            backend.answers["DELETE /todo/lists/1"] = HttpStatusCode.NoContent to ""
-            val store = signedInStore(openList = 1)
-            val model = model(store).also { it.start() }
-            advanceUntilIdle()
-            model.openSettings(1)
-            backend.answers["GET /todo/lists"] = HttpStatusCode.OK to page(list(2, "Party", shared = true))
-            model.deleteList()
-            advanceUntilIdle()
-            assertNull(model.lists().open)
-            assertNull(model.lists().settings)
-            assertNull(store.load().openList)
-        }
-
-    @Test
-    fun `a new list is created and opens, a shared list of another user is not the user's to share`() =
-        runTest {
-            backend.answers["POST /todo/lists"] = HttpStatusCode.Created to list(3, "Work")
-            backend.answers["GET /todo/lists/3/items"] = HttpStatusCode.OK to page()
-            val model = signedIn(openList = null)
-            advanceUntilIdle()
-            // the backend has it from now on
-            backend.answers["GET /todo/lists"] = HttpStatusCode.OK to page(list(1, "Home"), list(3, "Work"))
-            model.newList()
-            model.editSettings("Work", shared = false, icon = "💼")
-            model.saveSettings()
-            advanceUntilIdle()
-            assertTrue(backend.requests.contains("""POST /todo/lists {"name":"Work","shared":false,"icon":"💼"}"""))
-            assertEquals(3, model.lists().open)
-            assertNull(model.lists().settings)
-
-            backend.answers["GET /todo/lists"] =
-                HttpStatusCode.OK to page("""{"id":4,"name":"Theirs","shared":true,"mine":false,"items":0,"createdAt":"2026-11-12T07:00:00.000Z"}""")
-            model.refresh()
-            advanceUntilIdle()
-            model.openSettings(4)
-            model.editSettings("Ours", shared = false, icon = null)
-            assertEquals(true, model.lists().settings?.shared)
-            // only its owner renames it (LIST-2)
-            assertEquals("Theirs", model.lists().settings?.name)
-        }
-
-    @Test
     fun `a session that ended leads to the sign-in`() =
         runTest {
             backend.answers["GET /todo/lists"] = HttpStatusCode.Unauthorized to ""
             val model = signedIn()
             advanceUntilIdle()
             assertTrue(model.screen.value is Screen.SignIn)
+        }
+
+    @Test
+    fun `while the app is seen the stream of the todo lists loads the list open again on its change`() =
+        runTest {
+            backend.answers["GET /todo/changes"] = HttpStatusCode.OK to ": listening\n\n${changed(1)}"
+            val model = signedIn()
+            advanceUntilIdle()
+            val loads = { backend.requests.count { it == "GET /todo/lists/1/items" } }
+            assertEquals(1, loads())
+            model.foreground()
+            advanceTimeBy(ChangeStream.RETRY_DELAY_MS / 2)
+            runCurrent()
+            model.background()
+            assertEquals("t", backend.tokens["/todo/changes"])
+            assertEquals(2, loads())
         }
 }

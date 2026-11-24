@@ -11,16 +11,10 @@ class MainActivity : SakActivity() {
 
     override val signinScheme = "io.pelle.sak.todo"
 
-    override val sakModel get() = viewModel.model
+    override val sakViewModel get() = viewModel
 
     override val appName = R.string.todo_app_name
 
     @Composable
     override fun Content() = TodoApp(viewModel.model)
-
-    // the changes of the lists only while the app is seen (LIST-4); a purge that waits is sent when the
-    // app goes, not on a rotation, its undo stays (SakActivity)
-    override fun foreground() = viewModel.model.startListening()
-
-    override fun background() = viewModel.model.stopped()
 }

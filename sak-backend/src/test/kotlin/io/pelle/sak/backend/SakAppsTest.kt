@@ -443,7 +443,7 @@ class SakAppsTest {
 
             create("""{"sourceDomain":"example.com","target":{"type":"domain","domain":"example.net"}}""").let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"code":"redirects.exists","message":"A redirect of the domain exists."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"redirects.exists","message":"A redirect of this domain already exists."}]}"""
             }
             create("""{"sourceDomain":""").let {
                 it.statusCode() shouldBe 400
@@ -509,7 +509,7 @@ class SakAppsTest {
             post(port, "/api/v1/labels", """{"name":"work"}""", session).statusCode() shouldBe 201
             post(port, "/api/v1/labels", """{"name":"HOME office"}""", session).let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"code":"labels.exists","message":"A label of the name exists."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"labels.exists","message":"A label with this name already exists."}]}"""
             }
             post(port, "/api/v1/labels", """{"name":" "}""", session).statusCode() shouldBe 400
             names(get(port, "/api/v1/labels?limit=1", session)) shouldBe listOf("home office")
@@ -1232,7 +1232,7 @@ class SakAppsTest {
                 completions shouldBe emptyList()
                 put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"wrong"}""", session).let {
                     it.statusCode() shouldBe 400
-                    it.body() shouldBe """{"errors":[{"code":"openrouter.key_refused","message":"OpenRouter does not take the API key."}]}"""
+                    it.body() shouldBe """{"errors":[{"code":"openrouter.key_refused","message":"OpenRouter does not accept the API key."}]}"""
                 }
                 // the key shows its first four characters only
                 put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", session).body() shouldBe
@@ -1279,7 +1279,7 @@ class SakAppsTest {
             // the database is the one of the server before
             put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":""}""", session).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"code":"openrouter.key_missing","message":"The AI needs an API key of OpenRouter to be turned on."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"openrouter.key_missing","message":"The AI features need an API key of OpenRouter to be turned on."}]}"""
             }
         }
     }
@@ -1808,7 +1808,7 @@ class SakAppsTest {
             // turned on only with an api key
             put(port, "/api/v1/settings/ai", """{"enabled":true}""", session).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"code":"openrouter.key_missing","message":"The AI needs an API key of OpenRouter to be turned on."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"openrouter.key_missing","message":"The AI features need an API key of OpenRouter to be turned on."}]}"""
             }
             put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", session).let {
                 it.statusCode() shouldBe 200

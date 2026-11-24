@@ -3,7 +3,7 @@ package io.pelle.sak.core.qr
 import io.pelle.sak.core.UiText
 
 // the scan of the QR code of the web app that connects the app (SECURITY-3), over the screen of the
-// model while it is open (SakModel.scan)
+// model while it is open (QrConnect.scan)
 data class QrScan(
     // the code is exchanged for a session
     val busy: Boolean = false,

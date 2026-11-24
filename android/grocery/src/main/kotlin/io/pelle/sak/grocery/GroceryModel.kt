@@ -1,85 +1,102 @@
 package io.pelle.sak.grocery
 
 import androidx.annotation.StringRes
+import io.pelle.sak.core.SakSetup
 import io.pelle.sak.api.model.GroceryCategoryResponse
 import io.pelle.sak.api.model.GroceryItemRequest
 import io.pelle.sak.api.model.GroceryItemResponse
 import io.pelle.sak.api.model.GroceryListResponse
 import io.pelle.sak.api.model.GrocerySuggestionResponse
-import io.pelle.sak.core.Screen
+import io.ktor.http.ContentType
+import io.pelle.sak.core.ByteCache
 import io.pelle.sak.core.UiText
 import io.pelle.sak.core.Undo
 import io.pelle.sak.core.api.ApiException
-import io.pelle.sak.core.session.SessionStore
-import io.pelle.sak.core.session.Stored
-import io.pelle.sak.core.session.openList
-import io.pelle.sak.core.session.withOpenList
-import io.pelle.sak.core.lists.ChangeStream
-import io.pelle.sak.core.lists.ListSummary
 import io.pelle.sak.core.lists.ListTexts
 import io.pelle.sak.core.lists.ListsModel
+import io.pelle.sak.core.lists.Rename
+import io.pelle.sak.core.lists.Renaming
+import io.pelle.sak.core.attempt
 import io.pelle.sak.core.uiText
-import io.pelle.sak.core.update.Updater
 import io.pelle.sak.grocery.api.GroceryApi
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.time.Clock
 
 // how long a check can be undone, as in the web app (GROCERY_UNDO_MS); short, while shopping one
 // item follows the other
 const val UNDO_MS = 1500L
 
+// the texts of the lists of the app, of its model and of the screens of core
+internal val GROCERY_TEXTS =
+    ListTexts(
+        appName = R.string.grocery_app_name,
+        create = R.string.grocery_form_create,
+        allLists = R.string.grocery_all_lists,
+        chooseIcon = R.string.grocery_form_choose_icon,
+        noIcon = R.string.grocery_form_no_icon,
+        deleteList = R.string.grocery_form_delete_list,
+        notCreated = R.string.grocery_error_list_not_created,
+        notSaved = R.string.grocery_form_not_saved,
+        notDeleted = R.string.grocery_form_not_deleted,
+        notLoaded = R.string.grocery_lists_not_loaded,
+        gone = R.string.grocery_list_gone,
+    )
+
 // the logic of the app, without android, on top of core: the lists, the items of the list open with
 // suggestions, checks with undo, the settings and categories of a list, the photos of the items.
 // apiOf makes the api of a url with a session token or none
 class GroceryModel(
-    store: SessionStore,
+    setup: SakSetup,
     apiOf: (url: String, token: String?) -> GroceryApi,
-    scope: CoroutineScope,
-    // the debug build takes a whole url of the api, e.g. of the backend of local:run
-    allowUrl: Boolean,
-    clock: Clock = Clock.systemUTC(),
-    // the version of the app, 1.4.2 of a release, latest of every other build
-    appVersion: String = "latest",
-    updater: Updater? = Updater { error("no updater") },
-) : ListsModel<GroceryApi, GroceryListResponse, ListSettings>(
-        store,
+) : ListsModel<GroceryApi, GroceryListResponse, ListSettings, ListsScreen>(
+        setup,
         apiOf,
-        scope,
-        allowUrl,
-        clock,
-        appVersion,
-        updater,
-        ListTexts(R.string.grocery_error_list_not_created, R.string.grocery_form_not_saved, R.string.grocery_form_not_deleted, R.string.grocery_list_gone),
+        GROCERY_TEXTS,
         GroceryListResponse::summary,
+        ::ListSettings,
     ) {
-    private var loading: Job? = null
-
-    // the check that can still be undone: its item and the timer that sends it to the backend
-    private var pending: Pair<GroceryItemResponse, Job>? = null
-    private var serial = 0
-
-    // the request of the check sent last; a load waits for it, so it shows the item as checked
-    private var checking: Job? = null
-
     // UNDO_MS, or longer when the accessibility settings of the phone ask for more time; set by the ui
     var undoMs = UNDO_MS
+
+    // the check that can still be undone, sent once its undo ran out, also when the app closes
+    // meanwhile; a failure loads the list as the backend has it
+    private val checks =
+        undoWindow<GroceryItemResponse>({ undoMs }) { item ->
+            listsState { lists ->
+                val groups =
+                    if (lists.showBought) {
+                        // it stays, as the latest bought item of its group, after the ones to buy
+                        val bought = item.copy(checkedAt = clock.instant().toString())
+                        lists.groups.map { group ->
+                            if (group.items.none { it.id == item.id }) return@map group
+                            val others = group.items.filter { it.id != item.id }
+                            group.copy(items = others.filter { it.checkedAt == null } + bought + others.filter { it.checkedAt != null })
+                        }
+                    } else {
+                        lists.groups.map { it.copy(items = it.items.filter { each -> each.id != item.id }) }.filter { it.items.isNotEmpty() }
+                    }
+                lists.copy(groups = groups, struck = lists.struck - item.id, undo = null)
+            }
+            launchLasting {
+                request(R.string.grocery_list_not_checked, ::failed) { api ->
+                    // bought already, e.g. by another device in the undo window, or deleted: done, no error
+                    try {
+                        api.checkItem(item.id)
+                    } catch (e: ApiException) {
+                        if (e.status != 404) throw e
+                    }
+                }
+            }
+        }
 
     // the requests of photos, one after the other, none dropped
     private val photoRequests = Mutex()
 
     // the photo whose items are being read (GROCERY-16), cancelled when its dialog closes
     private var discovering: Job? = null
-
-    // counts up with every list shown: the answer to an item added changes nothing once another
-    // list shows
-    private var shown = 0
 
     // the suggestions asked for the name typed last, after a short pause of typing
     private var suggesting: Job? = null
@@ -89,43 +106,18 @@ class GroceryModel(
     private val categoryChanges = Mutex()
 
     // the photos fetched, by file and size, the ones used last kept up to MAX_PHOTO_BYTES
-    private val photos = PhotoCache(MAX_PHOTO_BYTES)
+    private val photos = ByteCache(MAX_PHOTO_BYTES)
 
-    // the changes of the lists once signed in (LIST-4): a change of the list open (or of any list on
-    // the home) loads it again, and the categories of its settings shown; a reconnect loads all, the
-    // stream may have missed changes
-    private val changes =
-        ChangeStream(
-            scope,
-            clock,
-            session = {
-                state.first { it is ListsScreen }
-                store.load().takeIf { it.apiUrl != null }
-            },
-            changes = { stored, opened -> apiOf(stored.apiUrl.orEmpty(), stored.token).changes(opened) },
-            ended = { e, token -> sessionEnded(e, token) },
-            onReconnect = {
-                load()
-                (state.value as? ListsScreen)?.settings?.id?.let { loadCategories(it) }
-            },
-            onChange = { listId ->
-                val lists = state.value as? ListsScreen
-                if (lists != null && (lists.open == null || lists.open == listId)) load()
-                if (lists?.settings?.id == listId) loadCategories(listId)
-            },
-        )
-
-    // the app comes to the foreground (LIST-4)
-    fun startListening() = changes.start()
-
-    // the app goes to the background: a waiting check is sent now, else it is lost when the process
-    // ends. Not on a rotation (SakActivity), the undo stays
-    fun stopped() {
-        commitPending()
-        changes.stop()
+    // a change of the list of the settings shown loads their categories again, so does a reconnect
+    override fun listChanged(id: Int) {
+        super.listChanged(id)
+        if (listsScreen()?.settings?.fields?.id == id) loadCategories(id)
     }
 
-    fun stopListening() = changes.stop()
+    override fun reconnected() {
+        super.reconnected()
+        listsScreen()?.settings?.fields?.id?.let { loadCategories(it) }
+    }
 
     // the item is struck through and sent after undoMs unless undone; checked again meanwhile, it is
     // undone. A check before it is sent at once (GROCERY-3)
@@ -137,126 +129,79 @@ class GroceryModel(
             undo()
             return
         }
-        commitPending()
-        val timer =
-            scope.launch {
-                delay(undoMs)
-                commitPending()
-            }
-        pending = item to timer
-        (state.value as? ListsScreen)?.let {
-            state.value = it.copy(struck = it.struck + item.id, undo = Undo(uiText(R.string.grocery_bought, item.name), ++serial), error = null)
-        }
+        val serial = checks.start(item)
+        listsState { it.copy(struck = it.struck + item.id, undo = Undo(uiText(R.string.grocery_bought, item.name), serial), error = null) }
     }
 
     fun undo() {
-        val (item, timer) = pending ?: return
-        timer.cancel()
-        pending = null
-        (state.value as? ListsScreen)?.let { state.value = it.copy(struck = it.struck - item.id, undo = null) }
-    }
-
-    // the check that can be undone is sent now, also when the app closes meanwhile; a failure loads
-    // the list as the backend has it. Answers the job of the request, null without a check
-    private fun commitPending(): Job? {
-        val (item, timer) = pending ?: return null
-        pending = null
-        timer.cancel()
-        (state.value as? ListsScreen)?.let { lists ->
-            val groups =
-                if (lists.showBought) {
-                    // it stays, as the latest bought item of its group, after the ones to buy
-                    val bought = item.copy(checkedAt = clock.instant().toString())
-                    lists.groups.map { group ->
-                        if (group.items.none { it.id == item.id }) return@map group
-                        val others = group.items.filter { it.id != item.id }
-                        group.copy(items = others.filter { it.checkedAt == null } + bought + others.filter { it.checkedAt != null })
-                    }
-                } else {
-                    lists.groups.map { it.copy(items = it.items.filter { each -> each.id != item.id }) }.filter { it.items.isNotEmpty() }
-                }
-            state.value = lists.copy(groups = groups, struck = lists.struck - item.id, undo = null)
-        }
-        return launchLasting {
-            request(R.string.grocery_list_not_checked, ::failed) { api ->
-                // bought already, e.g. by another device in the undo window, or deleted: done, no error
-                try {
-                    api.checkItem(item.id)
-                } catch (e: ApiException) {
-                    if (e.status != 404) throw e
-                }
-            }
-        }.also { checking = it }
-    }
-
-    // the check that can be undone is dropped unsent, e.g. the session ended
-    private fun dropPending() {
-        pending?.second?.cancel()
-        pending = null
+        val item = checks.undo() ?: return
+        listsState { it.copy(struck = it.struck - item.id, undo = null) }
     }
 
     // the Delete of the menu of an item asks for a confirmation first (UX-12, UX-4.1)
-    fun askDelete(item: GroceryItemResponse) = lists { it.copy(deleting = item) }
+    fun askDelete(item: GroceryItemResponse) = listsState { it.copy(deleting = item) }
 
-    fun dismissDelete() = lists { it.copy(deleting = null) }
+    fun dismissDelete() = listsState { it.copy(deleting = null) }
 
     // after the user confirmed it (UX-12): the item goes for good, no suggestion comes from it; its
     // check that can still be undone is dropped unsent
     fun deleteItem(item: GroceryItemResponse) {
         if (state.value !is ListsScreen) return
-        if (pending?.first?.id == item.id) {
-            dropPending()
-            lists { it.copy(struck = it.struck - item.id, undo = null) }
+        if (checks.value?.id == item.id) {
+            checks.drop()
+            listsState { it.copy(struck = it.struck - item.id, undo = null) }
         }
-        lists { it.copy(deleting = null) }
+        // an error of an earlier action goes with this one (as in todo)
+        listsState { it.copy(deleting = null, error = null) }
         scope.launch {
             request(R.string.grocery_item_not_deleted, ::failed) { it.deleteItem(item.id) } ?: return@launch
             load()
         }
     }
 
-    fun askRename(item: GroceryItemResponse) = lists { it.copy(renaming = Renaming(item, item.name)) }
+    fun askRename(item: GroceryItemResponse) = listsState { it.copy(renaming = Renaming(item, item.name)) }
 
-    fun editRename(name: String) = lists { lists -> lists.copy(renaming = lists.renaming?.copy(name = name)) }
+    fun editRename(name: String) = listsState { lists -> lists.copy(renaming = lists.renaming?.copy(name = name)) }
 
     // the field of the name was left: its error shows from now on (UX-6)
-    fun leaveRename() = lists { lists -> lists.copy(renaming = lists.renaming?.copy(left = true)) }
+    fun leaveRename() = listsState { lists -> lists.copy(renaming = lists.renaming?.copy(left = true)) }
 
-    fun dismissRename() = lists { it.copy(renaming = null) }
+    fun dismissRename() = listsState { it.copy(renaming = null) }
 
     // an invalid name stays in the dialog with its error (validItemName), an unchanged one is not sent
     fun renameItem() {
         val lists = state.value as? ListsScreen ?: return
         val renaming = lists.renaming ?: return
-        val trimmed = renaming.name.trim()
-        if (!validItemName(trimmed)) {
-            state.value = lists.copy(renaming = renaming.copy(left = true))
+        val rename = renaming.submit(renaming.item.name, ::validItemName)
+        if (rename is Rename.Invalid) {
+            state.value = lists.copy(renaming = rename.renaming)
             return
         }
         state.value = lists.copy(renaming = null)
-        val item = renaming.item
-        if (trimmed == item.name) return
+        if (rename !is Rename.Send) return
+        val (item, name) = rename
+        listsState { it.copy(error = null) }
         // a check that can still be undone puts the item back under its new name
-        pending?.let { (waiting, timer) -> if (waiting.id == item.id) pending = waiting.copy(name = trimmed) to timer }
+        checks.update { if (it.id == item.id) it.copy(name = name) else it }
         scope.launch {
             request(R.string.grocery_item_not_renamed, ::failed) {
-                it.updateItem(item.id, GroceryItemRequest(trimmed, item.amount, item.unit, item.categoryId))
+                it.updateItem(item.id, GroceryItemRequest(name, item.amount, item.unit, item.categoryId))
             } ?: return@launch
             load()
         }
     }
 
     // GROCERY-15
-    fun askQuantity(item: GroceryItemResponse) = lists { it.copy(quantity = Quantity(item, amountText(item.amount), item.unit)) }
+    fun askQuantity(item: GroceryItemResponse) = listsState { it.copy(quantity = Quantity(item, amountText(item.amount), item.unit)) }
 
-    fun editQuantityAmount(amount: String) = lists { lists -> lists.copy(quantity = lists.quantity?.copy(amount = amount)) }
+    fun editQuantityAmount(amount: String) = listsState { lists -> lists.copy(quantity = lists.quantity?.copy(amount = amount)) }
 
-    fun chooseQuantityUnit(unit: String?) = lists { lists -> lists.copy(quantity = lists.quantity?.copy(unit = unit)) }
+    fun chooseQuantityUnit(unit: String?) = listsState { lists -> lists.copy(quantity = lists.quantity?.copy(unit = unit)) }
 
     // the field of the amount was left: its error shows from now on (UX-6)
-    fun leaveQuantity() = lists { lists -> lists.copy(quantity = lists.quantity?.copy(left = true)) }
+    fun leaveQuantity() = listsState { lists -> lists.copy(quantity = lists.quantity?.copy(left = true)) }
 
-    fun dismissQuantity() = lists { it.copy(quantity = null) }
+    fun dismissQuantity() = listsState { it.copy(quantity = null) }
 
     // an invalid amount stays in the dialog with its error; no amount drops the unit too (the backend
     // takes no unit without an amount); an unchanged quantity is not sent
@@ -277,7 +222,7 @@ class GroceryModel(
         val item = quantity.item
         if (amount == item.amount && unit == item.unit) return
         // a check that can still be undone puts the item back with its new quantity
-        pending?.let { (waiting, timer) -> if (waiting.id == item.id) pending = waiting.copy(amount = amount, unit = unit) to timer }
+        checks.update { if (it.id == item.id) it.copy(amount = amount, unit = unit) else it }
         scope.launch {
             request(R.string.grocery_quantity_not_saved, ::failed) {
                 it.updateItem(item.id, GroceryItemRequest(item.name, amount, unit, item.categoryId), R.string.grocery_quantity_not_saved)
@@ -297,7 +242,7 @@ class GroceryModel(
         discovering?.cancel()
         discovering =
             scope.launch {
-                if (state.first { it !is Screen.Starting } !is ListsScreen) {
+                if (awaitApp() !is ListsScreen) {
                     discard()
                     return@launch
                 }
@@ -306,14 +251,14 @@ class GroceryModel(
                     discard()
                     return@launch
                 }
-                lists { it.copy(discovery = Discovery(listId), error = null) }
+                listsState { it.copy(discovery = Discovery(listId), error = null) }
                 val jpeg = read()
                 if (jpeg == null) {
-                    lists { it.copy(discovery = null, error = uiText(R.string.grocery_photo_not_read)) }
+                    listsState { it.copy(discovery = null, error = uiText(R.string.grocery_photo_not_read)) }
                     return@launch
                 }
-                val failed = { error: UiText -> lists { it.copy(discovery = null, error = error) } }
-                val items = request(R.string.grocery_discover_not_read, failed) { api -> api.discoverItems(api.uploadDiscoverPhoto(jpeg)) } ?: return@launch
+                val failed = { error: UiText -> listsState { it.copy(discovery = null, error = error) } }
+                val items = request(R.string.grocery_discover_not_read, failed) { api -> api.discoverItems(api.upload(jpeg, ContentType.Image.JPEG, R.string.grocery_discover_not_read).id) } ?: return@launch
                 discovery(listId) { discovery ->
                     discovery.copy(reading = false, rows = items.mapIndexed { index, item -> DiscoveredRow(index, item.name, amountText(item.amount), item.unit) })
                 }
@@ -350,7 +295,7 @@ class GroceryModel(
     fun dismissDiscovery() {
         discovering?.cancel()
         discovering = null
-        lists { it.copy(discovery = null) }
+        listsState { it.copy(discovery = null) }
     }
 
     // the rows checked are added one after the other, also when the app closes meanwhile, without a
@@ -376,8 +321,8 @@ class GroceryModel(
                         it.addItem(discovery.listId, row.name.trim(), amount, row.unit?.takeIf { amount != null })
                     } == null
                 }
-            lists { current ->
-                if (current.discovery?.listId != discovery.listId) return@lists current
+            listsState { current ->
+                if (current.discovery?.listId != discovery.listId) return@listsState current
                 current.copy(
                     discovery =
                         failed.takeIf { it.isNotEmpty() }?.let { rows ->
@@ -390,36 +335,26 @@ class GroceryModel(
     }
 
     // changes the items of the photo for the list listId, nothing when there are none or for another list
-    private inline fun discovery(
+    private fun discovery(
         listId: Int,
         change: (Discovery) -> Discovery,
     ) {
-        lists { lists -> lists.discovery?.takeIf { it.listId == listId }?.let { lists.copy(discovery = change(it)) } ?: lists }
+        listsState { lists -> lists.discovery?.takeIf { it.listId == listId }?.let { lists.copy(discovery = change(it)) } ?: lists }
     }
 
     // changes a row of the items of the photo, none while they are added
-    private inline fun discoveredRow(
+    private fun discoveredRow(
         index: Int,
         change: (DiscoveredRow) -> DiscoveredRow,
     ) {
-        lists { lists ->
-            val discovery = lists.discovery?.takeIf { !it.adding && index in it.rows.indices } ?: return@lists lists
+        listsState { lists ->
+            val discovery = lists.discovery?.takeIf { !it.adding && index in it.rows.indices } ?: return@listsState lists
             lists.copy(discovery = discovery.copy(rows = discovery.rows.toMutableList().apply { this[index] = change(this[index]) }))
         }
     }
 
     // whether the next load asks if the AI can read the items of a photo (GET /grocery/settings)
     private var askDiscover = true
-
-    // off when the backend can not say
-    private suspend fun discoverOf(api: GroceryApi): Boolean =
-        try {
-            api.discoverAvailable()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
-        }
 
     // closes the top dialog or screen, from a list to the home; the next start shows the home
     override fun back() {
@@ -431,14 +366,14 @@ class GroceryModel(
             lists.deleting != null -> state.value = lists.copy(deleting = null)
             lists.settings != null -> {
                 saveDrafts()
-                this.lists { it.copy(settings = null) }
+                listsState { it.copy(settings = null) }
             }
             lists.choosing != null -> state.value = lists.copy(choosing = null)
             lists.open != null -> show(null)
         }
     }
 
-    fun chooseCategory(item: GroceryItemResponse) = lists { it.copy(choosing = item) }
+    fun chooseCategory(item: GroceryItemResponse) = listsState { it.copy(choosing = item) }
 
     // the list shows again at once, then with the item in its new group
     fun setCategory(categoryId: Int?) {
@@ -447,7 +382,7 @@ class GroceryModel(
         state.value = lists.copy(choosing = null, error = null)
         if (item.categoryId == categoryId) return
         scope.launch {
-            request(R.string.grocery_category_not_set, { error -> lists { it.copy(error = error) } }) { it.setCategory(item.id, categoryId) }
+            request(R.string.grocery_category_not_set, { error -> listsState { it.copy(error = error) } }) { it.setCategory(item.id, categoryId) }
                 ?: return@launch
             load()
         }
@@ -460,7 +395,7 @@ class GroceryModel(
 
     // pulled down (ANDROID-3) or after a failed load
     fun refreshCategories() {
-        val id = (state.value as? ListsScreen)?.settings?.id ?: return
+        val id = (state.value as? ListsScreen)?.settings?.fields?.id ?: return
         settings(id) { it.copy(categoriesError = null) }
         loadCategories(id)
     }
@@ -583,7 +518,7 @@ class GroceryModel(
         categoryId: Int,
         to: Int,
     ) {
-        val id = (state.value as? ListsScreen)?.settings?.id ?: return
+        val id = (state.value as? ListsScreen)?.settings?.fields?.id ?: return
         val categories = (state.value as? ListsScreen)?.settings?.categories ?: return
         val from = categories.indexOfFirst { it.id == categoryId }
         if (from < 0 || to !in categories.indices || to == from) return
@@ -614,7 +549,7 @@ class GroceryModel(
         @StringRes failure: Int,
         call: suspend (GroceryApi, Int) -> Unit,
     ) {
-        val id = (state.value as? ListsScreen)?.settings?.id ?: return
+        val id = (state.value as? ListsScreen)?.settings?.fields?.id ?: return
         settings(id) { it.copy(categoriesPending = it.categoriesPending + 1, categoriesError = null) }
         scope.launch {
             val done =
@@ -631,16 +566,16 @@ class GroceryModel(
     private fun currentCategory(categoryId: Int) = (state.value as? ListsScreen)?.settings?.categories?.firstOrNull { it.id == categoryId }
 
     // changes the settings shown, nothing without
-    private inline fun settingsOf(change: (ListSettings) -> ListSettings) {
-        lists { lists -> lists.settings?.let { lists.copy(settings = change(it)) } ?: lists }
+    private fun settingsOf(change: (ListSettings) -> ListSettings) {
+        listsState { lists -> lists.settings?.let { lists.copy(settings = change(it)) } ?: lists }
     }
 
     // changes the settings of the list id, nothing when other settings or none are shown
-    private inline fun settings(
+    private fun settings(
         id: Int,
         change: (ListSettings) -> ListSettings,
     ) {
-        lists { lists -> lists.settings?.takeIf { it.id == id }?.let { lists.copy(settings = change(it)) } ?: lists }
+        listsState { lists -> lists.settings?.takeIf { it.fields.id == id }?.let { lists.copy(settings = change(it)) } ?: lists }
     }
 
     // the photo of an item (GROCERY-12): uploaded, then attached. read makes the scaled jpeg, null
@@ -653,16 +588,16 @@ class GroceryModel(
         read: suspend () -> ByteArray?,
     ) {
         scope.launch {
-            if (state.first { it !is Screen.Starting } !is ListsScreen) {
+            if (awaitApp() !is ListsScreen) {
                 discard()
                 return@launch
             }
             val jpeg = read()
             if (jpeg == null) {
-                lists { it.copy(error = uiText(R.string.grocery_photo_not_read)) }
+                listsState { it.copy(error = uiText(R.string.grocery_photo_not_read)) }
                 return@launch
             }
-            photoRequest(itemId, R.string.grocery_photo_not_attached) { api -> api.attachPhoto(itemId, api.uploadPhoto(jpeg)) }
+            photoRequest(itemId, R.string.grocery_photo_not_attached) { api -> api.attachPhoto(itemId, api.upload(jpeg, ContentType.Image.JPEG, R.string.grocery_photo_not_attached).id) }
         }
     }
 
@@ -679,8 +614,8 @@ class GroceryModel(
         scope.launch {
             val done =
                 photoRequests.withLock {
-                    lists { it.copy(photoBusy = itemId, error = null) }
-                    request(failure, { error -> lists { it.copy(error = error) } }, call).also { lists { it.copy(photoBusy = null) } }
+                    listsState { it.copy(photoBusy = itemId, error = null) }
+                    request(failure, { error -> listsState { it.copy(error = error) } }, call).also { listsState { it.copy(photoBusy = null) } }
                 }
             if (done != null) load()
         }
@@ -695,64 +630,55 @@ class GroceryModel(
     ): ByteArray? {
         val fileId = item.photoId ?: return null
         val key = "$fileId-${size ?: "full"}"
-        photos.get(key)?.let { return it }
-        val failed: (UiText) -> Unit = { error -> if (full) lists { it.copy(viewing = null, error = error) } }
+        photos[key]?.let { return it }
+        val failed: (UiText) -> Unit = { error -> if (full) listsState { it.copy(viewing = null, error = error) } }
         return request(R.string.grocery_photo_not_loaded, failed) { it.photo(item.id, fileId, size) }?.also { photos.put(key, it) }
     }
 
     // the photo in full over the list, null for none
-    fun viewPhoto(item: GroceryItemResponse?) = lists { it.copy(viewing = item) }
+    fun viewPhoto(item: GroceryItemResponse?) = listsState { it.copy(viewing = item) }
 
-    // what was checked goes to the backend, the field is empty, the list or the home loads
-    override fun show(open: Int?) {
-        val check = commitPending()
-        val lists = state.value as? ListsScreen ?: return
-        shown++
-        state.value =
-            lists.copy(
-                open = open,
-                adding = false,
-                groups = emptyList(),
-                categories = emptyList(),
-                choosing = null,
-                renaming = null,
-                quantity = null,
-                discovery = null,
-                deleting = null,
-                viewing = null,
-                loading = true,
-                error = null,
-                itemName = "",
-                suggestions = emptyList(),
-                showBought = false,
-            )
+    // the field is empty, the dialogs and what is read or suggested go
+    override fun opened(
+        lists: ListsScreen,
+        open: Int?,
+    ): ListsScreen {
         suggesting?.cancel()
         discovering?.cancel()
         askDiscover = true
-        scope.launch { store.update { it.withOpenList(open) } }
-        load(after = check)
+        return lists.copy(
+            groups = emptyList(),
+            categories = emptyList(),
+            choosing = null,
+            renaming = null,
+            quantity = null,
+            discovery = null,
+            deleting = null,
+            viewing = null,
+            itemName = "",
+            suggestions = emptyList(),
+            showBought = false,
+        )
     }
 
     // the bought items of the list open shown too, or hidden again (GROCERY-14); the list loads
     fun toggleBought() {
         val lists = state.value as? ListsScreen ?: return
         if (lists.open == null) return
-        val check = commitPending()
-        lists { it.copy(showBought = !it.showBought, loading = true, error = null) }
-        // after the check, so the item it checked shows as the backend has it
-        load(after = check)
+        // the load waits for the check, so the item it checked shows as the backend has it
+        checks.commit()
+        listsState { it.copy(showBought = !it.showBought, loading = true, error = null) }
+        load()
     }
 
     override fun refresh() {
-        val lists = state.value as? ListsScreen ?: return
-        state.value = lists.copy(loading = true, error = null)
         askDiscover = true
-        load()
+        super.refresh()
     }
 
     // suggestions follow after a pause of typing (GROCERY-11)
     fun typed(name: String) {
-        lists { it.copy(itemName = name) }
+        listsState { it.copy(itemName = name) }
         suggest(name)
     }
 
@@ -762,14 +688,14 @@ class GroceryModel(
         suggesting?.cancel()
         val listId = (state.value as? ListsScreen)?.open ?: return
         if (text.isBlank()) {
-            lists { it.copy(suggestions = emptyList()) }
+            listsState { it.copy(suggestions = emptyList()) }
             return
         }
         suggesting =
             scope.launch {
                 delay(SUGGEST_DELAY_MS)
                 val found = request(R.string.grocery_list_items_not_loaded, {}) { it.suggestions(listId, text.trim()) } ?: return@launch
-                lists { if (it.open == listId && it.itemName == text) it.copy(suggestions = found) else it }
+                listsState { if (it.open == listId && it.itemName == text) it.copy(suggestions = found) else it }
             }
     }
 
@@ -777,120 +703,72 @@ class GroceryModel(
     fun chooseSuggestion(suggestion: GrocerySuggestionResponse) = addItem(suggestion)
 
     // the name typed, or a suggestion chosen with its quantity and category; a failure keeps the
-    // name in the field, to send it again
+    // name in the field, to send it again (addEntry)
     fun addItem(chosen: GrocerySuggestionResponse? = null) {
-        val lists = state.value as? ListsScreen ?: return
+        val lists = listsScreen() ?: return
         val name = (chosen?.name ?: lists.itemName).trim()
-        val list = lists.open
-        if (name.isEmpty() || list == null || lists.adding) return
-        suggesting?.cancel()
-        state.value = lists.copy(itemName = chosen?.name ?: lists.itemName, adding = true, error = null, suggestions = emptyList())
-        val since = shown
-        scope.launch {
-            request(R.string.grocery_list_not_added, { error -> if (since == shown) lists { it.copy(adding = false, error = error) } }) {
-                it.addItem(list, name, chosen?.amount, chosen?.unit, chosen?.categoryId)
-            } ?: return@launch
-            // another list shows meanwhile: its field stays as it is
-            if (since != shown) return@launch
-            lists { it.copy(itemName = "", adding = false) }
-            load()
+        val sending = { current: ListsScreen ->
+            suggesting?.cancel()
+            current.copy(itemName = chosen?.name ?: current.itemName, suggestions = emptyList())
+        }
+        addEntry(name, R.string.grocery_list_not_added, sending, { it.copy(itemName = "") }) { api, list ->
+            api.addItem(list, name, chosen?.amount, chosen?.unit, chosen?.categoryId)
         }
     }
 
-    // the user signs out: a check that waits is sent first
-    override suspend fun signingOut() {
-        commitPending()?.join()
-        loading?.cancel()
+    override fun sessionGone() {
+        photos.clear()
+        super.sessionGone()
     }
 
-    override fun sessionEnding() = dropPending()
+    override fun appScreen(
+        user: String,
+        open: Int?,
+    ) = ListsScreen(user, open = open)
 
-    override fun clearSession() = photos.clear()
-
-    override fun sessionChanged() = changes.restart()
-
-    override fun showApp(stored: Stored) {
-        state.value = ListsScreen(stored.email.orEmpty(), open = stored.openList)
-        load()
-    }
-
-    // waits for after and the check sent last, so a load a change event starts meanwhile shows the item
-    // as checked too; a list that is gone leads to the home, a session that ended to the sign-in
-    override fun load(after: Job?) {
-        loading?.cancel()
-        val check = checking
-        loading =
-            scope.launch {
-                after?.join()
-                check?.join()
-                request(R.string.grocery_lists_not_loaded, { error -> lists { it.copy(loading = false, error = error) } }) { api ->
-                    val lists = api.lists()
-                    val current = state.value as? ListsScreen ?: return@request
-                    val wanted = current.open
-                    val open = wanted?.takeIf { id -> lists.any { it.id == id } }
-                    if (wanted != null && open == null) store.update { it.withOpenList(null) }
-                    val items = open?.let { api.items(it, checked = current.showBought) }.orEmpty()
-                    val categories = open?.let { api.categories(it) }.orEmpty()
-                    // asked when a list opens and on a pull down, not on every load a change starts
-                    val discoverItems =
-                        if (open != null && askDiscover) discoverOf(api).also { askDiscover = false } else current.discoverItems
-                    lists { current ->
-                        // the dialogs belong to the list open: when it went, they go
-                        val stays = current.open == open
-                        // the item whose category is chosen as it is now; gone, e.g. bought by another user, the list shows
-                        val choosing = current.choosing?.let { chosen -> items.firstOrNull { it.id == chosen.id } }
-                        // the dialogs stay with the item as it is now, also when the list no longer shows it
-                        val renaming =
-                            current.renaming?.takeIf { stays }?.let { renaming ->
-                                items.firstOrNull { it.id == renaming.item.id }?.let { renaming.copy(item = it) } ?: renaming
-                            }
-                        val quantity =
-                            current.quantity?.takeIf { stays }?.let { quantity ->
-                                items.firstOrNull { it.id == quantity.item.id }?.let { quantity.copy(item = it) } ?: quantity
-                            }
-                        val discovery = current.discovery?.takeIf { stays && it.listId == open }
-                        val deleting = current.deleting?.takeIf { stays }?.let { deleting -> items.firstOrNull { it.id == deleting.id } ?: deleting }
-                        val viewing = current.viewing?.takeIf { stays }
-                        current.copy(
-                            lists = lists,
-                            open = open,
-                            groups = groups(items, categories),
-                            categories = categories,
-                            choosing = choosing,
-                            renaming = renaming,
-                            quantity = quantity,
-                            discoverItems = discoverItems,
-                            discovery = discovery,
-                            deleting = deleting,
-                            viewing = viewing,
-                            loading = false,
-                        )
-                    }
+    // the items of the list open with its categories, as the list shows them now (the bought ones
+    // too); whether the AI reads the items of a photo is asked when a list opens and on a pull down,
+    // not on every load a change starts
+    override suspend fun loaded(
+        api: GroceryApi,
+        open: Int?,
+    ): (ListsScreen) -> ListsScreen {
+        val items = open?.let { api.items(it, checked = listsScreen()?.showBought == true) }.orEmpty()
+        val categories = open?.let { api.categories(it) }.orEmpty()
+        val discoverItems = if (open != null && askDiscover) (attempt { api.discoverAvailable() } ?: false).also { askDiscover = false } else null
+        return { current ->
+            // the dialogs belong to the list open: when it went, they go
+            val stays = current.open == open
+            // the item whose category is chosen as it is now; gone, e.g. bought by another user, the list shows
+            val choosing = current.choosing?.let { chosen -> items.firstOrNull { it.id == chosen.id } }
+            // the dialogs stay with the item as it is now, also when the list no longer shows it
+            val renaming =
+                current.renaming?.takeIf { stays }?.let { renaming ->
+                    items.firstOrNull { it.id == renaming.item.id }?.let { renaming.copy(item = it) } ?: renaming
                 }
-            }
+            val quantity =
+                current.quantity?.takeIf { stays }?.let { quantity ->
+                    items.firstOrNull { it.id == quantity.item.id }?.let { quantity.copy(item = it) } ?: quantity
+                }
+            val discovery = current.discovery?.takeIf { stays && it.listId == open }
+            val deleting = current.deleting?.takeIf { stays }?.let { deleting -> items.firstOrNull { it.id == deleting.id } ?: deleting }
+            val viewing = current.viewing?.takeIf { stays }
+            current.copy(
+                groups = groups(items, categories),
+                categories = categories,
+                choosing = choosing,
+                renaming = renaming,
+                quantity = quantity,
+                discoverItems = discoverItems ?: current.discoverItems,
+                discovery = discovery,
+                deleting = deleting,
+                viewing = viewing,
+            )
+        }
     }
 
     override fun listsScreen() = state.value as? ListsScreen
 
-    override fun settingsOf(list: ListSummary?) = list?.let { ListSettings(it.id, it.name, it.shared, it.icon, mine = it.mine) } ?: ListSettings()
-
-    override fun edited(
-        settings: ListSettings,
-        name: String,
-        shared: Boolean,
-        icon: String?,
-    ) = settings.copy(name = name, shared = shared, icon = icon)
-
-    override fun sending(
-        settings: ListSettings,
-        busy: Boolean,
-        error: UiText?,
-    ) = settings.copy(busy = busy, error = error)
-
-    // nothing when another screen is shown
-    private inline fun lists(change: (ListsScreen) -> ListsScreen) {
-        (state.value as? ListsScreen)?.let { state.value = change(it) }
-    }
 
     // the items by category, in the order of the categories of the list; an item of a category the list
     // no longer has is one without

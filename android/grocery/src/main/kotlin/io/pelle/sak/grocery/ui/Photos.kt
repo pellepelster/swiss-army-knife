@@ -1,169 +1,37 @@
 package io.pelle.sak.grocery.ui
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
-import android.net.Uri
-import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import io.pelle.sak.api.model.GroceryItemResponse
-import io.pelle.sak.core.ui.PhotoScaling
+import io.pelle.sak.core.ui.PhotoCapture
+import io.pelle.sak.core.ui.PhotoViewer
+import io.pelle.sak.core.ui.RemoteImage
+import io.pelle.sak.core.ui.rememberPhotoCapture
 import io.pelle.sak.grocery.GroceryModel
-import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.scaledSize
-import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 // how large the photo of an item shows in its row, and the space around it
 internal val PHOTO_IN_ROW = 48.dp
 internal val PHOTO_SPACE = 8.dp
 
-// takes or chooses a photo for an item, or one whose items the AI reads (GROCERY-16)
-class PhotoPicker(
-    val hasCamera: Boolean,
-    val take: (itemId: Int) -> Unit,
-    val choose: (itemId: Int) -> Unit,
-    val takeToDiscover: () -> Unit,
-    val chooseToDiscover: () -> Unit,
-)
+// the target of a photo whose items the AI reads (GROCERY-16); every other target is an item id
+internal const val DISCOVER = -1
 
-internal val LocalPhotoPicker = staticCompositionLocalOf<PhotoPicker> { error("no photo picker") }
-
-// at the root of the app, so the answer of the camera is not lost when android ended the app while
-// the camera was open; what the photo is for is in the saved state, the model waits for the lists.
-// The file the camera wrote is deleted once read, or when the model drops it
+// the model waits for the lists; the file the camera wrote is deleted once read, or when the model
+// drops it
 @Composable
-internal fun rememberPhotoPicker(model: GroceryModel): PhotoPicker {
-    val context = LocalContext.current
-    var pendingItem by rememberSaveable { mutableStateOf<Int?>(null) }
-    var pendingDiscover by rememberSaveable { mutableStateOf(false) }
-    // the camera writes into a file of the cache, shared with it by the file provider only
-    val cameraFile = remember { File(context.cacheDir, "photos/camera.jpg") }
-    val cameraUri =
-        remember {
-            cameraFile.parentFile?.mkdirs()
-            FileProvider.getUriForFile(context, "${context.packageName}.photos", cameraFile)
-        }
-    fun send(
-        uri: Uri,
-        done: () -> Unit = {},
-    ) {
-        val read: suspend () -> ByteArray? = {
-            withContext(Dispatchers.IO) {
-                try {
-                    PhotoScaling.jpeg(context, uri)
-                } catch (e: Exception) {
-                    Log.w("sak-grocery", "a photo could not be read", e)
-                    null
-                } finally {
-                    done()
-                }
-            }
-        }
-        if (pendingDiscover) {
-            pendingDiscover = false
-            model.discover(discard = done, read = read)
-            return
-        }
-        val itemId = pendingItem ?: return
-        pendingItem = null
-        model.attachPhoto(itemId, read = read, discard = done)
+internal fun rememberGroceryPhotos(model: GroceryModel): PhotoCapture =
+    rememberPhotoCapture { target, read, discard ->
+        if (target == DISCOVER) model.discover(discard = discard, read = read) else model.attachPhoto(target, discard = discard, read = read)
     }
-
-    // nothing was taken or chosen
-    fun drop() {
-        pendingItem = null
-        pendingDiscover = false
-    }
-    val camera =
-        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
-            if (taken) {
-                send(cameraUri) { cameraFile.delete() }
-            } else {
-                drop()
-                cameraFile.delete()
-            }
-        }
-    // the app declares the camera for the scan of a QR code (core), so android lets the camera app take
-    // a photo for it only once the user allowed the camera; asked for when the user takes a photo
-    val permission =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
-            if (allowed) camera.launch(cameraUri) else drop()
-        }
-
-    fun takePhoto() {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-            camera.launch(cameraUri)
-        } else {
-            permission.launch(Manifest.permission.CAMERA)
-        }
-    }
-    val picker =
-        rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-            if (uri != null) send(uri) else drop()
-        }
-    val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
-    return remember(camera, permission, picker) {
-        PhotoPicker(
-            hasCamera,
-            take = { itemId ->
-                pendingItem = itemId
-                pendingDiscover = false
-                takePhoto()
-            },
-            choose = { itemId ->
-                pendingItem = itemId
-                pendingDiscover = false
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
-            takeToDiscover = {
-                pendingItem = null
-                pendingDiscover = true
-                takePhoto()
-            },
-            chooseToDiscover = {
-                pendingItem = null
-                pendingDiscover = true
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
-        )
-    }
-}
 
 // fetched in the scaled size that fills the pixels it shows at (scaledSize)
 @Composable
@@ -176,18 +44,12 @@ internal fun Photo(
     full: Boolean = false,
 ) {
     val pixels = with(LocalDensity.current) { showsAt.roundToPx() }
-    val bitmap by produceState<ImageBitmap?>(null, item.photoId, pixels) {
-        value =
-            model.photo(item, scaledSize(pixels), full)?.let { bytes ->
-                withContext(Dispatchers.Default) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
-            }
-    }
-    Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
-        bitmap?.let { Image(it, contentDescription = null, contentScale = scale, modifier = Modifier.fillMaxSize()) }
+    RemoteImage(item.photoId to pixels, MaterialTheme.colorScheme.surfaceContainerHigh, scale, modifier) {
+        model.photo(item, scaledSize(pixels), full)
     }
 }
 
-// the photo of an item in full over the list, as large as the screen; a tap or back closes it
+// the photo of an item in full over the list, as large as the screen
 @Composable
 internal fun PhotoDialog(
     item: GroceryItemResponse,
@@ -195,16 +57,7 @@ internal fun PhotoDialog(
 ) {
     val configuration = LocalConfiguration.current
     val screen = maxOf(configuration.screenWidthDp, configuration.screenHeightDp).dp
-    Dialog(onDismissRequest = { model.viewPhoto(null) }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.9f))
-                .clickable(onClickLabel = stringResource(R.string.grocery_photo_close)) { model.viewPhoto(null) }
-                .testTag("photo-viewer"),
-            contentAlignment = Alignment.Center,
-        ) {
-            Photo(item, model, screen, ContentScale.Fit, Modifier.fillMaxSize().padding(16.dp), full = true)
-        }
+    PhotoViewer(close = { model.viewPhoto(null) }) {
+        Photo(item, model, screen, ContentScale.Fit, Modifier.fillMaxSize().padding(16.dp), full = true)
     }
 }

@@ -8,13 +8,15 @@ import io.ktor.http.HttpStatusCode
 import io.pelle.sak.core.session.MemorySessionStore
 import io.pelle.sak.core.session.Stored
 import io.pelle.sak.grocery.ui.GroceryApp
+import io.pelle.sak.testing.sakSetup
 import io.pelle.sak.testing.FakeBackend
 import io.pelle.sak.testing.Screenshots
-import io.pelle.sak.testing.URL
+import io.pelle.sak.testing.answerOn
+import io.pelle.sak.testing.settle
+import io.pelle.sak.testing.signedIn
+import io.pelle.sak.testing.signedOut
 import io.pelle.sak.testing.page
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -42,14 +44,13 @@ class GroceryScreenshots {
 
     private val backend =
         FakeBackend().apply {
-            answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi"}"""
             answers["GET /grocery/lists"] =
                 HttpStatusCode.OK to
                 page(
-                    list(1, "Weekly shop", "🛒", items = 9, shared = true),
-                    list(2, "Garden party", "🎉", items = 4),
-                    list(3, "Hardware store", "🔧", items = 2),
-                    """{"id":4,"name":"Camping trip","icon":"⛺","shared":true,"mine":false,"items":6,"createdAt":"2026-10-30T08:00:00.000Z"}""",
+                    list(1, "Weekly shop", shared = true, icon = "🛒", items = 9),
+                    list(2, "Garden party", icon = "🎉", items = 4),
+                    list(3, "Hardware store", icon = "🔧", items = 2),
+                    list(4, "Camping trip", shared = true, mine = false, icon = "⛺", items = 6),
                 )
             answers["GET /grocery/lists/1/categories"] =
                 HttpStatusCode.OK to
@@ -67,63 +68,33 @@ class GroceryScreenshots {
             answers["GET /grocery/lists/1/items"] =
                 HttpStatusCode.OK to
                 page(
-                    item(1, "Apples", 1, 1.0, "kg"),
-                    item(2, "Tomatoes", 1, 6.0, null),
-                    item(3, "Basil", 1),
-                    item(4, "Sourdough bread", 2),
-                    item(5, "Milk", 3, 2.0, "l"),
-                    item(6, "Eggs", 3, 10.0, null),
-                    item(7, "Coffee beans", 5, 500.0, "g"),
-                    item(8, "Sparkling water", 7, 6.0, null),
-                    item(9, "Dish soap", 8),
+                    item(1, 1, "Apples", 1, 1.0, "kg"),
+                    item(2, 1, "Tomatoes", 1, 6.0, null),
+                    item(3, 1, "Basil", 1),
+                    item(4, 1, "Sourdough bread", 2),
+                    item(5, 1, "Milk", 3, 2.0, "l"),
+                    item(6, 1, "Eggs", 3, 10.0, null),
+                    item(7, 1, "Coffee beans", 5, 500.0, "g"),
+                    item(8, 1, "Sparkling water", 7, 6.0, null),
+                    item(9, 1, "Dish soap", 8),
                 )
         }
 
-    private fun list(
-        id: Int,
-        name: String,
-        icon: String,
-        items: Int,
-        shared: Boolean = false,
-    ) = """{"id":$id,"name":"$name","icon":"$icon","shared":$shared,"mine":true,"items":$items,"createdAt":"2026-10-30T08:00:00.000Z"}"""
-
-    private fun category(
-        id: Int,
-        name: String,
-        icon: String,
-    ) = """{"id":$id,"name":"$name","icon":"$icon"}"""
-
-    private fun item(
-        id: Int,
-        name: String,
-        categoryId: Int,
-        amount: Double? = null,
-        unit: String? = null,
-    ) = """{"id":$id,"listId":1,"name":"$name","amount":$amount,"unit":${unit?.let { "\"$it\"" }},"categoryId":$categoryId,"createdAt":"2026-10-30T08:00:00.000Z"}"""
-
     private fun TestScope.model(stored: Stored): GroceryModel {
-        backend.dispatcher = StandardTestDispatcher(testScheduler)
-        return GroceryModel(MemorySessionStore(stored), backend::api, this, allowUrl = false, clock = Clock.fixed(now, ZoneOffset.UTC))
+        backend.answerOn(this)
+        return GroceryModel(sakSetup(MemorySessionStore(stored), Clock.fixed(now, ZoneOffset.UTC)), backend::api)
             .also { it.start() }
     }
 
     private fun TestScope.signedIn() =
-        model(Stored(apiUrl = URL, address = "https://sak.example.org", token = "t", email = "anna@example.org", expiresAt = now.plusSeconds(3600)))
-
-    // what the app and compose started is done
-    private fun TestScope.settle() {
-        repeat(3) {
-            advanceUntilIdle()
-            compose.waitForIdle()
-        }
-    }
+        model(signedIn(now.plusSeconds(3600), email = "anna@example.org"))
 
     @Test
     fun signIn() =
         runTest {
-            val model = model(Stored(apiUrl = URL, address = "https://sak.example.org"))
+            val model = model(signedOut())
             screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
-            screenshots.shoot("grocery-sign-in") { settle() }
+            screenshots.shoot("grocery-sign-in") { settle(compose) }
         }
 
     @Test
@@ -131,7 +102,7 @@ class GroceryScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
-            screenshots.shoot("grocery-lists") { settle() }
+            screenshots.shoot("grocery-lists") { settle(compose) }
         }
 
     @Test
@@ -139,9 +110,9 @@ class GroceryScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
-            settle()
+            settle(compose)
             model.open(1)
-            screenshots.shoot("grocery-list") { settle() }
+            screenshots.shoot("grocery-list") { settle(compose) }
         }
 
     @Test
@@ -149,9 +120,9 @@ class GroceryScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
-            settle()
+            settle(compose)
             model.openSettings(1)
-            screenshots.shoot("grocery-list-settings") { settle() }
+            screenshots.shoot("grocery-list-settings") { settle(compose) }
         }
 
     // a phone in landscape
@@ -161,7 +132,7 @@ class GroceryScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
-            screenshots.shoot("grocery-lists-land") { settle() }
+            screenshots.shoot("grocery-lists-land") { settle(compose) }
         }
 
     @Test
@@ -170,8 +141,8 @@ class GroceryScreenshots {
         runTest {
             val model = signedIn()
             screenshots.show { SakContent(model, stringResource(R.string.grocery_app_name)) { GroceryApp(model) } }
-            settle()
+            settle(compose)
             model.open(1)
-            screenshots.shoot("grocery-list-land") { settle() }
+            screenshots.shoot("grocery-list-land") { settle(compose) }
         }
 }

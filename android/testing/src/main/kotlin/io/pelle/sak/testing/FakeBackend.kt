@@ -13,6 +13,8 @@ import io.ktor.http.headersOf
 import io.ktor.client.HttpClient
 import io.pelle.sak.core.api.sakClient
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import java.io.IOException
 
 // a backend of one deployment at URL for the tests: the answers by method and path, what was asked
@@ -22,8 +24,12 @@ class FakeBackend {
     val requests = mutableListOf<String>()
 
     // "GET /grocery/lists" to the status and the body; every SAK address discovers the api at URL
-    // (SERVER-6), whatever its host
-    val answers = mutableMapOf<String, Pair<HttpStatusCode, String>>("GET /.well-known/sak.json" to (HttpStatusCode.OK to """{"api":"$URL"}"""))
+    // (SERVER-6), whatever its host, the deployment has many users
+    val answers =
+        mutableMapOf(
+            "GET /.well-known/sak.json" to (HttpStatusCode.OK to """{"api":"$URL"}"""),
+            "GET /info" to (HttpStatusCode.OK to info()),
+        )
 
     // answers by key with query, before answers, e.g. "GET /grocery/lists?offset=100&limit=100"
     val answersByQuery = mutableMapOf<String, Pair<HttpStatusCode, String>>()
@@ -79,6 +85,10 @@ class FakeBackend {
         contentType: String,
     ): HttpResponseData = respond(body, status, headersOf(HttpHeaders.ContentType, contentType))
 }
+
+// the answers come on the scheduler of the test, so advanceUntilIdle waits for them too; before the
+// first request
+fun FakeBackend.answerOn(scope: TestScope) = apply { dispatcher = StandardTestDispatcher(scope.testScheduler) }
 
 fun page(vararg items: String) = """{"items":[${items.joinToString(",")}],"pagination":{"offset":0,"limit":100,"total":${items.size}}}"""
 

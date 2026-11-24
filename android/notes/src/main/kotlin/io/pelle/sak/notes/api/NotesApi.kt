@@ -1,7 +1,6 @@
 package io.pelle.sak.notes.api
 
 import io.pelle.sak.api.model.DiscoverTextResponse
-import io.pelle.sak.api.model.FileResponse
 import io.pelle.sak.api.model.LoginRequest
 import io.pelle.sak.api.model.LabelResponse
 import io.pelle.sak.api.model.NoteRequest
@@ -10,13 +9,11 @@ import io.pelle.sak.api.model.NotesSettingsResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
-import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
-import io.pelle.sak.core.api.PageResponse
 import io.pelle.sak.core.api.SakApi
 import io.pelle.sak.notes.R
 
@@ -28,18 +25,8 @@ class NotesApi(
     languages: String? = null,
 ) : SakApi(client, url, token, languages, LOGIN_CLIENT) {
     // of the label or of all, the newest first
-    suspend fun notes(
-        label: String?,
-        offset: Int,
-        limit: Int,
-    ): PageResponse<NoteResponse> =
-        client
-            .get("$url/notes") {
-                session()
-                parameter("offset", offset)
-                parameter("limit", limit)
-                label?.let { parameter("label", it) }
-            }.answer(R.string.notes_errors_not_loaded)
+    suspend fun notes(label: String?): List<NoteResponse> =
+        all("$url/notes", R.string.notes_errors_not_loaded, label?.let { mapOf("label" to it) }.orEmpty())
 
     // the labels of all apps, to suggest
     suspend fun labels(): List<LabelResponse> = all("$url/labels", R.string.notes_errors_not_loaded)
@@ -71,20 +58,6 @@ class NotesApi(
     suspend fun deleteNote(id: Int) {
         client.delete("$url/notes/$id") { session() }.answer<Unit>(R.string.notes_errors_not_deleted)
     }
-
-    // a photo (a scaled jpeg) or a recording (a wav)
-    suspend fun upload(
-        content: ByteArray,
-        type: ContentType,
-        failure: Int,
-    ): FileResponse =
-        client
-            .post("$url/files") {
-                session()
-                longTransfer()
-                contentType(type)
-                setBody(content)
-            }.answer<FileResponse>(failure)
 
     suspend fun file(
         id: Int,

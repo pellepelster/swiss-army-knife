@@ -47,7 +47,7 @@ class LoginTest {
             step("a wrong password is refused", environment.single)
             page.getByLabel("Admin password").fill("not the password of the deployment")
             page.button("Sign in").click()
-            assertThat(page.getByRole(AriaRole.ALERT)).containsText("The password is not right.")
+            assertThat(page.getByRole(AriaRole.ALERT)).containsText("The password is wrong.")
 
             environment.single.signIn(page)
             step("signing out", environment.single)

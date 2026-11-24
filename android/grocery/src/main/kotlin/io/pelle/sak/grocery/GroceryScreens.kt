@@ -6,9 +6,11 @@ import io.pelle.sak.api.model.GroceryListResponse
 import io.pelle.sak.api.model.GrocerySuggestionResponse
 import io.pelle.sak.core.UiText
 import io.pelle.sak.core.Undo
+import io.pelle.sak.core.lists.ListFields
 import io.pelle.sak.core.lists.ListForm
 import io.pelle.sak.core.lists.ListsAppScreen
 import io.pelle.sak.core.lists.ListSummary
+import io.pelle.sak.core.lists.Renaming
 import io.pelle.sak.core.update.AppUpdate
 
 // what the screens of the app show once the user is signed in, as GroceryModel holds it
@@ -23,14 +25,6 @@ data class ItemGroup(
     // the emoji of the category, null without one
     val icon: String?,
     val items: List<GroceryItemResponse>,
-)
-
-// the item renamed in a dialog over the list (GROCERY-14), with the name typed; its error shows once
-// the field was left or the name was to be saved (UX-6)
-data class Renaming(
-    val item: GroceryItemResponse,
-    val name: String,
-    val left: Boolean = false,
 )
 
 // the quantity of an item set in a dialog over the list (GROCERY-15): the amount typed, with a point or
@@ -73,17 +67,11 @@ data class Discovery(
 // a list on the home, with how many items are to buy
 fun GroceryListResponse.summary() = ListSummary(id, name, icon, shared, mine, items)
 
-// the settings of a list the user creates (no id) or changes (ListForm); of a list that exists also
+// the settings of a list the user creates (no id) or changes (its fields); of a list that exists also
 // its categories, each change of them saved at once (GROCERY-13); a shared list of another user
 // changes its categories too (LIST-2)
 data class ListSettings(
-    override val id: Int? = null,
-    override val name: String = "",
-    override val shared: Boolean = false,
-    override val icon: String? = null,
-    override val mine: Boolean = true,
-    override val busy: Boolean = false,
-    override val error: UiText? = null,
+    override val fields: ListFields = ListFields(),
     // the categories of the list in their order, none for a new list
     val categories: List<GroceryCategoryResponse> = emptyList(),
     // the categories are as the backend has them; false while they load the first time and when they
@@ -102,7 +90,9 @@ data class ListSettings(
     val categoriesPending: Int = 0,
     // why the categories could not be loaded or a change of them was refused, said in their section
     val categoriesError: UiText? = null,
-) : ListForm
+) : ListForm<ListSettings> {
+    override fun withFields(fields: ListFields) = copy(fields = fields)
+}
 
 // the sizes the backend scales a photo to, on its longer side (FileService.SCALED_SIZES)
 val SCALED_SIZES = listOf(128, 256, 480, 1024)
@@ -123,7 +113,7 @@ data class ListsScreen(
     // the item whose category is chosen, on a screen over the list; null for the list
     val choosing: GroceryItemResponse? = null,
     // the item renamed in a dialog over the list, kept when its row goes, e.g. after a change event
-    val renaming: Renaming? = null,
+    val renaming: Renaming<GroceryItemResponse>? = null,
     // the item whose quantity is set in a dialog over the list, kept like renaming (GROCERY-15)
     val quantity: Quantity? = null,
     // the AI features of the grocery lists are on (GROCERY-16): the field of a new item can read the
@@ -137,7 +127,7 @@ data class ListsScreen(
     val error: UiText? = null,
     // the name typed into the field at the top, kept while it is sent (GROCERY-2)
     val itemName: String = "",
-    val adding: Boolean = false,
+    override val adding: Boolean = false,
     // the items checked while they can be undone, struck through until they go
     val struck: Set<Int> = emptySet(),
     // whether the list open shows its bought items too, struck through (GROCERY-14); hidden when a list opens
@@ -166,6 +156,10 @@ data class ListsScreen(
     override fun withSettings(settings: ListSettings?) = copy(settings = settings)
 
     override fun withError(error: UiText?) = copy(error = error)
+
+    override fun withLoading(loading: Boolean) = copy(loading = loading)
+
+    override fun withAdding(adding: Boolean) = copy(adding = adding)
 
     override fun withUpdate(
         update: AppUpdate?,

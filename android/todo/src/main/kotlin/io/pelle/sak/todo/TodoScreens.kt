@@ -3,9 +3,10 @@ package io.pelle.sak.todo
 import io.pelle.sak.api.model.TodoItemResponse
 import io.pelle.sak.api.model.TodoListResponse
 import io.pelle.sak.core.UiText
-import io.pelle.sak.core.lists.ListForm
+import io.pelle.sak.core.lists.ListFields
 import io.pelle.sak.core.lists.ListsAppScreen
 import io.pelle.sak.core.lists.ListSummary
+import io.pelle.sak.core.lists.Renaming
 import io.pelle.sak.core.Undo
 import io.pelle.sak.core.update.AppUpdate
 import java.time.LocalDate
@@ -24,25 +25,6 @@ val TodoItemResponse.due: LocalDate? get() = dueDate?.let { runCatching { LocalD
 // a list on the home; items is the number of open tasks
 fun TodoListResponse.summary() = ListSummary(id, name, icon, shared, mine, items)
 
-// the task renamed in a dialog over the list, with the title typed; its error shows once the field
-// was left or the title was to be saved (UX-6)
-data class Renaming(
-    val item: TodoItemResponse,
-    val title: String,
-    val left: Boolean = false,
-)
-
-// the settings of a list the user creates (no id) or changes
-data class ListSettings(
-    override val id: Int? = null,
-    override val name: String = "",
-    override val shared: Boolean = false,
-    override val icon: String? = null,
-    override val mine: Boolean = true,
-    override val busy: Boolean = false,
-    override val error: UiText? = null,
-) : ListForm
-
 // the screen once the user is signed in (the screens before are core's)
 data class ListsScreen(
     // who is signed in: their name, else the e-mail address, or admin
@@ -59,28 +41,32 @@ data class ListsScreen(
     val itemTitle: String = "",
     val itemDue: LocalDate? = null,
     val itemPriority: Priority = Priority.NORMAL,
-    val adding: Boolean = false,
+    override val adding: Boolean = false,
     val undo: Undo? = null,
     // the task renamed in a dialog over the list, kept when its row goes, e.g. after a change event
-    val renaming: Renaming? = null,
+    val renaming: Renaming<TodoItemResponse>? = null,
     // the task whose Delete asks for a confirmation in a dialog over the list (UX-4.1)
     val deleting: TodoItemResponse? = null,
     // the settings of a list, a new one or one the user sees, over the home or the list
-    override val settings: ListSettings? = null,
+    override val settings: ListFields? = null,
     // the newer version of the app the deployment runs, offered on the home
     override val update: AppUpdate? = null,
     // the answer of "Check for updates" of the menu when there is no update
     override val updateNotice: UiText? = null,
-) : ListsAppScreen<TodoListResponse, ListSettings> {
+) : ListsAppScreen<TodoListResponse, ListFields> {
     override fun withUser(user: String) = copy(user = user)
 
     override fun withLists(lists: List<TodoListResponse>) = copy(lists = lists)
 
     override fun withOpen(open: Int?) = copy(open = open)
 
-    override fun withSettings(settings: ListSettings?) = copy(settings = settings)
+    override fun withSettings(settings: ListFields?) = copy(settings = settings)
 
     override fun withError(error: UiText?) = copy(error = error)
+
+    override fun withLoading(loading: Boolean) = copy(loading = loading)
+
+    override fun withAdding(adding: Boolean) = copy(adding = adding)
 
     override fun withUpdate(
         update: AppUpdate?,

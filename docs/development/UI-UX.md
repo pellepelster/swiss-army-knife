@@ -59,12 +59,14 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
 - `UX-11` **Lists look alike.** Every list shows its rows as cards on the surface color of the theme, one under the
   other. A row opens what it shows.
 - `UX-12` **A menu on each row.** Each row of a list has a menu behind a ⋮ button at its right end. Its last entry is
-  Delete, red; it asks inline in the row, Keep is the safe default (`UX-4.1`). An entry that does not apply to the row
-  is disabled, its tooltip says why (`UX-8`).
+  Delete, red; it asks inline in the row (on Android in a dialog, `ANDROID-4`), Keep is the safe default (`UX-4.1`). An
+  entry that does not apply to the row is disabled, its tooltip says why (`UX-8`).
 - `UX-13` **A menu on the start page.** The start page has a ⋮ menu at the top right of its header, with "Sign out". An
   app that can update itself (e.g. the Android apps, not the web app, which a browser updates) has "Check for updates"
   in it too: the check loads a new version at once when there is one; otherwise a line under the header says what it
-  found. The desktop apps have neither, their update and their account are placed by `DESKTOP-4`.
+  found. The app also checks on its own when it starts, at most once in 7 days; a newer version is then offered in a
+  banner at the top of the start page, which "Later" closes until the next check. The desktop apps have neither, their
+  update and their account are placed by `DESKTOP-4`.
 - `UX-14` **The robot starts the AI features.** Each action that starts an AI feature has the robot icon of the theme
   (`fa-robot`), in every app. Examples are the action that discovers the text of a photo or a recording of a note and
   the action that reads the items in a photo for a grocery list.
@@ -96,6 +98,9 @@ The rules have ids as in [SYSTEM.md](architecture/SYSTEM.md); a part of a rule a
   does the same.
 - `ANDROID-3` **Pull down to reload.** Every screen that shows data of the deployment loads it again when the user
   pulls it down.
+- `ANDROID-4` **Delete asks in a dialog.** On Android a Delete asks in a dialog over the screen, not inline in the row:
+  "Delete &lt;name&gt;?", Keep as the safe default (`UX-4.1`) and Delete in red. A row of a phone has no room for the question
+  next to its name and its menu.
 
 ## Desktop apps
 

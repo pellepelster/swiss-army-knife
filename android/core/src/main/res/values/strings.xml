@@ -32,11 +32,14 @@
     <string name="downloading">Downloading…</string>
     <string name="update">Update</string>
     <string name="update_check">Check for updates</string>
+    <string name="update_later">Later</string>
     <string name="update_checking">Checking for updates…</string>
     <string name="update_current">The app is up-to-date, version %1$s.</string>
     <string name="update_app_no_release">This build of the app is no release, it is not updated.</string>
     <string name="update_deployment_no_release">Your SAK instance runs no release, there is no update for the app.</string>
     <string name="ok" translatable="false">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="photo_close">Close the photo</string>
     <string name="sign_in_password_hint">Sign in to a single user SAK instance with a password.</string>
     <string name="sign_in_email_hint">Sign in to a multi user SAK instance by e-mail.</string>
     <string name="sign_in_email">Sign in by e-mail</string>
@@ -63,7 +66,6 @@
     <string name="qr_new_title">Sign in to this SAK instance?</string>
     <string name="qr_new_text">The QR code signs you in to %1$s. Go on only if it is your SAK instance.</string>
     <string name="qr_switch_signed_out_text">The app is set up for %1$s. The QR code signs you in to %2$s instead.</string>
-    <string name="qr_cancel">Cancel</string>
     <string name="no_lists">You have no list yet, create one with the plus at the top.</string>
     <string name="shared_with_all">Shared with all users</string>
     <string name="shared_badge">Shared</string>
@@ -74,11 +76,11 @@
     <string name="error_changes_not_read">The changes could not be read.</string>
     <string name="error_sak_address">Enter the SAK address of your SAK instance, e.g. sak.example.org.</string>
     <string name="error_no_deployment">No SAK instance answers at this address.</string>
-    <string name="error_no_sak_address">This is no SAK address.</string>
-    <string name="error_no_sak">This is no SAK instance.</string>
+    <string name="error_no_sak_address">This is not a SAK address.</string>
+    <string name="error_no_sak">This is not a SAK instance.</string>
     <string name="error_link_not_requested">The login link could not be requested.</string>
     <string name="error_link_not_used">The login link could not be used.</string>
-    <string name="error_not_asked">This login link was not requested in this app, or it is older than 15 minutes. Request a new one.</string>
+    <string name="error_not_asked">This login link was not requested in this app, or it is older than %1$s minutes. Request a new one.</string>
     <string name="error_password_not_checked">The password could not be checked.</string>
     <string name="error_password_wrong">The password is wrong.</string>
     <string name="error_user_not_read">The user could not be read.</string>
@@ -86,7 +88,7 @@
     <string name="error_connection">The SAK instance could not be reached, check the connection.</string>
     <string name="error_session_ended">Your session ended, please sign in again.</string>
     <string name="error_too_many_attempts">Too many attempts, please try again later.</string>
-    <string name="error_qr_no_sak">This is no QR code of SAK. Scan the code the web app shows under “Connect an app”.</string>
+    <string name="error_qr_no_sak">This is not a QR code of SAK. Scan the code the web app shows under “Connect an app”.</string>
     <string name="error_qr_invalid">The QR code is not valid, or it was used or expired. Show a new one in the web app.</string>
     <string name="error_qr_unreachable">The SAK instance %1$s could not be reached.</string>
     <string name="error_qr_not_used">The QR code could not be used.</string>

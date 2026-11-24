@@ -48,5 +48,5 @@ invalid_list_name: "A list name must have 1 to %{max} characters and no control 
 invalid_title: "A task title must have 1 to %{max} characters and no control characters."
 invalid_due_date: "A due date must be a day as yyyy-mm-dd."
 invalid_priority: "A priority must be high, normal or low."
-list_exists: "A list of the name exists."
+list_exists: "A list with this name already exists."
 unknown_list: "There is no such list, or you can not see it."

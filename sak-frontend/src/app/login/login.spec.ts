@@ -167,7 +167,7 @@ describe('Login', () => {
       .flush(null, { status: 401, statusText: 'Unauthorized' });
     await harness.fixture.whenStable();
 
-    expect(page.querySelector('[role=alert]')?.textContent).toContain('The password is not right');
+    expect(page.querySelector('[role=alert]')?.textContent).toContain('The password is wrong');
     expect(page.querySelector<HTMLInputElement>('#password')!.value).toBe('');
   });
 

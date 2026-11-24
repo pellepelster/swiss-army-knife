@@ -3,8 +3,6 @@ package io.pelle.sak.core.ui
 import android.content.Context
 import android.view.MotionEvent
 import android.widget.FrameLayout
-import androidx.activity.compose.BackHandler
-import androidx.annotation.StringRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
@@ -31,7 +29,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -39,7 +36,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -79,25 +75,28 @@ import io.pelle.sak.core.AppScreen
 import io.pelle.sak.core.R
 import io.pelle.sak.core.SakModel
 import io.pelle.sak.core.UiText
-import io.pelle.sak.core.lists.ListForm
+import io.pelle.sak.core.lists.ListFields
 import io.pelle.sak.core.lists.ListSummary
+import io.pelle.sak.core.lists.ListTexts
 import io.pelle.sak.core.lists.ListsActions
 import io.pelle.sak.core.Undo
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusEventModifierNode
+import androidx.compose.ui.focus.FocusState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+import io.pelle.sak.core.lists.Renaming
 
-// the screens of the list-based apps (the home, the settings of a list) and the undo of every app
-
-// the texts of the app the screens of its lists show, by their resource (<app>.common)
-data class ListTexts(
-    // the name of the app, the title of the home
-    @StringRes val appName: Int,
-    // the plus of the home and the title of the settings of a new list
-    @StringRes val create: Int,
-    // the back arrow of a list, to the home
-    @StringRes val allLists: Int,
-    @StringRes val chooseIcon: Int,
-    @StringRes val noIcon: Int,
-    @StringRes val deleteList: Int,
-)
+// the screens of the list-based apps (the home, the list open, the settings of a list) and the undo of
+// every app
 
 @Composable
 fun Empty(text: String) {
@@ -238,8 +237,8 @@ fun <M> ListsHome(
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
             LazyColumn(Modifier.fillMaxSize().testTag("lists")) {
-                screen.update?.let { item { UpdateBanner(it, model::update) } }
-                screen.updateNotice?.let { item { UpdateNotice(it, model::dismissUpdateNotice) } }
+                screen.update?.let { item { UpdateBanner(it, model.updates::install, model.updates::later) } }
+                screen.updateNotice?.let { item { UpdateNotice(it, model.updates::dismissNotice) } }
                 error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
                 if (!loading && error == null && lists.isEmpty()) {
                     item { Empty(stringResource(R.string.no_lists)) }
@@ -287,25 +286,17 @@ private fun ListRow(
                     MenuIcon(list.name)
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.shared_settings)) },
+                    MenuEntry(
+                        stringResource(R.string.shared_settings),
+                        close = { menu = false },
                         leadingIcon = { Icon(painterResource(R.drawable.ic_settings), contentDescription = null) },
-                        onClick = {
-                            menu = false
-                            settings()
-                        },
                         modifier = Modifier.testTag("settings-${list.id}"),
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.shared_delete)) },
-                        onClick = {
-                            menu = false
-                            confirming = true
-                        },
+                    ) { settings() }
+                    DeleteMenuEntry(
+                        close = { menu = false },
                         enabled = list.mine,
-                        colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
                         modifier = Modifier.testTag("delete-${list.id}"),
-                    )
+                    ) { confirming = true }
                 }
             }
         },
@@ -322,7 +313,7 @@ private fun ListRow(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <M : ListsActions> ListSettingsScreen(
-    settings: ListForm,
+    settings: ListFields,
     fromList: Boolean,
     texts: ListTexts,
     model: M,
@@ -330,19 +321,12 @@ fun <M : ListsActions> ListSettingsScreen(
     onRefresh: (() -> Unit)? = null,
     below: @Composable () -> Unit = {},
 ) {
-    BackHandler(onBack = model::back)
     var picking by rememberSaveable { mutableStateOf(false) }
     var confirming by rememberSaveable { mutableStateOf(false) }
     Page(
         stringResource(if (settings.id == null) texts.create else R.string.shared_settings),
-        navigationIcon = {
-            IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
-                Icon(
-                    painterResource(R.drawable.ic_arrow_back),
-                    contentDescription = stringResource(if (fromList) R.string.back_to_list else texts.allLists),
-                )
-            }
-        },
+        onBack = model::back,
+        back = stringResource(if (fromList) R.string.back_to_list else texts.allLists),
     ) { padding ->
         val form = @Composable { ListSettingsForm(padding, settings, texts, model, { picking = true }, { confirming = true }, below) }
         if (onRefresh == null) {
@@ -364,7 +348,7 @@ fun <M : ListsActions> ListSettingsScreen(
 @Composable
 private fun ListSettingsForm(
     padding: PaddingValues,
-    settings: ListForm,
+    settings: ListFields,
     texts: ListTexts,
     model: ListsActions,
     pick: () -> Unit,
@@ -409,7 +393,8 @@ private fun ListSettingsForm(
         // a shared list of another user: the switch and the delete stay in their place, disabled (UX-8)
         if (!settings.mine) Text(stringResource(R.string.only_owner_share_delete), style = MaterialTheme.typography.bodySmall)
         Error(settings.error)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // the buttons that end the form, at the right, save the rightmost (UX-9)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
             if (settings.id != null) {
                 // the button that leads to a delete (UX-3): filled like the other buttons, not the
                 // color of the screen, the line and the text in the color of danger
@@ -439,5 +424,180 @@ private fun ListSettingsForm(
             }
         }
         if (settings.id != null) below()
+    }
+}
+
+// the page of the list open: back leads to the home (allLists), the settings of the list (of a shared
+// list of another user too, LIST-2) after the actions of the app, the undo at the bottom; top is the
+// field of a new entry, then the entries pulled down to reload (ANDROID-3). empty shows when the
+// list loaded without an error and nothing to show, null while entries show
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun <M> ListPage(
+    screen: AppScreen,
+    open: Int,
+    list: ListSummary?,
+    allLists: String,
+    loading: Boolean,
+    error: UiText?,
+    empty: String?,
+    undo: Undo?,
+    undoMs: Long,
+    model: M,
+    onUndo: () -> Unit,
+    actions: @Composable () -> Unit = {},
+    top: @Composable () -> Unit,
+    entries: LazyListScope.() -> Unit,
+) where M : SakModel<*>, M : ListsActions {
+    Page(
+        listTitle(list),
+        onBack = model::back,
+        back = allLists,
+        actions = {
+            actions()
+            IconButton(onClick = { model.openSettings(open) }, enabled = list != null, modifier = Modifier.testTag("list-settings")) {
+                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.shared_settings))
+            }
+            AccountMenu(screen, model)
+        },
+        bottomBar = { undo?.let { UndoBar(it, undoMs, onUndo) } },
+    ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            top()
+            PullToRefreshBox(isRefreshing = loading, onRefresh = model::refresh, modifier = Modifier.fillMaxSize()) {
+                LazyColumn(Modifier.fillMaxSize().testTag("items")) {
+                    error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
+                    if (!loading && error == null && empty != null) item { Empty(empty) }
+                    entries()
+                    item { Spacer(Modifier.height(24.dp)) }
+                }
+            }
+        }
+    }
+}
+
+// the field of a new entry, no add button: Enter adds it (onDone) and keeps the keyboard open for the
+// next one; a spinner while it is sent (busy). buttons follow it in its row, end is the space after them
+@Composable
+fun NewEntryField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    busy: Boolean,
+    onDone: () -> Unit,
+    tag: String,
+    end: Dp = 16.dp,
+    buttons: @Composable RowScope.() -> Unit = {},
+) {
+    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = end), verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            singleLine = true,
+            trailingIcon =
+                if (busy) {
+                    { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
+                } else {
+                    null
+                },
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onDone() }),
+            modifier = Modifier.weight(1f).padding(vertical = 8.dp).testTag(tag),
+        )
+        buttons()
+    }
+}
+
+// a text, struck through with a red line through the middle of each of its lines, more visible than
+// the line of the font; a text that wraps gets one line for each, right to left too
+@Composable
+fun StruckText(
+    text: String,
+    style: TextStyle,
+    struck: Boolean,
+) {
+    val color = MaterialTheme.colorScheme.error
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val line =
+        if (!struck) {
+            Modifier
+        } else {
+            Modifier.drawWithContent {
+                drawContent()
+                val lines = layout ?: return@drawWithContent
+                for (index in 0 until lines.lineCount) {
+                    val middle = (lines.getLineTop(index) + lines.getLineBottom(index)) / 2
+                    drawLine(color, Offset(lines.getLineLeft(index), middle), Offset(lines.getLineRight(index), middle), strokeWidth = 2.dp.toPx())
+                }
+            }
+        }
+    Text(text, style = style, modifier = line, onTextLayout = { layout = it })
+}
+
+// the rename of an entry of the list open: an invalid name (valid, the check of the app) shows its
+// error (invalid) once the field was left or Done was pressed, and can not be saved (UX-6); Cancel is
+// the safe default
+@Composable
+fun RenameDialog(
+    renaming: Renaming<*>,
+    valid: Boolean,
+    title: String,
+    label: String,
+    invalid: String,
+    onEdit: (String) -> Unit,
+    onLeave: () -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val error = renaming.left && !valid
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = renaming.name,
+                onValueChange = onEdit,
+                label = { Text(label) },
+                singleLine = true,
+                isError = error,
+                supportingText = { if (error) Text(invalid) },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onSave() }),
+                modifier = Modifier.onLeave(onLeave).testTag("rename-item-name"),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSave, enabled = valid, modifier = Modifier.testTag("rename-item-save")) {
+                Text(stringResource(R.string.shared_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+// action runs when the focus leaves the field, not when it was never in it: where a field is checked
+// once it was left (UX-6)
+fun Modifier.onLeave(action: () -> Unit): Modifier = this then OnLeaveElement(action)
+
+private data class OnLeaveElement(
+    val action: () -> Unit,
+) : ModifierNodeElement<OnLeaveNode>() {
+    override fun create() = OnLeaveNode(action)
+
+    override fun update(node: OnLeaveNode) {
+        node.action = action
+    }
+}
+
+private class OnLeaveNode(
+    var action: () -> Unit,
+) : Modifier.Node(),
+    FocusEventModifierNode {
+    private var focused = false
+
+    override fun onFocusEvent(focusState: FocusState) {
+        if (focused && !focusState.isFocused) action()
+        focused = focusState.isFocused
     }
 }

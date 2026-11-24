@@ -24,13 +24,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -42,6 +37,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.ui.Error
+import io.pelle.sak.core.ui.onLeave
 import io.pelle.sak.grocery.Amount
 import io.pelle.sak.grocery.DiscoveredRow
 import io.pelle.sak.grocery.Discovery
@@ -67,7 +63,7 @@ internal fun DiscoveryDialog(
                         Text(stringResource(R.string.grocery_discover_reading))
                     }
                 },
-                confirmButton = { TextButton(onClick = model::dismissDiscovery) { Text(stringResource(R.string.grocery_cancel)) } },
+                confirmButton = { TextButton(onClick = model::dismissDiscovery) { Text(stringResource(CoreR.string.cancel)) } },
             )
         discovery.rows.isEmpty() ->
             AlertDialog(
@@ -115,7 +111,7 @@ private fun DiscoveredItems(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (discovery.adding) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                    TextButton(onClick = model::dismissDiscovery, enabled = !discovery.adding) { Text(stringResource(R.string.grocery_cancel)) }
+                    TextButton(onClick = model::dismissDiscovery, enabled = !discovery.adding) { Text(stringResource(CoreR.string.cancel)) }
                     TextButton(
                         onClick = model::addDiscovered,
                         enabled = !discovery.adding && discovery.rows.any { it.included && it.valid },
@@ -141,7 +137,6 @@ private fun DiscoveredItem(
     val include = stringResource(R.string.grocery_discover_include, row.name.trim())
     val nameError = row.included && (row.nameLeft || submitted) && !GroceryModel.validItemName(row.name)
     val amountError = row.included && (row.amountLeft || submitted) && amountOf(row.amount) == Amount.Invalid
-    var focused by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
@@ -162,10 +157,8 @@ private fun DiscoveredItem(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .onFocusChanged {
-                            if (focused && !it.isFocused) model.leaveDiscoveredName(index)
-                            focused = it.isFocused
-                        }.testTag("discover-name-$index"),
+                        .onLeave { model.leaveDiscoveredName(index) }
+                        .testTag("discover-name-$index"),
             )
         }
         // under the name, in line with it

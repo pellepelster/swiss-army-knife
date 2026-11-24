@@ -42,7 +42,6 @@
     <string name="todo_priority_low">Low priority</string>
     <string name="todo_app_name" translatable="false">SAK Todo</string>
     <string name="todo_item_title_invalid">A title must have 1 to 256 characters.</string>
-    <string name="todo_cancel">Cancel</string>
     <string name="todo_ok">OK</string>
     <string name="todo_nothing_to_do">Nothing to do.</string>
     <string name="todo_no_due_date">No due date</string>

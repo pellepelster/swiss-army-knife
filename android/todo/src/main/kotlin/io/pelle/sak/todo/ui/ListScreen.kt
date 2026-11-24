@@ -1,24 +1,16 @@
 package io.pelle.sak.todo.ui
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DisplayMode
@@ -29,11 +21,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,37 +33,30 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import io.pelle.sak.api.model.TodoItemResponse
 import io.pelle.sak.core.R as CoreR
-import io.pelle.sak.core.ui.AccountMenu
+import io.pelle.sak.core.lists.Renaming
 import io.pelle.sak.core.ui.ConfirmDelete
-import io.pelle.sak.core.ui.Empty
-import io.pelle.sak.core.ui.Error
+import io.pelle.sak.core.ui.DeleteMenuEntry
+import io.pelle.sak.core.ui.MenuEntry
 import io.pelle.sak.core.ui.MenuIcon
-import io.pelle.sak.core.ui.Page
-import io.pelle.sak.core.ui.UndoBar
-import io.pelle.sak.core.ui.listTitle
+import io.pelle.sak.core.ui.ListPage
+import io.pelle.sak.core.ui.NewEntryField
+import io.pelle.sak.core.ui.RenameDialog
+import io.pelle.sak.core.ui.StruckText
 import io.pelle.sak.todo.ListsScreen
 import io.pelle.sak.todo.Priority
 import io.pelle.sak.todo.R
-import io.pelle.sak.todo.Renaming
 import io.pelle.sak.todo.TodoModel
 import io.pelle.sak.todo.due
 import io.pelle.sak.todo.summary
@@ -99,18 +81,22 @@ internal fun ListScreen(
     open: Int,
     model: TodoModel,
 ) {
-    BackHandler(onBack = model::back)
     // the dialogs of the menu of a task live in the model, they stay when the row goes
     screen.renaming?.let { RenameItem(it, model) }
     screen.deleting?.let { item -> ConfirmDelete(item.title, onDelete = { model.deleteItem(item) }, onDismiss = model::dismissDelete) }
-    val list = screen.lists.firstOrNull { it.id == open }
-    Page(
-        listTitle(list?.summary()),
-        navigationIcon = {
-            IconButton(onClick = model::back, modifier = Modifier.testTag("back")) {
-                Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = stringResource(R.string.todo_all_lists))
-            }
-        },
+    val today = rememberToday()
+    ListPage(
+        screen,
+        open,
+        screen.lists.firstOrNull { it.id == open }?.summary(),
+        stringResource(R.string.todo_all_lists),
+        screen.loading,
+        screen.error,
+        stringResource(R.string.todo_nothing_to_do).takeIf { screen.items.isEmpty() },
+        screen.undo,
+        model.undoMs,
+        model,
+        onUndo = model::undo,
         actions = {
             // in the color of an error, it deletes (UX-3); disabled while nothing is done (UX-8); every
             // user who sees the list may purge it (TODO-6, LIST-2)
@@ -122,28 +108,12 @@ internal fun ListScreen(
                     tint = if (hasDone) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 )
             }
-            // also of a shared list of another user (LIST-2)
-            IconButton(onClick = { model.openSettings(open) }, enabled = list != null, modifier = Modifier.testTag("list-settings")) {
-                Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(CoreR.string.shared_settings))
-            }
-            AccountMenu(screen, model)
         },
-        bottomBar = { screen.undo?.let { UndoBar(it, model.undoMs, model::undo) } },
-    ) { padding ->
-        val today = rememberToday()
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            NewItem(screen, model)
-            PullToRefreshBox(isRefreshing = screen.loading, onRefresh = model::refresh, modifier = Modifier.fillMaxSize()) {
-                LazyColumn(Modifier.fillMaxSize().testTag("items")) {
-                    screen.error?.let { item { Box(Modifier.padding(16.dp)) { Error(it) } } }
-                    if (!screen.loading && screen.error == null && screen.items.isEmpty()) item { Empty(stringResource(R.string.todo_nothing_to_do)) }
-                    itemsIndexed(screen.items, key = { _, item -> item.id }) { index, item ->
-                        ItemRow(item, item.doneAt != null, today, model)
-                        if (index < screen.items.lastIndex) HorizontalDivider()
-                    }
-                    item { Spacer(Modifier.height(24.dp)) }
-                }
-            }
+        top = { NewItem(screen, model) },
+    ) {
+        itemsIndexed(screen.items, key = { _, item -> item.id }) { index, item ->
+            ItemRow(item, item.doneAt != null, today, model)
+            if (index < screen.items.lastIndex) HorizontalDivider()
         }
     }
 }
@@ -157,22 +127,15 @@ private fun NewItem(
     model: TodoModel,
 ) {
     var picking by rememberSaveable { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        OutlinedTextField(
-            value = screen.itemTitle,
-            onValueChange = model::typed,
-            label = { Text(stringResource(R.string.todo_list_task)) },
-            singleLine = true,
-            trailingIcon =
-                if (screen.adding) {
-                    { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
-                } else {
-                    null
-                },
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = { model.addItem() }),
-            modifier = Modifier.weight(1f).padding(vertical = 8.dp).testTag("item-title"),
-        )
+    NewEntryField(
+        screen.itemTitle,
+        model::typed,
+        stringResource(R.string.todo_list_task),
+        screen.adding,
+        model::addItem,
+        tag = "item-title",
+        end = 4.dp,
+    ) {
         IconButton(onClick = { picking = true }, modifier = Modifier.testTag("item-due")) {
             Icon(painterResource(R.drawable.ic_calendar), contentDescription = stringResource(R.string.todo_list_due_date))
         }
@@ -224,7 +187,7 @@ private fun DuePicker(
                 onPick(state.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() })
             }, modifier = Modifier.testTag("due-picker-ok")) { Text(stringResource(R.string.todo_ok)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.todo_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(CoreR.string.cancel)) } },
     ) { DatePicker(state, showModeToggle = !low) }
 }
 
@@ -297,94 +260,57 @@ private fun ItemMenu(
     Box {
         IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu-item-${item.id}")) { MenuIcon(item.title) }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.todo_list_rename)) },
-                onClick = {
-                    menu = false
-                    model.askRename(item)
-                },
+            MenuEntry(
+                stringResource(R.string.todo_list_rename),
+                close = { menu = false },
                 modifier = Modifier.testTag("rename-item-${item.id}"),
-            )
+            ) { model.askRename(item) }
             HorizontalDivider()
             PriorityMenuItems(item.priority, tag = { "set-priority-${item.id}-${it.value}" }) {
                 menu = false
                 model.setPriority(item, it)
             }
             HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.todo_list_add_due_date)) },
+            MenuEntry(
+                stringResource(R.string.todo_list_add_due_date),
+                close = { menu = false },
                 leadingIcon = { Icon(painterResource(R.drawable.ic_calendar), contentDescription = null) },
-                onClick = {
-                    menu = false
-                    picking = true
-                },
                 enabled = item.dueDate == null,
                 modifier = Modifier.testTag("add-due-date-${item.id}"),
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.todo_list_remove_due_date)) },
+            ) { picking = true }
+            MenuEntry(
+                stringResource(R.string.todo_list_remove_due_date),
+                close = { menu = false },
                 leadingIcon = { Icon(painterResource(R.drawable.ic_calendar), contentDescription = null) },
-                onClick = {
-                    menu = false
-                    model.setDueDate(item, null)
-                },
                 enabled = item.dueDate != null,
                 modifier = Modifier.testTag("remove-due-date-${item.id}"),
-            )
+            ) { model.setDueDate(item, null) }
             HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text(stringResource(CoreR.string.shared_delete)) },
-                onClick = {
-                    menu = false
-                    model.askDelete(item)
-                },
-                colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error),
+            DeleteMenuEntry(
+                close = { menu = false },
                 modifier = Modifier.testTag("delete-item-${item.id}"),
-            )
+            ) { model.askDelete(item) }
         }
     }
     if (picking) DuePicker(null, onPick = { day -> day?.let { model.setDueDate(item, it) } }, onDismiss = { picking = false })
 }
 
-// an empty or too long title shows its error once the field was left or Done was pressed, and can
-// not be saved (UX-6); Cancel is the safe default
+// an empty or too long title can not be saved (UX-6)
 @Composable
 private fun RenameItem(
-    renaming: Renaming,
+    renaming: Renaming<TodoItemResponse>,
     model: TodoModel,
-) {
-    val valid = TodoModel.validTitle(renaming.title)
-    val error = renaming.left && !valid
-    var focused by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = model::dismissRename,
-        title = { Text(stringResource(R.string.todo_list_rename)) },
-        text = {
-            OutlinedTextField(
-                value = renaming.title,
-                onValueChange = model::editRename,
-                label = { Text(stringResource(R.string.todo_list_task)) },
-                singleLine = true,
-                isError = error,
-                supportingText = { if (error) Text(stringResource(R.string.todo_item_title_invalid)) },
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { model.renameItem() }),
-                modifier =
-                    Modifier
-                        .onFocusChanged {
-                            if (focused && !it.isFocused) model.leaveRename()
-                            focused = it.isFocused
-                        }.testTag("rename-item-name"),
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = model::renameItem, enabled = valid, modifier = Modifier.testTag("rename-item-save")) {
-                Text(stringResource(CoreR.string.shared_save))
-            }
-        },
-        dismissButton = { TextButton(onClick = model::dismissRename) { Text(stringResource(R.string.todo_cancel)) } },
-    )
-}
+) = RenameDialog(
+    renaming,
+    TodoModel.validTitle(renaming.name),
+    stringResource(R.string.todo_list_rename),
+    stringResource(R.string.todo_list_task),
+    stringResource(R.string.todo_item_title_invalid),
+    onEdit = model::editRename,
+    onLeave = model::leaveRename,
+    onSave = model::renameItem,
+    onDismiss = model::dismissRename,
+)
 
 // the priority of the next task (TODO-5)
 @Composable
@@ -446,29 +372,3 @@ private fun priorityText(priority: Priority) =
             Priority.LOW -> R.string.todo_priority_low
         },
     )
-
-// a red line through each line of the text, more visible than the strike-through of the font, as in
-// the grocery app
-@Composable
-private fun StruckText(
-    text: String,
-    style: TextStyle,
-    struck: Boolean,
-) {
-    val color = MaterialTheme.colorScheme.error
-    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val line =
-        if (!struck) {
-            Modifier
-        } else {
-            Modifier.drawWithContent {
-                drawContent()
-                val lines = layout ?: return@drawWithContent
-                for (index in 0 until lines.lineCount) {
-                    val middle = (lines.getLineTop(index) + lines.getLineBottom(index)) / 2
-                    drawLine(color, Offset(lines.getLineLeft(index), middle), Offset(lines.getLineRight(index), middle), strokeWidth = 2.dp.toPx())
-                }
-            }
-        }
-    Text(text, style = style, modifier = line, onTextLayout = { layout = it })
-}

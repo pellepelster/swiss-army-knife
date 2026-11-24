@@ -1,5 +1,6 @@
 // the convention plugins of the android modules. The android gradle plugin is compileOnly here: the
-// plugins block of each module brings it, in the version of the catalog
+// root build brings it and the compose plugin (apply false), in the versions of the catalog; the
+// convention plugins apply both by their ids
 plugins {
     `kotlin-dsl`
 }

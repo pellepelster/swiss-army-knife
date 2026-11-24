@@ -2,6 +2,7 @@ package io.pelle.sak.testing
 
 import io.ktor.client.HttpClient
 import io.ktor.http.HttpStatusCode
+import io.pelle.sak.api.model.InfoResponse
 import io.pelle.sak.api.model.LoginRequest
 import io.pelle.sak.core.AppScreen
 import io.pelle.sak.core.R
@@ -15,9 +16,11 @@ import io.pelle.sak.core.session.MemorySessionStore
 import io.pelle.sak.core.session.PendingLogin
 import io.pelle.sak.core.session.SessionStore
 import io.pelle.sak.core.session.Stored
+import io.pelle.sak.core.uiText
 import io.pelle.sak.core.update.AppUpdate
+import io.pelle.sak.core.update.UpdateException
+import io.pelle.sak.core.update.Updater
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -27,7 +30,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 
@@ -36,7 +41,8 @@ private class ThingsApi(
     client: HttpClient,
     url: String,
     token: String?,
-) : SakApi(client, url, token, "en", LoginRequest.Client.GROCERY_ANDROID) {
+    languages: String? = "en",
+) : SakApi(client, url, token, languages, LoginRequest.Client.GROCERY_ANDROID) {
     suspend fun things(): List<JsonObject> = all("$url/things", R.string.error_user_not_read)
 }
 
@@ -62,13 +68,11 @@ private class ThingsModel(
     backend: FakeBackend,
     scope: TestScope,
     clock: Clock,
+    appVersion: String = "latest",
+    updater: Updater? = NO_UPDATE_EXPECTED,
 ) : SakModel<ThingsApi>(
-        store,
+        scope.sakSetup(store, clock, appVersion, updater, nonce = { "the nonce of the test" }),
         { url, token -> ThingsApi(backend.client, url, token) },
-        scope,
-        allowUrl = false,
-        clock = clock,
-        nonce = { "the nonce of the test" },
     ) {
     override fun showApp(stored: Stored) {
         state.value = ThingsScreen(stored.email.orEmpty())
@@ -80,6 +84,10 @@ private class ThingsModel(
             app { it.copy(things = things.size, error = null) }
         }
 
+    // the answer of request as it comes, for the test of an answer of a session that went
+    fun fetch(answers: MutableList<Int?>) =
+        scope.launch { answers += request(R.string.error_user_not_read, {}) { it.things().size } }
+
     private fun app(change: (ThingsScreen) -> ThingsScreen) {
         (state.value as? ThingsScreen)?.let { state.value = change(it) }
     }
@@ -90,32 +98,51 @@ class SakModelTest {
 
     private val backend =
         FakeBackend().apply {
-            answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi"}"""
             answers["POST /auth/login/link"] = HttpStatusCode.Accepted to ""
             answers["POST /auth/login/exchange"] = HttpStatusCode.OK to session("link-session", "pelle@pelle.io")
             answers["POST /auth/login/password"] = HttpStatusCode.OK to session("password-session", "admin")
-            answers["GET /auth/who-am-i"] = HttpStatusCode.OK to """{"email":"admin","roles":["admin"]}"""
+            answers["GET /auth/who-am-i"] = HttpStatusCode.OK to whoAmI("admin")
         }
-
-    init {
-        // the texts of core only; the tests of testing have no app
-        System.setProperty("sak.app.package", "io.pelle.sak.testing")
-    }
-
-    private fun session(
-        token: String,
-        email: String,
-    ) = """{"sessionToken":"$token","email":"$email","expiresAt":"2026-12-02T08:00:00.000Z","roles":["admin"],"redirect":"/"}"""
 
     private fun thing(id: Int) = """{"id":$id}"""
 
-    private fun TestScope.model(store: MemorySessionStore): ThingsModel {
-        backend.dispatcher = StandardTestDispatcher(testScheduler)
-        return ThingsModel(store, backend, this, Clock.fixed(now, ZoneOffset.UTC))
+    private fun TestScope.model(
+        store: SessionStore,
+        at: Instant = now,
+        appVersion: String = "latest",
+        updater: Updater? = NO_UPDATE_EXPECTED,
+    ): ThingsModel {
+        backend.answerOn(this)
+        return ThingsModel(store, backend, this, Clock.fixed(at, ZoneOffset.UTC), appVersion, updater)
     }
 
-    private fun signedIn(token: String = "session") =
-        MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", token = token, email = "admin", expiresAt = now.plusSeconds(3600)))
+    private fun ThingsModel.app() = screen.value as ThingsScreen
+
+    private fun signedIn(token: String = "session") = MemorySessionStore(signedIn(now.plusSeconds(3600), token))
+
+    private fun signedOut() = MemorySessionStore(io.pelle.sak.testing.signedOut())
+
+    @Test
+    fun `the answer of a session that went changes nothing, also when it worked (AA-1)`() =
+        runTest {
+            backend.answers["GET /things"] = HttpStatusCode.OK to page(thing(1))
+            val model = model(signedIn()).also { it.start() }
+            advanceUntilIdle()
+
+            val answers = mutableListOf<Int?>()
+            // asked, and the deployment changes before the answer comes
+            model.fetch(answers)
+            model.changeDeployment()
+            advanceUntilIdle()
+            assertEquals(listOf<Int?>(null), answers)
+
+            // the same request of a session that stays answers
+            val kept = model(signedIn()).also { it.start() }
+            advanceUntilIdle()
+            kept.fetch(answers)
+            advanceUntilIdle()
+            assertEquals(listOf(null, 1), answers)
+        }
 
     @Test
     fun `every page of a list is asked for, a short page or the total ends it`() =
@@ -127,7 +154,7 @@ class SakModelTest {
             advanceUntilIdle()
             model.load()
             advanceUntilIdle()
-            assertEquals(250, (model.screen.value as ThingsScreen).things)
+            assertEquals(250, model.app().things)
             assertEquals(3, backend.queries.count { it.startsWith("GET /things") })
 
             // a server that claims more than it gives ends with its short page, no endless paging
@@ -136,7 +163,7 @@ class SakModelTest {
             backend.answersByQuery["GET /things?offset=100&limit=100"] = HttpStatusCode.OK to page(100, 1_000_000, (0 until 7).map(::thing))
             model.load()
             advanceUntilIdle()
-            assertEquals(107, (model.screen.value as ThingsScreen).things)
+            assertEquals(107, model.app().things)
             assertEquals(2, backend.queries.count { it.startsWith("GET /things") })
         }
 
@@ -149,18 +176,18 @@ class SakModelTest {
             advanceUntilIdle()
             model.load()
             advanceUntilIdle()
-            assertEquals("The user could not be read.", (model.screen.value as ThingsScreen).error.english())
+            assertEquals("The user could not be read.", model.app().error.english())
 
             backend.answers["GET /things"] = HttpStatusCode.TooManyRequests to ""
             model.load()
             advanceUntilIdle()
-            assertEquals("Too many attempts, please try again later.", (model.screen.value as ThingsScreen).error.english())
+            assertEquals("Too many attempts, please try again later.", model.app().error.english())
         }
 
     @Test
     fun `a link is exchanged with the nonce of its request, once, a link while signed in changes nothing`() =
         runTest {
-            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
+            val store = signedOut()
             val model = model(store).also { it.start() }
             advanceUntilIdle()
             model.requestLink("pelle@pelle.io")
@@ -178,7 +205,7 @@ class SakModelTest {
             advanceUntilIdle()
             assertEquals(1, backend.requests.count { it.startsWith("POST /auth/login/exchange") })
             assertTrue(backend.requests.contains("""POST /auth/login/exchange {"token":"login-token","nonce":"the nonce of the test"}"""))
-            assertEquals("pelle@pelle.io", (model.screen.value as ThingsScreen).user)
+            assertEquals("pelle@pelle.io", model.app().user)
 
             // signed in, e.g. a link android gives again: nothing
             model.signInWithLink("another-token")
@@ -191,7 +218,7 @@ class SakModelTest {
     fun `a refused link keeps the login pending, the right link still signs in`() =
         runTest {
             val pending = PendingLogin(URL, now, "the nonce of the test")
-            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", pending = pending))
+            val store = MemorySessionStore(signedOut().load().copy(pending = pending))
             backend.answers["POST /auth/login/exchange"] = HttpStatusCode.Unauthorized to ""
             val model = model(store).also { it.start() }
             model.signInWithLink("someone-elses-token")
@@ -209,7 +236,7 @@ class SakModelTest {
     @Test
     fun `a sign-in that answers after another deployment was chosen changes nothing`() =
         runTest {
-            val memory = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
+            val memory = signedOut()
             var model: ThingsModel? = null
             // another deployment is chosen right after the sign-in read the deployment
             var switch = false
@@ -223,8 +250,7 @@ class SakModelTest {
                             }
                         }
                 }
-            backend.dispatcher = StandardTestDispatcher(testScheduler)
-            model = ThingsModel(store, backend, this, Clock.fixed(now, ZoneOffset.UTC)).also { it.start() }
+            model = model(store).also { it.start() }
             advanceUntilIdle()
             switch = true
             model.signInWithPassword("a password of sixteen")
@@ -251,8 +277,7 @@ class SakModelTest {
                             }
                         }
                 }
-            backend.dispatcher = StandardTestDispatcher(testScheduler)
-            val model = ThingsModel(store, backend, this, Clock.fixed(now, ZoneOffset.UTC)).also { it.start() }
+            val model = model(store).also { it.start() }
             advanceUntilIdle()
             switch = true
             model.load()
@@ -270,7 +295,7 @@ class SakModelTest {
     @Test
     fun `a sign-in is asked for once while it runs, the screen after a link offers it again or another address`() =
         runTest {
-            val store = MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))
+            val store = signedOut()
             val model = model(store).also { it.start() }
             advanceUntilIdle()
             model.signInWithPassword("a password of sixteen")
@@ -291,11 +316,11 @@ class SakModelTest {
     fun `a deployment that did not answer on the sign-in is asked again`() =
         runTest {
             backend.answers["GET /info"] = HttpStatusCode.BadGateway to ""
-            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
+            val model = model(signedOut()).also { it.start() }
             advanceUntilIdle()
             assertNull((model.screen.value as Screen.SignIn).multiUser)
 
-            backend.answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi"}"""
+            backend.answers["GET /info"] = HttpStatusCode.OK to info()
             model.retrySignIn()
             advanceUntilIdle()
             assertEquals(true, (model.screen.value as Screen.SignIn).multiUser)
@@ -312,7 +337,7 @@ class SakModelTest {
             assertEquals(emptyMap<String, String>(), store.load().app)
         }
 
-    private val code = "https://sak.example.org/connect#token=the.connect-token"
+    private val code = "$ADDRESS/connect#token=the.connect-token"
 
     // the deployment of the old session, before a code of another one
     private fun signedInElsewhere() =
@@ -328,91 +353,91 @@ class SakModelTest {
             val model = model(store).also { it.start() }
             advanceUntilIdle()
             assertEquals(Screen.Deployment(), model.screen.value)
-            model.scanQr()
-            assertEquals(QrScan(), model.scan.value)
-            model.signInWithQr(code)
-            assertTrue(model.scan.value!!.busy)
+            model.qr.open()
+            assertEquals(QrScan(), model.qr.scan.value)
+            model.qr.scanned(code)
+            assertTrue(model.qr.scan.value!!.busy)
             // the camera reads the code again while it is asked for: once
-            model.signInWithQr(code)
+            model.qr.scanned(code)
             advanceUntilIdle()
             // asked first, with the address of the code (SECURITY-3); nothing is sent before
-            assertEquals(QrSwitch(null, "https://sak.example.org", null), model.scan.value!!.confirm)
-            assertTrue(model.scan.value!!.confirm!!.new)
+            assertEquals(QrSwitch(null, ADDRESS, null), model.qr.scan.value!!.confirm)
+            assertTrue(model.qr.scan.value!!.confirm!!.new)
             assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
-            model.confirmQr()
+            model.qr.confirm()
             advanceUntilIdle()
-            assertEquals(1,backend.requests.count { it.startsWith("POST /auth/login/connect") })
+            assertEquals(1, backend.requests.count { it.startsWith("POST /auth/login/connect") })
             assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"the.connect-token"}"""))
             // the SAK address of the code names its api, which answers as a SAK instance
             assertTrue(backend.requests.contains("GET /.well-known/sak.json"))
             assertNull(backend.tokens["/auth/login/connect"])
-            assertEquals("anna@example.org", (model.screen.value as ThingsScreen).user)
-            assertNull(model.scan.value)
+            assertEquals("anna@example.org", model.app().user)
+            assertNull(model.qr.scan.value)
             val stored = store.load()
             assertEquals(URL, stored.apiUrl)
-            assertEquals("https://sak.example.org", stored.address)
+            assertEquals(ADDRESS, stored.address)
             assertEquals("qr-session", stored.token)
         }
 
     @Test
     fun `a code that is no code of SAK, refused, used too often or of a deployment out of reach says why`() =
         runTest {
-            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
+            val model = model(signedOut()).also { it.start() }
             advanceUntilIdle()
-            model.scanQr()
-            model.signInWithQr("https://evil.example.org/login?token=abc")
+            model.qr.open()
+            model.qr.scanned("https://evil.example.org/login?token=abc")
             assertEquals(
-                "This is no QR code of SAK. Scan the code the web app shows under “Connect an app”.",
-                model.scan.value!!.error.english(),
+                "This is not a QR code of SAK. Scan the code the web app shows under “Connect an app”.",
+                model.qr.scan.value!!.error.english(),
             )
             // the error waits for the user: no other code is taken meanwhile
-            model.signInWithQr(code)
+            model.qr.scanned(code)
             advanceUntilIdle()
-            assertNull(model.scan.value!!.confirm)
+            assertNull(model.qr.scan.value!!.confirm)
             assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
 
             // the error body of the backend, the code is not valid, used or expired
             backend.answers["POST /auth/login/connect"] =
-                HttpStatusCode.Unauthorized to """{"errors":[{"code":"auth.code_invalid","message":"The QR code is not valid."}]}"""
-            model.scanAgain()
-            model.signInWithQr(code)
+                HttpStatusCode.Unauthorized to refused("The QR code is not valid.", "auth.code_invalid")
+            model.qr.scanAgain()
+            model.qr.scanned(code)
             advanceUntilIdle()
             // the deployment the app has, signed out: asked with its address only
-            assertTrue(model.scan.value!!.confirm!!.new)
-            model.confirmQr()
+            assertTrue(model.qr.scan.value!!.confirm!!.new)
+            model.qr.confirm()
             advanceUntilIdle()
-            assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.scan.value!!.error.english())
-            assertFalse(model.scan.value!!.busy)
+            assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.qr.scan.value!!.error.english())
+            assertFalse(model.qr.scan.value!!.busy)
 
             backend.answers["POST /auth/login/connect"] = HttpStatusCode.TooManyRequests to ""
-            model.scanAgain()
-            model.signInWithQr(code)
+            model.qr.scanAgain()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            model.confirmQr()
+            model.qr.confirm()
             advanceUntilIdle()
-            assertEquals("Too many attempts, please try again later.", model.scan.value!!.error.english())
+            assertEquals("Too many attempts, please try again later.", model.qr.scan.value!!.error.english())
 
             backend.unreachable += "POST /auth/login/connect"
-            model.scanAgain()
-            model.signInWithQr(code)
+            model.qr.scanAgain()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            model.confirmQr()
+            model.qr.confirm()
             advanceUntilIdle()
-            assertEquals("The SAK instance https://sak.example.org could not be reached.", model.scan.value!!.error.english())
+            assertEquals("The SAK instance https://sak.example.org could not be reached.", model.qr.scan.value!!.error.english())
 
             // no SAK instance answers at the address of the code
             backend.unreachable.clear()
             backend.answers["GET /.well-known/sak.json"] = HttpStatusCode.NotFound to ""
-            model.scanAgain()
-            model.signInWithQr(code)
+            model.qr.scanAgain()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            model.confirmQr()
+            model.qr.confirm()
             advanceUntilIdle()
-            assertEquals("The SAK instance https://sak.example.org could not be reached.", model.scan.value!!.error.english())
+            assertEquals("The SAK instance https://sak.example.org could not be reached.", model.qr.scan.value!!.error.english())
             // the sign-in stays below the scan
             assertTrue(model.screen.value is Screen.SignIn)
-            model.closeScan()
-            assertNull(model.scan.value)
+            model.qr.close()
+            assertNull(model.qr.scan.value)
         }
 
     @Test
@@ -424,29 +449,29 @@ class SakModelTest {
             val before = store.load()
             val model = model(store).also { it.start() }
             advanceUntilIdle()
-            model.scanQr()
-            model.signInWithQr(code)
+            model.qr.open()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            val confirm = model.scan.value!!.confirm!!
-            assertEquals(QrSwitch("https://old.example.org", "https://sak.example.org", null), confirm)
+            val confirm = model.qr.scan.value!!.confirm!!
+            assertEquals(QrSwitch("https://old.example.org", ADDRESS, null), confirm)
             assertFalse(confirm.new)
             assertFalse(confirm.signedIn)
 
             // cancelled: the app keeps the deployment it had, nothing went to the host of the code
-            model.closeScan()
+            model.qr.close()
             advanceUntilIdle()
-            assertNull(model.scan.value)
+            assertNull(model.qr.scan.value)
             assertEquals(before, store.load())
             assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
 
             // confirmed: it switches
-            model.scanQr()
-            model.signInWithQr(code)
+            model.qr.open()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            model.confirmQr()
+            model.qr.confirm()
             advanceUntilIdle()
-            assertEquals("https://sak.example.org", store.load().address)
-            assertEquals("anna@example.org", (model.screen.value as ThingsScreen).user)
+            assertEquals(ADDRESS, store.load().address)
+            assertEquals("anna@example.org", model.app().user)
         }
 
     @Test
@@ -457,29 +482,29 @@ class SakModelTest {
             val before = store.load()
             val model = model(store).also { it.start() }
             advanceUntilIdle()
-            model.scanQr()
-            model.signInWithQr(code)
+            model.qr.open()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            assertEquals(QrSwitch("https://old.example.org", "https://sak.example.org", "admin"), model.scan.value!!.confirm)
-            assertFalse(model.scan.value!!.confirm!!.same)
+            assertEquals(QrSwitch("https://old.example.org", ADDRESS, "admin"), model.qr.scan.value!!.confirm)
+            assertFalse(model.qr.scan.value!!.confirm!!.same)
             assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
 
             // kept: the session stays
-            model.closeScan()
+            model.qr.close()
             advanceUntilIdle()
-            assertNull(model.scan.value)
+            assertNull(model.qr.scan.value)
             assertEquals(before, store.load())
             assertTrue(model.screen.value is ThingsScreen)
 
-            model.scanQr()
-            model.signInWithQr(code)
+            model.qr.open()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            model.confirmQr()
+            model.qr.confirm()
             advanceUntilIdle()
             assertEquals(1, backend.requests.count { it.startsWith("POST /auth/login/connect") })
-            assertNull(model.scan.value)
-            assertEquals("anna@example.org", (model.screen.value as ThingsScreen).user)
-            assertEquals(Stored(apiUrl = URL, address = "https://sak.example.org", token = "qr-session", email = "anna@example.org", expiresAt = Instant.parse("2026-12-02T08:00:00Z")), store.load())
+            assertNull(model.qr.scan.value)
+            assertEquals("anna@example.org", model.app().user)
+            assertEquals(signedIn(Instant.parse("2026-12-02T08:00:00Z"), "qr-session", "anna@example.org"), store.load())
         }
 
     @Test
@@ -489,24 +514,24 @@ class SakModelTest {
             val store = signedIn()
             val model = model(store).also { it.start() }
             advanceUntilIdle()
-            model.scanQr()
-            model.signInWithQr(code)
+            model.qr.open()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            assertTrue(model.scan.value!!.confirm!!.same)
-            model.confirmQr()
+            assertTrue(model.qr.scan.value!!.confirm!!.same)
+            model.qr.confirm()
             advanceUntilIdle()
-            assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.scan.value!!.error.english())
+            assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.qr.scan.value!!.error.english())
             assertEquals("session", store.load().token)
             assertTrue(model.screen.value is ThingsScreen)
 
             backend.answers["POST /auth/login/connect"] = HttpStatusCode.OK to session("qr-session", "anna@example.org")
-            model.scanAgain()
-            model.signInWithQr(code)
+            model.qr.scanAgain()
+            model.qr.scanned(code)
             advanceUntilIdle()
-            model.confirmQr()
+            model.qr.confirm()
             advanceUntilIdle()
             assertEquals("qr-session", store.load().token)
-            assertEquals("anna@example.org", (model.screen.value as ThingsScreen).user)
+            assertEquals("anna@example.org", model.app().user)
         }
 
     @Test
@@ -514,20 +539,406 @@ class SakModelTest {
         runTest {
             val model = model(MemorySessionStore(Stored())).also { it.start() }
             advanceUntilIdle()
-            model.cameraDenied()
+            model.qr.cameraDenied()
             // no scan open: nothing
-            assertNull(model.scan.value)
-            model.scanQr()
-            model.cameraDenied()
-            assertEquals(QrScan(denied = true), model.scan.value)
-            model.cameraAllowed()
-            assertEquals(QrScan(), model.scan.value)
-            model.cameraDenied()
-            model.closeScan()
-            assertNull(model.scan.value)
+            assertNull(model.qr.scan.value)
+            model.qr.open()
+            model.qr.cameraDenied()
+            assertEquals(QrScan(denied = true), model.qr.scan.value)
+            model.qr.cameraAllowed()
+            assertEquals(QrScan(), model.qr.scan.value)
+            model.qr.cameraDenied()
+            model.qr.close()
+            assertNull(model.qr.scan.value)
             // the next scan asks again
-            model.scanQr()
-            assertEquals(QrScan(), model.scan.value)
+            model.qr.open()
+            assertEquals(QrScan(), model.qr.scan.value)
             assertEquals(Screen.Deployment(), model.screen.value)
+        }
+
+    @Test
+    fun `a new app asks for the deployment, checks it and offers the sign-in it has`() =
+        runTest {
+            val store = MemorySessionStore()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            assertEquals(Screen.Deployment(), model.screen.value)
+
+            model.connect("nonsense")
+            assertTrue((model.screen.value as Screen.Deployment).error.english()!!.contains("SAK address"))
+
+            model.connect("sak.example.org")
+            advanceUntilIdle()
+            assertEquals(Screen.SignIn(ADDRESS, multiUser = true), model.screen.value)
+            assertEquals(io.pelle.sak.testing.signedOut(), store.load())
+        }
+
+    @Test
+    fun `an address that names no api, or one without https, is no SAK address`() =
+        runTest {
+            val store = MemorySessionStore()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+
+            backend.answers["GET /.well-known/sak.json"] = HttpStatusCode.NotFound to ""
+            model.connect("www.example.org")
+            advanceUntilIdle()
+            assertEquals("This is not a SAK address.", (model.screen.value as Screen.Deployment).error.english())
+
+            backend.answers["GET /.well-known/sak.json"] = HttpStatusCode.OK to """{"api":"http://api.example.org/v1"}"""
+            model.connect("sak.example.org")
+            advanceUntilIdle()
+            assertEquals("This is not a SAK address.", (model.screen.value as Screen.Deployment).error.english())
+            assertEquals(Stored(), store.load())
+        }
+
+    @Test
+    fun `the password signs in to the app and keeps the session`() =
+        runTest {
+            val store = signedOut()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            model.signInWithPassword("a password of sixteen")
+            advanceUntilIdle()
+            assertTrue(backend.requests.contains("""POST /auth/login/password {"password":"a password of sixteen"}"""))
+            assertEquals("admin", model.app().user)
+            assertEquals("password-session", store.load().token)
+        }
+
+    @Test
+    fun `a login link is taken only for a login this app asked for, within 15 minutes`() =
+        runTest {
+            val store = signedOut()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+
+            // a link nobody asked for in this app
+            model.signInWithLink("foreign")
+            advanceUntilIdle()
+            assertEquals(SakModel.NOT_ASKED, (model.screen.value as Screen.SignIn).error)
+            assertTrue(backend.requests.none { it.startsWith("POST /auth/login/exchange") })
+
+            // the address typed with spaces
+            model.requestLink(" pelle@pelle.io ")
+            advanceUntilIdle()
+            assertEquals("pelle@pelle.io", (model.screen.value as Screen.SignIn).linkSentTo)
+            model.signInWithLink("login-token")
+            advanceUntilIdle()
+            assertEquals("pelle@pelle.io", model.app().user)
+            // used once
+            assertNull(store.load().pending)
+        }
+
+    @Test
+    fun `a pending login older than 15 minutes is no longer taken`() =
+        runTest {
+            val store = MemorySessionStore(io.pelle.sak.testing.signedOut().copy(pending = PendingLogin(URL, now.minusSeconds(16 * 60), "a nonce of sixteen")))
+            val model = model(store).also { it.start() }
+            model.signInWithLink("login-token")
+            advanceUntilIdle()
+            assertEquals(SakModel.NOT_ASKED, (model.screen.value as Screen.SignIn).error)
+        }
+
+    @Test
+    fun `a session that ended leads to the sign-in, the deployment stays`() =
+        runTest {
+            backend.answers["GET /things"] = HttpStatusCode.Unauthorized to ""
+            val store = signedIn()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            model.load()
+            advanceUntilIdle()
+
+            assertEquals("Your session ended, please sign in again.", (model.screen.value as Screen.SignIn).error.english())
+            assertNull(store.load().token)
+            assertEquals(URL, store.load().apiUrl)
+        }
+
+    @Test
+    fun `an expired session is not used, signing out keeps the deployment`() =
+        runTest {
+            val expired = MemorySessionStore(signedIn(now.minusSeconds(1), "old"))
+            model(expired).also { it.start() }.let {
+                advanceUntilIdle()
+                assertTrue(it.screen.value is Screen.SignIn)
+            }
+
+            val store = signedIn()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            model.signOut()
+            advanceUntilIdle()
+            assertTrue(model.screen.value is Screen.SignIn)
+            assertEquals(io.pelle.sak.testing.signedOut(), store.load())
+        }
+
+    @Test
+    fun `an error of the backend is shown with its message`() =
+        runTest {
+            backend.answers["POST /auth/login/password"] = HttpStatusCode.Unauthorized to ""
+            val model = model(signedOut()).also { it.start() }
+            advanceUntilIdle()
+            model.signInWithPassword("wrong")
+            advanceUntilIdle()
+            assertEquals("The password is wrong.", (model.screen.value as Screen.SignIn).error.english())
+
+            backend.answers["POST /auth/login/password"] = HttpStatusCode.TooManyRequests to refused("Slow down.")
+            model.signInWithPassword("again")
+            advanceUntilIdle()
+            assertEquals("Slow down.", (model.screen.value as Screen.SignIn).error.english())
+        }
+
+    @Test
+    fun `the sign-in offers its three ways, a way chosen shows its form, back the three again, no e-mail in the single user mode`() =
+        runTest {
+            val multi = model(signedOut()).also { it.start() }
+            advanceUntilIdle()
+            assertEquals(Screen.SignIn(ADDRESS, multiUser = true), multi.screen.value)
+            multi.chooseMethod(Screen.SignInMethod.PASSWORD)
+            assertEquals(Screen.SignInMethod.PASSWORD, (multi.screen.value as Screen.SignIn).method)
+            multi.chooseMethod(null)
+            assertEquals(null, (multi.screen.value as Screen.SignIn).method)
+            multi.chooseMethod(Screen.SignInMethod.EMAIL)
+            assertEquals(Screen.SignInMethod.EMAIL, (multi.screen.value as Screen.SignIn).method)
+
+            backend.answers["GET /info"] = HttpStatusCode.OK to info(userMode = InfoResponse.UserMode.SINGLE)
+            val single = model(signedOut()).also { it.start() }
+            advanceUntilIdle()
+            assertEquals(Screen.SignIn(ADDRESS, multiUser = false), single.screen.value)
+            // no e-mail login to go to
+            single.chooseMethod(Screen.SignInMethod.EMAIL)
+            assertEquals(null, (single.screen.value as Screen.SignIn).method)
+            single.chooseMethod(Screen.SignInMethod.PASSWORD)
+            assertEquals(Screen.SignInMethod.PASSWORD, (single.screen.value as Screen.SignIn).method)
+        }
+
+    @Test
+    fun `the menu shows the name of the user, else their address`() =
+        runTest {
+            backend.answers["GET /auth/who-am-i"] = HttpStatusCode.OK to whoAmI("anna@example.org", "Anna")
+            val named = model(MemorySessionStore(signedIn(now.plusSeconds(3600), email = "anna@example.org"))).also { it.start() }
+            advanceUntilIdle()
+            assertEquals("Anna", named.app().user)
+
+            backend.answers["GET /auth/who-am-i"] = HttpStatusCode.OK to whoAmI("anna@example.org")
+            val unnamed = model(MemorySessionStore(signedIn(now.plusSeconds(3600), email = "anna@example.org"))).also { it.start() }
+            advanceUntilIdle()
+            assertEquals("anna@example.org", unnamed.app().user)
+        }
+
+    @Test
+    fun `the api asks the backend for its texts in the languages of the phone`() =
+        runTest {
+            backend.answerOn(this)
+            ThingsApi(backend.client, URL, null, "de-DE,en-US").info()
+            ThingsApi(backend.client, URL, null, null).info()
+            assertEquals(listOf("de-DE,en-US", null), backend.languages)
+        }
+
+    @Test
+    fun `the app offers the version of the deployment when it is newer, the update hands it to the installer`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            val installed = mutableListOf<String>()
+            val model = model(signedIn(), appVersion = "0.1.14", updater = { installed += it }).also { it.start() }
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.15"), model.app().update)
+
+            model.updates.install()
+            assertEquals(AppUpdate("0.1.15", busy = true), model.app().update)
+            advanceUntilIdle()
+            assertEquals(listOf("0.1.15"), installed)
+            assertEquals(AppUpdate("0.1.15"), model.app().update)
+
+            // the same version offers nothing
+            val current = model(signedIn(), appVersion = "0.1.15").also { it.start() }
+            advanceUntilIdle()
+            assertNull(current.app().update)
+        }
+
+    @Test
+    fun `an update that fails says why and can be tried again`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            var failure: Exception = IOException("offline")
+            val model = model(signedIn(), appVersion = "0.1.14", updater = { throw failure }).also { it.start() }
+            advanceUntilIdle()
+
+            model.updates.install()
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.15", error = uiText(R.string.error_update_not_downloaded)), model.app().update)
+
+            failure = UpdateException(uiText(R.string.error_update_damaged, "0.1.15"))
+            model.updates.install()
+            advanceUntilIdle()
+            assertEquals("The download of version 0.1.15 is damaged, please try again.", model.app().update?.error.english())
+        }
+
+    private fun ThingsModel.notice() = app().updateNotice.english()
+
+    @Test
+    fun `the check for updates offers a newer version, else says why there is none`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            val model = model(signedIn(), appVersion = "0.1.15").also { it.start() }
+            advanceUntilIdle()
+
+            model.updates.check()
+            assertEquals("Checking for updates…", model.notice())
+            advanceUntilIdle()
+            assertEquals("The app is up-to-date, version 0.1.15.", model.notice())
+            model.updates.dismissNotice()
+            assertNull(model.notice())
+
+            // the deployment was updated since the start
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.16")
+            model.updates.check()
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.16"), model.app().update)
+            assertNull(model.notice())
+
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("latest")
+            val current = model(signedIn(), appVersion = "0.1.15").also { it.start() }
+            advanceUntilIdle()
+            current.updates.check()
+            advanceUntilIdle()
+            assertEquals("Your SAK instance runs no release, there is no update for the app.", current.notice())
+
+            val debug = model(signedIn(), appVersion = "latest").also { it.start() }
+            advanceUntilIdle()
+            debug.updates.check()
+            advanceUntilIdle()
+            assertEquals("This build of the app is no release, it is not updated.", debug.notice())
+        }
+
+    @Test
+    fun `the build of google play has no updater and offers no update, google play updates it`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            val model = model(signedIn(), appVersion = "0.1.14", updater = null).also { it.start() }
+            advanceUntilIdle()
+            assertFalse(model.updates.enabled)
+            assertNull(model.app().update)
+
+            model.updates.check()
+            model.updates.install()
+            advanceUntilIdle()
+            assertNull(model.app().update)
+            assertNull(model.notice())
+        }
+
+    @Test
+    fun `a check for updates that fails says why`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            val model = model(signedIn(), appVersion = "0.1.15").also { it.start() }
+            advanceUntilIdle()
+            backend.answers["GET /info"] = HttpStatusCode.InternalServerError to refused("Something went wrong.", "api.unexpected_error")
+            model.updates.check()
+            advanceUntilIdle()
+            assertEquals("Something went wrong.", model.notice())
+        }
+
+    // signed in for a month, so a start a week later still finds the session
+    private fun monthStore(checkedAt: Instant? = null) = MemorySessionStore(signedIn(now.plus(Duration.ofDays(30))).copy(updateCheckedAt = checkedAt))
+
+    private fun asked() = backend.requests.count { it == "GET /info" }
+
+    @Test
+    fun `the app asks for its update by itself at most once in 7 days (UX-13)`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            val store = monthStore()
+            val first = model(store, appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.15"), first.app().update)
+            assertEquals(now, store.load().updateCheckedAt)
+            assertEquals(1, asked())
+
+            // 6 days later: nothing is asked and nothing offered
+            val sixDays = model(store, at = now.plus(Duration.ofDays(6)), appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+            assertNull(sixDays.app().update)
+            assertEquals(1, asked())
+
+            // 7 days later: asked again
+            val week = model(store, at = now.plus(Duration.ofDays(7)), appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.15"), week.app().update)
+            assertEquals(now.plus(Duration.ofDays(7)), store.load().updateCheckedAt)
+            assertEquals(2, asked())
+        }
+
+    @Test
+    fun `a check that failed is no check, the next start asks again`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            backend.unreachable += "GET /info"
+            val store = monthStore()
+            val offline = model(store, appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+            assertNull(offline.app().update)
+            assertNull(store.load().updateCheckedAt)
+
+            backend.unreachable -= "GET /info"
+            val online = model(store, at = now.plusSeconds(60), appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.15"), online.app().update)
+        }
+
+    @Test
+    fun `the check of the menu asks at once and counts as the check of the week`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            val store = monthStore(checkedAt = now)
+            val day = now.plus(Duration.ofDays(1))
+            val model = model(store, at = day, appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+            assertNull(model.app().update)
+            assertEquals(0, asked())
+
+            model.updates.check()
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.15"), model.app().update)
+            assertEquals(day, store.load().updateCheckedAt)
+        }
+
+    @Test
+    fun `later hides the update until the next check`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            val store = monthStore()
+            val model = model(store, appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+            model.updates.later()
+            assertNull(model.app().update)
+
+            // a start within the week offers nothing
+            val again = model(store, at = now.plus(Duration.ofDays(1)), appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+            assertNull(again.app().update)
+
+            // the check of the menu offers it again
+            again.updates.check()
+            advanceUntilIdle()
+            assertEquals(AppUpdate("0.1.15"), again.app().update)
+        }
+
+    @Test
+    fun `the time of the last check stays over a sign-out and goes with another deployment`() =
+        runTest {
+            backend.answers["GET /info"] = HttpStatusCode.OK to info("0.1.15")
+            backend.answers["POST /auth/logout"] = HttpStatusCode.NoContent to ""
+            val store = monthStore(checkedAt = now)
+            val model = model(store, appVersion = "0.1.14").also { it.start() }
+            advanceUntilIdle()
+
+            model.signOut()
+            advanceUntilIdle()
+            assertEquals(now, store.load().updateCheckedAt)
+
+            model.changeDeployment()
+            advanceUntilIdle()
+            assertNull(store.load().updateCheckedAt)
         }
 }

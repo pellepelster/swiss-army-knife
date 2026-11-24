@@ -9,7 +9,7 @@ pub(super) async fn list(
 ) -> Result<(), SakadminError> {
     let deployments = manager.list(provider.tokens()).await?;
     if deployments.is_empty() {
-        log(Level::Info, t!("common.deployments.empty"));
+        log(Level::Info, t!("cli.deployments.empty"));
     }
     for deployment in deployments {
         let location = deployment

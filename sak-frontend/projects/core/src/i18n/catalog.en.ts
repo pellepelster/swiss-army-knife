@@ -16,7 +16,7 @@ export const TEXTS = {
     sent_after: 'may sign in, a link is on its way. Open it in this browser to continue.',
     signing_in: 'Signing in…',
     sending: 'Sending…',
-    wrong_password: 'The password is not right.',
+    wrong_password: 'The password is wrong.',
     rate_limited: 'Too many login attempts, please try again later.',
     failed: 'The sign in did not work, please try again.',
   },
@@ -415,7 +415,7 @@ export const TEXTS = {
       uploads: 'It only uploads what changed and deletes what is gone. The site is served at the domains of the bucket once their DNS records point at the server.',
     },
     logs: {
-      label: 'Logs',
+      label: 'Access logs',
       unknown: 'The bucket is not served at a domain, it has no access logs.',
       forbidden: 'Your role does not allow to see the logs.',
       requests_to: 'The requests to',

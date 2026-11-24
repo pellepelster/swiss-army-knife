@@ -3,7 +3,6 @@ package io.pelle.sak.grocery.ui
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -16,11 +15,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import io.pelle.sak.core.ui.MenuEntry
+import io.pelle.sak.core.ui.onLeave
 import io.pelle.sak.grocery.R
 import io.pelle.sak.grocery.UNITS
 
@@ -39,7 +39,6 @@ internal fun AmountField(
     imeAction: ImeAction = ImeAction.Next,
     onDone: () -> Unit = {},
 ) {
-    var focused by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = amount,
         onValueChange = onAmount,
@@ -50,11 +49,7 @@ internal fun AmountField(
         supportingText = { if (error) Text(stringResource(R.string.grocery_quantity_invalid)) },
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = imeAction),
         keyboardActions = KeyboardActions(onDone = { onDone() }),
-        modifier =
-            modifier.onFocusChanged {
-                if (focused && !it.isFocused) onLeave()
-                focused = it.isFocused
-            },
+        modifier = modifier.onLeave(onLeave),
     )
 }
 
@@ -87,23 +82,17 @@ internal fun UnitField(
             modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled).fillMaxWidth(),
         )
         ExposedDropdownMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(none) },
-                onClick = {
-                    expanded = false
-                    onUnit(null)
-                },
+            MenuEntry(
+                none,
+                close = { expanded = false },
                 modifier = Modifier.testTag("unit-none"),
-            )
+            ) { onUnit(null) }
             choices.forEach { choice ->
-                DropdownMenuItem(
-                    text = { Text(choice) },
-                    onClick = {
-                        expanded = false
-                        onUnit(choice)
-                    },
+                MenuEntry(
+                    choice,
+                    close = { expanded = false },
                     modifier = Modifier.testTag("unit-$choice"),
-                )
+                ) { onUnit(choice) }
             }
         }
     }

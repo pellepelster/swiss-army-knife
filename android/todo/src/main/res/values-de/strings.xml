@@ -14,10 +14,10 @@
     <string name="todo_form_choose_icon">Icon auswählen</string>
     <string name="todo_list_task">Aufgabe</string>
     <string name="todo_list_not_added">Die Aufgabe konnte nicht hinzugefügt werden.</string>
-    <string name="todo_list_not_done">Die Aufgabe konnte nicht erledigt werden.</string>
+    <string name="todo_list_not_done">Die Aufgabe konnte nicht als erledigt markiert werden.</string>
     <string name="todo_list_items_not_loaded">Die Aufgaben konnten nicht geladen werden.</string>
-    <string name="todo_list_done_of">%1$s erledigen</string>
-    <string name="todo_list_purge">Erledigte entfernen</string>
+    <string name="todo_list_done_of">%1$s als erledigt markieren</string>
+    <string name="todo_list_purge">Erledigte Aufgaben entfernen</string>
     <string name="todo_list_purged">Erledigte Aufgaben entfernt</string>
     <string name="todo_list_nothing_to_purge">Die Liste hat keine erledigten Aufgaben.</string>
     <string name="todo_list_not_purged">Die erledigten Aufgaben konnten nicht entfernt werden.</string>
@@ -33,7 +33,7 @@
     <string name="todo_list_remove_due_date">Fälligkeitsdatum entfernen</string>
     <string name="todo_list_no_due_date_yet">Die Aufgabe hat kein Fälligkeitsdatum.</string>
     <string name="todo_list_due_date_not_saved">Das Fälligkeitsdatum konnte nicht gespeichert werden.</string>
-    <string name="todo_list_due_date">Fällig am</string>
+    <string name="todo_list_due_date">Fälligkeitsdatum</string>
     <string name="todo_list_due">fällig %1$s</string>
     <string name="todo_list_overdue">überfällig seit %1$s</string>
     <string name="todo_priority_label">Priorität</string>
@@ -41,7 +41,6 @@
     <string name="todo_priority_normal">Normale Priorität</string>
     <string name="todo_priority_low">Niedrige Priorität</string>
     <string name="todo_item_title_invalid">Ein Titel muss 1 bis 256 Zeichen haben.</string>
-    <string name="todo_cancel">Abbrechen</string>
     <string name="todo_ok">OK</string>
     <string name="todo_nothing_to_do">Nichts zu tun.</string>
     <string name="todo_no_due_date">Kein Fälligkeitsdatum</string>

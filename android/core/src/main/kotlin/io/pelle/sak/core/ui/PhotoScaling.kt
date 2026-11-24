@@ -6,10 +6,13 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import android.util.Log
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // a photo the camera took or the user chose, as an app stores it: upright as it was taken, at most
 // MAX_SIZE pixels on its longer side, a jpeg without the exif data, which can tell where it was
@@ -18,6 +21,20 @@ object PhotoScaling {
     // the longest side of a stored photo (FileService.MAX_IMAGE_SIZE)
     private const val MAX_SIZE = 2048
     private const val JPEG_QUALITY = 85
+
+    // jpeg on the io dispatcher; null when the photo can not be read
+    suspend fun read(
+        context: Context,
+        uri: Uri,
+    ): ByteArray? =
+        withContext(Dispatchers.IO) {
+            try {
+                jpeg(context, uri)
+            } catch (e: Exception) {
+                Log.w("sak", "a photo could not be read", e)
+                null
+            }
+        }
 
     // an image too large for the memory of the phone is an IOException, as one that can not be read
     fun jpeg(

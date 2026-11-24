@@ -889,7 +889,7 @@ mod tests {
         assert_eq!(
             *lines.lock().unwrap(),
             vec![
-                "This sakadmin (latest) is no release, there is no version to compare it with."
+                "This sakadmin (latest) is not a release, there is no version to compare it with."
                     .to_string()
             ]
         );
@@ -1220,7 +1220,7 @@ mod tests {
         assert_eq!(
             updater.check().await,
             Err(
-                "http://api.github.com/repos/x/releases/latest is no https address, sakadmin asks github over https only."
+                "http://api.github.com/repos/x/releases/latest is not an https address, sakadmin asks github over https only."
                     .into()
             )
         );
@@ -1235,11 +1235,11 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             error,
-            "https://example.org/sak-admin-cli.zip is no address of github, sakadmin downloads from github only."
+            "https://example.org/sak-admin-cli.zip is not an address of github, sakadmin downloads from github only."
         );
         assert_eq!(
             to_github("https://github.com.example.org/x", &APP),
-            Err("https://github.com.example.org/x is no address of github, sakadmin downloads from github only.".into())
+            Err("https://github.com.example.org/x is not an address of github, sakadmin downloads from github only.".into())
         );
         assert_eq!(
             to_github("https://objects.githubusercontent.com/x", &APP),

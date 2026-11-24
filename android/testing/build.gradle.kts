@@ -1,17 +1,15 @@
 // what the tests of every app share: the fake backend, the english texts and, on robolectric, the
 // activities and the screenshots
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.compose)
     id("sak.android.library")
+}
+
+sakLibrary {
+    compose()
 }
 
 android {
     namespace = "io.pelle.sak.testing"
-
-    buildFeatures {
-        compose = true
-    }
 }
 
 dependencies {

@@ -3,12 +3,18 @@ package io.pelle.sak.notes
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.Screen
+import io.pelle.sak.core.api.ApiJson
 import io.pelle.sak.core.session.MemorySessionStore
-import io.pelle.sak.core.session.Stored
 import io.pelle.sak.api.model.NoteResponse
 import io.pelle.sak.core.uiText
+import io.pelle.sak.testing.sakSetup
 import io.pelle.sak.testing.FakeBackend
-import io.pelle.sak.testing.URL
+import io.pelle.sak.testing.answerOn
+import io.pelle.sak.testing.file
+import io.pelle.sak.testing.refused
+import io.pelle.sak.testing.session
+import io.pelle.sak.testing.signedIn
+import io.pelle.sak.testing.signedOut
 import io.pelle.sak.testing.english
 import io.pelle.sak.testing.page
 import kotlinx.coroutines.CompletableDeferred
@@ -37,31 +43,13 @@ class NotesModelTest {
 
     private val backend =
         FakeBackend().apply {
-            answers["GET /info"] = HttpStatusCode.OK to """{"name":"family","dnsMode":"domain","userMode":"multi"}"""
             answers["POST /auth/login/link"] = HttpStatusCode.Accepted to ""
             answers["POST /auth/login/password"] = HttpStatusCode.OK to session("password-session", "admin")
             answers["GET /notes"] = HttpStatusCode.OK to page(note(2, "Buy milk", labels = listOf("shopping")), note(1, "Call the plumber", "pink"))
-            answers["GET /labels"] = HttpStatusCode.OK to page("""{"id":1,"name":"work","createdAt":"2026-10-30T08:00:00.000Z"}""", """{"id":2,"name":"shopping","createdAt":"2026-10-30T08:00:00.000Z"}""")
-            answers["GET /notes/settings"] = HttpStatusCode.OK to """{"discoverText":false}"""
-            answers["GET /notes/labels"] = HttpStatusCode.OK to page("""{"id":2,"name":"shopping","createdAt":"2026-10-30T08:00:00.000Z"}""")
+            answers["GET /labels"] = HttpStatusCode.OK to page(label(1, "work"), label(2, "shopping"))
+            answers["GET /notes/settings"] = HttpStatusCode.OK to notesSettings(discoverText = false)
+            answers["GET /notes/labels"] = HttpStatusCode.OK to page(label(2, "shopping"))
         }
-
-    private fun session(
-        token: String,
-        email: String,
-    ) = """{"sessionToken":"$token","email":"$email","expiresAt":"2026-12-02T08:00:00.000Z","roles":["admin"],"redirect":"/"}"""
-
-    private fun note(
-        id: Int,
-        text: String,
-        color: String = "yellow",
-        labels: List<String> = emptyList(),
-        photos: List<Int> = emptyList(),
-        recordings: List<Int> = emptyList(),
-    ) = """{"id":$id,"text":"$text","color":"$color","labels":[${labels.mapIndexed { i, l -> """{"id":${i + 1},"name":"$l","createdAt":"2026-10-30T08:00:00.000Z"}""" }.joinToString(",")}],""" +
-        """"photos":[${photos.joinToString(",") { """{"id":$it,"url":"/api/v1/files/$it","thumbnailUrl":"/api/v1/files/$it/thumbnail"}""" }}],""" +
-        """"recordings":[${recordings.joinToString(",") { """{"id":$it,"url":"/api/v1/files/$it","thumbnailUrl":"/api/v1/files/$it/thumbnail"}""" }}],""" +
-        """"createdAt":"2026-11-02T07:00:00.000Z","updatedAt":null}"""
 
     // a recorder that records what the test hands it once the test stops it, or throws
     private class FakeRecorder : Recorder {
@@ -81,12 +69,11 @@ class NotesModelTest {
     private val recorder = FakeRecorder()
 
     private fun TestScope.model(store: MemorySessionStore = signedIn()): NotesModel {
-        backend.dispatcher = StandardTestDispatcher(testScheduler)
-        return NotesModel(store, backend::api, this, allowUrl = false, clock = Clock.fixed(now, ZoneOffset.UTC), recorder = recorder)
+        backend.answerOn(this)
+        return NotesModel(sakSetup(store, Clock.fixed(now, ZoneOffset.UTC)), backend::api, recorder = recorder)
     }
 
-    private fun signedIn() =
-        MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org", token = "session", email = "pelle@pelle.io", expiresAt = Instant.parse("2026-12-02T08:00:00Z")))
+    private fun signedIn() = MemorySessionStore(signedIn(Instant.parse("2026-12-02T08:00:00Z"), "session", "pelle@pelle.io"))
 
     private fun NotesModel.notes() = screen.value as NotesScreen
 
@@ -120,9 +107,38 @@ class NotesModelTest {
         }
 
     @Test
+    fun `a label is suggested when the note has it not yet and it contains the text typed, at most twelve`() {
+        val labels = listOf("home", "shopping", "work") + (1..20).map { "x$it" }
+        val screen = NotesScreen("admin", labels = labels)
+        val note = ApiJson.decodeFromString<NoteResponse>(note(1, "Milk", labels = listOf("shopping")))
+        assertEquals(listOf("home", "work") + (1..10).map { "x$it" }, screen.suggestions(note, ""))
+        // the text without its spaces and in lower case
+        assertEquals(listOf("home"), screen.suggestions(note, " HO "))
+        assertEquals(emptyList<String>(), screen.suggestions(note, "shop"))
+        assertEquals(MAX_SUGGESTIONS, screen.suggestions(note, "x").size)
+    }
+
+    @Test
+    fun `a photo shown in full is kept in the model and goes when its note closes`() =
+        runTest {
+            backend.answers["GET /notes"] = HttpStatusCode.OK to page(note(1, "Milk", photos = listOf(40)))
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+            model.open(1)
+            model.viewPhoto(40)
+            assertEquals(40, model.notes().viewing)
+            model.viewPhoto(null)
+            assertNull(model.notes().viewing)
+            model.viewPhoto(40)
+            model.open(null)
+            advanceUntilIdle()
+            assertNull(model.notes().viewing)
+        }
+
+    @Test
     fun `the login link it asks for names the notes app`() =
         runTest {
-            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
+            val model = model(MemorySessionStore(signedOut())).also { it.start() }
             advanceUntilIdle()
             model.requestLink("pelle@pelle.io")
             advanceUntilIdle()
@@ -135,10 +151,10 @@ class NotesModelTest {
             // a full first page, the second asked for at its offset; a short page is the last
             val first = (1..100).map { note(1000 - it, "Note $it") }
             backend.answersByQuery["GET /notes?offset=0&limit=100"] =
-                HttpStatusCode.OK to """{"items":[${first.joinToString(",")}],"pagination":{"offset":0,"limit":100,"total":101}}"""
+                HttpStatusCode.OK to page(0, 101, first)
             backend.answersByQuery["GET /notes?offset=100&limit=100"] =
-                HttpStatusCode.OK to """{"items":[${note(3, "Last page")}],"pagination":{"offset":100,"limit":100,"total":101}}"""
-            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
+                HttpStatusCode.OK to page(100, 101, listOf(note(3, "Last page")))
+            val model = model(MemorySessionStore(signedOut())).also { it.start() }
             advanceUntilIdle()
             model.signInWithPassword("a password of sixteen")
             advanceUntilIdle()
@@ -240,7 +256,7 @@ class NotesModelTest {
     @Test
     fun `a photo is stored first, then a new note is made with it or a note takes it`() =
         runTest {
-            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":40,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/40","thumbnailUrl":"/api/v1/files/40/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["POST /files"] = HttpStatusCode.Created to file(40)
             backend.answers["POST /notes"] = HttpStatusCode.Created to note(6, "", photos = listOf(40))
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "pink", photos = listOf(40))
             val model = model().also { it.start() }
@@ -268,7 +284,7 @@ class NotesModelTest {
     @Test
     fun `a recording is stored as a wav and attached, for a new note too, stopped before it recorded nothing is kept`() =
         runTest {
-            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":50,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/50","thumbnailUrl":"/api/v1/files/50/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["POST /files"] = HttpStatusCode.Created to file(50)
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "pink", recordings = listOf(50))
             backend.answers["POST /notes"] = HttpStatusCode.Created to note(7, "", recordings = listOf(50))
             val model = model().also { it.start() }
@@ -321,25 +337,25 @@ class NotesModelTest {
             advanceUntilIdle()
             assertTrue(backend.requests.none { it.contains("discover") })
 
-            backend.answers["GET /notes/settings"] = HttpStatusCode.OK to """{"discoverText":true}"""
+            backend.answers["GET /notes/settings"] = HttpStatusCode.OK to notesSettings(discoverText = true)
             model.refresh()
             advanceUntilIdle()
             assertTrue(model.notes().ai)
 
-            backend.answers["POST /files/40/discover/text"] = HttpStatusCode.OK to """{"text":"Milk 1.20"}"""
+            backend.answers["POST /files/40/discover/text"] = HttpStatusCode.OK to discovered("Milk 1.20")
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Receipt\n\nMilk 1.20", photos = listOf(40), recordings = listOf(50))
             model.discover(1, 40)
             advanceUntilIdle()
             assertTrue(body("PUT /notes/1").contains(""""text":"Receipt\n\nMilk 1.20""""))
             assertTrue(model.notes().discovering.isEmpty())
 
-            backend.answers["POST /files/50/discover/text"] = HttpStatusCode.OK to """{"text":""}"""
+            backend.answers["POST /files/50/discover/text"] = HttpStatusCode.OK to discovered("")
             model.discover(1, 50)
             advanceUntilIdle()
             assertEquals("There is no text in the recording.", model.notes().error.english())
 
             backend.answers["POST /files/40/discover/text"] =
-                HttpStatusCode.Conflict to """{"errors":[{"code":"files.ai_off","message":"The AI features are turned off."}]}"""
+                HttpStatusCode.Conflict to refused("The AI features are turned off.", "files.ai_off")
             model.discover(1, 40)
             advanceUntilIdle()
             assertEquals("The AI features are turned off.", model.notes().error.english())
@@ -393,26 +409,14 @@ class NotesModelTest {
             assertNull(store.load().token)
         }
 
-    // the note of a save as the backend answers it: the note the request sent, with its id
-    private fun saved(
-        id: Int,
-        body: String,
-    ) = """{"id":$id,""" + body.removePrefix("{").replace(Regex(""""labels":\[([^\]]*)\]""")) { match ->
-        val names = Regex("\"([^\"]+)\"").findAll(match.groupValues[1]).map { it.groupValues[1] }.toList()
-        """"labels":[${names.mapIndexed { i, l -> """{"id":${i + 1},"name":"$l","createdAt":"2026-10-30T08:00:00.000Z"}""" }.joinToString(",")}]"""
-    }.replace(Regex(""""(photos|recordings)":\[([0-9,]*)\]""")) { match ->
-        val ids = match.groupValues[2].split(",").filter { it.isNotBlank() }
-        """"${match.groupValues[1]}":[${ids.joinToString(",") { """{"id":$it,"url":"/api/v1/files/$it","thumbnailUrl":"/api/v1/files/$it/thumbnail"}""" }}]"""
-    }.removeSuffix("}") + ""","createdAt":"2026-11-02T07:00:00.000Z","updatedAt":null}"""
-
     private fun TestScope.gated(): Pair<GatedBackend, NotesModel> {
         val gated = GatedBackend(StandardTestDispatcher(testScheduler))
         gated.answers["GET /notes"] = { HttpStatusCode.OK to page(note(2, "Buy milk"), note(1, "Call the plumber", "pink")) }
         gated.answers["GET /labels"] = { HttpStatusCode.OK to page() }
-        gated.answers["GET /notes/settings"] = { HttpStatusCode.OK to """{"discoverText":false}""" }
+        gated.answers["GET /notes/settings"] = { HttpStatusCode.OK to notesSettings(discoverText = false) }
         gated.answers["PUT /notes/1"] = { body -> HttpStatusCode.OK to saved(1, body) }
         gated.answers["PUT /notes/2"] = { body -> HttpStatusCode.OK to saved(2, body) }
-        val model = NotesModel(signedIn(), { url, token -> gated.api(url, token) }, this, allowUrl = false, clock = Clock.fixed(now, ZoneOffset.UTC), recorder = recorder)
+        val model = NotesModel(sakSetup(signedIn(), Clock.fixed(now, ZoneOffset.UTC)), { url, token -> gated.api(url, token) }, recorder = recorder)
         return gated to model
     }
 
@@ -505,7 +509,7 @@ class NotesModelTest {
 
             // refused by the backend: the note goes back as it was stored, the error says why
             backend.answers["PUT /notes/2"] =
-                HttpStatusCode.BadRequest to """{"errors":[{"code":"notes.text_too_long","message":"The text must have at most 10000 characters."}]}"""
+                HttpStatusCode.BadRequest to refused("The text must have at most 10000 characters.", "notes.text_too_long")
             advanceUntilIdle()
             assertEquals("Short", model.notes().note(2)!!.text)
             assertEquals("The text must have at most 10000 characters.", model.notes().error.english())
@@ -584,7 +588,7 @@ class NotesModelTest {
     @Test
     fun `a photo handed over before the notes are there waits for them`() =
         runTest {
-            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":40,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/40","thumbnailUrl":"/api/v1/files/40/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["POST /files"] = HttpStatusCode.Created to file(40)
             backend.answers["PUT /notes/1"] = HttpStatusCode.OK to note(1, "Call the plumber", "pink", photos = listOf(40))
             val model = model()
             // android ended the app behind the camera: the model starts again with the photo
@@ -595,7 +599,7 @@ class NotesModelTest {
             assertTrue(body("PUT /notes/1").contains(""""photos":[40]"""))
         }
 
-    private val photoFile = """{"id":40,"contentType":"image/jpeg","size":1,"url":"/api/v1/files/40","thumbnailUrl":"/api/v1/files/40/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+    private val photoFile = file(40)
 
     private fun shares(count: Int): List<suspend () -> ByteArray?> = List(count) { { "jpeg".toByteArray() } }
 
@@ -686,7 +690,7 @@ class NotesModelTest {
     @Test
     fun `photos shared without a session go, the sign-in says so`() =
         runTest {
-            val model = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org"))).also { it.start() }
+            val model = model(MemorySessionStore(signedOut())).also { it.start() }
             advanceUntilIdle()
             var read = false
             model.createWithPhotos(listOf { read = true; "jpeg".toByteArray() })
@@ -696,7 +700,7 @@ class NotesModelTest {
             assertEquals("Sign in first, then share the photos with the app again.", (model.screen.value as Screen.SignIn).error.english())
 
             // shared when the app starts, without a session: they wait until it is known there is none
-            val starting = model(MemorySessionStore(Stored(apiUrl = URL, address = "https://sak.example.org")))
+            val starting = model(MemorySessionStore(signedOut()))
             var waited = false
             starting.createWithPhotos(listOf { waited = true; "jpeg".toByteArray() })
             starting.start()
@@ -721,16 +725,16 @@ class NotesModelTest {
     fun `the notes load again on coming to the front only when the last load is older than half a minute`() =
         runTest {
             val clock = MovableClock(now)
-            backend.dispatcher = StandardTestDispatcher(testScheduler)
-            val model = NotesModel(signedIn(), backend::api, this, allowUrl = false, clock = clock, recorder = recorder).also { it.start() }
+            backend.answerOn(this)
+            val model = NotesModel(sakSetup(signedIn(), clock), backend::api, recorder = recorder).also { it.start() }
             advanceUntilIdle()
             val loads = { backend.requests.count { it == "GET /notes" } }
             val first = loads()
-            model.resume()
+            model.foreground()
             advanceUntilIdle()
             assertEquals(first, loads())
             clock.now = now.plusMillis(RELOAD_AFTER_MS)
-            model.resume()
+            model.foreground()
             advanceUntilIdle()
             assertEquals(first + 1, loads())
         }
@@ -752,7 +756,7 @@ class NotesModelTest {
             model.setText(1, "Typed")
             model.record(RecordingFor.Note(1))
             runCurrent()
-            model.pause()
+            model.background()
             advanceUntilIdle()
             assertNull(model.notes().recording)
             assertTrue(body("PUT /notes/1").contains(""""text":"Typed""""))
@@ -761,7 +765,7 @@ class NotesModelTest {
     @Test
     fun `a recording of the longest time says it stopped there`() =
         runTest {
-            backend.answers["POST /files"] = HttpStatusCode.Created to """{"id":50,"contentType":"audio/wav","size":1,"url":"/api/v1/files/50","thumbnailUrl":"/api/v1/files/50/thumbnail","createdAt":"2026-10-30T08:00:00.000Z"}"""
+            backend.answers["POST /files"] = HttpStatusCode.Created to file(50, "audio/wav")
             backend.answers["POST /notes"] = HttpStatusCode.Created to note(7, "", recordings = listOf(50))
             val model = model().also { it.start() }
             advanceUntilIdle()

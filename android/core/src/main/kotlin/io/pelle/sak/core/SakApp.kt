@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
@@ -54,43 +55,58 @@ object SakProcess {
     val scope: CoroutineScope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
 }
 
-// the model of an app for its activity, kept across a rotation; the app makes its model with the store,
-// the updater and the languages. app is the name of the app, e.g. grocery (sak-grocery-<version>.apk,
-// the key sak-grocery-session). selfUpdate is BuildConfig.SELF_UPDATE: false in the build of google
-// play, which has no updater
+// the model of an app for its activity, kept across a rotation; the app makes its model with the setup
+// (SakSetup) and the languages. app is the name of the app, e.g. grocery (sak-grocery-<version>.apk, the
+// key sak-grocery-session). selfUpdate is BuildConfig.SELF_UPDATE: false in the build of google play,
+// which has no updater; allowUrl is BuildConfig.DEBUG, appVersion BuildConfig.VERSION_NAME of the app
 abstract class SakViewModel<M : SakModel<*>>(
     application: Application,
     app: String,
     selfUpdate: Boolean,
+    allowUrl: Boolean,
+    appVersion: String,
 ) : AndroidViewModel(application) {
     protected val client: HttpClient get() = SakProcess.client
-    protected val store = SakProcess.sessionStore(application, app)
-    protected val updater = if (selfUpdate) AndroidUpdater(application, SakProcess.engine, app) else null
+
+    // the work of the model on the scope of the view model, its lasting work on the scope of the process
+    protected val setup =
+        SakSetup(
+            store = SakProcess.sessionStore(application, app),
+            scope = viewModelScope,
+            lasting = SakProcess.scope,
+            allowUrl = allowUrl,
+            appVersion = appVersion,
+            updater = if (selfUpdate) AndroidUpdater(application, SakProcess.engine, app) else null,
+        )
 
     // the languages of the phone, e.g. de-DE,en-US, for the texts the backend answers
     protected val languages: String get() = LocaleList.getDefault().toLanguageTags()
 
     abstract val model: M
 
-    // the model started, its lasting work on the scope of the process
-    protected fun M.started(): M = also {
-        it.lasting = SakProcess.scope
-        it.start()
-    }
+    // the activity stopped for a change of the configuration, e.g. a rotation: the next one that starts
+    // is the same app in the foreground (SakActivity)
+    internal var configurationChanging = false
+
+    // the model started
+    protected fun M.started(): M = also { it.start() }
 }
 
 // the one activity of an app: its content after the shared sign-in (SakContent), and the login links
 // the signin page of the web app hands on (<scheme>://signin?token=…). A link is taken once: not again
 // after a rotation, and not when android starts the activity again from the recent apps with the intent
 // it had (FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY). The confirmation of an update the installer asked for
-// while the app was not seen shows when it is seen again. foreground() and background() do not run on
-// a rotation or another change of the configuration: the activity is recreated, the model stays
+// while the app was not seen shows when it is seen again. The model hears when the app is seen and when
+// not (SakModel.foreground, background), not on a rotation or another change of the configuration: the
+// activity is recreated, the view model and its model stay
 abstract class SakActivity : ComponentActivity() {
     // the scheme of the login link, the package of the release, e.g. io.pelle.sak.grocery; the debug
     // build has a package of its own (.debug) and the same scheme
     protected abstract val signinScheme: String
 
-    protected abstract val sakModel: SakModel<*>
+    protected abstract val sakViewModel: SakViewModel<*>
+
+    private val sakModel get() = sakViewModel.model
 
     // the name of the app, on the first screen of the sign-in (SakContent)
     @get:StringRes
@@ -115,22 +131,16 @@ abstract class SakActivity : ComponentActivity() {
         take(intent)
     }
 
-    // the app is seen again, e.g. it hears the changes of its lists (LIST-4)
-    protected open fun foreground() {}
-
-    // the app is no longer seen, e.g. what waits to be sent goes now, it would be lost with the app
-    protected open fun background() {}
-
     override fun onStart() {
         super.onStart()
         PendingInstall.seen(this)
         // the activity of a rotation: the app stayed in the foreground
-        if (sakModel.configurationChanging) sakModel.configurationChanging = false else foreground()
+        if (sakViewModel.configurationChanging) sakViewModel.configurationChanging = false else sakModel.foreground()
     }
 
     override fun onStop() {
         PendingInstall.unseen()
-        if (isChangingConfigurations) sakModel.configurationChanging = true else background()
+        if (isChangingConfigurations) sakViewModel.configurationChanging = true else sakModel.background()
         super.onStop()
     }
 

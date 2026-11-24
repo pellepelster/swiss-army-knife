@@ -71,7 +71,9 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await page.getByRole('link', { name: 'Create static hosting', exact: true }).click();
   await page.getByLabel('Name').fill('e2e-hosting');
   await page.getByRole('button', { name: 'Create static hosting', exact: true }).click();
-  await expect(page.getByTestId('create-errors')).toHaveText('A bucket of the name exists.');
+  await expect(page.getByTestId('create-errors')).toHaveText(
+    'A bucket with this name already exists.',
+  );
   await page.getByRole('link', { name: 'Cancel' }).click();
   await expect(page).toHaveURL('/static-hosting');
 

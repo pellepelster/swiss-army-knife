@@ -9,9 +9,9 @@ common:
     not_decrypted: "%{path} lässt sich mit dem Passwort der SAK-Instanz nicht entschlüsseln, oder ist beschädigt oder unvollständig: %{error}"
   checks:
     container_runtime:
-      name: "docker oder podman prüfen"
-      running: "Prüfe docker oder podman…"
-      done: "Verwende %{text}"
+      name: "Container-Laufzeit prüfen"
+      running: "Prüfe die Container-Laufzeit…"
+      done: "%{text} gefunden"
       passed: "%{runtime} %{version}"
       needed: "Swiss Army Knife braucht docker oder podman, um Container auszuführen. Installiere eines von beiden, stelle sicher, dass es Container ohne sudo ausführen kann, und starte Swiss Army Knife erneut."
       not_working: "%{runtime} funktioniert nicht: %{error}"
@@ -111,7 +111,6 @@ common:
     settings_unread: "Der Benutzermodus, der Admin und der Mailserver von %{name} konnten nicht aus seinem Backend gelesen werden: %{error}"
     unknown_location: "%{name} ist an einem Standort, den dieses sakadmin nicht kennt. Aktualisiere sakadmin (sakadmin update), um sie auszurollen."
     not_compared: "%{name} konnte nicht mit dem verglichen werden, was ein Ausrollen anlegt: %{error}"
-    empty: "Keine SAK-Instanz gefunden. Erstelle eine mit dem Knopf oben."
   config:
     unreachable: "Das Backend unter %{url} ist nicht erreichbar: %{error}"
     unreadable: "Das Backend hat etwas geantwortet, das keine Konfiguration ist: %{error}"
@@ -170,7 +169,7 @@ common:
   sak_backend:
     no_script: "Der Server hat kein %{script}: rolle die SAK-Instanz zuerst aus."
     ended: "%{script} auf dem Server endete mit Exit-Code %{code}."
-    busy: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung oder ein Neustart, versuche es erneut, wenn sie fertig ist."
+    busy: "Auf dem Server läuft gerade eine andere Sicherung, Wiederherstellung, Aktualisierung, ein Neustart der Dienste oder des Servers, versuche es erneut, wenn das fertig ist."
     failed: "Der Server ist fehlgeschlagen: %{error}"
     unreadable: "Der Server hat etwas geantwortet, das nicht lesbar ist: %{error}"
   images:
@@ -199,6 +198,8 @@ common:
     restart_skipped: "Nicht neu gestartet, nur ein Neustart des Servers erneuert sie: %{services}"
     no_restart: "Kein Dienst nutzt alte Bibliotheken, keiner wurde neu gestartet."
 cli:
+  deployments:
+    empty: "Keine SAK-Instanz gefunden. Erstelle eine mit sakadmin deploy."
   mail:
     reading: "Lese den Mailserver von %{name}…"
     sending: "Sende eine Test-E-Mail an %{to} von %{from}…"
@@ -279,6 +280,7 @@ ui:
   back: "Zurück"
   deployments:
     title: "SAK-Instanzen"
+    empty: "Keine SAK-Instanz gefunden. Erstelle eine mit dem Knopf oben."
     create: "SAK-Instanz erstellen"
     loading: "Suche SAK-Instanzen bei den Providern…"
   deployment:
@@ -391,7 +393,7 @@ ui:
     force_deploy: "Erzwungen ausrollen"
     title_create: "%{name} wird erstellt"
     title_deploy: "%{name} wird neu ausgerollt"
-    title_destroy: "%{name} wird gelöscht"
+    title_destroy: "%{name} wird zerstört"
     deploying: "Rolle aus… Ein Server, der sich ändern muss, wird ersetzt. Das Datenvolume und die IP-Adressen bleiben."
     destroy: "Zerstören"
     destroying: "Zerstöre die SAK-Instanz, ihr Datenvolume bleibt…"

@@ -18,5 +18,16 @@
         <receiver
             android:name="io.pelle.sak.core.update.UpdateReceiver"
             android:exported="false" />
+        <!-- the file the camera app writes a photo into (rememberPhotoCapture); ${applicationId} is
+             the app's when the manifests merge -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.photos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/photo_paths" />
+        </provider>
     </application>
 </manifest>

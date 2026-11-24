@@ -28,6 +28,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.MenuItemColors
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -73,22 +75,33 @@ fun Busy() {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 }
 
-// a screen with its bar at the top: its title, the navigation at the left, the actions at the right
+// a screen with its bar at the top: its title, the back arrow at the left, the actions at the right.
+// With onBack the arrow shows (back its text for a screen reader, backTag its test tag), and the back of
+// the system does the same (ANDROID-2)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Page(
     title: String,
-    navigationIcon: @Composable () -> Unit = {},
+    onBack: (() -> Unit)? = null,
+    back: String? = null,
+    backTag: String = "back",
     actions: @Composable () -> Unit = {},
     bottomBar: @Composable () -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    onBack?.let { BackHandler(onBack = it) }
     Scaffold(
         // the bar a shade apart from the content below it
         topBar = {
             TopAppBar(
                 title = { Text(title) },
-                navigationIcon = navigationIcon,
+                navigationIcon = {
+                    onBack?.let {
+                        IconButton(onClick = it, modifier = Modifier.testTag(backTag)) {
+                            Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = back)
+                        }
+                    }
+                },
                 actions = { actions() },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             )
@@ -96,6 +109,42 @@ fun Page(
         bottomBar = bottomBar,
         content = content,
     )
+}
+
+// an entry of a menu: a tap closes the menu (close), then acts
+@Composable
+fun MenuEntry(
+    text: String,
+    close: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    colors: MenuItemColors = MenuDefaults.itemColors(),
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(text) },
+        onClick = {
+            close()
+            onClick()
+        },
+        modifier = modifier,
+        leadingIcon = leadingIcon,
+        enabled = enabled,
+        colors = colors,
+    )
+}
+
+// the Delete of a menu, in the color of an error while it is enabled (UX-3)
+@Composable
+fun DeleteMenuEntry(
+    close: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    text: String = stringResource(R.string.shared_delete),
+    onClick: () -> Unit,
+) {
+    MenuEntry(text, close, modifier, enabled, colors = MenuDefaults.itemColors(textColor = MaterialTheme.colorScheme.error), onClick = onClick)
 }
 
 // the fields of a form, one under the other, scrolled when they do not fit
@@ -224,13 +273,13 @@ fun SignInScreen(
                 }
                 // the deployment did not answer: the QR code still works, the rest is asked again
                 screen.multiUser == null -> {
-                    ScanQr(model::scanQr)
+                    ScanQr(model.qr::open)
                     if (!screen.busy) {
                         Button(onClick = { model.retrySignIn() }, modifier = Modifier.testTag("retry")) { Text(stringResource(R.string.retry)) }
                     }
                 }
                 screen.method == null -> {
-                    ScanQr(model::scanQr)
+                    ScanQr(model.qr::open)
                     SignInWay(
                         stringResource(R.string.sign_in_password_hint),
                         stringResource(R.string.login_use_password),
@@ -310,47 +359,45 @@ fun AccountMenu(
     }
     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
         DropdownMenuItem(text = { Text(stringResource(R.string.signed_in_as, screen.user)) }, onClick = {}, enabled = false)
-        if (home && model.updates) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.update_check)) },
-                onClick = {
-                    menu = false
-                    model.checkUpdate()
-                },
+        if (home && model.updates.enabled) {
+            MenuEntry(
+                stringResource(R.string.update_check),
+                close = { menu = false },
                 // an update offered already is in the banner at the top
                 enabled = screen.update == null,
                 modifier = Modifier.testTag("check-update"),
-            )
+            ) { model.updates.check() }
         }
         // another user or deployment by the QR code of the web app; it asks before the session goes
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.qr_scan)) },
-            onClick = {
-                menu = false
-                model.scanQr()
-            },
+        MenuEntry(
+            stringResource(R.string.qr_scan),
+            close = { menu = false },
             modifier = Modifier.testTag("menu-scan-qr"),
-        )
-        DropdownMenuItem(text = { Text(stringResource(R.string.login_sign_out)) }, onClick = {
-            menu = false
-            model.signOut()
-        })
+        ) { model.qr.open() }
+        MenuEntry(stringResource(R.string.login_sign_out), close = { menu = false }) { model.signOut() }
     }
 }
 
 // the newer version of the app the deployment runs, at the top of the home; the update downloads it
-// and hands it to the installer of android, which asks the user
+// and hands it to the installer of android, which asks the user. Later hides it until the next check
+// (UX-13)
 @Composable
 fun UpdateBanner(
     update: AppUpdate,
     onUpdate: () -> Unit,
+    onLater: () -> Unit,
 ) {
     Surface(color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.fillMaxWidth().testTag("update")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(stringResource(R.string.update_available, update.version))
             Error(update.error)
-            Button(onClick = onUpdate, enabled = !update.busy) {
-                Text(stringResource(if (update.busy) R.string.downloading else R.string.update))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onUpdate, enabled = !update.busy) {
+                    Text(stringResource(if (update.busy) R.string.downloading else R.string.update))
+                }
+                TextButton(onClick = onLater, enabled = !update.busy, modifier = Modifier.testTag("update-later")) {
+                    Text(stringResource(R.string.update_later))
+                }
             }
         }
     }
