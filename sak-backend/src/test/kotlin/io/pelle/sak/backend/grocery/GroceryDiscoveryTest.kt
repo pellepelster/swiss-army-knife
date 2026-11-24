@@ -10,7 +10,7 @@ import io.pelle.sak.model.testing.Media
 import io.pelle.sak.openrouter.Ingredient
 import io.pelle.sak.openrouter.IngredientRecognizer
 import io.pelle.sak.openrouter.TextRecognitionException
-import io.pelle.sak.storage.BlobContent
+import io.pelle.sak.storage.model.BlobContent
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.math.BigDecimal

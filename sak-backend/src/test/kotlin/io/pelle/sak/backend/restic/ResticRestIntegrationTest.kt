@@ -1,13 +1,13 @@
 package io.pelle.sak.backend.restic
 
-import io.pelle.sak.backend.storage.S3Bucket
-import io.pelle.sak.backend.storage.S3Endpoint
+import io.pelle.sak.storage.s3.S3Bucket
+import io.pelle.sak.storage.s3.S3Endpoint
 import io.pelle.sak.s3.S3AccessCallback
 import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
-import io.pelle.sak.storage.BlobPath
+import io.pelle.sak.storage.model.BlobPath
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain

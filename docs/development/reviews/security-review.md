@@ -14,7 +14,7 @@ weight: 8
 
 Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`), the routes and the data of the backend
 (`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and the
-ingress (`sak-s3`, `sak-storage`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
+ingress (`sak-s3`, `sak-storage-local`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
 (`android/`), sakadmin (`sak-admin-cli`) and the server it builds (`ansible/`). The question: what can somebody do who
 should not, from the internet without a session, as a user of a multi user deployment, with one key of a bucket, on the
 machine of the admin or in one container of the server.

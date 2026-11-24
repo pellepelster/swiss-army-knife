@@ -3,3 +3,8 @@ plugins {
     id("sak.kotlin-conventions")
     `java-library`
 }
+
+// the interface it implements, LocalStorage, and its blob paths are in sak-api
+dependencies {
+    api(project(":sak-api"))
+}

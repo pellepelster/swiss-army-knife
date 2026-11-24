@@ -1,5 +1,7 @@
 package io.pelle.sak.storage
 
+import io.pelle.sak.storage.model.InsufficientStorageException
+import io.pelle.sak.storage.model.EntityTooLargeException
 import java.io.FilterInputStream
 import java.io.InputStream
 
@@ -58,13 +60,3 @@ class WriteGuard(
         const val CHECK_EVERY = 64L * 1024 * 1024
     }
 }
-
-// the data volume has no room for the write
-class InsufficientStorageException(
-    minFreeBytes: Long,
-) : RuntimeException("the storage keeps $minFreeBytes bytes free, it has no room for the write")
-
-// a content larger than its store takes
-class EntityTooLargeException(
-    maxBytes: Long,
-) : RuntimeException("a content has at most $maxBytes bytes")

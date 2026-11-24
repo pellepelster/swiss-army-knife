@@ -1,4 +1,4 @@
-package io.pelle.sak.backend.storage
+package io.pelle.sak.storage.s3
 
 import com.sun.net.httpserver.HttpServer
 import io.kotest.matchers.shouldBe
@@ -12,7 +12,7 @@ import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
-import io.pelle.sak.storage.BlobPath
+import io.pelle.sak.storage.model.BlobPath
 import io.pelle.sak.storage.FilesystemLocalStorage
 import io.pelle.sak.storage.WriteGuard
 import kotlinx.coroutines.runBlocking

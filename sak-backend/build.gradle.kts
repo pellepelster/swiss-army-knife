@@ -8,7 +8,7 @@ dependencies {
     implementation(project(":sak-api"))
     implementation(project(":sak-model"))
     implementation(project(":sak-s3"))
-    implementation(project(":sak-storage"))
+    implementation(project(":sak-storage-local"))
     implementation(project(":sak-ingress"))
     implementation(project(":sak-auth"))
     implementation(project(":sak-logs"))
@@ -16,7 +16,7 @@ dependencies {
     implementation(project(":sak-dns"))
     runtimeOnly(project(":sak-frontend"))
     // the client of the S3 storage (S3StorageManager): one small jar without dependencies
-    implementation(libs.aws.lightweight.client)
+    implementation(project(":sak-storage-s3"))
     implementation(libs.caffeine)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.body.limit)

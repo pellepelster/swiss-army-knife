@@ -1,8 +1,17 @@
 package io.pelle.sak.backend.storage
 
+import io.pelle.sak.storage.s3.S3Bucket
+import io.pelle.sak.storage.s3.S3Endpoint
+import io.pelle.sak.storage.s3.S3EndpointType
+import io.pelle.sak.storage.s3.S3Choice
+import io.pelle.sak.storage.s3.S3KeyCheck
+import io.pelle.sak.storage.s3.HeadBucketKeyCheck
+import io.pelle.sak.storage.s3.S3KeyStatus
+import io.pelle.sak.storage.s3.StorageTexts
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.settings.BooleanSetting
 import io.pelle.sak.backend.settings.ChoiceSetting
+import io.pelle.sak.backend.settings.SettingChoice
 import io.pelle.sak.backend.settings.SettingDefinition
 import io.pelle.sak.backend.settings.SettingName
 import io.pelle.sak.backend.settings.SettingScope
@@ -102,7 +111,7 @@ class S3StorageManager(
                 SettingName("endpoint_type"),
                 StorageTexts.ENDPOINT_TYPE_LABEL,
                 StorageTexts.ENDPOINT_TYPE_DESCRIPTION,
-                S3EndpointType.entries.map { it.choice },
+                S3EndpointType.entries.map { it.choice.setting() },
                 default = S3EndpointType.HETZNER.value,
             )
 
@@ -112,7 +121,7 @@ class S3StorageManager(
                 SettingName("region"),
                 StorageTexts.REGION_LABEL,
                 StorageTexts.REGION_DESCRIPTION,
-                S3EndpointType.HETZNER.regions,
+                S3EndpointType.HETZNER.regions.map { it.setting() },
                 default = "fsn1",
             )
 
@@ -149,3 +158,6 @@ class S3StorageManager(
             )
     }
 }
+
+// a choice of the S3 storage as a choice of the settings
+private fun S3Choice.setting() = SettingChoice(value, label)

@@ -1,4 +1,4 @@
-package io.pelle.sak.storage
+package io.pelle.sak.storage.model
 
 class BlobPath(
     val segments: List<String>,

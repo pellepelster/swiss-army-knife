@@ -4,7 +4,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.content.OutgoingContent
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.jvm.javaio.toByteReadChannel
-import io.pelle.sak.storage.BlobContent
+import io.pelle.sak.storage.model.BlobContent
 
 // a blob of the local storage as the body of a response, read while it is sent, with its length
 class BlobResponse(

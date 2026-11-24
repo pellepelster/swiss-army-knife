@@ -2,7 +2,7 @@ package io.pelle.sak.openrouter
 
 import java.io.InputStream
 import java.net.http.HttpRequest
-import io.pelle.sak.storage.BlobContent
+import io.pelle.sak.storage.model.BlobContent
 import java.util.Base64
 
 // in the json of a request, where the base64 of the file goes; no other value of a request holds it

@@ -1,9 +1,9 @@
 package io.pelle.sak.s3.storage
 
-import io.pelle.sak.storage.EntityTooLargeException
-import io.pelle.sak.storage.InsufficientStorageException
+import io.pelle.sak.storage.model.EntityTooLargeException
+import io.pelle.sak.storage.model.InsufficientStorageException
 import io.pelle.sak.storage.WriteGuard
-import io.pelle.sak.storage.BlobPath
+import io.pelle.sak.storage.model.BlobPath
 import io.pelle.sak.storage.model.BlobUsage
 import io.pelle.sak.storage.FilesystemLocalStorage
 import io.kotest.assertions.throwables.shouldThrow

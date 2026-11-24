@@ -1,6 +1,6 @@
 package io.pelle.sak.openrouter
 
-import io.pelle.sak.storage.BlobContent
+import io.pelle.sak.storage.model.BlobContent
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject

@@ -17,7 +17,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
-import io.pelle.sak.storage.BlobContent
+import io.pelle.sak.storage.model.BlobContent
 
 // writes down what is said in a recording with a speech to text model through openrouter's
 // transcriptions; the recording goes along as base64, streamed from the storage (base64Body), the

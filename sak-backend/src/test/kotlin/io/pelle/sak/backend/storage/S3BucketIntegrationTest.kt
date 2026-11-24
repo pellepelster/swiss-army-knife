@@ -1,5 +1,7 @@
 package io.pelle.sak.backend.storage
 
+import io.pelle.sak.storage.s3.S3Bucket
+import io.pelle.sak.storage.s3.S3EndpointType
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.backend.restic.ResticFile
 import io.pelle.sak.backend.restic.ResticFileSaveResult

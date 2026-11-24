@@ -8,8 +8,8 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.StoredFile
-import io.pelle.sak.storage.BlobContent
-import io.pelle.sak.storage.BlobPath
+import io.pelle.sak.storage.model.BlobContent
+import io.pelle.sak.storage.model.BlobPath
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.awt.Color

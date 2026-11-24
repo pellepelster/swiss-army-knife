@@ -3,8 +3,8 @@ package io.pelle.sak.s3.storage
 import java.time.Instant
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.storage.LocalStorage
-import io.pelle.sak.storage.BlobPath
-import io.pelle.sak.storage.BlobPathConflictException
+import io.pelle.sak.storage.model.BlobPath
+import io.pelle.sak.storage.model.BlobPathConflictException
 import io.pelle.sak.storage.model.BlobUsage
 import java.io.InputStream
 import java.io.SequenceInputStream

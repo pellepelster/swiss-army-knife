@@ -1,4 +1,4 @@
-package io.pelle.sak.backend.storage
+package io.pelle.sak.storage.s3
 
 import com.github.davidmoten.aws.lw.client.Client
 import com.github.davidmoten.aws.lw.client.HttpMethod

@@ -3,6 +3,7 @@ package io.pelle.sak.storage
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.pelle.sak.storage.model.BlobPath
 import org.junit.jupiter.api.Test
 
 class BlobPathTest {

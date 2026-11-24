@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.files
 
-import io.pelle.sak.storage.InsufficientStorageException
+import io.pelle.sak.storage.model.InsufficientStorageException
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.isFree
@@ -13,12 +13,9 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.storage.LocalStorage
-import io.pelle.sak.storage.BlobContent
-import io.pelle.sak.storage.BlobPath
+import io.pelle.sak.storage.model.BlobContent
+import io.pelle.sak.storage.model.BlobPath
 import io.pelle.sak.storage.FilesystemLocalStorage
-import java.awt.Color
-import java.awt.RenderingHints
-import java.awt.geom.RoundRectangle2D
 import java.awt.image.BufferedImage
 import java.io.BufferedInputStream
 import java.io.IOException
@@ -29,15 +26,9 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 import javax.imageio.ImageIO
-import javax.imageio.stream.ImageInputStream
-import javax.imageio.stream.MemoryCacheImageInputStream
 import javax.imageio.stream.MemoryCacheImageOutputStream
-import javax.sound.sampled.AudioFileFormat
-import javax.sound.sampled.AudioFormat
-import javax.sound.sampled.AudioInputStream
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.UnsupportedAudioFileException
-import kotlin.math.abs
 
 private val logger = KotlinLogging.logger {}
 

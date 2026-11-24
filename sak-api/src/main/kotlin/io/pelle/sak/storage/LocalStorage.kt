@@ -1,17 +1,16 @@
 package io.pelle.sak.storage
 
+import io.pelle.sak.storage.model.BlobPathConflictException
+import io.pelle.sak.storage.model.BlobChangedException
+import io.pelle.sak.storage.model.BlobContent
 import io.pelle.sak.storage.model.BlobInfo
 import io.pelle.sak.storage.model.BlobListEntry
+import io.pelle.sak.storage.model.BlobPath
 import io.pelle.sak.storage.model.BlobUsage
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.Path
 
-// a blob can not be written where a parent of its path is a blob or where it has children
-class BlobPathConflictException(
-    val path: BlobPath,
-) : RuntimeException("'$path' conflicts with an existing blob")
 
 // blobs at paths. A blob is written as a whole and shows at its path at once, a reader never sees half
 // of one; what a write that ended without its blob left behind (e.g. the backend stopped) goes when
@@ -90,17 +89,3 @@ interface LocalStorage {
     fun directory(path: BlobPath): Path
 }
 
-// the blob was replaced since its size was taken
-class BlobChangedException(
-    path: BlobPath,
-    expected: Long,
-    actual: Long,
-) : IOException("'$path' changed: $actual bytes instead of $expected")
-
-// a blob to read: its size, and its content, opened again for every read
-class BlobContent(
-    val size: Long,
-    private val opener: () -> InputStream,
-) {
-    fun open(): InputStream = opener()
-}

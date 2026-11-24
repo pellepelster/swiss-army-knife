@@ -1,5 +1,9 @@
 package io.pelle.sak.backend.storage
 
+import io.pelle.sak.storage.s3.S3Bucket
+import io.pelle.sak.storage.s3.S3Endpoint
+import io.pelle.sak.storage.s3.S3KeyStatus
+import io.pelle.sak.storage.s3.StorageTexts
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf

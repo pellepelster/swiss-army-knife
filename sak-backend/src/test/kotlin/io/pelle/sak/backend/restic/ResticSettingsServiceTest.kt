@@ -5,9 +5,9 @@ import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.settings.SettingService
 import io.pelle.sak.backend.settings.SettingsRegistry
 import io.pelle.sak.backend.settings.SettingsTexts
-import io.pelle.sak.backend.storage.S3KeyStatus
+import io.pelle.sak.storage.s3.S3KeyStatus
 import io.pelle.sak.backend.storage.S3StorageManager
-import io.pelle.sak.backend.storage.StorageTexts
+import io.pelle.sak.storage.s3.StorageTexts
 import io.pelle.sak.model.SakDatabase
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir

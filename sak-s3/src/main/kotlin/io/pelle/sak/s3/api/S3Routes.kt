@@ -34,8 +34,8 @@ import io.pelle.sak.s3.auth.SigV4Result
 import io.pelle.sak.s3.auth.SigV4Verifier
 import io.pelle.sak.s3.storage.InvalidKeyException
 import io.pelle.sak.s3.storage.KeyTooLongException
-import io.pelle.sak.storage.EntityTooLargeException
-import io.pelle.sak.storage.InsufficientStorageException
+import io.pelle.sak.storage.model.EntityTooLargeException
+import io.pelle.sak.storage.model.InsufficientStorageException
 import io.pelle.sak.s3.storage.InvalidPartException
 import io.pelle.sak.s3.storage.KeyConflictException
 import io.pelle.sak.s3.storage.NoSuchBucketException
