@@ -1,0 +1,188 @@
+// The screens of the window of sakadmin (sak-admin-cli/ui) and the buttons that lead from one to the
+// next, as the code has them. A relation is labeled with its button, or with what leads there without
+// a button. Open it with `npx likec4 start docs/development/design/ui`; the image of the view index is
+// sakadmin-screen-flow.png (`npx . export png`).
+
+specification {
+  element screen {
+    notation "A view of the window"
+    style {
+      shape browser
+      color primary
+    }
+  }
+  element widget {
+    notation "A part that several screens show"
+    style {
+      shape rectangle
+      color green
+    }
+  }
+  element dialog {
+    notation "A modal dialog"
+    style {
+      shape rectangle
+      color red
+    }
+  }
+  element outside {
+    notation "Outside of the window"
+    style {
+      shape rectangle
+      color muted
+    }
+  }
+}
+
+model {
+  splash = screen 'Swiss Army Knife (the checks)' {
+    description 'The checks at the start: the container runtime, the image of the tools, the API tokens of the providers. Quit is enabled only after a check failed'
+  }
+  providers = screen 'Provider tokens' {
+    description 'The tokens of the providers, masked; Next only with at least one token'
+  }
+  select = screen 'Select the provider' {
+    description 'The providers sakadmin supports'
+  }
+  token = screen 'Token of the provider' {
+    description 'The API token, checked by an ssh key created and deleted again before it is added; a refused token stays with its error'
+  }
+  deployments = screen 'SAK instances' {
+    description 'A card for each SAK instance of the providers: its resources and its SAK address. Opening the list forgets the password of the SAK instance opened last'
+  }
+  password = screen 'Password' {
+    description 'The password of the SAK instance, checked as it is typed (SAK_PASSWORD fills it in); Next only with the right password'
+  }
+  details = screen 'SAK instance' {
+    description 'One SAK instance: its status, its configuration (SAK address, root domain, DNS mode, user mode, admin, mail server) and its resources. Check runs on the page, at once when it opens with a configuration; Deploy changes only after a check that found changes, Force deploy after any check. At the top right Destroy, the Maintenance menu (Status, Update, Restart services, Reboot), Config… and Check'
+  }
+  form = screen 'Create SAK instance / Config / Destroy the SAK instance' {
+    description 'One form, three ways: a new SAK instance (name, password, location, root domain, DNS mode, user mode, the admin and the mail server of the multi user mode); Config…, filled in with the configuration of the SAK instance; Destroy, with whether its data volume goes too. Plan, or Destroy, plans first'
+  }
+  plan = screen 'Plan' {
+    description 'What a create or a deploy of the form does to each resource. Create SAK instance or Deploy changes only when a resource is not up-to-date; Force deploy always'
+  }
+  run = screen 'Creating / Redeploying / Destroying {name}' {
+    description 'Each resource and each task of the playbook as it is created, changed or destroyed. Done only once the run worked; Cancel always, also while it runs, and the way out after a failure'
+  }
+  maintenance = screen 'Server status / Update the server / Restart the services / Reboot the server' {
+    description 'The lines of the server while the command runs, then its answer. No cancel, each command has a timeout; Back only once it ended'
+  }
+  deployConfirm = dialog 'Deploy {name}?' {
+    description 'Before a deploy, a force deploy or a create whose plan deletes or replaces resources: it names them'
+  }
+  destroyConfirm = dialog 'Destroy {name}?' {
+    description 'The last confirmation of a destroy whose plan deletes resources, with the data volume when asked'
+  }
+  rebootConfirm = dialog 'Reboot {name}?' {
+    description 'The SAK instance is stopped until its server is back'
+  }
+  smtpTest = dialog 'Send a test e-mail' {
+    description 'The mail server of the form sends a test e-mail to an address; the answer shows on the form'
+  }
+  quitConfirm = dialog 'Quit sakadmin?' {
+    description 'The window is closed while a SAK instance is being changed: Keep running, or Quit, which stops it where it is'
+  }
+  resources = widget 'Resource rows' {
+    description 'A row for each resource: its led, kind, name, resource status and what is done to it'
+  }
+  footer = widget 'Update footer' {
+    description 'Below every screen: the version of sakadmin and one button, Check for updates, Update to {version}, Restart; no restart while a SAK instance is being changed'
+  }
+  browser = outside 'Browser of the system' {
+    description 'The web app of a SAK instance at its SAK address'
+  }
+  quit = outside 'Quit' {
+    description 'The window closes, with exit code 1 after a failed check'
+  }
+
+  // the start
+  splash -> providers 'checks done, no provider token'
+  splash -> deployments 'checks done, provider tokens known'
+  splash -> quit 'Quit (only after a failed check)'
+
+  // the provider tokens
+  providers -> select 'Add token'
+  providers -> deployments 'Next (at least one token)'
+  select -> token 'a provider'
+  select -> providers 'Cancel'
+  token -> providers 'Add token (the token works) / Cancel'
+
+  // the SAK instances
+  deployments -> form 'Create SAK instance'
+  deployments -> password 'the header of a SAK instance'
+  deployments -> providers 'Back'
+  deployments -> browser 'SAK address'
+  password -> details 'Next (only with the right password)'
+  password -> deployments 'Cancel'
+
+  // one SAK instance
+  details -> run 'Deploy changes (the check found changes) / Force deploy'
+  details -> deployConfirm 'Deploy changes / Force deploy (the plan deletes or replaces)'
+  details -> form 'Config… / Destroy'
+  details -> maintenance 'Maintenance: Status / Update / Restart services'
+  details -> rebootConfirm 'Maintenance: Reboot'
+  details -> deployments 'Back'
+  details -> browser 'SAK address'
+  rebootConfirm -> maintenance 'Reboot'
+  rebootConfirm -> details 'Cancel'
+  maintenance -> details 'Back (once it ended)'
+
+  // the form
+  form -> plan 'Plan (create, Config…)'
+  form -> run 'Destroy (the plan deletes nothing)'
+  form -> destroyConfirm 'Destroy (the plan deletes resources)'
+  form -> smtpTest 'Send test e-mail'
+  form -> deployments 'Cancel'
+  smtpTest -> form 'Send / Cancel'
+  destroyConfirm -> run 'Destroy'
+  destroyConfirm -> form 'Cancel'
+
+  // the plan
+  plan -> run 'Create SAK instance / Deploy changes (a resource is not up-to-date) / Force deploy'
+  plan -> deployConfirm 'the same (the plan deletes or replaces)'
+  plan -> deployments 'Cancel'
+  deployConfirm -> run 'Deploy changes'
+  deployConfirm -> plan 'Cancel (from the plan)'
+  deployConfirm -> details 'Cancel (from the SAK instance)'
+
+  // the run
+  run -> details 'Done (created or deployed, the SAK instance is listed)'
+  run -> deployments 'Done (destroyed, or not listed) / Cancel (also while it runs)'
+
+  // closing the window while a SAK instance is being changed
+  run -> quitConfirm 'close the window'
+  maintenance -> quitConfirm 'close the window'
+  quitConfirm -> quit 'Quit'
+
+  // the parts several screens show
+  plan -> resources 'shows'
+  run -> resources 'shows'
+  details -> resources 'shows'
+  deployments -> resources 'shows'
+}
+
+views {
+  view index {
+    title 'Screen flow of the window of sakadmin'
+    description 'Which button leads from one screen to the next'
+    include *
+    exclude resources, footer
+    autoLayout TopBottom
+  }
+
+  view confirmations {
+    title 'The confirmations'
+    description 'The dialogs before what can not be undone, and where they lead'
+    include deployConfirm, destroyConfirm, rebootConfirm, quitConfirm, details, plan, form, run, maintenance, quit
+    autoLayout TopBottom
+  }
+
+  view widgets {
+    title 'The shared parts'
+    description 'The screens that show the resources with the same rows; the update footer below every screen'
+    include deployments, details, plan, run, resources, footer
+    exclude details -> run, plan -> run, run -> details, run -> deployments
+    autoLayout TopBottom
+  }
+}
