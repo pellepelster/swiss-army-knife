@@ -6,7 +6,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ResticRepositoryResponse(
     val id: Int,
+    // what the command line names it by, derived from the description
     val name: String,
+    // what the user reads
+    val description: String,
     // what restic takes as the repository (rest:https://…/restic/<id>/), the token as the password
     // of the user <id>
     val url: String,

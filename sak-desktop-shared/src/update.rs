@@ -889,7 +889,7 @@ mod tests {
         assert_eq!(
             *lines.lock().unwrap(),
             vec![
-                "This sakadmin (latest) is not a release, there is no version to compare it with."
+                "This sakadmin (latest) is not a release, so there is nothing to compare it with."
                     .to_string()
             ]
         );
@@ -903,11 +903,11 @@ mod tests {
         };
         assert_eq!(
             newer.message(&BACKUP),
-            "sakbackup 0.2.0 is available, this is 0.1.1."
+            "sakbackup 0.2.0 is available (installed: 0.1.1)."
         );
         assert_eq!(
             newer.installed_message(&BACKUP),
-            "sakbackup is updated from 0.1.1 to 0.2.0. Start sakbackup again to use it."
+            "sakbackup was updated from 0.1.1 to 0.2.0. Start sakbackup again to use the new version."
         );
         // the version of the build: latest, or the one of the tag when the release builds it
         // (VERSION of the workflow), which then is a release
@@ -1220,7 +1220,7 @@ mod tests {
         assert_eq!(
             updater.check().await,
             Err(
-                "http://api.github.com/repos/x/releases/latest is not an https address, sakadmin asks github over https only."
+                "http://api.github.com/repos/x/releases/latest is not an https address; sakadmin asks GitHub over https only."
                     .into()
             )
         );
@@ -1235,11 +1235,11 @@ mod tests {
             .unwrap_err();
         assert_eq!(
             error,
-            "https://example.org/sak-admin-cli.zip is not an address of github, sakadmin downloads from github only."
+            "https://example.org/sak-admin-cli.zip is not a GitHub address; sakadmin downloads from GitHub only."
         );
         assert_eq!(
             to_github("https://github.com.example.org/x", &APP),
-            Err("https://github.com.example.org/x is not an address of github, sakadmin downloads from github only.".into())
+            Err("https://github.com.example.org/x is not a GitHub address; sakadmin downloads from GitHub only.".into())
         );
         assert_eq!(
             to_github("https://objects.githubusercontent.com/x", &APP),

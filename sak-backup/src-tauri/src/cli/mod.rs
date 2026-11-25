@@ -224,12 +224,13 @@ pub enum SnapshotCommand {
 
 #[derive(Subcommand)]
 pub enum RepoCommand {
-    /// Create a repository on the SAK instance
+    /// Create a repository on the SAK instance; its name for the command line is derived from the
+    /// description
     Create {
-        /// Lower case letters, digits and -
-        name: String,
+        /// What the repository is for, e.g. "Photos 2024"
+        description: String,
     },
-    /// List the repositories with their sizes
+    /// List the repositories: name, size, address and description
     List,
 }
 
@@ -308,14 +309,15 @@ async fn command(command: Command) -> Result<(), String> {
     let passwords = PasswordStore::default();
     match command {
         Command::Update { .. } => unreachable!("run answers the update, it needs no session"),
-        Command::Repo(RepoCommand::Create { name }) => {
-            let created = api::create_repository(&sessions, &name)
+        Command::Repo(RepoCommand::Create { description }) => {
+            let created = api::create_repository(&sessions, &description)
                 .await
                 .map_err(|error| api_message(&error))?;
             println!(
                 "{}",
                 t!(
                     "cli.repository_created",
+                    description = text(&created["description"]),
                     name = text(&created["name"]),
                     url = text(&created["url"])
                 )
@@ -327,10 +329,11 @@ async fn command(command: Command) -> Result<(), String> {
                 .map_err(|error| api_message(&error))?;
             for repository in repositories {
                 println!(
-                    "{}\t{}\t{}",
+                    "{}\t{}\t{}\t{}",
                     text(&repository["name"]),
                     repository["size"],
-                    text(&repository["url"])
+                    text(&repository["url"]),
+                    text(&repository["description"])
                 );
             }
         }
@@ -790,7 +793,12 @@ fn duration(seconds: u64) -> String {
     if minutes < 60 {
         return t!("common.duration.minutes", minutes = minutes).to_string();
     }
-    t!("common.duration.hours", hours = minutes / 60, minutes = minutes % 60).to_string()
+    t!(
+        "common.duration.hours",
+        hours = minutes / 60,
+        minutes = minutes % 60
+    )
+    .to_string()
 }
 
 /// the text of a failed save of a plan: a SAK instance from before the excludes can not read a

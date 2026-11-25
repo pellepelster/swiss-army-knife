@@ -120,7 +120,10 @@ describe('StatusPage', () => {
     await harness.fixture.whenStable();
     expect(
       [...page().querySelectorAll('[role=alert]')].map((it) => it.textContent?.trim()),
-    ).toEqual(['Your role does not allow to see the health.', 'The storage could not be loaded.']);
+    ).toEqual([
+      'Your role does not allow you to see the health.',
+      'The storage could not be loaded.',
+    ]);
     expect(button('Check again').disabled).toBe(false);
   });
 
@@ -143,7 +146,7 @@ describe('StatusPage', () => {
       [...row.querySelectorAll('td')].slice(0, 3).map((cell) => cell.textContent?.trim()),
     );
     expect(rows).toEqual([
-      ['Backups', '2 MB', '40'],
+      ['Restic Backups', '2 MB', '40'],
       ['Files', '500 kB', '12'],
       // a storage the page does not know shows by its name
       ['other', '1 kB', '1'],
@@ -151,9 +154,7 @@ describe('StatusPage', () => {
     expect(
       page().querySelector('[data-testid=total] [data-testid=size]')?.textContent?.trim(),
     ).toBe('2.5 MB');
-    expect(page().querySelector('canvas')?.getAttribute('aria-label')).toBe(
-      'What the storages keep',
-    );
+    expect(page().querySelector('canvas')?.getAttribute('aria-label')).toBe('Storage usage');
   });
 
   it('says when the storages are not counted yet', async () => {
@@ -162,7 +163,7 @@ describe('StatusPage', () => {
     http.expectOne('/api/v1/status').flush(status('HEALTHY', []));
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=counting]')?.textContent?.trim()).toBe(
-      'The storages are being counted, look again in a minute.',
+      'The storage is being counted, check again in a minute.',
     );
     expect(page().querySelector('canvas')).toBeNull();
   });

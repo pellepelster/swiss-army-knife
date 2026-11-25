@@ -15,7 +15,6 @@ mod tests {
         for key in [
             "ui.update.version",
             "ui.update.check",
-            "ui.update.idle",
             "ui.update.install",
             "ui.update.restart",
             "ui.update.restart_hint",

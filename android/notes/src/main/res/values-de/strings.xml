@@ -25,10 +25,10 @@
     <string name="notes_errors_photo_not_stored">Das Foto konnte nicht gespeichert werden.</string>
     <string name="notes_errors_microphone">Das Mikrofon konnte nicht verwendet werden.</string>
     <string name="notes_errors_recording_not_stored">Die Aufnahme konnte nicht gespeichert werden.</string>
-    <string name="notes_errors_no_text_in_recording">In der Aufnahme ist kein Text.</string>
+    <string name="notes_errors_no_text_in_recording">In der Aufnahme wurde kein Text erkannt.</string>
     <string name="notes_errors_not_discovered">Der Text konnte nicht erkannt werden.</string>
     <string name="notes_errors_not_created">Die Notiz konnte nicht erstellt werden.</string>
-    <string name="notes_errors_no_text_in_photo">Auf dem Foto ist kein Text.</string>
+    <string name="notes_errors_no_text_in_photo">Auf dem Foto wurde kein Text erkannt.</string>
     <string name="notes_stop_recording">Aufnahme beenden</string>
     <string name="notes_empty">Noch keine Notizen, erstelle eine mit dem Plus oben.</string>
     <string name="notes_all_count">Alle (%1$d)</string>
@@ -46,7 +46,7 @@
     <string name="notes_recordings_full">Eine Notiz hat höchstens %1$s Aufnahmen.</string>
     <string name="notes_photo_removed">Foto %1$s entfernt</string>
     <string name="notes_recording_removed">Aufnahme %1$s entfernt</string>
-    <string name="notes_recording_longest">Die Aufnahme endete nach %1$s Minuten, so lang ist eine Aufnahme höchstens.</string>
+    <string name="notes_recording_longest">Die Aufnahme wurde nach %1$s Minuten beendet, länger kann eine Aufnahme nicht sein.</string>
     <string name="notes_dismiss">Meldung schließen</string>
     <string name="notes_deleting">Wird gelöscht…</string>
     <string name="notes_photos">Fotos</string>

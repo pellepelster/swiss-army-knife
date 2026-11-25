@@ -360,12 +360,12 @@ describe('NotesPage', () => {
       { timeout: 1000 },
     );
 
-    button('Play Recording 1', note).click();
+    button('Play recording 1', note).click();
     http.expectOne('/api/v1/files/8').flush(new Blob(['RIFF'], { type: 'audio/wav' }));
     await vi.waitFor(() => expect(play).toHaveBeenCalled(), { timeout: 1000 });
     await fixture.whenStable();
     expect(recording.getAttribute('aria-pressed')).toBe('true');
-    button('Pause Recording 1', note).click();
+    button('Pause recording 1', note).click();
     await fixture.whenStable();
     expect(pause).toHaveBeenCalled();
 
@@ -388,13 +388,13 @@ describe('NotesPage', () => {
     const note = notes()[2];
     await flushThumbnails();
 
-    button('Play Recording 1', note).click();
+    button('Play recording 1', note).click();
     http.expectOne('/api/v1/files/8').flush(new Blob(['RIFF'], { type: 'audio/wav' }));
     await vi.waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalled(), { timeout: 1000 });
     await fixture.whenStable();
     expect(note.querySelector('.recording')?.getAttribute('aria-pressed')).toBe('false');
 
-    button('Play Recording 1', note).click();
+    button('Play recording 1', note).click();
     http.expectOne('/api/v1/files/8').flush(new Blob(['RIFF'], { type: 'audio/wav' }));
     await vi.waitFor(() => expect(play).toHaveBeenCalledTimes(2), { timeout: 1000 });
     await fixture.whenStable();

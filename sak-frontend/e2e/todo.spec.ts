@@ -36,13 +36,13 @@ test('keeps a todo list, a done task in its place, purges the done ones', async 
   );
 
   // the purge can be undone
-  await page.getByRole('button', { name: /Remove done tasks/ }).click();
+  await page.getByRole('button', { name: /Delete done tasks/ }).click();
   await expect(tasks.getByText('Fix the door')).toBeHidden();
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(tasks.getByText('Fix the door')).toBeVisible();
 
   // once the undo ran out it is gone, also after a reload
-  await page.getByRole('button', { name: /Remove done tasks/ }).click();
+  await page.getByRole('button', { name: /Delete done tasks/ }).click();
   await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeHidden({
     timeout: 10_000,
   });

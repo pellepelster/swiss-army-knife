@@ -2,7 +2,7 @@
 settings:
   enabled:
     label: "KI-Funktionen"
-    description: "Lässt die Apps Daten an KI-Anbieter senden, zum Beispiel ein Foto oder eine Aufnahme, um ihren Text zu erkennen. Anbieter, die die Daten sammeln, werden nicht gefragt."
+    description: "Lässt die Apps Daten an KI-Anbieter senden, zum Beispiel ein Foto oder eine Aufnahme, um ihren Text zu erkennen. Anbieter, die die Daten sammeln, werden nicht genutzt."
   api_key:
     label: "API-Schlüssel"
     description: "Der Schlüssel des OpenRouter-Kontos für die KI-Funktionen."
@@ -11,10 +11,10 @@ settings:
     description: "Das Modell, das Text in Fotos erkennt."
   speech_model:
     label: "Sprachmodell"
-    description: "Das Modell, das Aufnahmen verschriftlicht."
+    description: "Das Modell, das Aufnahmen in Text umwandelt."
   label: "KI"
   description: "Alle KI-Funktionen einrichten"
 key_refused: "OpenRouter nimmt den API-Schlüssel nicht an."
-key_missing: "Die KI-Funktionen brauchen einen API-Schlüssel von OpenRouter, um eingeschaltet zu werden."
+key_missing: "Zum Einschalten der KI-Funktionen ist ein API-Schlüssel von OpenRouter nötig."
 key_unchecked: "Der API-Schlüssel konnte bei OpenRouter nicht geprüft werden, bitte versuche es später erneut."
 not_set_up: "Für diese SAK-Instanz ist keine KI eingerichtet."

@@ -143,7 +143,7 @@ class ApiTest {
             for (path in listOf("/api/large", "/plain/large")) {
                 val large = client.post(path)
                 large.status shouldBe HttpStatusCode.PayloadTooLarge
-                Json.decodeFromString<ApiErrorResponse>(large.bodyAsText()) shouldBe error("api.too_large_request", "The request body is too large.")
+                Json.decodeFromString<ApiErrorResponse>(large.bodyAsText()) shouldBe error("api.too_large_request", "The request is too large.")
             }
         }
 

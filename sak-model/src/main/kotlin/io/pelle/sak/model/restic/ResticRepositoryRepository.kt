@@ -21,7 +21,10 @@ data class ResticRepository(
     val id: Int,
     val resourceId: ResourceId,
     val owner: String,
+    // what the command line names it by, derived from the description when it was created
     val name: String,
+    // what the user reads
+    val description: String,
     val createdAt: Instant,
 )
 
@@ -60,12 +63,12 @@ class ResticRepositoryRepository(
 ) {
     private val resourceIds = ResourceIds(RESTIC_REPOSITORIES, RESTIC_REPOSITORIES.RESOURCE_ID, free, random)
 
-    // the repositories of the owner, by name
+    // the repositories of the owner, by description
     fun of(owner: String): List<ResticRepository> =
         database.dsl
             .selectFrom(RESTIC_REPOSITORIES)
             .where(RESTIC_REPOSITORIES.OWNER.eq(owner), RESTIC_REPOSITORIES.DELETED_AT.isNull)
-            .orderBy(RESTIC_REPOSITORIES.NAME)
+            .orderBy(RESTIC_REPOSITORIES.DESCRIPTION.collate("NOCASE"), RESTIC_REPOSITORIES.NAME)
             .fetch()
             .map { it.repository() }
 
@@ -99,18 +102,20 @@ class ResticRepositoryRepository(
     fun insertFirst(
         owner: String,
         name: String,
+        description: String,
         token: String,
-    ): ResticRepository? = firstOfOwner(database, RESTIC_REPOSITORIES, RESTIC_REPOSITORIES.OWNER, owner) { dsl -> insert(dsl, owner, name, token) }
+    ): ResticRepository? = firstOfOwner(database, RESTIC_REPOSITORIES, RESTIC_REPOSITORIES.OWNER, owner) { dsl -> insert(dsl, owner, name, description, token) }
 
     // the unique index of the owner and the name decides, so a repository created at the same time
     // is told apart
     fun insert(
         owner: String,
         name: String,
+        description: String,
         token: String,
     ): ResticRepositoryInsertResult =
         try {
-            ResticRepositoryInsertResult.Inserted(database.dsl.transactionResult { configuration -> insert(DSL.using(configuration), owner, name, token) })
+            ResticRepositoryInsertResult.Inserted(database.dsl.transactionResult { configuration -> insert(DSL.using(configuration), owner, name, description, token) })
         } catch (_: IntegrityConstraintViolationException) {
             ResticRepositoryInsertResult.NameTaken
         }
@@ -150,12 +155,14 @@ class ResticRepositoryRepository(
         dsl: DSLContext,
         owner: String,
         name: String,
+        description: String,
         token: String,
     ): ResticRepository =
         dsl
             .insertInto(RESTIC_REPOSITORIES)
             .set(RESTIC_REPOSITORIES.OWNER, owner)
             .set(RESTIC_REPOSITORIES.NAME, name)
+            .set(RESTIC_REPOSITORIES.DESCRIPTION, description)
             .set(RESTIC_REPOSITORIES.TOKEN, token)
             .set(RESTIC_REPOSITORIES.RESOURCE_ID, resourceIds.new(dsl).value)
             .set(RESTIC_REPOSITORIES.CREATED_AT, clock.instant())
@@ -163,5 +170,5 @@ class ResticRepositoryRepository(
             .fetchOne()!!
             .repository()
 
-    private fun ResticRepositoriesRecord.repository() = ResticRepository(id!!, ResourceId(resourceId!!), owner!!, name!!, createdAt!!)
+    private fun ResticRepositoriesRecord.repository() = ResticRepository(id!!, ResourceId(resourceId!!), owner!!, name!!, description!!, createdAt!!)
 }

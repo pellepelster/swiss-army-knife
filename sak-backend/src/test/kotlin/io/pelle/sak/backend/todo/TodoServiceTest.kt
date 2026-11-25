@@ -52,7 +52,7 @@ class TodoServiceTest {
     fun `a user who never had a list gets a private first list in their language at the sign-in, once (LIST-1)`() {
         service.signedIn(PELLE, Language.DE)
         service.signedIn(PELLE, Language.EN)
-        service.lists(PELLE).map { it.name to it.shared } shouldBe listOf("Meine Todos" to false)
+        service.lists(PELLE).map { it.name to it.shared } shouldBe listOf("Meine Aufgaben" to false)
 
         // the shared lists of others do not count, a deleted list does not come back
         list(OTHER, "Team", shared = true)

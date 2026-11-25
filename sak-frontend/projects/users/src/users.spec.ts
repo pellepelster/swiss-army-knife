@@ -52,15 +52,15 @@ describe('Users', () => {
       ),
     );
     expect(rows).toEqual([
-      ['admin@example.org', '–', 'admin'],
-      ['anna@example.org', 'Anna', 'user'],
-      ['bob@example.org', '–', 'user'],
+      ['admin@example.org', '–', 'Admin'],
+      ['anna@example.org', 'Anna', 'User'],
+      ['bob@example.org', '–', 'User'],
     ]);
     // an admin is in the configuration, its delete says so (UX-8)
     const menu = await rowMenu('admin@example.org');
     expect(button('Delete', menu).disabled).toBe(true);
     expect(button('Delete', menu).title).toBe('Set by the configuration of the SAK instance');
-    expect(button('Create user').getAttribute('href')).toBe('/users/create');
+    expect(button('Add user').getAttribute('href')).toBe('/users/create');
   });
 
   it('deletes a user from the menu of its row after a confirmation, keep is the way back', async () => {
@@ -118,19 +118,19 @@ describe('Users', () => {
     const group = page().querySelector('form [role=group][aria-label="Actions of the form"]')!;
     expect(
       [...group.querySelectorAll('a, button')].map((each) => each.textContent!.trim()),
-    ).toEqual(['Cancel', 'Create user']);
+    ).toEqual(['Cancel', 'Add user']);
     await type('user-email', 'anna');
     // no error while typing
     expect(input('user-email').classList.contains('is-invalid')).toBe(false);
     input('user-email').dispatchEvent(new Event('blur'));
     await harness.fixture.whenStable();
     expect(input('user-email').classList.contains('is-invalid')).toBe(true);
-    expect(button('Create user').disabled).toBe(true);
+    expect(button('Add user').disabled).toBe(true);
 
     await type('user-email', ' anna@example.org ');
     expect(input('user-email').classList.contains('is-invalid')).toBe(false);
     await type('user-name', ' Anna ');
-    button('Create user').click();
+    button('Add user').click();
     const request = http.expectOne({ method: 'POST', url: '/api/v1/users' });
     expect(request.request.body).toEqual({ email: 'anna@example.org', name: 'Anna' });
     request.flush(anna, { status: 201, statusText: 'Created' });
@@ -144,16 +144,16 @@ describe('Users', () => {
     input('user-email').value = 'admin@example.org';
     input('user-email').dispatchEvent(new Event('input'));
     await harness.fixture.whenStable();
-    button('Create user').click();
+    button('Add user').click();
     http.expectOne({ method: 'POST', url: '/api/v1/users' }).flush(
       {
-        errors: [{ message: 'The address is an admin, it is no user to add.' }],
+        errors: [{ message: 'This address belongs to an admin, it cannot be added as a user.' }],
       },
       { status: 409, statusText: 'Conflict' },
     );
     await harness.fixture.whenStable();
     expect(page().querySelector('[data-testid=add-error]')?.textContent).toContain(
-      'The address is an admin',
+      'This address belongs to an admin',
     );
   });
 });

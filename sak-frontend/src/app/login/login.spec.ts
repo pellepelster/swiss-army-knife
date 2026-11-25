@@ -95,7 +95,7 @@ describe('Login', () => {
       .flush(null, { status: 429, statusText: 'Too Many Requests' });
     await harness.fixture.whenStable();
 
-    expect(page.querySelector('[role=alert]')?.textContent).toContain('Too many login attempts');
+    expect(page.querySelector('[role=alert]')?.textContent).toContain('Too many sign-in attempts');
   });
 
   it('shows the e-mail login with a link to the password login in the multi user mode', async () => {

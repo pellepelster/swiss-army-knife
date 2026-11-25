@@ -377,7 +377,7 @@ class TodoModelTest {
 
             model.purge()
             assertEquals(listOf("Paint the fence"), model.titles())
-            assertEquals("Done tasks removed", model.lists().undo?.text.english())
+            assertEquals("Done tasks deleted", model.lists().undo?.text.english())
             model.undo()
             advanceUntilIdle()
             assertEquals(listOf("Fix the door", "Paint the fence"), model.titles())
@@ -426,7 +426,7 @@ class TodoModelTest {
             advanceUntilIdle()
             model.purge()
             advanceUntilIdle()
-            assertEquals("The done tasks could not be removed.", model.lists().error.english())
+            assertEquals("The done tasks could not be deleted.", model.lists().error.english())
             assertEquals(listOf("Fix the door"), model.titles())
         }
 

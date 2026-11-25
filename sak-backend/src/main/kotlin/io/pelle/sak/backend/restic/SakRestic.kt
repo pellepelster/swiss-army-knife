@@ -30,6 +30,7 @@ import io.pelle.sak.api.idParameter
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
+import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.core.RateLimiter
 import io.pelle.sak.api.clientNetwork
@@ -75,7 +76,7 @@ fun resticUrl(
 private fun ResticRepository.response(
     apiHost: String,
     usage: Long,
-) = ResticRepositoryResponse(id, name, resticUrl(apiHost, id), usage, createdAt.apiTime())
+) = ResticRepositoryResponse(id, name, description, resticUrl(apiHost, id), usage, createdAt.apiTime())
 
 private fun ResticBackupPlan.response() =
     ResticBackupPlanResponse(
@@ -252,17 +253,25 @@ fun Route.restic(
 
         post {
             val request = call.receive<ResticRepositoryRequest>()
-            when (val created = withContext(Dispatchers.IO) { service.create(call.owner, request.name) }) {
+            val description = request.description ?: request.name
+            if (description == null) {
+                call.respondErrors(ErrorMessage(ResticTexts.INVALID_DESCRIPTION, "max" to ResticRepositoryService.MAX_DESCRIPTION))
+                return@post
+            }
+            when (val created = withContext(Dispatchers.IO) { service.create(call.owner, description) }) {
                 is ResticRepositoryCreateResult.Created -> call.respond(HttpStatusCode.Created, created.repository.response(apiHost, withContext(Dispatchers.IO) { service.usage(created.repository) }))
                 is ResticRepositoryCreateResult.Invalid -> call.respondErrors(created.errors)
-                ResticRepositoryCreateResult.Exists -> call.respondErrors(ResticTexts.REPOSITORY_EXISTS, status = HttpStatusCode.Conflict)
+                is ResticRepositoryCreateResult.Exists ->
+                    call.respondErrors(ErrorMessage(ResticTexts.REPOSITORY_EXISTS, "name" to created.name), status = HttpStatusCode.Conflict)
             }
         }.describe {
             tag(RESTIC_TAG)
             summary = "Create a repository of restic"
             description =
                 "A repository the instance keeps and serves with the REST protocol of restic, with a new token as its only " +
-                "login. restic initializes it (restic init) with a password the instance never gets."
+                "login. Its name, what the command line takes, is derived from the description: lower case, umlauts " +
+                "written out, a-z, 0-9, - and _. Neither changes afterwards. restic initializes it (restic init) with a " +
+                "password the instance never gets."
             requestBody {
                 required = true
                 schema = jsonSchema<ResticRepositoryRequest>()
@@ -272,8 +281,8 @@ fun Route.restic(
                     description = "The new repository"
                     schema = jsonSchema<ResticRepositoryResponse>()
                 }
-                errors(HttpStatusCode.BadRequest, "An invalid name, or a malformed request")
-                errors(HttpStatusCode.Conflict, "The user has a repository of the name")
+                errors(HttpStatusCode.BadRequest, "An invalid description, one that gives no name, or a malformed request")
+                errors(HttpStatusCode.Conflict, "The user has a repository of the name the description gives")
             }
         }
 

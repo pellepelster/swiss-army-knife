@@ -75,7 +75,9 @@ describe('AppDownload', () => {
     http.expectOne('/api/v1/info').flush(info(null));
     await harness.fixture.whenStable();
     expect(page.load).not.toHaveBeenCalled();
-    expect(text()).toContain('This SAK instance runs no release, there is no app to download.');
+    expect(text()).toContain(
+      'This SAK instance does not run a release, so there is no app to download.',
+    );
   });
 
   it('says when the version could not be loaded and links the releases', async () => {

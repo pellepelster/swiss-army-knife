@@ -613,7 +613,7 @@ mod tests {
             lines[0],
             "A reboot of alpha is pending: kernel 6.12.38 → 6.12.41."
         );
-        assert_eq!(lines[1], "Services on old libraries: dbus.service");
+        assert_eq!(lines[1], "Services using old libraries: dbus.service");
         assert_eq!(lines.last().unwrap(), "openssl 3.5.1-1 → 3.5.4-1");
 
         let update = UpdateResult {

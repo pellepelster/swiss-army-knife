@@ -54,7 +54,7 @@ describe('Home', () => {
       ['Notes', '/notes'],
       ['Grocery', '/grocery'],
       ['Todo', '/todo'],
-      ['Backups', '/backups'],
+      ['Restic Backups', '/backups'],
       ['Static hosting', '/static-hosting'],
       ['Redirects', '/redirects'],
     ]);
@@ -139,7 +139,7 @@ describe('Home', () => {
       ['Notes', '/notes'],
       ['Grocery', '/grocery'],
       ['Todo', '/todo'],
-      ['Backups', '/backups'],
+      ['Restic Backups', '/backups'],
       ['Static hosting', null],
       ['Redirects', null],
     ]);
@@ -153,7 +153,7 @@ describe('Home', () => {
     ]);
     expect(
       page.querySelector('nav[aria-label="Maintenance"] [aria-disabled]')?.getAttribute('title'),
-    ).toBe('Only for an admin');
+    ).toBe('Only for admins');
   });
 
   it('disables the users in the single user mode, they sign in by e-mail', async () => {

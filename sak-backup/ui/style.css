@@ -403,3 +403,14 @@
 .excludes-dialog .form-buttons {
   justify-content: space-between;
 }
+
+/* the size of a repository, at the right of its row in front of its menu, as big as in the web app */
+.row-size {
+  font-size: 1.25rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.row-actions:has(> .row-size) {
+  align-self: center;
+}

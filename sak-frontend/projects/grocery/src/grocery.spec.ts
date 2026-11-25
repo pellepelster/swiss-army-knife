@@ -290,11 +290,13 @@ describe('Grocery', () => {
     // the first can not go up, the last not down, each says why (UX-8, UX-12)
     expect((await menuEntry('Fruit & vegetables', 'Move up')).disabled).toBe(true);
     expect((await menuEntry('Fruit & vegetables', 'Move up')).title).toBe(
-      'The category is the first.',
+      'The category is already at the top.',
     );
     expect((await menuEntry('Fruit & vegetables', 'Move down')).disabled).toBe(false);
     expect((await menuEntry('Dairy & eggs', 'Move down')).disabled).toBe(true);
-    expect((await menuEntry('Dairy & eggs', 'Move down')).title).toBe('The category is the last.');
+    expect((await menuEntry('Dairy & eggs', 'Move down')).title).toBe(
+      'The category is already at the bottom.',
+    );
     // each row has a grip to drag it by, named for a screen reader; no arrows in the row
     expect(
       page().querySelector(
@@ -456,9 +458,7 @@ describe('Grocery', () => {
     // the delete of a row waits until the changes are saved (UX-8)
     const menu = await rowMenu('Dairy & eggs');
     expect(button('Delete', menu).disabled).toBe(true);
-    expect(button('Delete', menu).title).toBe(
-      'Wait until the changes of the categories are saved.',
-    );
+    expect(button('Delete', menu).title).toBe('Wait until the categories are saved.');
 
     http
       .expectOne({ method: 'PUT', url: '/api/v1/grocery/lists/1/categories/12' })
@@ -712,7 +712,7 @@ describe('Grocery', () => {
     // the Rename of the item renamed is disabled and says why (UX-12)
     const renameEntry = button('Rename', page().querySelector('[data-testid=item-2]')!);
     expect(renameEntry.disabled).toBe(true);
-    expect(renameEntry.title).toBe('The name is changed in its row.');
+    expect(renameEntry.title).toBe('Change the name in its row.');
     field(2).value = 'Milch';
     field(2).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await harness.fixture.whenStable();
@@ -1148,7 +1148,7 @@ describe('Grocery', () => {
     await flushItems(1, [{ ...item(2, 'Garlic', null), amount: 3, unit: 'clove' }]);
   });
 
-  const robotLabel = 'Add items from a photo, read by the AI features at OpenRouter';
+  const robotLabel = 'Add items from a photo, read by AI at OpenRouter';
 
   it('the robot reads items in a photo only with the AI features turned on (GROCERY-16)', async () => {
     await load([defaultList], []);
@@ -1315,7 +1315,7 @@ describe('Grocery', () => {
     });
     expect(rowField(0, '[id^=discovered-name]').value).toBe('Mehl');
     expect(page().querySelector('[data-testid=discovered] [role=alert]')?.textContent).toContain(
-      'Not every item could be added.',
+      'Not all items could be added.',
     );
     await flushItems(1, [item(31, 'Salz', null)]);
 
@@ -1332,7 +1332,7 @@ describe('Grocery', () => {
     const panel = await discovered();
     // only the warning, no card around it
     expect(panel.classList).toContain('alert-warning');
-    expect(panel.textContent).toContain('Unable to detect grocery items in the photo.');
+    expect(panel.textContent).toContain('No items were found in the photo.');
     expect(panel.querySelector('h2')).toBeNull();
     expect(button('Add to the list', panel)).toBeUndefined();
     expect(button('Cancel', panel)).toBeUndefined();
@@ -1424,7 +1424,7 @@ describe('Grocery', () => {
     await overview([defaultList, party, weekly]);
     const menu = await rowMenu('Party');
     expect(button('Delete', menu).disabled).toBe(true);
-    expect(button('Delete', menu).title).toBe('Only the owner of a list deletes it.');
+    expect(button('Delete', menu).title).toBe('Only the owner of a list can delete it.');
     expect(button('Delete', await rowMenu('Weekly')).disabled).toBe(false);
 
     await deleteFromRow('Weekly');
@@ -1556,16 +1556,16 @@ describe('Grocery', () => {
     // the name, the switch and the delete stay in their place, disabled, and say why (UX-8)
     const name = page().querySelector<HTMLInputElement>('#list-name')!;
     expect(name.disabled).toBe(true);
-    expect(name.title).toBe('Only the owner of a list renames, shares or unshares it.');
+    expect(name.title).toBe('Only the owner of a list can rename, share or unshare it.');
     const shared = page().querySelector<HTMLInputElement>('#list-shared')!;
     expect(shared.checked).toBe(true);
     expect(shared.disabled).toBe(true);
-    expect(shared.title).toBe('Only the owner of a list renames, shares or unshares it.');
+    expect(shared.title).toBe('Only the owner of a list can rename, share or unshare it.');
     expect(page().querySelector('[data-testid=shared-hint]')?.textContent?.trim()).toBe(
-      'Only the owner of a list renames, shares or unshares it. Only the owner of a list deletes it.',
+      'Only the owner of a list can rename, share or unshare it. Only the owner of a list can delete it.',
     );
     expect(button('Delete list').disabled).toBe(true);
-    expect(button('Delete list').title).toBe('Only the owner of a list deletes it.');
+    expect(button('Delete list').title).toBe('Only the owner of a list can delete it.');
 
     // a category of the list changes as on an own list
     expect(page().querySelector('input[aria-label="Name of Fruit & vegetables"]')).not.toBeNull();

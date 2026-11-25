@@ -144,7 +144,7 @@ class ConnectTest {
             clock.now = clock.now.plus(Duration.ofMinutes(2)).plusSeconds(1)
             client.exchange(tokenOf(body.string("link"))).let {
                 it.status shouldBe HttpStatusCode.Unauthorized
-                it.bodyAsText() shouldBe """{"errors":[{"code":"auth.code_invalid","message":"The QR code is not valid, or it was used or expired. Show a new one."}]}"""
+                it.bodyAsText() shouldBe """{"errors":[{"code":"auth.code_invalid","message":"The QR code is invalid, expired or was already used. Show a new one."}]}"""
             }
             client.get("/api/v1/auth/connect/${body.string("id")}") { bearerAuth(session(USER)) }.status shouldBe HttpStatusCode.NotFound
         }

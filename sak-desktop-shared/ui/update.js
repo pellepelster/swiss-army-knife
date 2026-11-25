@@ -1,6 +1,7 @@
 // the footer of the window of a desktop app, which this module makes (<footer class="app-footer"> with
 // #update-version, #update-button and #update-status, update.css): the version of the app and one button for the steps
-// of an update: check, install, restart. Only a click asks the receiver, the line names it first. The
+// of an update: check, install, restart. Only a click asks the receiver; the line says what a step does
+// while it runs, and the result of a check for 10 seconds. The
 // commands version, check_update and install_update are the ones of sak-desktop-shared (update.rs),
 // restart is the app's own
 import { $, element, invoke, setFailure, setStatus, text } from './views.js';
@@ -19,8 +20,13 @@ let app = '';
 let receiver = '';
 let step = 'check';
 let newest = null;
+// the result of a check goes after a while, the button says what is next
+const RESULT_SECONDS = 10;
+let clearing = null;
 
-function show(next, message, { busy = false, failed = false } = {}) {
+function show(next, message, { busy = false, failed = false, transient = false } = {}) {
+  clearTimeout(clearing);
+  clearing = null;
   step = next;
   button.textContent = {
     check: text('ui.update.check'),
@@ -32,6 +38,12 @@ function show(next, message, { busy = false, failed = false } = {}) {
   button.disabled = busy;
   (failed ? setFailure : setStatus)(status, message);
   status.title = message;
+  if (transient) {
+    clearing = setTimeout(() => {
+      setStatus(status, '');
+      status.title = '';
+    }, RESULT_SECONDS * 1000);
+  }
 }
 
 async function check() {
@@ -39,9 +51,9 @@ async function check() {
   try {
     const answer = await invoke('check_update');
     newest = answer.newest;
-    show(newest ? 'install' : 'check', answer.message);
+    show(newest ? 'install' : 'check', answer.message, { transient: true });
   } catch (error) {
-    show('check', String(error), { failed: true });
+    show('check', String(error), { failed: true, transient: true });
   }
 }
 
@@ -78,7 +90,7 @@ export async function showVersion() {
     app = answer.app;
     receiver = answer.receiver;
     $('update-version').textContent = text('ui.update.version', { app, version: answer.version });
-    show('check', text('ui.update.idle', { app, receiver }));
+    show('check', '');
   } catch (error) {
     button.disabled = true;
     setFailure(status, String(error));

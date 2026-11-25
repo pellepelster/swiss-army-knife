@@ -2,7 +2,7 @@
 settings:
   enabled:
     label: "AI features"
-    description: "Lets the apps send data to AI providers, for example a photo or a recording to discover its text. Providers that collect the data are not asked."
+    description: "Lets the apps send data to AI providers, for example a photo or a recording to discover its text. Providers that collect the data are not used."
   api_key:
     label: "API key"
     description: "The key of the OpenRouter account to use for AI features."

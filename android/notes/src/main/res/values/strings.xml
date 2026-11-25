@@ -47,7 +47,7 @@
     <string name="notes_recordings_full">A note has at most %1$s recordings.</string>
     <string name="notes_photo_removed">Photo %1$s removed</string>
     <string name="notes_recording_removed">Recording %1$s removed</string>
-    <string name="notes_recording_longest">The recording stopped after %1$s minutes, the longest a recording is.</string>
+    <string name="notes_recording_longest">The recording stopped after %1$s minutes, the longest a recording can be.</string>
     <string name="notes_dismiss">Close the message</string>
     <string name="notes_deleting">Deleting…</string>
     <string name="notes_photos">Photos</string>

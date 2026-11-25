@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- the texts of the app in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
 <resources>
-    <string name="grocery_only_owner_shares">Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf.</string>
+    <string name="grocery_only_owner_shares">Nur der Besitzer einer Liste kann sie umbenennen, teilen oder das Teilen beenden.</string>
     <string name="grocery_lists_to_buy_none">Keine Artikel zu kaufen</string>
     <string name="grocery_photo_attach">Foto anhängen</string>
     <string name="grocery_photo_replace">Foto ersetzen</string>
@@ -16,7 +16,7 @@
     <string name="grocery_list_items_not_loaded">Die Artikel konnten nicht geladen werden.</string>
     <string name="grocery_list_category">Kategorie</string>
     <string name="grocery_list_not_deleted">Der Artikel konnte nicht gelöscht werden.</string>
-    <string name="grocery_list_show_bought">Gekaufte Artikel zeigen</string>
+    <string name="grocery_list_show_bought">Gekaufte Artikel anzeigen</string>
     <string name="grocery_list_not_renamed">Der Artikel konnte nicht umbenannt werden.</string>
     <string name="grocery_list_rename">Umbenennen</string>
     <string name="grocery_quantity_label">Menge</string>
@@ -26,7 +26,7 @@
     <string name="grocery_quantity_no_unit">Keine Einheit</string>
     <string name="grocery_quantity_invalid">Gib eine positive Zahl mit höchstens 3 Nachkommastellen ein.</string>
     <string name="grocery_quantity_not_saved">Die Menge konnte nicht gespeichert werden.</string>
-    <string name="grocery_quantity_editing">Die Menge wird in ihrer Zeile geändert.</string>
+    <string name="grocery_quantity_editing">Ändere die Menge direkt in der Zeile.</string>
     <string name="grocery_quantity_units_g">g</string>
     <string name="grocery_quantity_units_kg">kg</string>
     <string name="grocery_quantity_units_ml">ml</string>
@@ -38,15 +38,15 @@
     <string name="grocery_quantity_units_can">Dose</string>
     <string name="grocery_quantity_units_bunch">Bund</string>
     <string name="grocery_quantity_units_piece">Stück</string>
-    <string name="grocery_discover_label">Artikel aus einem Foto hinzufügen, gelesen von den KI-Funktionen bei OpenRouter</string>
-    <string name="grocery_discover_reading">Das Foto wird gelesen…</string>
-    <string name="grocery_discover_title">Artikel im Foto</string>
+    <string name="grocery_discover_label">Artikel aus einem Foto hinzufügen (erkannt von KI bei OpenRouter)</string>
+    <string name="grocery_discover_reading">Foto wird gelesen…</string>
+    <string name="grocery_discover_title">Artikel auf dem Foto</string>
     <string name="grocery_discover_hint">Korrigiere die Artikel und lass die weg, die du nicht kaufen willst.</string>
-    <string name="grocery_discover_none">Im Foto konnten keine Artikel erkannt werden.</string>
+    <string name="grocery_discover_none">Auf dem Foto wurden keine Artikel erkannt.</string>
     <string name="grocery_discover_include">%1$s hinzufügen</string>
     <string name="grocery_discover_name_of">Name von Artikel %1$s</string>
     <string name="grocery_discover_add">Zur Liste hinzufügen</string>
-    <string name="grocery_discover_not_all_added">Nicht jeder Artikel konnte hinzugefügt werden.</string>
+    <string name="grocery_discover_not_all_added">Nicht alle Artikel konnten hinzugefügt werden.</string>
     <string name="grocery_categories_title">Kategorien</string>
     <string name="grocery_categories_none">Die Liste hat noch keine Kategorien.</string>
     <string name="grocery_categories_new">Neue Kategorie</string>
@@ -62,7 +62,7 @@
     <string name="grocery_category_of">Kategorie von %1$s</string>
     <string name="grocery_category_icon">Icon von %1$s</string>
     <string name="grocery_category_name_invalid">Ein Kategoriename muss 1 bis 32 Zeichen haben.</string>
-    <string name="grocery_category_not_set">Die Kategorie des Artikels konnte nicht gesetzt werden.</string>
+    <string name="grocery_category_not_set">Die Kategorie des Artikels konnte nicht geändert werden.</string>
     <string name="grocery_suggestions">Vorschläge</string>
     <string name="grocery_category_drag">Ziehen, um %1$s zu verschieben</string>
     <string name="grocery_categories_retry">Erneut laden</string>

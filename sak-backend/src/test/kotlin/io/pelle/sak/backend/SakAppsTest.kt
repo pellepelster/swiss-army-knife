@@ -443,7 +443,7 @@ class SakAppsTest {
 
             create("""{"sourceDomain":"example.com","target":{"type":"domain","domain":"example.net"}}""").let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"code":"redirects.exists","message":"A redirect of this domain already exists."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"redirects.exists","message":"A redirect for this domain already exists."}]}"""
             }
             create("""{"sourceDomain":""").let {
                 it.statusCode() shouldBe 400
@@ -538,11 +538,11 @@ class SakAppsTest {
             // an admin of the configuration is no user to add
             post(port, "/api/v1/users", """{"email":"SECOND@example.org"}""", admin).let {
                 it.statusCode() shouldBe 409
-                it.body() shouldBe """{"errors":[{"code":"users.is_admin","message":"The address is an admin, it is no user to add."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"users.is_admin","message":"This address belongs to an admin, it cannot be added as a user."}]}"""
             }
             post(port, "/api/v1/users", """{"email":"nobody"}""", admin).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"code":"users.invalid_email","message":"An e-mail address like name@example.org is needed."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"users.invalid_email","message":"Enter an e-mail address like name@example.org."}]}"""
             }
             val users = get(port, "/api/v1/users", admin).json().getValue("items").jsonArray.map { it.jsonObject }
             users.map { it.string("email") } shouldBe listOf("admin@example.org", "second@example.org", "anna@example.org")
@@ -684,21 +684,34 @@ class SakAppsTest {
             get(port, "/api/v1/restic/repositories").statusCode() shouldBe 401
             // the sign-in made the first repository (BACKUP-7)
             fun repositories(session: String) = get(port, "/api/v1/restic/repositories", session).json().getValue("items").jsonArray.map { it.jsonObject }
-            repositories(admin).map { it.string("name") } shouldBe listOf("my-backups")
+            repositories(admin).map { it.string("name") to it.string("description") } shouldBe listOf("my-backups" to "My Backups")
+            // the name is derived from the description (BACKUP-1)
             val id =
-                post(port, "/api/v1/restic/repositories", """{"name":"laptop"}""", admin).let {
+                post(port, "/api/v1/restic/repositories", """{"description":"Laptop"}""", admin).let {
                     it.statusCode() shouldBe 201
                     it.body() shouldNotContain "token"
+                    it.json().string("name") shouldBe "laptop"
+                    it.json().string("description") shouldBe "Laptop"
                     it.json().string("url") shouldMatch Regex("rest:https://api\\.[^/]+/restic/\\d+/")
                     it.json().string("id")
                 }
-            post(port, "/api/v1/restic/repositories", """{"name":"laptop"}""", admin).statusCode() shouldBe 409
-            post(port, "/api/v1/restic/repositories", """{"name":"Laptop!"}""", admin).let {
-                it.statusCode() shouldBe 400
-                it.body() shouldContain "restic.invalid_name"
+            post(port, "/api/v1/restic/repositories", """{"description":"laptop!"}""", admin).let {
+                it.statusCode() shouldBe 409
+                it.body() shouldBe """{"errors":[{"code":"restic.repository_exists","message":"A repository with the name laptop already exists."}]}"""
             }
-            // the same name for another user, each sees their own only
-            post(port, "/api/v1/restic/repositories", """{"name":"laptop"}""", second).statusCode() shouldBe 201
+            post(port, "/api/v1/restic/repositories", """{"description":"!!!"}""", admin).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "restic.no_name"
+            }
+            post(port, "/api/v1/restic/repositories", "{}", admin).let {
+                it.statusCode() shouldBe 400
+                it.body() shouldContain "restic.invalid_description"
+            }
+            // the same name for another user, each sees their own only; sakbackup 0.1.76 sends a name
+            post(port, "/api/v1/restic/repositories", """{"name":"laptop"}""", second).let {
+                it.statusCode() shouldBe 201
+                it.json().string("description") shouldBe "laptop"
+            }
             repositories(admin).map { it.string("name") }.toSet() shouldBe setOf("laptop", "my-backups")
             repositories(second).map { it.string("id") } shouldNotContain id
             get(port, "/api/v1/restic/repositories/$id/token", admin).let {
@@ -1132,7 +1145,7 @@ class SakAppsTest {
             uploaded.json().string("contentType") shouldBe "image/jpeg"
             upload("<script>".toByteArray()).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"code":"files.unsupported_type","message":"Only JPEG, PNG, GIF and WebP images and WAV recordings can be stored."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"files.unsupported_type","message":"Only images (JPEG, PNG, GIF, WebP) and recordings (WAV) can be stored."}]}"""
             }
             // a file of at most 10 MiB is stored, a recording of five minutes of the apps (9.6 MB) fits
             FileService.DEFAULT_MAX_SIZE shouldBe 10L * 1024 * 1024
@@ -1390,7 +1403,7 @@ class SakAppsTest {
 
             post(port, "/api/v1/auth/login/link", """{"email":"$email"}""").let {
                 it.statusCode() shouldBe 413
-                it.body() shouldBe """{"errors":[{"code":"api.too_large_request","message":"The request body is too large."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"api.too_large_request","message":"The request is too large."}]}"""
             }
             greenMail.waitForIncomingEmail(500, 1) shouldBe false
         }
@@ -1738,7 +1751,7 @@ class SakAppsTest {
             val session = signIn(port)
             get(port, "/api/v1/nothing-here", session).let {
                 it.statusCode() shouldBe 404
-                it.body() shouldBe """{"errors":[{"code":"api.not_found","message":"This does not exist, or you can not see it."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"api.not_found","message":"This does not exist, or you cannot see it."}]}"""
             }
             get(port, "/api/v1/notes/abc", session).body() shouldContain "api.not_found"
             // a list the body names that is not there (API-6)
@@ -1834,7 +1847,7 @@ class SakAppsTest {
                     it.string("value") shouldBe "false"
                     it.string("available") shouldBe "false"
                     it.string("unavailableReason") shouldBe "No AI is set up for this SAK instance."
-                    it.string("description") shouldBe "Discovers the text in a photo or a recording you choose using an external AI."
+                    it.string("description") shouldBe "Uses an external AI to discover the text in a photo or recording you choose."
                 }
                 put(port, "/api/v1/user/settings/notes", """{"ai":true}""", user).let {
                     it.statusCode() shouldBe 409
@@ -1937,7 +1950,7 @@ class SakAppsTest {
             // the models come from the configuration
             put(port, "/api/v1/settings/ai", """{"vision_model":"another/model"}""", session).let {
                 it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"code":"settings.read_only","message":"\"Vision model\" can not be changed."}]}"""
+                it.body() shouldBe """{"errors":[{"code":"settings.read_only","message":"\"Vision model\" cannot be changed."}]}"""
             }
             get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
 
@@ -1970,7 +1983,7 @@ class SakAppsTest {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe
                     """{"errors":[{"code":"settings.not_choice","message":"\"Region\" must be one of its choices."},""" +
-                    """{"code":"storage.bucket_invalid","message":"A bucket name has 3 to 63 characters: lower case letters, digits, hyphens and dots, with a letter or a digit at each end."}]}"""
+                    """{"code":"storage.bucket_invalid","message":"A bucket name has 3 to 63 characters: lower case letters, digits, hyphens and dots, starting and ending with a letter or digit."}]}"""
             }
 
             // the backups: kept in the S3 storage only with that turned on

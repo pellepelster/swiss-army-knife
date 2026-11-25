@@ -219,7 +219,7 @@ describe('Todo', () => {
       '[data-testid=item-10] [data-testid=rename]',
     )!;
     expect(entry.disabled).toBe(true);
-    expect(entry.title).toBe('The title is changed in its row.');
+    expect(entry.title).toBe('Change the title in its row.');
     field(10).value = 'Other';
     field(10).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await harness.fixture.whenStable();
@@ -448,7 +448,7 @@ describe('Todo', () => {
     expect(titles()).toEqual(['Paint the fence']);
     expect(purge().disabled).toBe(true);
     expect(purge().title).toBe('The list has no done tasks.');
-    expect(page().querySelector('[role=status]')?.textContent).toContain('Done tasks removed');
+    expect(page().querySelector('[role=status]')?.textContent).toContain('Done tasks deleted');
     button('Undo').click();
     await harness.fixture.whenStable();
     expect(titles()).toEqual(['Fix the door', 'Paint the fence']);
@@ -505,7 +505,7 @@ describe('Todo', () => {
     await flushItems(1, [done(task(10, 'Fix the door')), task(11, 'Paint the fence')]);
     http.expectNone({ method: 'POST' });
     expect(titles()).toEqual(['Paint the fence']);
-    expect(page().querySelector('[role=status]')?.textContent).toContain('Done tasks removed');
+    expect(page().querySelector('[role=status]')?.textContent).toContain('Done tasks deleted');
 
     button('Undo').click();
     await harness.fixture.whenStable();
@@ -537,13 +537,13 @@ describe('Todo', () => {
       .expectOne({ method: 'POST', url: '/api/v1/todo/lists/1/purge' })
       .flush(null, { status: 500, statusText: 'Server Error' });
     await flushItems(1, [done(task(10, 'Fix the door'))]);
-    expect(page().textContent).toContain('The done tasks could not be removed.');
+    expect(page().textContent).toContain('The done tasks could not be deleted.');
     expect(struck()).toEqual(['Fix the door']);
 
     // the next purge that goes through takes the error away
     page().querySelector<HTMLButtonElement>('[data-testid=purge]')!.click();
     await harness.fixture.whenStable();
-    expect(page().textContent).not.toContain('The done tasks could not be removed.');
+    expect(page().textContent).not.toContain('The done tasks could not be deleted.');
     vi.advanceTimersByTime(UNDO_DELETE_MS);
     http.expectOne({ method: 'POST', url: '/api/v1/todo/lists/1/purge' }).flush(null);
     await flushItems(1, []);

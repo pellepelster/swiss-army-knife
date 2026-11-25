@@ -41,12 +41,11 @@ import { BackupsService } from './backups.service';
             [attr.data-testid]="'repository-' + repository.name"
           >
             <div class="vstack gap-1 flex-grow-1 min-w-0">
-              <span class="fw-semibold text-break">{{ repository.name }}</span>
+              <span class="fw-semibold text-break" data-testid="description">{{
+                repository.description
+              }}</span>
               <span class="small text-body-secondary font-monospace text-break">{{
                 repository.url
-              }}</span>
-              <span class="small text-body-secondary">{{
-                'backups.list.created' | t: { date: date(repository.createdAt) }
               }}</span>
             </div>
             <span
@@ -56,9 +55,9 @@ import { BackupsService } from './backups.service';
               >{{ bytes(repository.size) }}</span
             >
             <app-action-menu
-              [name]="repository.name"
+              [name]="repository.description"
               deletes
-              (deleted)="delete(repository.id, repository.name)"
+              (deleted)="delete(repository.id, repository.description)"
             >
               <button
                 type="button"
@@ -117,11 +116,6 @@ export class RepositoryList {
 
   protected bytes(value: number): string {
     return formatBytes(value);
-  }
-
-  // in the locale of the user (UX-5)
-  protected date(value: string): string {
-    return new Date(value).toLocaleDateString();
   }
 
   // by the id of the repository

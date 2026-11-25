@@ -797,7 +797,7 @@ class NotesModelTest {
             assertEquals(now, model.notes().recordingSince)
             recorder.recording.complete(wav(ByteArray(RECORDING_RATE * 2 * MAX_RECORDING_SECONDS)))
             advanceUntilIdle()
-            assertEquals("The recording stopped after 5 minutes, the longest a recording is.", model.notes().notice.english())
+            assertEquals("The recording stopped after 5 minutes, the longest a recording can be.", model.notes().notice.english())
             assertNull(model.notes().recordingSince)
         }
 

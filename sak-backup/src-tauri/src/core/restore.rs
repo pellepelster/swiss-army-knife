@@ -83,6 +83,7 @@ mod tests {
             hostname: host.to_string(),
             paths: paths.iter().map(|path| path.to_string()).collect(),
             tags: tags.iter().map(|tag| tag.to_string()).collect(),
+            summary: None,
         }
     }
 

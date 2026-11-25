@@ -54,6 +54,17 @@ describe('DownloadPage', () => {
     ).toEqual(['Notes', 'Grocery', 'Todo', 'Restic Backup']);
     expect(page().querySelector('h2')).toBeNull();
     expect([...page().querySelectorAll('p')].length).toBe(0);
+    // what each app is for, as the home page says it
+    expect(
+      [...page().querySelectorAll('[data-testid=app-description]')].map((it) =>
+        it.textContent?.trim(),
+      ),
+    ).toEqual([
+      'Post-its from text, images or audio',
+      'Shopping lists, sharable or private',
+      'Tasks to accomplish, together or alone',
+      'Backs up your computer with restic',
+    ]);
     expect(page().textContent).not.toContain('Version');
     const release = 'https://github.com/pellepelster/swiss-army-knife/releases/download/v1.4.2';
     expect(files('notes')).toEqual([['Android', `${release}/sak-notes-1.4.2.apk`]]);
@@ -69,10 +80,32 @@ describe('DownloadPage', () => {
     expect(files('restic-backup')).toEqual([
       ['Windows', `${release}/sak-backup-windows-x86_64-1.4.2.zip`],
       ['macOS', `${release}/sak-backup-macos-universal-1.4.2.zip`],
-      ['Linux (deb)', `${release}/sak-backup-linux-x86_64-1.4.2.deb`],
-      ['Linux (rpm)', `${release}/sak-backup-linux-x86_64-1.4.2.rpm`],
-      ['Linux (AppImage)', `${release}/sak-backup-linux-x86_64-1.4.2.AppImage`],
+      ['deb (Debian, Ubuntu)', `${release}/sak-backup-linux-x86_64-1.4.2.deb`],
+      ['rpm (Fedora, openSUSE)', `${release}/sak-backup-linux-x86_64-1.4.2.rpm`],
+      ['AppImage', `${release}/sak-backup-linux-x86_64-1.4.2.AppImage`],
+      ['Program only (zip)', `${release}/sak-backup-linux-x86_64-1.4.2.zip`],
     ]);
+  });
+
+  it('offers the formats of Linux behind one button, its menu opens and closes', async () => {
+    http.expectOne('/api/v1/info').flush(info('1.4.2'));
+    await harness.fixture.whenStable();
+
+    const formats = page().querySelector('[data-testid=app-restic-backup] [data-testid=formats]')!;
+    const toggle = formats.querySelector<HTMLButtonElement>('button')!;
+    const menu = formats.querySelector('[role=menu]')!;
+    expect(toggle.textContent?.trim()).toBe('Linux');
+    expect(menu.classList).not.toContain('show');
+    toggle.click();
+    await harness.fixture.whenStable();
+    expect(menu.classList).toContain('show');
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    // a click elsewhere closes it
+    page()
+      .querySelector('h1')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await harness.fixture.whenStable();
+    expect(menu.classList).not.toContain('show');
   });
 
   it('a SAK instance without a release has no apps to download, it links the releases', async () => {
@@ -81,7 +114,7 @@ describe('DownloadPage', () => {
 
     expect(page().querySelector('[data-testid=file]')).toBeNull();
     expect(page().textContent).toContain(
-      'This SAK instance runs no release, there is no app to download.',
+      'This SAK instance does not run a release, so there is no app to download.',
     );
     expect(
       page().querySelector('a[href="https://github.com/pellepelster/swiss-army-knife/releases"]'),

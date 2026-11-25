@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- the texts of the app in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
 <resources>
-    <string name="todo_only_owner_shares">Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf.</string>
+    <string name="todo_only_owner_shares">Nur der Besitzer einer Liste kann sie umbenennen, teilen oder das Teilen beenden.</string>
     <string name="todo_lists_open_none">Keine offenen Aufgaben</string>
     <string name="todo_list_task">Aufgabe</string>
     <string name="todo_list_not_added">Die Aufgabe konnte nicht hinzugefügt werden.</string>
     <string name="todo_list_not_done">Die Aufgabe konnte nicht als erledigt markiert werden.</string>
     <string name="todo_list_items_not_loaded">Die Aufgaben konnten nicht geladen werden.</string>
-    <string name="todo_list_purge">Erledigte Aufgaben entfernen</string>
-    <string name="todo_list_purged">Erledigte Aufgaben entfernt</string>
+    <string name="todo_list_purge">Erledigte Aufgaben löschen</string>
+    <string name="todo_list_purged">Erledigte Aufgaben gelöscht</string>
     <string name="todo_list_nothing_to_purge">Die Liste hat keine erledigten Aufgaben.</string>
-    <string name="todo_list_not_purged">Die erledigten Aufgaben konnten nicht entfernt werden.</string>
+    <string name="todo_list_not_purged">Die erledigten Aufgaben konnten nicht gelöscht werden.</string>
     <string name="todo_list_priority_not_set">Die Priorität konnte nicht geändert werden.</string>
-    <string name="todo_list_renaming">Der Titel wird in seiner Zeile geändert.</string>
+    <string name="todo_list_renaming">Ändere den Titel direkt in der Zeile.</string>
     <string name="todo_list_rename">Umbenennen</string>
     <string name="todo_list_title_of">Titel von %1$s</string>
     <string name="todo_list_title_required">Eine Aufgabe braucht einen Titel.</string>

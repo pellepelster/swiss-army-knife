@@ -1,11 +1,11 @@
 # the texts of the catalog api in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 malformed_request: "The request is malformed."
-too_large_request: "The request body is too large."
+too_large_request: "The request is too large."
 unexpected_error: "Something went wrong, the request could not be answered."
 invalid_offset: "offset must be a number of at least 0."
 invalid_limit: "limit must be a number from 1 to %{max}."
 unauthorized: "Please sign in."
 forbidden: "Your role does not allow this."
-not_found: "This does not exist, or you can not see it."
+not_found: "This does not exist, or you cannot see it."
 too_many_requests: "Too many requests, please try again later."
 unavailable: "This is not available right now, please try again later."

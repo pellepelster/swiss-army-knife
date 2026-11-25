@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- the texts of the app in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
 <resources>
-    <string name="grocery_only_owner_shares">Only the owner of a list renames, shares or unshares it.</string>
+    <string name="grocery_only_owner_shares">Only the owner of a list can rename, share or unshare it.</string>
     <string name="grocery_lists_to_buy_none">No items to buy</string>
     <string name="grocery_photo_attach">Attach photo</string>
     <string name="grocery_photo_replace">Replace photo</string>
@@ -26,7 +26,7 @@
     <string name="grocery_quantity_no_unit">No unit</string>
     <string name="grocery_quantity_invalid">Type a positive number with at most 3 decimal places.</string>
     <string name="grocery_quantity_not_saved">The quantity could not be saved.</string>
-    <string name="grocery_quantity_editing">The quantity is changed in its row.</string>
+    <string name="grocery_quantity_editing">Change the quantity in its row.</string>
     <string name="grocery_quantity_units_g">g</string>
     <string name="grocery_quantity_units_kg">kg</string>
     <string name="grocery_quantity_units_ml">ml</string>
@@ -38,15 +38,15 @@
     <string name="grocery_quantity_units_can">can</string>
     <string name="grocery_quantity_units_bunch">bunch</string>
     <string name="grocery_quantity_units_piece">piece</string>
-    <string name="grocery_discover_label">Add items from a photo, read by the AI features at OpenRouter</string>
+    <string name="grocery_discover_label">Add items from a photo, read by AI at OpenRouter</string>
     <string name="grocery_discover_reading">Reading the photo…</string>
     <string name="grocery_discover_title">Items in the photo</string>
     <string name="grocery_discover_hint">Correct the items and leave out the ones not to buy.</string>
-    <string name="grocery_discover_none">Unable to detect grocery items in the photo.</string>
+    <string name="grocery_discover_none">No items were found in the photo.</string>
     <string name="grocery_discover_include">Add %1$s</string>
     <string name="grocery_discover_name_of">Name of item %1$s</string>
     <string name="grocery_discover_add">Add to the list</string>
-    <string name="grocery_discover_not_all_added">Not every item could be added.</string>
+    <string name="grocery_discover_not_all_added">Not all items could be added.</string>
     <string name="grocery_categories_title">Categories</string>
     <string name="grocery_categories_none">The list has no categories yet.</string>
     <string name="grocery_categories_new">New category</string>
@@ -63,7 +63,7 @@
     <string name="grocery_category_of">Category of %1$s</string>
     <string name="grocery_category_icon">Icon of %1$s</string>
     <string name="grocery_category_name_invalid">A category name must have 1 to 32 characters.</string>
-    <string name="grocery_category_not_set">The category of the item could not be set.</string>
+    <string name="grocery_category_not_set">The category of the item could not be changed.</string>
     <string name="grocery_suggestions">Suggestions</string>
     <string name="grocery_category_drag">Drag to move %1$s</string>
     <string name="grocery_categories_retry">Load again</string>

@@ -93,10 +93,14 @@ fn excludes() -> Value {
         ("host", json!(["annas-laptop"])),
         (
             "repositories",
-            json!([[{ "id": 1, "name": "my-backups", "url": "rest:https://api.example.org/restic/1/", "size": 0, "createdAt": "2026-11-23T08:00:00Z" }]]),
+            json!([[
+                { "id": 1, "name": "my-backups", "description": "My Backups", "url": "rest:https://api.example.org/restic/1/", "size": 1_288_490_189u64, "createdAt": "2026-11-23T08:00:00Z" },
+                { "id": 2, "name": "photos", "description": "Photos", "url": "rest:https://api.example.org/restic/2/", "size": 536_870_912u64, "createdAt": "2026-11-24T08:00:00Z" }
+            ]]),
         ),
         ("plans", json!([[plan.clone()]])),
         ("password_kept", json!([false])),
+        ("env_password_set", json!([false])),
         (
             "exclude_presets",
             json!([crate::core::presets::presets(

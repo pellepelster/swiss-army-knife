@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- the texts of the app in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit -->
 <resources>
-    <string name="todo_only_owner_shares">Only the owner of a list renames, shares or unshares it.</string>
+    <string name="todo_only_owner_shares">Only the owner of a list can rename, share or unshare it.</string>
     <string name="todo_lists_open_none">No open tasks</string>
     <string name="todo_list_task">Task</string>
     <string name="todo_list_not_added">The task could not be added.</string>
     <string name="todo_list_not_done">The task could not be marked done.</string>
     <string name="todo_list_items_not_loaded">The tasks could not be loaded.</string>
-    <string name="todo_list_purge">Remove done tasks</string>
-    <string name="todo_list_purged">Done tasks removed</string>
+    <string name="todo_list_purge">Delete done tasks</string>
+    <string name="todo_list_purged">Done tasks deleted</string>
     <string name="todo_list_nothing_to_purge">The list has no done tasks.</string>
-    <string name="todo_list_not_purged">The done tasks could not be removed.</string>
+    <string name="todo_list_not_purged">The done tasks could not be deleted.</string>
     <string name="todo_list_priority_not_set">The priority could not be changed.</string>
-    <string name="todo_list_renaming">The title is changed in its row.</string>
+    <string name="todo_list_renaming">Change the title in its row.</string>
     <string name="todo_list_rename">Rename</string>
     <string name="todo_list_title_of">Title of %1$s</string>
     <string name="todo_list_title_required">A task needs a title.</string>

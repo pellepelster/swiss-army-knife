@@ -1,10 +1,10 @@
 # the texts of the catalog users in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
-invalid_email: "Eine E-Mail-Adresse wie name@example.org ist nötig."
+invalid_email: "Gib eine E-Mail-Adresse wie name@example.org ein."
 invalid_name: "Ein Benutzername darf höchstens %{max} Zeichen und keine Steuerzeichen haben."
 exists: "Einen Benutzer mit dieser Adresse gibt es schon."
 not_a_user: "Diesen Benutzer gibt es nicht."
-no_mail_server: "Es ist kein Mailserver eingerichtet, es werden keine E-Mails verschickt."
-app_link_not_sent: "Die E-Mail konnte nicht verschickt werden, prüfe den Mailserver."
+no_mail_server: "Es ist kein Mailserver eingerichtet, es werden keine E-Mails gesendet."
+app_link_not_sent: "Die E-Mail konnte nicht gesendet werden, prüfe den Mailserver."
 app_link_subject: "Die Android-Apps von %{app}"
 app_link_body: |
   Hallo,
@@ -15,5 +15,5 @@ app_link_body: |
   Notizen: %{notes}
   Aufgabenlisten: %{todo}
 
-  Melde dich dann mit dieser E-Mail-Adresse darin an.
-is_admin: "Die Adresse ist ein Admin, sie ist kein Benutzer zum Hinzufügen."
+  Melde dich dort dann mit dieser E-Mail-Adresse an.
+is_admin: "Diese Adresse gehört einem Admin, sie kann nicht als Benutzer hinzugefügt werden."

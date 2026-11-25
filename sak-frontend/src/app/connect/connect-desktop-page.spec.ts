@@ -115,7 +115,7 @@ describe('ConnectDesktopPage', () => {
   it('shows a link that is not valid, without buttons', async () => {
     signedIn('desktop@example.org', ['user']);
     const { text, button } = await open('/connect-desktop?port=80');
-    expect(text('error')).toContain('not valid');
+    expect(text('error')).toContain('invalid');
     expect(button('Connect')).toBeUndefined();
   });
 

@@ -570,7 +570,7 @@ class GroceryModelTest {
             assertEquals(2, backend.requests.count { it.startsWith("POST /grocery/items") })
             val discovery = model.lists().discovery!!
             assertEquals(listOf("Sugar"), discovery.rows.map { it.name })
-            assertEquals("Not every item could be added.", discovery.error.english())
+            assertEquals("Not all items could be added.", discovery.error.english())
             assertFalse(discovery.adding)
             // the list shows the ones added
             assertEquals(2, backend.requests.count { it == "GET /grocery/lists/1/items" })

@@ -73,7 +73,8 @@ export async function showPlans() {
     create.removeAttribute('title');
     // without a repository there is nothing to back up into: disabled, never hidden (UX-8)
     if (repositories.length === 0) disable(create, text('ui.plans.no_repository'));
-    const names = new Map(repositories.map((each) => [each.id, each.name]));
+    // a repository by its description (BACKUP-1)
+    const names = new Map(repositories.map((each) => [each.id, each.description]));
     runButtons = [];
     list.replaceChildren(...plans.map((plan) => planRow(plan, names, repositories)));
     if (plans.length > 0) {

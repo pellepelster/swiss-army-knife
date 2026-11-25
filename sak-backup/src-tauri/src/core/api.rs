@@ -20,12 +20,15 @@ pub async fn repositories(sessions: &SessionManager) -> Result<Vec<Value>, ApiEr
     api::all(sessions, REPOSITORIES).await
 }
 
-pub async fn create_repository(sessions: &SessionManager, name: &str) -> Result<Value, ApiError> {
+pub async fn create_repository(
+    sessions: &SessionManager,
+    description: &str,
+) -> Result<Value, ApiError> {
     api::call(
         sessions,
         reqwest::Method::POST,
         REPOSITORIES,
-        Some(&json!({ "name": name })),
+        Some(&json!({ "description": description })),
     )
     .await
 }

@@ -1,5 +1,5 @@
 # the texts of the catalog users in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
-invalid_email: "An e-mail address like name@example.org is needed."
+invalid_email: "Enter an e-mail address like name@example.org."
 invalid_name: "A user name must have at most %{max} characters and no control characters."
 exists: "A user with this address already exists."
 not_a_user: "There is no such user."
@@ -16,4 +16,4 @@ app_link_body: |
   Todo lists: %{todo}
 
   Then sign in to them with this e-mail address.
-is_admin: "The address is an admin, it is no user to add."
+is_admin: "This address belongs to an admin, it cannot be added as a user."

@@ -21,6 +21,18 @@ pub struct Snapshot {
     pub paths: Vec<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    /// what restic 0.17 and later tell of the backup; none of an older restic
+    #[serde(default)]
+    pub summary: Option<SnapshotSummary>,
+}
+
+/// the summary of the backup of a snapshot, as far as the window shows it
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotSummary {
+    /// the bytes of the files backed up: what a restore of the snapshot writes
+    #[serde(alias = "total_bytes_processed")]
+    pub total_bytes_processed: u64,
 }
 
 /// the snapshots of a repository; none for one restic has not initialized yet, without asking
@@ -187,9 +199,29 @@ mod tests {
                 hostname: "annas-laptop".to_string(),
                 paths: vec!["/home/anna/Documents".to_string()],
                 tags: vec![],
+                summary: None,
             }]
         );
         assert_eq!(parse("[]").unwrap(), vec![]);
+    }
+
+    #[test]
+    fn the_size_of_the_files_comes_with_the_summary_of_restic_0_17() {
+        let json = r#"[{"time":"2026-11-21T00:03:49+01:00","paths":["/a"],"hostname":"h","id":"f7dfa4f1aa",
+            "short_id":"f7dfa4f1","summary":{"backup_start":"2026-11-21T00:03:40+01:00","files_new":3,
+            "total_files_processed":3,"total_bytes_processed":1288490189,"data_added_packed":4096}}]"#;
+        let snapshot = &parse(json).unwrap()[0];
+        assert_eq!(
+            snapshot.summary,
+            Some(SnapshotSummary {
+                total_bytes_processed: 1_288_490_189
+            })
+        );
+        // to the window in its own names
+        assert_eq!(
+            serde_json::to_value(snapshot).unwrap()["summary"],
+            serde_json::json!({ "totalBytesProcessed": 1_288_490_189u64 })
+        );
     }
 
     #[test]

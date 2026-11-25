@@ -30,9 +30,9 @@ pub async fn repositories(sessions: State<'_, SessionManager>) -> Result<Vec<Val
 #[tauri::command]
 pub async fn create_repository(
     sessions: State<'_, SessionManager>,
-    name: String,
+    description: String,
 ) -> Result<Value, ApiError> {
-    api::create_repository(&sessions, &name).await
+    api::create_repository(&sessions, &description).await
 }
 
 #[tauri::command]
@@ -65,7 +65,10 @@ pub async fn delete_plan(sessions: State<'_, SessionManager>, id: u32) -> Result
 
 /// a soft delete of a repository of the user with its backup plans of every computer (BACKUP-9)
 #[tauri::command]
-pub async fn delete_repository(sessions: State<'_, SessionManager>, id: u32) -> Result<(), ApiError> {
+pub async fn delete_repository(
+    sessions: State<'_, SessionManager>,
+    id: u32,
+) -> Result<(), ApiError> {
     api::delete_repository(&sessions, u64::from(id)).await
 }
 

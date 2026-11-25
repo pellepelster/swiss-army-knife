@@ -336,6 +336,29 @@ class SakDatabaseTest {
     }
 
     @Test
+    fun `the repositories made before get a description, the first one "My Backups", the others their name`() {
+        Files.createDirectories(file.parent)
+        val at = "'2026-11-01 00:00:00.000'"
+        migrateSchema(dataSource(), target = "13")
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate("INSERT INTO restic_repositories (id, owner, name, token, resource_id, created_at) VALUES (1, 'a', 'my-backups', 't1', 'r1', $at)")
+                statement.executeUpdate("INSERT INTO restic_repositories (id, owner, name, token, resource_id, created_at) VALUES (2, 'a', 'laptop', 't2', 'r2', $at)")
+            }
+        }
+
+        SakDatabase.open(file)
+
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT name, description FROM restic_repositories ORDER BY id").use { rows ->
+                    buildList { while (rows.next()) add(rows.getString(1) to rows.getString(2)) }
+                } shouldBe listOf("my-backups" to "My Backups", "laptop" to "laptop")
+            }
+        }
+    }
+
+    @Test
     fun `the settings of the instance stay, the AI switches of the admins for an app stay as deleted, users get their own`() {
         Files.createDirectories(file.parent)
         val at = "'2026-11-01 00:00:00.000'"
@@ -391,7 +414,7 @@ class SakDatabaseTest {
 
         val database = SakDatabase.open(file)
 
-        versions() shouldBe listOf("10" to "BASELINE", "11" to "SQL", "12" to "SQL", "13" to "SQL")
+        versions() shouldBe listOf("10" to "BASELINE", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL")
         io.pelle.sak.model.hosting.S3BucketRepository(database).byName("site")!!.resourceId shouldBe ResourceId("site00000000")
     }
 
@@ -401,7 +424,7 @@ class SakDatabaseTest {
 
         SakDatabase.open(file)
 
-        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL", "11" to "SQL", "12" to "SQL", "13" to "SQL")
+        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL")
     }
 
     @Test
@@ -418,7 +441,7 @@ class SakDatabaseTest {
     fun `a new database gets every migration`() {
         SakDatabase.open(file)
 
-        versions() shouldBe (1..13).map { it.toString() to "SQL" }
+        versions() shouldBe (1..14).map { it.toString() to "SQL" }
     }
 
     private companion object {

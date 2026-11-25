@@ -4302,7 +4302,7 @@ export interface paths {
     put?: never;
     /**
      * Create a repository of restic
-     * @description A repository the instance keeps and serves with the REST protocol of restic, with a new token as its only login. restic initializes it (restic init) with a password the instance never gets.
+     * @description A repository the instance keeps and serves with the REST protocol of restic, with a new token as its only login. Its name, what the command line takes, is derived from the description: lower case, umlauts written out, a-z, 0-9, - and _. Neither changes afterwards. restic initializes it (restic init) with a password the instance never gets.
      */
     post: {
       parameters: {
@@ -4326,7 +4326,7 @@ export interface paths {
             'application/json': components['schemas']['ResticRepositoryResponse'];
           };
         };
-        /** @description An invalid name, or a malformed request */
+        /** @description An invalid description, one that gives no name, or a malformed request */
         400: {
           headers: {
             [name: string]: unknown;
@@ -4335,7 +4335,7 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
-        /** @description The user has a repository of the name */
+        /** @description The user has a repository of the name the description gives */
         409: {
           headers: {
             [name: string]: unknown;
@@ -5772,13 +5772,15 @@ export interface components {
     ResticRepositoryResponse: {
       id: number;
       name: string;
+      description: string;
       url: string;
       size: number;
       createdAt: string;
     };
     /** ResticRepositoryRequest */
     ResticRepositoryRequest: {
-      name: string;
+      description?: string | null;
+      name?: string | null;
     };
     /** ResticTokenResponse */
     ResticTokenResponse: {

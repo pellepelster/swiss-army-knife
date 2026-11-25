@@ -119,6 +119,54 @@ class SakbackupWindowTest {
     }
 
     @Test
+    fun `each repository shows what it takes on the instance, the list what they take together`() {
+        browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
+            val page = context.openWindow()
+            page.locator("#nav button[data-page=repositories]").click()
+            val sizes = page.locator("#repositories-list [data-testid=size]")
+            assertThat(sizes).hasText(arrayOf("1.2 GiB", "512 MiB"))
+            assertThat(sizes.first()).hasAttribute("title", "Takes 1.2 GiB on the SAK instance")
+            assertThat(page.locator("#repositories-total")).hasText("Together they take 1.7 GiB on the SAK instance.")
+            page.screenshot(com.microsoft.playwright.Page.ScreenshotOptions().setPath(java.nio.file.Paths.get("build/sakbackup-repositories.png")))
+            // no date of creation any more
+            assertThat(page.locator("#repositories-list")).not().containsText("Created")
+        }
+    }
+
+    @Test
+    fun `the repository of the snapshots is a dropdown with its arrow, by description`() {
+        browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
+            val page = context.openWindow()
+            page.locator("#nav button[data-page=snapshots]").click()
+            val select = page.locator("#snapshots-repository")
+            assertThat(select.locator("option")).hasText(arrayOf("My Backups", "Photos"))
+            check(select.evaluate("(element) => getComputedStyle(element).backgroundImage").toString().contains("svg")) { "the select has no arrow" }
+            page.screenshot(com.microsoft.playwright.Page.ScreenshotOptions().setPath(java.nio.file.Paths.get("build/sakbackup-snapshots.png")))
+        }
+    }
+
+    @Test
+    fun `a repository shows by its description, the form shows the name the description gives`() {
+        browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
+            val page = context.openWindow()
+            page.locator("#nav button[data-page=repositories]").click()
+            assertThat(page.locator("#repositories-list .row-name")).hasText(arrayOf("My Backups", "Photos"))
+            page.locator("button", com.microsoft.playwright.Page.LocatorOptions().setHasText("Create repository")).first().click()
+            val description = page.locator("#repository-description")
+            description.fill("Fotos & Videos 2024")
+            assertThat(page.locator("#repository-name")).hasText("Name on the command line: fotos-videos-2024")
+            description.fill("Größe über Café")
+            assertThat(page.locator("#repository-name")).hasText("Name on the command line: groesse-ueber-cafe")
+            // nothing to make a name of: said when the field is left, the button waits
+            description.fill("!!!")
+            assertThat(page.locator("#repository-name")).hasText("")
+            description.blur()
+            assertThat(page.locator("#repository-description-error")).hasText("The description needs a letter or a digit.")
+            assertThat(page.locator("#repository-submit")).isDisabled()
+        }
+    }
+
+    @Test
     fun `the excludes of a plan are edited in their dialog, with presets, and saved with the plan`() {
         browser.window(ui = BACKUP_UI, fixtures = backupFixtures("excludes")).use { context ->
             val page = context.openWindow()

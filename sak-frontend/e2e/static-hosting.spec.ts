@@ -19,12 +19,12 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
   await page.getByRole('link', { name: /Static hosting/ }).click();
   await expect(page).toHaveURL('/static-hosting');
 
-  await page.getByRole('link', { name: 'Create static hosting', exact: true }).click();
+  await page.getByRole('link', { name: 'Create bucket', exact: true }).click();
   await expect(page).toHaveURL('/static-hosting/create');
   await page.getByLabel('Name').fill('e2e-hosting');
   await page.getByRole('button', { name: 'Add domain' }).click();
   await page.getByLabel('Domain 1', { exact: true }).fill('hosting.example.org');
-  await page.getByRole('button', { name: 'Create static hosting', exact: true }).click();
+  await page.getByRole('button', { name: 'Create bucket', exact: true }).click();
   await expect(page).toHaveURL('/static-hosting/e2e-hosting/configuration');
   await expect(page.getByTestId('objects')).toHaveText('0', { timeout: 20_000 });
   // its domain and its subdomain of the root domain
@@ -68,9 +68,9 @@ test('creates a bucket, lists it with its objects and size, edits it and shows i
 
   // a taken name is reported
   await page.getByRole('link', { name: 'All buckets' }).click();
-  await page.getByRole('link', { name: 'Create static hosting', exact: true }).click();
+  await page.getByRole('link', { name: 'Create bucket', exact: true }).click();
   await page.getByLabel('Name').fill('e2e-hosting');
-  await page.getByRole('button', { name: 'Create static hosting', exact: true }).click();
+  await page.getByRole('button', { name: 'Create bucket', exact: true }).click();
   await expect(page.getByTestId('create-errors')).toHaveText(
     'A bucket with this name already exists.',
   );

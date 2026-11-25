@@ -4899,7 +4899,7 @@
                     "restic"
                 ],
                 "summary": "Create a repository of restic",
-                "description": "A repository the instance keeps and serves with the REST protocol of restic, with a new token as its only login. restic initializes it (restic init) with a password the instance never gets.",
+                "description": "A repository the instance keeps and serves with the REST protocol of restic, with a new token as its only login. Its name, what the command line takes, is derived from the description: lower case, umlauts written out, a-z, 0-9, - and _. Neither changes afterwards. restic initializes it (restic init) with a password the instance never gets.",
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -4922,7 +4922,7 @@
                         }
                     },
                     "400": {
-                        "description": "An invalid name, or a malformed request",
+                        "description": "An invalid description, one that gives no name, or a malformed request",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4932,7 +4932,7 @@
                         }
                     },
                     "409": {
-                        "description": "The user has a repository of the name",
+                        "description": "The user has a repository of the name the description gives",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -7684,6 +7684,7 @@
                 "required": [
                     "id",
                     "name",
+                    "description",
                     "url",
                     "size",
                     "createdAt"
@@ -7693,6 +7694,9 @@
                         "type": "integer"
                     },
                     "name": {
+                        "type": "string"
+                    },
+                    "description": {
                         "type": "string"
                     },
                     "url": {
@@ -7709,12 +7713,18 @@
             "ResticRepositoryRequest": {
                 "type": "object",
                 "title": "ResticRepositoryRequest",
-                "required": [
-                    "name"
-                ],
                 "properties": {
+                    "description": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "name": {
-                        "type": "string"
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     }
                 }
             },

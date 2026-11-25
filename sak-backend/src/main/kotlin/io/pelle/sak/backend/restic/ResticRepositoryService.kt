@@ -2,8 +2,8 @@ package io.pelle.sak.backend.restic
 
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.DeleteResult
-import io.pelle.sak.backend.isDnsLabel
 import io.pelle.sak.core.Language
+import io.pelle.sak.core.render
 import io.pelle.sak.auth.LoginListener
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.model.SakDatabase
@@ -12,6 +12,7 @@ import io.pelle.sak.model.restic.ResticRepository
 import io.pelle.sak.model.restic.ResticRepositoryRepository
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.text.Normalizer
 import java.time.Clock
 import java.util.Base64
 
@@ -25,8 +26,10 @@ sealed interface ResticRepositoryCreateResult {
         val errors: List<ErrorMessage>,
     ) : ResticRepositoryCreateResult
 
-    // the user has a repository of the name
-    data object Exists : ResticRepositoryCreateResult
+    // the user has a repository of the name the description gives
+    data class Exists(
+        val name: String,
+    ) : ResticRepositoryCreateResult
 }
 
 // the repositories of restic the instance keeps, the only way to them (BACKUP-1, BACKUP-2)
@@ -65,26 +68,31 @@ class ResticRepositoryService(
         id: Int,
     ): DeleteResult = DeleteResult.of(repository.delete(user, id))
 
-    // the first repository of a user who never had one (BACKUP-7), the same name in every language: it
-    // is the one the command line names
+    // the first repository of a user who never had one, described in the language of the sign-in
+    // (BACKUP-7), its name derived from it
     override fun signedIn(
         owner: String,
         language: Language,
     ) {
-        repository.insertFirst(owner, FIRST_REPOSITORY, newToken())
+        val description = ResticTexts.FIRST_REPOSITORY.render(language)
+        repository.insertFirst(owner, nameOf(description), description, newToken())
     }
 
-    // a repository with a new token
+    // a repository with a new token, its name derived from the description (BACKUP-1); neither changes
+    // afterwards
     fun create(
         user: String,
-        name: String,
+        description: String,
     ): ResticRepositoryCreateResult {
-        val trimmed = name.trim()
-        if (!isDnsLabel(trimmed)) return ResticRepositoryCreateResult.Invalid(listOf(ErrorMessage(ResticTexts.INVALID_NAME)))
-        val token = newToken()
-        return when (val inserted = repository.insert(user, trimmed, token)) {
+        val trimmed = description.trim()
+        if (trimmed.isEmpty() || trimmed.length > MAX_DESCRIPTION || trimmed.any { it.isISOControl() }) {
+            return ResticRepositoryCreateResult.Invalid(listOf(ErrorMessage(ResticTexts.INVALID_DESCRIPTION, "max" to MAX_DESCRIPTION)))
+        }
+        val name = nameOf(trimmed)
+        if (name.isEmpty()) return ResticRepositoryCreateResult.Invalid(listOf(ErrorMessage(ResticTexts.NO_NAME)))
+        return when (val inserted = repository.insert(user, name, trimmed, newToken())) {
             is ResticRepositoryInsertResult.Inserted -> ResticRepositoryCreateResult.Created(inserted.repository)
-            ResticRepositoryInsertResult.NameTaken -> ResticRepositoryCreateResult.Exists
+            ResticRepositoryInsertResult.NameTaken -> ResticRepositoryCreateResult.Exists(name)
         }
     }
 
@@ -106,7 +114,27 @@ class ResticRepositoryService(
     private fun newToken() = ByteArray(32).also(random::nextBytes).let { Base64.getUrlEncoder().withoutPadding().encodeToString(it) }
 
     companion object {
-        const val FIRST_REPOSITORY = "my-backups"
+        // the most characters of a description, the column takes 255
+        const val MAX_DESCRIPTION = 255
 
+        // the most characters of a name
+        private const val MAX_NAME = 63
+
+        // the name the command line takes for a description: lower case, umlauts written out, every
+        // other character but a-z, 0-9, - and _ a hyphen, no hyphen twice, none at the start or the
+        // end, at most 63 characters; empty when nothing of it is left, e.g. "My Backups" is my-backups
+        fun nameOf(description: String): String {
+            val written =
+                description
+                    .lowercase()
+                    .replace("ä", "ae")
+                    .replace("ö", "oe")
+                    .replace("ü", "ue")
+                    .replace("ß", "ss")
+            // other accents go, the letter stays: é is e
+            val plain = Normalizer.normalize(written, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
+            val name = plain.replace(Regex("[^a-z0-9_-]+"), "-").replace(Regex("-{2,}"), "-")
+            return name.trim('-', '_').take(MAX_NAME).trim('-', '_')
+        }
     }
 }

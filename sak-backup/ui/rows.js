@@ -169,7 +169,7 @@ export function repositoryOptions(select, repositories, chosen = select.value) {
     ...repositories.map((each) => {
       const option = document.createElement('option');
       option.value = String(each.id);
-      option.textContent = each.name;
+      option.textContent = each.description;
       return option;
     }),
   );

@@ -544,7 +544,7 @@ mod integration {
             .unwrap();
             let said = instance.run(&["run", "documents", "--init"]);
             assert_eq!(
-                said.contains("Removed 1 older snapshots."),
+                said.contains("Deleted 1 older snapshots."),
                 round == 3,
                 "{said}"
             );
@@ -734,7 +734,7 @@ mod integration {
         let said = instance.fail(&["snapshot", "list", "--repo", "nothing"]);
         assert!(said.contains("no repository nothing"), "{said}");
         let said = instance.fail(&["snapshot", "delete", "deadbeef", "--repo", "my-backups"]);
-        assert!(said.contains("no snapshot of this id"), "{said}");
+        assert!(said.contains("no snapshot with this ID"), "{said}");
 
         // a plan whose snapshot is not there yet
         instance.run(&[
@@ -788,7 +788,7 @@ mod integration {
         instance.run(&["run", "both", "--init"]);
         std::fs::remove_dir_all(&music).unwrap();
         let said = instance.run(&["run", "both"]);
-        assert!(said.contains("Removed 1 older snapshots."), "{said}");
+        assert!(said.contains("Deleted 1 older snapshots."), "{said}");
         assert_eq!(
             instance
                 .run(&["snapshot", "list", "--repo", "my-backups"])

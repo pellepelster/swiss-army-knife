@@ -29,10 +29,10 @@ errors:
   photo_not_stored: "Das Foto konnte nicht gespeichert werden."
   microphone: "Das Mikrofon konnte nicht verwendet werden."
   recording_not_stored: "Die Aufnahme konnte nicht gespeichert werden."
-  no_text_in_recording: "In der Aufnahme ist kein Text."
+  no_text_in_recording: "In der Aufnahme wurde kein Text erkannt."
   not_discovered: "Der Text konnte nicht erkannt werden."
   not_created: "Die Notiz konnte nicht erstellt werden."
-  no_text_in_photo: "Auf dem Foto ist kein Text."
+  no_text_in_photo: "Auf dem Foto wurde kein Text erkannt."
 stop_recording: "Aufnahme beenden"
 first_list: "Meine Notizen"
 text_too_long: "Der Text darf höchstens %{max} Zeichen haben."
@@ -46,5 +46,5 @@ no_list: "Du hast noch keine Notizliste, melde dich erneut an, um eine zu bekomm
 settings:
   ai:
     label: "KI verwenden"
-    description: "Erkennt den Text in einem Foto oder einer Aufnahme, die du auswählst, mit einer externen KI."
+    description: "Erkennt mit einer externen KI den Text auf einem Foto oder in einer Aufnahme, die du auswählst."
   label: "Notizen"

@@ -1,5 +1,5 @@
 # the texts of the catalog grocery in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
-only_owner_shares: "Only the owner of a list renames, shares or unshares it."
+only_owner_shares: "Only the owner of a list can rename, share or unshare it."
 lists:
   to_buy_none: "No items to buy"
 photo:
@@ -28,7 +28,7 @@ quantity:
   no_unit: "No unit"
   invalid: "Type a positive number with at most 3 decimal places."
   not_saved: "The quantity could not be saved."
-  editing: "The quantity is changed in its row."
+  editing: "Change the quantity in its row."
   units:
     g: "g"
     kg: "kg"
@@ -42,15 +42,15 @@ quantity:
     bunch: "bunch"
     piece: "piece"
 discover:
-  label: "Add items from a photo, read by the AI features at OpenRouter"
+  label: "Add items from a photo, read by AI at OpenRouter"
   reading: "Reading the photo…"
   title: "Items in the photo"
   hint: "Correct the items and leave out the ones not to buy."
-  none: "Unable to detect grocery items in the photo."
+  none: "No items were found in the photo."
   include: "Add %{name}"
   name_of: "Name of item %{number}"
   add: "Add to the list"
-  not_all_added: "Not every item could be added."
+  not_all_added: "Not all items could be added."
 categories:
   title: "Categories"
   none: "The list has no categories yet."
@@ -82,14 +82,14 @@ unknown_category: "There is no such category on the list."
 invalid_category_name: "A category name must have 1 to %{max} characters and no control characters."
 category_exists: "A category with this name already exists."
 too_many_categories: "A list can have at most %{max} categories."
-invalid_category_order: "The order must name every category of the list once."
+invalid_category_order: "The order must name every category of the list exactly once."
 list_exists: "A list with this name already exists."
-unknown_list: "There is no such list, or you can not see it."
-not_a_photo: "There is no such photo, or you can not see it."
+unknown_list: "There is no such list, or you cannot see it."
+not_a_photo: "There is no such photo, or you cannot see it."
 too_many_discoveries: "Too many photos were read, please try again later."
 discovery_failed: "The items in the photo could not be discovered, please try again later."
 settings:
   ai:
     label: "Use AI"
-    description: "Discovers the items in a photo of a recipe or a shopping list you choose using an external AI."
+    description: "Uses an external AI to discover the items in a photo of a recipe or shopping list you choose."
   label: "Grocery"

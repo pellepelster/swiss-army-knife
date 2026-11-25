@@ -70,15 +70,18 @@
         <section class="page" id="page-repositories" hidden>
           <p class="hint" id="repositories-status" aria-live="polite"></p>
           <ul class="plain-list rows" id="repositories-list"></ul>
+          <p class="hint" id="repositories-total"></p>
         </section>
         <section class="page page-fill" id="page-repository" hidden>
           <form class="page-form" id="repository-form" novalidate>
             <p class="hint" data-text="ui.repositories.create_hint"></p>
             <div>
-              <label class="form-label" for="repository-name" data-text="ui.name"></label>
-              <input class="form-control" id="repository-name" type="text" spellcheck="false" autocapitalize="off" aria-describedby="repository-name-hint repository-name-error">
-              <div class="form-text" id="repository-name-hint" data-text="ui.name_hint"></div>
-              <div class="field-error" id="repository-name-error"></div>
+              <label class="form-label" for="repository-description" data-text="ui.repositories.description"></label>
+              <input class="form-control" id="repository-description" type="text" maxlength="255" aria-describedby="repository-description-hint repository-name repository-description-error">
+              <div class="form-text" id="repository-description-hint" data-text="ui.repositories.description_hint"></div>
+              <!-- the name the command line takes, derived as the instance derives it -->
+              <div class="form-text font-monospace" id="repository-name" aria-live="polite"></div>
+              <div class="field-error" id="repository-description-error"></div>
             </div>
             <!-- the error of the save, above its buttons (UX-15) -->
             <p class="hint" id="repository-status" aria-live="polite"></p>

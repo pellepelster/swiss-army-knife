@@ -14,7 +14,7 @@ import {
   entry,
   thisHost,
 } from './rows.js';
-import { runFailure, runningPlan } from './run.js';
+import { runFailure, runningPlan, size } from './run.js';
 import { confirmAction } from './shared/confirm-dialog.js';
 import { $, invoke, setFailure, setStatus, text } from './shared/views.js';
 
@@ -78,7 +78,17 @@ function snapshotRow(snapshot) {
     danger: true,
     disabled: runningPlan() === null ? null : text('ui.plans.run_busy'),
   });
-  const item = row(snapshot.shortId, [rowName(time), ...badges, detail], null, [copy, remove]);
+  // the size of its files, big at the right as in the list of the repositories; none of an older restic
+  const sizes = [];
+  if (snapshot.summary) {
+    const stored = document.createElement('span');
+    stored.className = 'row-size sak-mono';
+    stored.textContent = size(snapshot.summary.totalBytesProcessed);
+    stored.title = text('ui.snapshots.size', { size: stored.textContent });
+    stored.dataset.testid = 'size';
+    sizes.push(stored);
+  }
+  const item = row(snapshot.shortId, [rowName(time), ...badges, detail], null, [copy, remove], sizes);
   return item;
 }
 
@@ -106,7 +116,8 @@ form.addEventListener('submit', async (event) => {
     } else if (done.value.snapshots.length === 0) {
       setStatus(status, text('ui.snapshots.empty', { repository: name }));
     } else {
-      setStatus(status, text('ui.snapshots.count', { count: done.value.snapshots.length, repository: name }));
+      // the list says it all, newest first
+      setStatus(status, '');
       list.replaceChildren(...done.value.snapshots.map(snapshotRow));
     }
   } catch (failure) {

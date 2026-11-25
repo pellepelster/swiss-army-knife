@@ -9,6 +9,7 @@ import { backupsRoute } from './backups.routes';
 const laptop = {
   id: 1,
   name: 'laptop',
+  description: 'My Laptop',
   url: 'rest:https://api.example.org/restic/1/',
   size: 2_500_000,
   createdAt: '2026-11-21T08:00:00.000Z',
@@ -17,6 +18,7 @@ const desktop = {
   ...laptop,
   id: 2,
   name: 'desktop',
+  description: 'Desktop',
   url: 'rest:https://api.example.org/restic/2/',
   size: 1_000,
 };
@@ -50,6 +52,10 @@ describe('Backups', () => {
     await harness.fixture.whenStable();
 
     const row = page().querySelector('[data-testid="repository-laptop"]')!;
+    // by its description alone, without its name and its date (BACKUP-1)
+    expect(row.querySelector('[data-testid=description]')?.textContent?.trim()).toBe('My Laptop');
+    expect(row.querySelector('[data-testid=name]')).toBeNull();
+    expect(row.textContent).not.toContain('Created');
     expect(row.textContent).toContain('rest:https://api.example.org/restic/1/');
     expect(row.querySelector('[data-testid=size]')?.textContent?.trim()).toBe('2.5 MB');
     expect(
@@ -71,7 +77,7 @@ describe('Backups', () => {
       .flush(pageOf([laptop, desktop]));
     await harness.fixture.whenStable();
 
-    await deleteFromRow('laptop');
+    await deleteFromRow('My Laptop');
     http
       .expectOne({ method: 'DELETE', url: '/api/v1/restic/repositories/1' })
       .flush(null, { status: 204, statusText: 'No Content' });
@@ -86,14 +92,14 @@ describe('Backups', () => {
     http.expectOne('/api/v1/restic/repositories?offset=0&limit=50').flush(pageOf([laptop]));
     await harness.fixture.whenStable();
 
-    await deleteFromRow('laptop');
+    await deleteFromRow('My Laptop');
     http
       .expectOne({ method: 'DELETE', url: '/api/v1/restic/repositories/1' })
       .flush(null, { status: 500, statusText: 'Error' });
     await harness.fixture.whenStable();
     expect(
       page().querySelector('[data-testid="repository-laptop"] [role=alert]')?.textContent,
-    ).toContain('The repository laptop could not be deleted.');
+    ).toContain('The repository My Laptop could not be deleted.');
   });
 
   it('says how to get a repository when there is none', async () => {

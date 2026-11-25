@@ -5,7 +5,10 @@ import io.pelle.sak.core.Catalog
 // the texts of the repositories of restic (backend.restic in i18n/texts.yml)
 object ResticTexts : Catalog("restic") {
     val INVALID_NAME = text("invalid_name")
+    val INVALID_DESCRIPTION = text("invalid_description")
+    val NO_NAME = text("no_name")
     val REPOSITORY_EXISTS = text("repository_exists")
+    val FIRST_REPOSITORY = text("first_repository")
     val INVALID_HOST = text("invalid_host")
     val NO_PATHS = text("no_paths")
     val TOO_MANY_PATHS = text("too_many_paths")
