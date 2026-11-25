@@ -18,61 +18,48 @@ interface DownloadApp {
   readonly files: readonly DownloadFile[];
 }
 
-// the apps of one kind, e.g. the android apps, and what to do with them
-interface DownloadGroup {
-  readonly id: string;
-  readonly title: TextKey;
-  readonly intro: TextKey;
-  readonly apps: readonly DownloadApp[];
-}
-
 // the apps that have an android app, in the order of the index page; one apk each
 const ANDROID_APPS: readonly AndroidApp[] = ['notes', 'grocery', 'todo'];
 
-const android: DownloadGroup = {
-  id: 'android',
-  title: 'download.android',
-  intro: 'download.android_intro',
-  apps: ANDROID_APPS.map((id) => {
+// a file of the desktop app Restic Backup (sakbackup) in a release, e.g.
+// sak-backup-linux-x86_64-1.4.2.deb
+const resticBackupFile = (label: TextKey, platform: string, extension: string): DownloadFile => ({
+  label,
+  url: (version) => releaseUrl(version, `sak-backup-${platform}-${version}.${extension}`),
+});
+
+// every app with an install of its own, by the names inside SAK (the glossary): the android apps,
+// then the desktop app
+const APPS_TO_DOWNLOAD: readonly DownloadApp[] = [
+  ...ANDROID_APPS.map((id) => {
     const app = APPS.find((each) => each.path === `/${id}`)!;
     return {
       id,
       name: app.name,
       icon: app.icon,
-      files: [{ label: 'download.download', url: (version: string) => apkUrl(id, version) }],
+      files: [
+        { label: 'download.android_apk' as TextKey, url: (version: string) => apkUrl(id, version) },
+      ],
     };
   }),
-};
-
-// a file of sakbackup in a release, e.g. sak-backup-linux-x86_64-1.4.2.deb
-const sakBackupFile = (label: TextKey, platform: string, extension: string): DownloadFile => ({
-  label,
-  url: (version) => releaseUrl(version, `sak-backup-${platform}-${version}.${extension}`),
-});
-
-const desktop: DownloadGroup = {
-  id: 'desktop',
-  title: 'download.desktop',
-  intro: 'download.desktop_intro',
-  apps: [
-    {
-      id: 'sak-backup',
-      name: 'download.sak_backup',
-      icon: APPS.find((each) => each.path === '/backups')!.icon,
-      files: [
-        sakBackupFile('download.windows', 'windows-x86_64', 'zip'),
-        sakBackupFile('download.macos', 'macos-universal', 'zip'),
-        sakBackupFile('download.linux_deb', 'linux-x86_64', 'deb'),
-        sakBackupFile('download.linux_rpm', 'linux-x86_64', 'rpm'),
-        sakBackupFile('download.linux_appimage', 'linux-x86_64', 'AppImage'),
-      ],
-    },
-  ],
-};
+  {
+    id: 'restic-backup',
+    name: 'download.restic_backup',
+    icon: APPS.find((each) => each.path === '/backups')!.icon,
+    files: [
+      resticBackupFile('download.windows', 'windows-x86_64', 'zip'),
+      resticBackupFile('download.macos', 'macos-universal', 'zip'),
+      resticBackupFile('download.linux_deb', 'linux-x86_64', 'deb'),
+      resticBackupFile('download.linux_rpm', 'linux-x86_64', 'rpm'),
+      resticBackupFile('download.linux_appimage', 'linux-x86_64', 'AppImage'),
+    ],
+  },
+];
 
 // /download, without a session so its link opens on a phone: the files of every app with an install
-// of its own, the android apps and SAK Backup, in the version the SAK instance runs, from its github
-// release; a SAK instance without a release, or one that does not answer, links the releases
+// of its own, the android apps and Restic Backup, one button for each platform, in the version the SAK
+// instance runs, from its github release; a SAK instance without a release, or one that does not
+// answer, links the releases
 @Component({
   selector: 'app-download-page',
   imports: [PageHeader, TranslatePipe],
@@ -86,53 +73,34 @@ const desktop: DownloadGroup = {
       <p class="alert alert-danger" role="alert">{{ failed | t }}</p>
       <a [href]="releases">{{ 'app_download.releases' | t }}</a>
     } @else if (version(); as version) {
-      @for (group of groups; track group.id) {
-        <section class="mb-4" [attr.data-testid]="'group-' + group.id">
-          <h2 class="h5">{{ group.title | t }}</h2>
-          <p>{{ group.intro | t }}</p>
-          <ul class="row row-cols-1 row-cols-sm-2 g-3 list-unstyled mb-0">
-            @for (app of group.apps; track app.id) {
-              <li class="col" [attr.data-testid]="'app-' + app.id">
-                <div class="card card-body h-100 gap-3">
-                  <div class="d-flex align-items-center gap-3">
-                    <img
-                      class="rounded-3 shadow-sm"
-                      [src]="app.icon"
-                      alt=""
-                      width="48"
-                      height="48"
-                    />
-                    <span class="vstack">
-                      <span class="fw-semibold fs-5" data-testid="app-name">{{
-                        app.name | t
-                      }}</span>
-                      <span class="small text-body-secondary">{{
-                        'download.version' | t: { version }
-                      }}</span>
-                    </span>
-                  </div>
-                  <div
-                    class="d-flex flex-wrap gap-2"
-                    role="group"
-                    [attr.aria-label]="'download.files' | t: { app: (app.name | t) }"
+      <ul class="row row-cols-1 row-cols-sm-2 g-3 list-unstyled mb-0">
+        @for (app of apps; track app.id) {
+          <li class="col" [attr.data-testid]="'app-' + app.id">
+            <div class="card card-body h-100 gap-3">
+              <div class="d-flex align-items-center gap-3">
+                <img class="rounded-3 shadow-sm" [src]="app.icon" alt="" width="48" height="48" />
+                <span class="fw-semibold fs-5" data-testid="app-name">{{ app.name | t }}</span>
+              </div>
+              <div
+                class="d-flex flex-wrap gap-2"
+                role="group"
+                [attr.aria-label]="'download.files' | t: { app: (app.name | t) }"
+              >
+                @for (file of app.files; track file.label) {
+                  <a
+                    class="btn btn-outline-secondary"
+                    [href]="file.url(version)"
+                    data-testid="file"
                   >
-                    @for (file of app.files; track file.label) {
-                      <a
-                        class="btn btn-outline-secondary"
-                        [href]="file.url(version)"
-                        data-testid="file"
-                      >
-                        <i class="fa-solid fa-download" aria-hidden="true"></i>
-                        {{ file.label | t: { app: (app.name | t) } }}
-                      </a>
-                    }
-                  </div>
-                </div>
-              </li>
-            }
-          </ul>
-        </section>
-      }
+                    <i class="fa-solid fa-download" aria-hidden="true"></i>
+                    {{ file.label | t: { app: (app.name | t) } }}
+                  </a>
+                }
+              </div>
+            </div>
+          </li>
+        }
+      </ul>
     } @else {
       <p class="mb-0">{{ 'shared.loading' | t }}</p>
     }
@@ -140,7 +108,7 @@ const desktop: DownloadGroup = {
 })
 export class DownloadPage {
   protected readonly releases = RELEASES_URL;
-  protected readonly groups: readonly DownloadGroup[] = [android, desktop];
+  protected readonly apps = APPS_TO_DOWNLOAD;
 
   // the version the SAK instance runs, once it is known
   protected readonly version = signal<string | null>(null);

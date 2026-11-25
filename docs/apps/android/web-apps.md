@@ -1,24 +1,24 @@
 ---
 title: "Install the Web Apps on Android"
 linkTitle: "Web apps"
-description: "Install SAK Notes, SAK Grocery List and SAK Todo from Chrome or Firefox on the home screen of an Android phone, without a download."
+description: "Install Notes, Grocery and Todo from Chrome or Firefox on the home screen of an Android phone, without a download."
 weight: 6
 ---
 
 # Install the web apps on Android
 
-Install SAK Notes, SAK Grocery List and SAK Todo from the browser of your phone. An installed web app has an icon on
+Install Notes, Grocery and Todo from the browser of your phone. An installed web app has an icon on
 the home screen and opens without the address bar. There is no file to download, Android and Play Protect show no
 warnings, and the browser keeps the app up to date. For the [native Android apps](native-apps.md), follow their own
 steps.
 
 Each app installs from its own page:
 
-- **SAK Notes:** `<SAK address>/notes`
-- **SAK Grocery List:** `<SAK address>/grocery`
-- **SAK Todo:** `<SAK address>/todo`
+- **Notes:** `<SAK address>/notes`
+- **Grocery:** `<SAK address>/grocery`
+- **Todo:** `<SAK address>/todo`
 
-The steps are the same for all apps; the screenshots show SAK Notes.
+The steps are the same for all apps; the screenshots show Notes.
 
 ## Chrome
 
@@ -57,4 +57,4 @@ the icon only opens the page in Firefox. Make sure that the address starts with 
 
 Tap the icon on the home screen. The app opens without the address bar.
 
-![SAK Notes as an installed web app](../../screenshots/pwa-app.png)
+![Notes as an installed web app](../../screenshots/pwa-app.png)

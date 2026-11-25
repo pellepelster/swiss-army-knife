@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "SAK Backup",
+  "productName": "SAK Restic Backup",
   "mainBinaryName": "sakbackup",
   "version": "0.1.0",
   "identifier": "io.pelle.sak.backup",
@@ -11,7 +11,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "SAK Backup",
+        "title": "SAK Restic Backup",
         "width": 960,
         "height": 640,
         "minWidth": 640,
@@ -34,6 +34,24 @@
       "../../sak-theme/images/sakbackup/128x128@2x.png",
       "../../sak-theme/images/sakbackup/icon.icns",
       "../../sak-theme/images/sakbackup/icon.ico"
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "replaces": [
+          "sak-backup"
+        ],
+        "conflicts": [
+          "sak-backup"
+        ]
+      },
+      "rpm": {
+        "obsoletes": [
+          "sak-backup"
+        ],
+        "conflicts": [
+          "sak-backup"
+        ]
+      }
+    }
   }
 }

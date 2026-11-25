@@ -13,11 +13,13 @@ user interface. Use the same term for the same thing every time.
   Write it as three words, `Swiss Army Knife`, or as `SAK`; never `SwissArmyKnife`. Lower case `sak` is only a technical
   prefix, for example `sakadmin`, `sak-backend` or `sak.pelle.io/name`; a swiss army knife in lower case is the tool the
   icon shows.
-- **SAK Notes**, **SAK Grocery List** and **SAK Todo**: The names of the apps where they are installed: the Android app,
-  its listing in Google Play and the installed web app (`name` and `short_name` of `<app>.webmanifest`, which a test
-  checks against `app_name` of `i18n/texts.yml`). They are the same in every language. Inside SAK, where the prefix is
-  clear, the app has its short name of `app.*` in `i18n/texts.yml`: "Notes" ("Notizen"), "Grocery" ("Einkaufslisten")
-  and "Todo" ("Aufgaben"), for example in the list of the apps of the web app.
+- **SAK Notes**, **SAK Grocery List**, **SAK Todo** and **SAK Restic Backup**: The names of the apps outside SAK,
+  where they are installed: the title of an Android app and its listing in Google Play, the installed web app (`name`
+  and `short_name` of `<app>.webmanifest`, which a test checks against `app_name` of `i18n/texts.yml`), and the window,
+  the package and the own texts of the desktop app SAK Restic Backup. They are the same in every language. Inside SAK,
+  where the prefix is clear, an app has its short name without the prefix: "Notes" ("Notizen"), "Grocery"
+  ("Einkaufslisten"), "Todo" ("Aufgaben") and "Restic Backup" ("Restic Backup"), in the web app, the messages of the
+  backend and the documentation, for example in the list of the apps and on the download page.
 - **deployment** and **SAK instance**: A SAK on its server, with its name, domains and data. Code and the
   documentation for developers (`docs/development/`) say **deployment**. Everything a person reads says **SAK
   instance** (German "SAK-Instanz"): the documentation for users (`README.md`, the other pages of `docs/`), the texts

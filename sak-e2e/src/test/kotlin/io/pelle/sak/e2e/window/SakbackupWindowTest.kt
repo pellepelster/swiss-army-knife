@@ -57,7 +57,7 @@ class SakbackupWindowTest {
             val page = context.openWindow()
             val check = page.locator("#checks li")
             assertThat(check).hasAttribute("data-state", "failed")
-            assertThat(check.locator(".check-detail")).containsText("SAK Backup needs restic")
+            assertThat(check.locator(".check-detail")).containsText("SAK Restic Backup needs restic")
             assertThat(page.locator("#splash-quit")).isEnabled()
             assertThat(page.locator("#splash-quit")).isFocused()
             assertThat(page.locator("#view-splash")).isVisible()

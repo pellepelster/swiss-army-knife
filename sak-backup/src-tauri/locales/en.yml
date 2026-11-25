@@ -11,7 +11,7 @@ common:
     restic:
       name: "Find restic"
       passed: "restic %{version}"
-      missing: "SAK Backup needs restic to make backups. Install it, e.g. with the package manager, and start SAK Backup again."
+      missing: "SAK Restic Backup needs restic to make backups. Install it, e.g. with the package manager, and start SAK Restic Backup again."
       failed: "%{program} does not run: %{error}"
 cli:
   repository_created: "Created the repository %{name}: %{url}"
@@ -75,7 +75,7 @@ ui:
     file_too_large: "The file has more than %{max} bytes, more than a backup plan takes."
     file_not_text: "The file is not a text file."
   tray:
-    show: "Show SAK Backup"
+    show: "Show SAK Restic Backup"
     quit: "Quit"
     idle: "No backup is running"
     backing_up: "Backing up: %{percent}%"
@@ -84,7 +84,7 @@ ui:
     keep_running: "Keep running"
   update:
     restart_while_running: "A backup or a restore is running, restart when it is done."
-  title: "SAK Backup"
+  title: "SAK Restic Backup"
   intro: "Sign in at your SAK instance in the browser to manage its backups."
   nav:
     label: "Navigation"

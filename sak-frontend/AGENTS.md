@@ -8,9 +8,9 @@ The rules of the code of the web app are `WEB-5` to `WEB-10` in [components/INDE
     shared parts of a page (`shared/`).
   - `testing` (`@sak/testing`): what the specs of every app share.
   - one for each app and maintenance page (`@sak/<app>`): `grocery`, `todo`, `notes`, `hosting`, `redirects`,
-    `backups`, `users`, `health`, `settings`. Its `AGENTS.md` links its architecture document, or the architecture
+    `backups`, `users`, `status`, `settings`. Its `AGENTS.md` links its architecture document, or the architecture
     of the components where it has none of its own (`users`, `settings`).
-  - The shell keeps what is of no app: the home, the login and the sign-in, the downloads, the pages that connect
+  - The shell keeps what is of no app: the home, the login and the sign-in, the download, the pages that connect
     an app, the list of the apps (`apps.ts`) and the routes in their order (`app.routes.ts`).
 - Who imports whom, `src/app/boundaries.spec.ts` fails on anything else: an app imports `@sak/core` (and
   `@sak/testing` in its specs), `redirects` also `@sak/hosting` (the buckets a redirect points to); `core` imports

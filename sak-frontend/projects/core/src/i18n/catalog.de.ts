@@ -90,14 +90,9 @@ export const TEXTS = {
   download: {
     page_title: 'Download',
     title: 'Download',
-    android: 'Android-Apps',
-    android_intro: 'Installiere die Apps auf einem Android-Handy und melde dich dann mit deiner E-Mail-Adresse darin an.',
-    desktop: 'Desktop-Apps',
-    desktop_intro: 'Installiere SAK Backup auf einem Computer, um ihn auf diese SAK-Instanz zu sichern, und melde dich dann darin mit dieser SAK-Instanz an.',
-    sak_backup: 'SAK Backup',
-    download: '%{app} herunterladen',
-    version: 'Version %{version}',
+    restic_backup: 'Restic Backup',
     files: 'Die Dateien von %{app}',
+    android_apk: 'Android',
     windows: 'Windows',
     macos: 'macOS',
     linux_deb: 'Linux (deb)',
@@ -142,7 +137,7 @@ export const TEXTS = {
   },
   connect: {
     title: 'App verbinden',
-    instructions: 'Öffne SAK Notizen, Einkaufslisten oder Aufgaben auf deinem Handy, tippe auf „QR-Code scannen“ und richte die Kamera auf diesen Code.',
+    instructions: 'Öffne Notizen, Einkaufslisten oder Aufgaben auf deinem Handy, tippe auf „QR-Code scannen“ und richte die Kamera auf diesen Code.',
     warning: 'Wer diesen Code scannt, ist als du angemeldet. Zeige ihn nur deinem eigenen Handy.',
     code: 'QR-Code zum Verbinden einer App',
     valid_for: 'Noch %{time} gültig',
@@ -155,7 +150,7 @@ export const TEXTS = {
   },
   connect_desktop: {
     title: 'Desktop-App verbinden',
-    question: 'Eine Desktop-App auf diesem Computer, z. B. SAK Backup, möchte sich als du anmelden.',
+    question: 'Eine Desktop-App auf diesem Computer, z. B. Restic Backup, möchte sich als du anmelden.',
     warning: 'Verbinde sie nur, wenn du die Anmeldung gerade selbst in der App gestartet hast und die App diesen Code zeigt:',
     code: 'Code der Desktop-App',
     connect: 'Verbinden',
@@ -545,7 +540,7 @@ export const TEXTS = {
   backups: {
     list: {
       intro: 'Deine restic-Repositorys.',
-      empty: 'Noch keine Repositorys. Erstelle eins in der App SAK Backup.',
+      empty: 'Noch keine Repositorys. Erstelle eins in der App Restic Backup.',
       pages: 'Seiten der Repositorys',
       load_failed: 'Die Repositorys konnten nicht geladen werden.',
       total: '%{size} auf dieser Seite',

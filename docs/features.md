@@ -18,7 +18,7 @@ Your data stays on your server and goes to no third party unless you turn it on.
 **Downloads from GitHub:** the software of SAK comes from GitHub. GitHub sees the IP address of the computer, server
 or phone that downloads, never your data:
 
-- sakadmin, SAK Backup and their updates come from the GitHub releases. Each updates only when you ask.
+- sakadmin, Restic Backup and their updates come from the GitHub releases. Each updates only when you ask.
 - At each start, sakadmin downloads the image of its tools from the GitHub container registry (`ghcr.io`).
 - At each deploy, the server downloads the images of SAK from `ghcr.io`, and the two images for its logs
   (VictoriaLogs and Vector) from Docker Hub.
@@ -164,7 +164,7 @@ and renewed automatically.
 
 [More about the backups](apps/backups.md).
 
-The restic repositories that your SAK instance keeps for you, with their sizes. The desktop app SAK Backup makes
+The restic repositories that your SAK instance keeps for you, with their sizes. The desktop app Restic Backup makes
 the backups; it is a preview, download it from the release page.
 
 Next: how [sakadmin and your SAK instance](overview.md) belong together, or [install sakadmin](installation.md).

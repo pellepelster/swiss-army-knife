@@ -92,14 +92,9 @@ export const TEXTS = {
   download: {
     page_title: 'Download',
     title: 'Download',
-    android: 'Android apps',
-    android_intro: 'Install the apps on an Android phone, then sign in to them with your e-mail address.',
-    desktop: 'Desktop apps',
-    desktop_intro: 'Install SAK Backup on a computer to back it up to this SAK instance, then sign in to it with this SAK instance.',
-    sak_backup: 'SAK Backup',
-    download: 'Download %{app}',
-    version: 'Version %{version}',
+    restic_backup: 'Restic Backup',
     files: 'The files of %{app}',
+    android_apk: 'Android',
     windows: 'Windows',
     macos: 'macOS',
     linux_deb: 'Linux (deb)',
@@ -144,7 +139,7 @@ export const TEXTS = {
   },
   connect: {
     title: 'Connect an app',
-    instructions: 'Open SAK Notes, Grocery or Todo on your phone, tap “Scan QR code” and point the camera at this code.',
+    instructions: 'Open Notes, Grocery or Todo on your phone, tap “Scan QR code” and point the camera at this code.',
     warning: 'Whoever scans this code signs in as you. Show it only to your own phone.',
     code: 'QR code to connect an app',
     valid_for: 'Valid for %{time}',
@@ -157,7 +152,7 @@ export const TEXTS = {
   },
   connect_desktop: {
     title: 'Connect a desktop app',
-    question: 'A desktop app on this computer, e.g. SAK Backup, asks to sign in as you.',
+    question: 'A desktop app on this computer, e.g. Restic Backup, asks to sign in as you.',
     warning: 'Connect it only if you just started the sign-in in the app yourself and the app shows this code:',
     code: 'Code of the desktop app',
     connect: 'Connect',
@@ -547,7 +542,7 @@ export const TEXTS = {
   backups: {
     list: {
       intro: 'Your restic repositories.',
-      empty: 'No repositories yet. Create one in the app SAK Backup.',
+      empty: 'No repositories yet. Create one in the app Restic Backup.',
       pages: 'Pages of the repositories',
       load_failed: 'The repositories could not be loaded.',
       total: '%{size} on this page',

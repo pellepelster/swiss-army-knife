@@ -15,7 +15,7 @@ import {
 import { BackupsService } from './backups.service';
 
 // the repositories of restic the instance keeps for the signed in user, with the bytes each takes on
-// it (BACKUP-1); a page at a time. The app SAK Backup creates them and backs up into them, so the
+// it (BACKUP-1); a page at a time. The app Restic Backup creates them and backs up into them, so the
 // page has no create action and a row opens nothing: its menu copies the address and deletes it, a
 // soft delete with its backup plans (BACKUP-9)
 @Component({

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 810" width="800" height="810" font-family="'IBM Plex Sans', system-ui, -apple-system, sans-serif" role="img" aria-labelledby="title desc">
   <title id="title">Swiss Army Knife: its user interfaces, their apps and the documents that describe them</title>
-  <desc id="desc">On the left the documents: AGENT.md, then docs/development with INDEX.md, RULES.md, GLOSSARY.md, ui-ux/ with UI-UX.md, UI-UX-WEB.md, UI-UX-ANDROID.md and UI-UX-DESKTOP.md, and architecture/ with MODEL.md, SYSTEM.md and components/ with LIST-APPS.md and TODO.md. On the right SAK and in it the system: the server with its database, and below it the user interfaces in three rows, each with its title at the top and its apps in one column below it: the web apps (the list apps Grocery and Todo, Backups and more), the Android apps (the list apps SAK Grocery List and SAK Todo) and the GUI apps (sakadmin, sakbackup and more). AGENT.md leads to SAK, SYSTEM.md to the system, MODEL.md to the database, UI-UX.md to the user interfaces, UI-UX-WEB.md to the web apps, UI-UX-ANDROID.md to the Android apps, UI-UX-DESKTOP.md to the GUI apps, LIST-APPS.md to both containers of the list apps, TODO.md to Todo and SAK Todo; a document and what it leads to have the same color.</desc>
+  <desc id="desc">On the left the documents: AGENT.md, then docs/development with INDEX.md, RULES.md, GLOSSARY.md, ui-ux/ with UI-UX.md, UI-UX-WEB.md, UI-UX-ANDROID.md and UI-UX-DESKTOP.md, and architecture/ with MODEL.md, SYSTEM.md and components/ with LIST-APPS.md and TODO.md. On the right SAK and in it the system: the server with its database, and below it the user interfaces in three rows, each with its title at the top and its apps in one column below it: the web apps (the list apps Grocery and Todo, Backups and more), the Android apps (the list apps Grocery and Todo) and the GUI apps (sakadmin, sakbackup and more). AGENT.md leads to SAK, SYSTEM.md to the system, MODEL.md to the database, UI-UX.md to the user interfaces, UI-UX-WEB.md to the web apps, UI-UX-ANDROID.md to the Android apps, UI-UX-DESKTOP.md to the GUI apps, LIST-APPS.md to both containers of the list apps, TODO.md to the Todo of the web and of Android; a document and what it leads to have the same color.</desc>
   <defs>
     <marker id="arrow-sys" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
     <marker id="arrow-ui" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6d28d9"/></marker>
@@ -113,8 +113,8 @@
     <rect class="android" x="344" y="414" width="392" height="144" rx="8"/>
     <text class="h2 ink-android" x="402" y="436">Android apps</text>
     <rect class="group" x="392" y="446" width="336" height="100" rx="7"/><text class="group-label" x="402" y="460">List apps</text>
-    <rect class="app-android" x="402" y="466" width="316" height="32" rx="6"/><text class="label" x="560" y="487" text-anchor="middle">SAK Grocery List</text>
-    <rect class="app-android" x="402" y="506" width="316" height="32" rx="6"/><text class="label" x="560" y="527" text-anchor="middle">SAK Todo</text>
+    <rect class="app-android" x="402" y="466" width="316" height="32" rx="6"/><text class="label" x="560" y="487" text-anchor="middle">Grocery</text>
+    <rect class="app-android" x="402" y="506" width="316" height="32" rx="6"/><text class="label" x="560" y="527" text-anchor="middle">Todo</text>
 
     <!-- gui apps -->
     <rect class="gui" x="344" y="570" width="392" height="156" rx="8"/>

@@ -1,12 +1,12 @@
 ---
 title: "Android"
-description: "Two ways to use SAK Notes, SAK Grocery List and SAK Todo on an Android phone: the web apps from the browser or the native apps."
+description: "Two ways to use Notes, Grocery and Todo on an Android phone: the web apps from the browser or the native apps."
 weight: 10
 ---
 
 # Android
 
-There are two ways to use SAK Notes, SAK Grocery List and SAK Todo on an Android phone:
+There are two ways to use Notes, Grocery and Todo on an Android phone:
 
 - **[The web apps](web-apps.md):** installed from Chrome or Firefox in a few taps.
 - **[The native apps](native-apps.md):** downloaded with a link of your SAK instance.

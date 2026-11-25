@@ -60,7 +60,7 @@ describe('Backups', () => {
     expect(page().querySelector('[data-testid=total]')?.textContent?.trim()).toBe(
       '2.5 MB on this page',
     );
-    // no create action: the app SAK Backup creates the repositories
+    // no create action: the app Restic Backup creates the repositories
     expect(page().querySelector('.sak-icon-plus')).toBeNull();
   });
 
@@ -100,7 +100,9 @@ describe('Backups', () => {
     await open('/backups');
     http.expectOne('/api/v1/restic/repositories?offset=0&limit=50').flush(pageOf([]));
     await harness.fixture.whenStable();
-    expect(page().textContent).toContain('No repositories yet. Create one in the app SAK Backup.');
+    expect(page().textContent).toContain(
+      'No repositories yet. Create one in the app Restic Backup.',
+    );
     expect(page().querySelector('[data-testid=total]')).toBeNull();
   });
 

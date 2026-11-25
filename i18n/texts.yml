@@ -335,18 +335,9 @@ web:
   download:
     page_title: { en: "Download", de: "Download" }
     title: { en: "Download", de: "Download" }
-    android: { en: "Android apps", de: "Android-Apps" }
-    android_intro:
-      en: "Install the apps on an Android phone, then sign in to them with your e-mail address."
-      de: "Installiere die Apps auf einem Android-Handy und melde dich dann mit deiner E-Mail-Adresse darin an."
-    desktop: { en: "Desktop apps", de: "Desktop-Apps" }
-    desktop_intro:
-      en: "Install SAK Backup on a computer to back it up to this SAK instance, then sign in to it with this SAK instance."
-      de: "Installiere SAK Backup auf einem Computer, um ihn auf diese SAK-Instanz zu sichern, und melde dich dann darin mit dieser SAK-Instanz an."
-    sak_backup: { en: "SAK Backup", de: "SAK Backup" }
-    download: { en: "Download %{app}", de: "%{app} herunterladen" }
-    version: { en: "Version %{version}", de: "Version %{version}" }
+    restic_backup: { en: "Restic Backup", de: "Restic Backup" }
     files: { en: "The files of %{app}", de: "Die Dateien von %{app}" }
+    android_apk: { en: "Android", de: "Android" }
     windows: { en: "Windows", de: "Windows" }
     macos: { en: "macOS", de: "macOS" }
     linux_deb: { en: "Linux (deb)", de: "Linux (deb)" }
@@ -392,8 +383,8 @@ web:
   connect:
     title: { en: "Connect an app", de: "App verbinden" }
     instructions:
-      en: "Open SAK Notes, Grocery or Todo on your phone, tap “Scan QR code” and point the camera at this code."
-      de: "Öffne SAK Notizen, Einkaufslisten oder Aufgaben auf deinem Handy, tippe auf „QR-Code scannen“ und richte die Kamera auf diesen Code."
+      en: "Open Notes, Grocery or Todo on your phone, tap “Scan QR code” and point the camera at this code."
+      de: "Öffne Notizen, Einkaufslisten oder Aufgaben auf deinem Handy, tippe auf „QR-Code scannen“ und richte die Kamera auf diesen Code."
     warning:
       en: "Whoever scans this code signs in as you. Show it only to your own phone."
       de: "Wer diesen Code scannt, ist als du angemeldet. Zeige ihn nur deinem eigenen Handy."
@@ -414,8 +405,8 @@ web:
   connect_desktop:
     title: { en: "Connect a desktop app", de: "Desktop-App verbinden" }
     question:
-      en: "A desktop app on this computer, e.g. SAK Backup, asks to sign in as you."
-      de: "Eine Desktop-App auf diesem Computer, z. B. SAK Backup, möchte sich als du anmelden."
+      en: "A desktop app on this computer, e.g. Restic Backup, asks to sign in as you."
+      de: "Eine Desktop-App auf diesem Computer, z. B. Restic Backup, möchte sich als du anmelden."
     warning:
       en: "Connect it only if you just started the sign-in in the app yourself and the app shows this code:"
       de: "Verbinde sie nur, wenn du die Anmeldung gerade selbst in der App gestartet hast und die App diesen Code zeigt:"
@@ -2079,8 +2070,8 @@ backups:
     list:
       intro: { en: "Your restic repositories.", de: "Deine restic-Repositorys." }
       empty:
-        en: "No repositories yet. Create one in the app SAK Backup."
-        de: "Noch keine Repositorys. Erstelle eins in der App SAK Backup."
+        en: "No repositories yet. Create one in the app Restic Backup."
+        de: "Noch keine Repositorys. Erstelle eins in der App Restic Backup."
       pages: { en: "Pages of the repositories", de: "Seiten der Repositorys" }
       load_failed: { en: "The repositories could not be loaded.", de: "Die Repositorys konnten nicht geladen werden." }
       total: { en: "%{size} on this page", de: "%{size} auf dieser Seite" }
@@ -2324,8 +2315,8 @@ sak_backup:
         name: { en: "Find restic", de: "restic suchen" }
         passed: { en: "restic %{version}", de: "restic %{version}" }
         missing:
-          en: "SAK Backup needs restic to make backups. Install it, e.g. with the package manager, and start SAK Backup again."
-          de: "SAK Backup braucht restic, um Backups zu machen. Installiere es, z. B. mit dem Paketmanager, und starte SAK Backup erneut."
+          en: "SAK Restic Backup needs restic to make backups. Install it, e.g. with the package manager, and start SAK Restic Backup again."
+          de: "SAK Restic Backup braucht restic, um Backups zu machen. Installiere es, z. B. mit dem Paketmanager, und starte SAK Restic Backup erneut."
         failed:
           en: "%{program} does not run: %{error}"
           de: "%{program} läuft nicht: %{error}"
@@ -2354,7 +2345,7 @@ sak_backup:
       file_not_text: { en: "The file is not a text file.", de: "Die Datei ist kein Text." }
     # the icon in the tray of the panel and its menu (gui/tray.rs)
     tray:
-      show: { en: "Show SAK Backup", de: "SAK Backup anzeigen" }
+      show: { en: "Show SAK Restic Backup", de: "SAK Restic Backup anzeigen" }
       quit: { en: "Quit", de: "Beenden" }
       idle: { en: "No backup is running", de: "Kein Backup läuft" }
       backing_up: { en: "Backing up: %{percent}%", de: "Backup läuft: %{percent} %" }
@@ -2367,7 +2358,7 @@ sak_backup:
       restart_while_running:
         en: "A backup or a restore is running, restart when it is done."
         de: "Ein Backup oder eine Wiederherstellung läuft gerade, starte neu, wenn das fertig ist."
-    title: "SAK Backup"
+    title: "SAK Restic Backup"
     intro:
       en: "Sign in at your SAK instance in the browser to manage its backups."
       de: "Melde dich im Browser bei deiner SAK-Instanz an, um ihre Backups zu verwalten."

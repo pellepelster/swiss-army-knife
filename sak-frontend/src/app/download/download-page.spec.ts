@@ -35,12 +35,10 @@ describe('DownloadPage', () => {
 
   const page = () => harness.routeNativeElement!;
 
-  // the label and the address of every file of a group
-  const files = (group: string) =>
+  // the label and the address of every file of an app
+  const files = (app: string) =>
     [
-      ...page().querySelectorAll<HTMLAnchorElement>(
-        `[data-testid=group-${group}] [data-testid=file]`,
-      ),
+      ...page().querySelectorAll<HTMLAnchorElement>(`[data-testid=app-${app}] [data-testid=file]`),
     ].map((link) => [link.textContent?.trim(), link.getAttribute('href')]);
 
   it('links the apk of each android app in the version the SAK instance runs', async () => {
@@ -49,44 +47,26 @@ describe('DownloadPage', () => {
     await harness.fixture.whenStable();
 
     expect(page().querySelector('h1')?.textContent).toContain('Download');
-    expect(page().querySelector('[data-testid=group-android] h2')?.textContent).toContain(
-      'Android apps',
-    );
+    // one list of the apps by their names inside SAK, only the cards: no heading, no text around them,
+    // no version
     expect(
-      [
-        ...page().querySelectorAll<HTMLAnchorElement>(
-          '[data-testid=group-android] [data-testid=file]',
-        ),
-      ].map((link) => [link.textContent?.trim(), link.getAttribute('href')]),
-    ).toEqual([
-      [
-        'Download Notes',
-        'https://github.com/pellepelster/swiss-army-knife/releases/download/v1.4.2/sak-notes-1.4.2.apk',
-      ],
-      [
-        'Download Grocery',
-        'https://github.com/pellepelster/swiss-army-knife/releases/download/v1.4.2/sak-grocery-1.4.2.apk',
-      ],
-      [
-        'Download Todo',
-        'https://github.com/pellepelster/swiss-army-knife/releases/download/v1.4.2/sak-todo-1.4.2.apk',
-      ],
-    ]);
-    expect(page().textContent).toContain('Version 1.4.2');
+      [...page().querySelectorAll('[data-testid=app-name]')].map((it) => it.textContent?.trim()),
+    ).toEqual(['Notes', 'Grocery', 'Todo', 'Restic Backup']);
+    expect(page().querySelector('h2')).toBeNull();
+    expect([...page().querySelectorAll('p')].length).toBe(0);
+    expect(page().textContent).not.toContain('Version');
+    const release = 'https://github.com/pellepelster/swiss-army-knife/releases/download/v1.4.2';
+    expect(files('notes')).toEqual([['Android', `${release}/sak-notes-1.4.2.apk`]]);
+    expect(files('grocery')).toEqual([['Android', `${release}/sak-grocery-1.4.2.apk`]]);
+    expect(files('todo')).toEqual([['Android', `${release}/sak-todo-1.4.2.apk`]]);
   });
 
-  it('links SAK Backup for every platform it is released for', async () => {
+  it('links Restic Backup for every platform it is released for', async () => {
     http.expectOne('/api/v1/info').flush(info('1.4.2'));
     await harness.fixture.whenStable();
 
-    expect(page().querySelector('[data-testid=group-desktop] h2')?.textContent).toContain(
-      'Desktop apps',
-    );
-    expect(
-      page().querySelector('[data-testid=app-sak-backup] [data-testid=app-name]')?.textContent,
-    ).toContain('SAK Backup');
     const release = 'https://github.com/pellepelster/swiss-army-knife/releases/download/v1.4.2';
-    expect(files('desktop')).toEqual([
+    expect(files('restic-backup')).toEqual([
       ['Windows', `${release}/sak-backup-windows-x86_64-1.4.2.zip`],
       ['macOS', `${release}/sak-backup-macos-universal-1.4.2.zip`],
       ['Linux (deb)', `${release}/sak-backup-linux-x86_64-1.4.2.deb`],

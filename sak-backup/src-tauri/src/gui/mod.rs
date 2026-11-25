@@ -12,7 +12,7 @@ mod tray;
 const DESKTOP_ENTRY: sak_desktop_shared::desktop::DesktopEntry =
     sak_desktop_shared::desktop::DesktopEntry {
         app_id: "sakbackup",
-        name: "SAK Backup",
+        name: "SAK Restic Backup",
         comment: "The backups of your Swiss Army Knife",
         icon: include_bytes!("../../../../sak-theme/images/sakbackup/icon.png"),
     };
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn the_window_has_its_texts_and_the_sign_in() {
         let texts = ui_texts();
-        assert_eq!(texts["ui.title"], "SAK Backup");
+        assert_eq!(texts["ui.title"], "SAK Restic Backup");
         assert!(texts.contains_key("ui.login.sign_in"));
         // the keys of the app and of the shared sign-in do not overlap
         let shared = sak_desktop_shared::i18n::shared_texts();
