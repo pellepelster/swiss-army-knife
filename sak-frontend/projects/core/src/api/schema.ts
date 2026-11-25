@@ -4873,6 +4873,45 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/status': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The status of the instance
+     * @description The health of the whole system: unhealthy when a health check is, else unknown when one could not tell, else healthy; the checks run on each request and may take a few seconds, /api/v1/health has them one by one. What every storage of the instance keeps (the files, the buckets, the repositories of restic, the database), the largest first, and the total. Counted when the server starts and every 15 minutes; no storage and no total before the first count.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The status, a part each */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['StatusResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/files': {
     parameters: {
       query?: never;
@@ -5693,6 +5732,30 @@ export interface components {
       state: 'HEALTHY' | 'UNHEALTHY' | 'UNKNOWN';
       message?: string | null;
       details: components['schemas']['HealthDetailResponse'][];
+    };
+    /** StorageUsageResponse */
+    StorageUsageResponse: {
+      name: string;
+      bytes: number;
+      items: number;
+      computedAt: string;
+    };
+    /** StorageTotalResponse */
+    StorageTotalResponse: {
+      bytes: number;
+      items: number;
+      computedAt: string;
+    } | null;
+    /** StorageOverviewResponse */
+    StorageOverviewResponse: {
+      storages: components['schemas']['StorageUsageResponse'][];
+      total?: components['schemas']['StorageTotalResponse'];
+    };
+    /** StatusResponse */
+    StatusResponse: {
+      /** @enum {string} */
+      health: 'HEALTHY' | 'UNHEALTHY' | 'UNKNOWN';
+      storage: components['schemas']['StorageOverviewResponse'];
     };
     /** FileResponse */
     FileResponse: {

@@ -2,10 +2,10 @@ import { Routes } from '@angular/router';
 import { backupsRoute } from '@sak/backups';
 import { authGuard, pageTitle } from '@sak/core';
 import { groceryDownloadRoute, groceryRoute } from '@sak/grocery';
-import { healthRoute } from '@sak/health';
 import { hostingRoute } from '@sak/hosting';
 import { notesDownloadRoute, notesRoute } from '@sak/notes';
 import { redirectsRoute } from '@sak/redirects';
+import { healthRedirect, statusRoute } from '@sak/status';
 import { settingsRoute } from '@sak/settings';
 import { todoDownloadRoute, todoRoute } from '@sak/todo';
 import { usersRoute } from '@sak/users';
@@ -36,7 +36,8 @@ export const routes: Routes = [
     loadComponent: () => import('./downloads/downloads-page').then((m) => m.DownloadsPage),
     title: pageTitle('downloads.page_title'),
   },
-  healthRoute,
+  statusRoute,
+  healthRedirect,
   usersRoute,
   settingsRoute,
   // the QR code that connects an app, with the qr generator, which only this page needs

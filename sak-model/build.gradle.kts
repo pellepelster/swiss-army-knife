@@ -20,6 +20,8 @@ val migrateCodegenDatabase by tasks.registering(MigrateSqlite::class) {
 
 dependencies {
     // not api: no other module compiles against jOOQ (MODEL-2)
+    // SakDatabase reports what it keeps (StorageUsageReporter)
+    api(project(":sak-api"))
     implementation(libs.jooq)
     implementation(libs.flyway.core)
     implementation(libs.sqlite.jdbc)

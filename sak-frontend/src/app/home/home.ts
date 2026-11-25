@@ -29,10 +29,10 @@ interface MaintenanceEntry {
 
 const MAINTENANCE: readonly MaintenanceEntry[] = [
   {
-    name: 'health.title',
-    description: 'home.health_description',
+    name: 'status.title',
+    description: 'home.status_description',
     icon: 'fa-heart-pulse',
-    path: '/health',
+    path: '/status',
   },
   {
     name: 'shared.settings',

@@ -4,9 +4,10 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { pageHelpers } from '@sak/testing';
-import { HealthPage } from './health-page';
+import { healthRedirect } from './status.routes';
+import { StatusPage } from './status-page';
 
-describe('HealthPage', () => {
+describe('StatusPage', () => {
   let http: HttpTestingController;
   let harness: RouterTestingHarness;
 
@@ -15,7 +16,7 @@ describe('HealthPage', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        provideRouter([{ path: 'health', component: HealthPage }]),
+        provideRouter([{ path: 'status', component: StatusPage }, healthRedirect]),
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -24,14 +25,30 @@ describe('HealthPage', () => {
 
   afterEach(() => http.verify());
 
-  const { page, button, open } = pageHelpers(() => harness);
+  const { page, button, open, url } = pageHelpers(() => harness);
+
+  const counted = '2026-11-24T10:00:00.000Z';
+  const status = (health: string, storages: { name: string; bytes: number; items: number }[]) => ({
+    health,
+    storage: {
+      storages: storages.map((storage) => ({ ...storage, computedAt: counted })),
+      total: storages.length
+        ? {
+            bytes: storages.reduce((sum, each) => sum + each.bytes, 0),
+            items: storages.reduce((sum, each) => sum + each.items, 0),
+            computedAt: counted,
+          }
+        : null,
+    },
+  });
 
   const card = (name: string) => page().querySelector(`[data-testid="health-${name}"]`)!;
 
   it('shows the status of every health check and checks again on demand', async () => {
-    await open('/health');
+    await open('/status');
     expect(page().textContent).toContain('Checking…');
     expect(button('Check again').disabled).toBe(true);
+    http.expectOne('/api/v1/status').flush(status('UNHEALTHY', []));
     http.expectOne('/api/v1/health').flush([
       {
         name: 'Bucket domains',
@@ -84,6 +101,7 @@ describe('HealthPage', () => {
 
     button('Check again').click();
     await harness.fixture.whenStable();
+    http.expectOne('/api/v1/status').flush(status('UNKNOWN', []));
     http
       .expectOne('/api/v1/health')
       .flush([{ name: 'Bucket domains', state: 'UNKNOWN', message: null, details: [] }]);
@@ -95,13 +113,65 @@ describe('HealthPage', () => {
     expect(card('Redirect domains')).toBeNull();
   });
 
-  it('tells when the health can not be checked', async () => {
-    await open('/health');
+  it('tells when the health or the storage can not be loaded, each on its own', async () => {
+    await open('/status');
     http.expectOne('/api/v1/health').flush(null, { status: 403, statusText: 'Forbidden' });
+    http.expectOne('/api/v1/status').flush(null, { status: 500, statusText: 'Error' });
     await harness.fixture.whenStable();
-    expect(page().querySelector('[role=alert]')?.textContent?.trim()).toBe(
-      'Your role does not allow to see the health.',
-    );
+    expect(
+      [...page().querySelectorAll('[role=alert]')].map((it) => it.textContent?.trim()),
+    ).toEqual(['Your role does not allow to see the health.', 'The storage could not be loaded.']);
     expect(button('Check again').disabled).toBe(false);
+  });
+
+  it('shows the health of the system and what every storage keeps, the largest first, and the total', async () => {
+    await open('/status');
+    http.expectOne('/api/v1/health').flush([]);
+    http.expectOne('/api/v1/status').flush(
+      status('HEALTHY', [
+        { name: 'restic', bytes: 2_000_000, items: 40 },
+        { name: 'files', bytes: 500_000, items: 12 },
+        { name: 'other', bytes: 1_000, items: 1 },
+      ]),
+    );
+    await harness.fixture.whenStable();
+
+    expect(
+      page().querySelector('[data-testid=overall] [data-testid=state]')?.textContent?.trim(),
+    ).toBe('Healthy');
+    const rows = [...page().querySelectorAll('[data-testid=storage] tbody tr')].map((row) =>
+      [...row.querySelectorAll('td')].slice(0, 3).map((cell) => cell.textContent?.trim()),
+    );
+    expect(rows).toEqual([
+      ['Backups', '2 MB', '40'],
+      ['Files of the apps', '500 kB', '12'],
+      // a storage the page does not know shows by its name
+      ['other', '1 kB', '1'],
+    ]);
+    expect(
+      page().querySelector('[data-testid=total] [data-testid=size]')?.textContent?.trim(),
+    ).toBe('2.5 MB');
+    expect(page().querySelector('canvas')?.getAttribute('aria-label')).toBe(
+      'What the storages keep',
+    );
+  });
+
+  it('says when the storages are not counted yet', async () => {
+    await open('/status');
+    http.expectOne('/api/v1/health').flush([]);
+    http.expectOne('/api/v1/status').flush(status('HEALTHY', []));
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=counting]')?.textContent?.trim()).toBe(
+      'The storages are being counted, look again in a minute.',
+    );
+    expect(page().querySelector('canvas')).toBeNull();
+  });
+
+  it('leads from the address of the health to the status', async () => {
+    await open('/health');
+    http.expectOne('/api/v1/health').flush([]);
+    http.expectOne('/api/v1/status').flush(status('HEALTHY', []));
+    await harness.fixture.whenStable();
+    expect(url()).toBe('/status');
   });
 });

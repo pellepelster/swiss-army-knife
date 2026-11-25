@@ -59,7 +59,7 @@ describe('Home', () => {
       ['Redirects', '/redirects'],
     ]);
     expect(tiles('Maintenance')).toEqual([
-      ['Health', '/health'],
+      ['Status', '/status'],
       ['Settings', '/settings'],
       ['API', '/swagger/'],
       ['Users', '/users'],
@@ -172,7 +172,7 @@ describe('Home', () => {
 
     expect(page.querySelector('[data-testid=username]')?.textContent).toBe('admin');
     expect(tiles(page, 'Maintenance')).toEqual([
-      ['Health', '/health'],
+      ['Status', '/status'],
       ['Settings', '/settings'],
       ['API', '/swagger/'],
       ['Users', null],

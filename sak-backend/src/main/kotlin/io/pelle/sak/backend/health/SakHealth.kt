@@ -10,6 +10,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.core.Health
+import io.pelle.sak.core.HealthState
 import io.pelle.sak.core.HealthStatus
 import io.pelle.sak.backend.health.model.HealthDetailResponse
 import io.pelle.sak.backend.health.model.HealthStateResponse
@@ -31,13 +32,23 @@ fun HealthStatus.response(language: Language) =
         details.map { HealthDetailResponse(it.name, HealthStateResponse.of(it.state), it.message?.render(language)) },
     )
 
-// mounted behind the authentication; every check runs on each request, all at once, and may take a
-// few seconds (e.g. dns)
+// every check, all at once; may take a few seconds (e.g. dns)
+suspend fun runChecks(checks: List<Health>): List<HealthStatus> = withContext(Dispatchers.IO) { coroutineScope { checks.map { async { it.check() } }.awaitAll() } }
+
+// the health of the whole system: unhealthy when a check is, else unknown when a check could not tell,
+// else healthy; healthy without a check
+fun overall(statuses: List<HealthStatus>): HealthState =
+    when {
+        statuses.any { it.state == HealthState.UNHEALTHY } -> HealthState.UNHEALTHY
+        statuses.any { it.state == HealthState.UNKNOWN } -> HealthState.UNKNOWN
+        else -> HealthState.HEALTHY
+    }
+
+// mounted behind the authentication; every check runs on each request
 @OptIn(ExperimentalKtorApi::class)
 fun Route.health(checks: List<Health>) {
     get {
-        val statuses = withContext(Dispatchers.IO) { coroutineScope { checks.map { async { it.check() } }.awaitAll() } }
-        call.respond(statuses.map { it.response(call.language()) })
+        call.respond(runChecks(checks).map { it.response(call.language()) })
     }.describe {
         tag(HEALTH_TAG)
         summary = "The health of the backend"

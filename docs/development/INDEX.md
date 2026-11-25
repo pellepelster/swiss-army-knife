@@ -16,7 +16,7 @@ alwaysopen: true
 - [Architecture of the Components](architecture/components/INDEX.md): what all components share, and each component:
   [Static Hosting](architecture/components/HOSTING.md), [Redirects](architecture/components/REDIRECTS.md),
   [Notes](architecture/components/NOTES.md), [Grocery](architecture/components/GROCERY.md),
-  [Todo](architecture/components/TODO.md), [Health](architecture/components/HEALTH.md),
+  [Todo](architecture/components/TODO.md), [Health](architecture/components/HEALTH.md), [Status](architecture/components/STATUS.md),
   [Backup](architecture/components/BACKUP.md), [sakadmin](architecture/components/SAKADMIN.md).
 
 ## UI and UX

@@ -5,6 +5,8 @@ import io.pelle.sak.auth.AUTH_PATH
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.API_VERSION
 import io.pelle.sak.api.API_PATH_PREFIX
+import io.pelle.sak.backend.health.health
+import io.pelle.sak.backend.status.status
 import io.pelle.sak.backend.hosting.S3_MAX_BODY_SIZE
 import io.pelle.sak.backend.users.AppLinkService
 import io.pelle.sak.backend.users.users
@@ -54,7 +56,6 @@ import io.pelle.sak.backend.files.servedFiles
 import io.pelle.sak.backend.hosting.buckets
 import io.pelle.sak.backend.info.info
 import io.pelle.sak.backend.info.wellKnown
-import io.pelle.sak.backend.health.health
 import io.pelle.sak.backend.labels.labels
 import io.pelle.sak.backend.notes.notes
 import io.pelle.sak.backend.grocery.grocery
@@ -83,6 +84,7 @@ object ApiPath {
     const val USERS = "/users"
     const val SETTINGS = "/settings"
     const val HEALTH = "/health"
+    const val STATUS = "/status"
     const val FILES = "/files"
     const val DEPLOYMENT = "/deployment"
 }
@@ -275,6 +277,10 @@ fun Application.apps(
                         route(ApiPath.HEALTH) {
                             requireRole(Role.ADMIN)
                             health(listOf(hostingHealth, redirectsHealth))
+                        }
+                        route(ApiPath.STATUS) {
+                            requireRole(Role.ADMIN)
+                            status(listOf(hostingHealth, redirectsHealth), storageUsage)
                         }
                         route(ApiPath.FILES) {
                             requireRole(Role.ADMIN, Role.USER)

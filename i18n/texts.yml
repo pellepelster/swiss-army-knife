@@ -370,7 +370,7 @@ web:
     only_admin: { en: "Only for an admin", de: "Nur für einen Admin" }
     needs_multi_user: { en: "Needs the multi user mode", de: "Braucht den Mehrbenutzermodus" }
     maintenance: { en: "Maintenance", de: "Wartung" }
-    health_description: { en: "The status of all health checks", de: "Der Stand aller Health-Checks" }
+    status_description: { en: "The health checks and what the storages keep", de: "Die Zustandsprüfungen und was die Speicher belegen" }
     settings_description: { en: "Configuration for system and apps", de: "Konfiguration für System und Apps" }
     api: { en: "API", de: "API" }
     api_description:
@@ -1690,9 +1690,11 @@ grocery:
         de: "Die Kategorien konnten nicht geladen werden."
       list_not_created: { en: "The list could not be created.", de: "Die Liste konnte nicht erstellt werden." }
 
-health:
+status:
   web:
-    title: { en: "Health", de: "Zustand" }
+    title: { en: "Status", de: "Status" }
+    health: { en: "Health", de: "Zustand" }
+    overall: { en: "Health of the system", de: "Zustand des Systems" }
     check_again: { en: "Check again", de: "Erneut prüfen" }
     checks: { en: "Health checks", de: "Zustandsprüfungen" }
     none: { en: "There are no health checks.", de: "Es gibt keine Zustandsprüfungen." }
@@ -1705,6 +1707,26 @@ health:
     forbidden_see:
       en: "Your role does not allow to see the health."
       de: "Deine Rolle erlaubt nicht, den Zustand zu sehen."
+    storage:
+      title: { en: "Storage", de: "Speicher" }
+      chart: { en: "What the storages keep", de: "Was die Speicher belegen" }
+      counting:
+        en: "The storages are being counted, look again in a minute."
+        de: "Die Speicher werden gezählt, schau in einer Minute noch einmal."
+      name: { en: "Storage", de: "Speicher" }
+      size: { en: "Size", de: "Größe" }
+      items: { en: "Items", de: "Einträge" }
+      counted: { en: "Counted", de: "Gezählt" }
+      total: { en: "Total", de: "Gesamt" }
+      names:
+        files: { en: "Files of the apps", de: "Dateien der Apps" }
+        buckets: { en: "Buckets", de: "Buckets" }
+        restic: { en: "Backups", de: "Backups" }
+        database: { en: "Database", de: "Datenbank" }
+      not_loaded: { en: "The storage could not be loaded.", de: "Der Speicher konnte nicht geladen werden." }
+      forbidden:
+        en: "Your role does not allow to see the status."
+        de: "Deine Rolle erlaubt nicht, den Status zu sehen."
 
 hosting:
   backend:

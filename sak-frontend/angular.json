@@ -13,6 +13,12 @@
       "sourceRoot": "projects/core/src",
       "prefix": "app"
     },
+    "status": {
+      "projectType": "library",
+      "root": "projects/status",
+      "sourceRoot": "projects/status/src",
+      "prefix": "app"
+    },
     "testing": {
       "projectType": "library",
       "root": "projects/testing",
@@ -31,12 +37,7 @@
       "sourceRoot": "projects/grocery/src",
       "prefix": "app"
     },
-    "health": {
-      "projectType": "library",
-      "root": "projects/health",
-      "sourceRoot": "projects/health/src",
-      "prefix": "app"
-    },
+
     "hosting": {
       "projectType": "library",
       "root": "projects/hosting",

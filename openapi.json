@@ -5588,6 +5588,35 @@
                 ]
             }
         },
+        "/api/v1/status": {
+            "get": {
+                "tags": [
+                    "status"
+                ],
+                "summary": "The status of the instance",
+                "description": "The health of the whole system: unhealthy when a health check is, else unknown when one could not tell, else healthy; the checks run on each request and may take a few seconds, /api/v1/health has them one by one. What every storage of the instance keeps (the files, the buckets, the repositories of restic, the database), the largest first, and the total. Counted when the server starts and every 15 minutes; no storage and no total before the first count.",
+                "responses": {
+                    "200": {
+                        "description": "The status, a part each",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StatusResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
         "/api/v1/files": {
             "post": {
                 "tags": [
@@ -7838,6 +7867,92 @@
                         "items": {
                             "$ref": "#/components/schemas/HealthDetailResponse"
                         }
+                    }
+                }
+            },
+            "StorageUsageResponse": {
+                "type": "object",
+                "title": "StorageUsageResponse",
+                "required": [
+                    "name",
+                    "bytes",
+                    "items",
+                    "computedAt"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "bytes": {
+                        "type": "integer"
+                    },
+                    "items": {
+                        "type": "integer"
+                    },
+                    "computedAt": {
+                        "type": "string"
+                    }
+                }
+            },
+            "StorageTotalResponse": {
+                "type": [
+                    "object",
+                    "null"
+                ],
+                "title": "StorageTotalResponse",
+                "required": [
+                    "bytes",
+                    "items",
+                    "computedAt"
+                ],
+                "properties": {
+                    "bytes": {
+                        "type": "integer"
+                    },
+                    "items": {
+                        "type": "integer"
+                    },
+                    "computedAt": {
+                        "type": "string"
+                    }
+                }
+            },
+            "StorageOverviewResponse": {
+                "type": "object",
+                "title": "StorageOverviewResponse",
+                "required": [
+                    "storages"
+                ],
+                "properties": {
+                    "storages": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/StorageUsageResponse"
+                        }
+                    },
+                    "total": {
+                        "$ref": "#/components/schemas/StorageTotalResponse"
+                    }
+                }
+            },
+            "StatusResponse": {
+                "type": "object",
+                "title": "StatusResponse",
+                "required": [
+                    "health",
+                    "storage"
+                ],
+                "properties": {
+                    "health": {
+                        "type": "string",
+                        "enum": [
+                            "HEALTHY",
+                            "UNHEALTHY",
+                            "UNKNOWN"
+                        ]
+                    },
+                    "storage": {
+                        "$ref": "#/components/schemas/StorageOverviewResponse"
                     }
                 }
             },

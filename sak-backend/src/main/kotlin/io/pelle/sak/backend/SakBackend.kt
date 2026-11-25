@@ -218,7 +218,11 @@ fun Application.sak(config: SakConfig): SakServices {
     val accessCallback = BucketKeysAccessCallback(bucketService)
     bucketService.start(jobs, storage)
     // what the storages keep, counted now and every 15 minutes
-    val storageUsage = StorageUsageService(mapOf("files" to fileStorage, "buckets" to bucketBlobs, "restic" to resticStore), jobs)
+    val storageUsage =
+        StorageUsageService(
+            mapOf("files" to fileStorage, "buckets" to bucketBlobs, "restic" to resticStore, "database" to database),
+            jobs,
+        )
     storageUsage.start()
     reportLeftovers(bucketService, fileService)
     reportResticLeftovers(resticStore, resticService)

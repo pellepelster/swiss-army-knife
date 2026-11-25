@@ -72,6 +72,20 @@ class SakDatabaseTest {
     }
 
     @Test
+    fun `reports the room its file and the files of its journal take`() {
+        val database = SakDatabase.open(file)
+        val journal = listOf(file, file.resolveSibling("sak.db-wal"), file.resolveSibling("sak.db-shm")).filter { Files.isRegularFile(it) }
+        val before = Instant.now()
+
+        val usage = database.storageUsage()
+
+        usage.items shouldBe journal.size.toLong()
+        usage.bytes shouldBe journal.sumOf { Files.size(it) }
+        (usage.bytes > 0) shouldBe true
+        usage.computedAt.isBefore(before) shouldBe false
+    }
+
+    @Test
     fun `keeps the data when opened again, the migrations only run once`() {
         insert(SakDatabase.open(file), "bucket1")
 

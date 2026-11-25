@@ -54,6 +54,11 @@ export type HealthStatus = Schemas['HealthStatusResponse'];
 export type HealthDetail = Schemas['HealthDetailResponse'];
 export type HealthState = HealthStatus['state'];
 
+// the status of the instance: the health of the whole system, what the storages keep
+export type Status = Schemas['StatusResponse'];
+export type StorageUsage = Schemas['StorageUsageResponse'];
+export type StorageTotal = Schemas['StorageTotalResponse'];
+
 // settings: a value is a boolean or a text, the value of a choice is a text; the schema of a default
 // (any primitive) is corrected in SakApiDoc
 export type SettingValue = boolean | string;

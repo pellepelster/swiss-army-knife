@@ -23,7 +23,7 @@
       "@sak/testing": ["./projects/testing/src/index.ts"],
       "@sak/backups": ["./projects/backups/src/index.ts"],
       "@sak/grocery": ["./projects/grocery/src/index.ts"],
-      "@sak/health": ["./projects/health/src/index.ts"],
+      "@sak/status": ["./projects/status/src/index.ts"],
       "@sak/hosting": ["./projects/hosting/src/index.ts"],
       "@sak/notes": ["./projects/notes/src/index.ts"],
       "@sak/redirects": ["./projects/redirects/src/index.ts"],

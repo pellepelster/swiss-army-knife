@@ -12,19 +12,20 @@ adds to [SYSTEM.md](../SYSTEM.md) and never repeats it; each component adds to t
 
 ## The components
 
-| Component      | Document                     | Backend                                  | Frontend              | Tables                                                                   |
-|----------------|------------------------------|------------------------------------------|-----------------------|--------------------------------------------------------------------------|
-| Static hosting | [HOSTING.md](HOSTING.md)     | `io.pelle.sak.backend.hosting`, `sak-s3` | `projects/hosting/`   | `s3_buckets`, `s3_buckets_domains`                                       |
-| Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`         | `projects/redirects/` | `redirects`                                                              |
-| Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`             | `projects/notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                     |
-| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`           | `projects/grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                   |
-| Todo           | [TODO.md](TODO.md)           | `io.pelle.sak.backend.todo`              | `projects/todo/`      | `todo_lists`, `todo_items`                                               |
-| Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`, `sak-dns` | `projects/health/`    | none                                                                     |
-| Backup         | [BACKUP.md](BACKUP.md)       | `io.pelle.sak.backend.restic`            | `projects/backups/`   | `restic_repositories`, `restic_backup_plans`, `restic_backup_plan_paths` |
-| sakadmin       | [SAKADMIN.md](SAKADMIN.md)   | none                                     | none                  | none                                                                     |
+| Component      | Document                     | Backend                                                       | Frontend              | Tables                                                                   |
+|----------------|------------------------------|---------------------------------------------------------------|-----------------------|--------------------------------------------------------------------------|
+| Static hosting | [HOSTING.md](HOSTING.md)     | `io.pelle.sak.backend.hosting`, `sak-s3`                      | `projects/hosting/`   | `s3_buckets`, `s3_buckets_domains`                                       |
+| Redirects      | [REDIRECTS.md](REDIRECTS.md) | `io.pelle.sak.backend.redirects`                              | `projects/redirects/` | `redirects`                                                              |
+| Notes          | [NOTES.md](NOTES.md)         | `io.pelle.sak.backend.notes`                                  | `projects/notes/`     | `note_lists`, `notes`, `notes_labels`, `notes_files`                     |
+| Grocery        | [GROCERY.md](GROCERY.md)     | `io.pelle.sak.backend.grocery`                                | `projects/grocery/`   | `grocery_lists`, `grocery_categories`, `grocery_items`                   |
+| Todo           | [TODO.md](TODO.md)           | `io.pelle.sak.backend.todo`                                   | `projects/todo/`      | `todo_lists`, `todo_items`                                               |
+| Health         | [HEALTH.md](HEALTH.md)       | `io.pelle.sak.backend.health`, `sak-dns`                      | `projects/status/`    | none                                                                     |
+| Status         | [STATUS.md](STATUS.md)       | `io.pelle.sak.backend.status`, `io.pelle.sak.backend.storage` | `projects/status/`    | none                                                                     |
+| Backup         | [BACKUP.md](BACKUP.md)       | `io.pelle.sak.backend.restic`                                 | `projects/backups/`   | `restic_repositories`, `restic_backup_plans`, `restic_backup_plan_paths` |
+| sakadmin       | [SAKADMIN.md](SAKADMIN.md)   | none                                                          | none                  | none                                                                     |
 
 The first five are the apps. The login, the settings, the labels and the file storage are no apps; all apps share
-them (refer to [Shared parts](#shared-parts)). The health is no app either: it is a maintenance page (`WEB-5`).
+them (refer to [Shared parts](#shared-parts)). The status, with the health, is no app either: it is a maintenance page (`WEB-5`).
 The backups have a part in the backend, the repositories of restic, and a desktop app, sakbackup, which runs restic.
 sakadmin is no part of the backend: it is the desktop app in `sak-admin-cli` that manages deployments.
 
@@ -43,7 +44,7 @@ The rules of the apps whose items belong to lists of the user are in [LIST-APPS.
 
 ## Web app
 
-- `WEB-5` **One page for each app.** Each is listed on the start page; the maintenance pages (health, settings) are
+- `WEB-5` **One page for each app.** Each is listed on the start page; the maintenance pages (status, settings) are
   listed below them. The look is in [UI-UX.md](../../ui-ux/UI-UX.md) and [UI-UX-WEB.md](../../ui-ux/UI-UX-WEB.md), the rules of the
   code are the ones below.
 - `WEB-6` **Paths and tabs.** A thing is created on `/<entities>/create` and edited on `/<entities>/<id>/edit`

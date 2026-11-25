@@ -570,7 +570,7 @@ class SakAppsTest {
                 it.json().string("discoverItems") shouldBe "false"
             }
             post(port, "/api/v1/grocery/files/4711/discover/items", "", anna).statusCode() shouldBe 404
-            listOf("/api/v1/static-hosting", "/api/v1/redirects", "/api/v1/settings", "/api/v1/health", "/api/v1/users").forEach {
+            listOf("/api/v1/static-hosting", "/api/v1/redirects", "/api/v1/settings", "/api/v1/health", "/api/v1/status", "/api/v1/users").forEach {
                 get(port, it, anna).statusCode() shouldBe 403
             }
 
@@ -1316,6 +1316,30 @@ class SakAppsTest {
     }
 
     @Test
+    fun `tells what every storage keeps, as counted when the server started`() {
+        withServer { port ->
+            get(port, "/api/v1/status").statusCode() shouldBe 401
+            val admin = signIn(port)
+            // the count runs in the background from the start of the server
+            fun storage() = get(port, "/api/v1/status", admin).also { it.statusCode() shouldBe 200 }.json().getValue("storage").jsonObject
+            val deadline = System.nanoTime() + java.time.Duration.ofSeconds(10).toNanos()
+            while (storage().getValue("storages").jsonArray.size < 4 && System.nanoTime() < deadline) Thread.sleep(50)
+            val storage = storage()
+            // the health of the whole system: the domains can not be checked in the test config
+            get(port, "/api/v1/status", admin).json().string("health") shouldBe "UNKNOWN"
+            val storages = storage.getValue("storages").jsonArray.map { it.jsonObject }
+            storages.map { it.string("name") }.toSet() shouldBe setOf("files", "buckets", "restic", "database")
+            // the largest first: the database has a file, the others are empty
+            storages.first().string("name") shouldBe "database"
+            storages.map { it.string("bytes").toLong() } shouldBe storages.map { it.string("bytes").toLong() }.sortedDescending()
+            val total = storage.getValue("total").jsonObject
+            total.string("bytes").toLong() shouldBe storages.sumOf { it.string("bytes").toLong() }
+            total.string("items").toLong() shouldBe storages.sumOf { it.string("items").toLong() }
+            total.string("computedAt") shouldBe storages.minOf { it.string("computedAt") }
+        }
+    }
+
+    @Test
     fun `serves buckets at the domains they are created with and changes them`() {
         withServer { port ->
             val session = signIn(port)
@@ -1597,6 +1621,7 @@ class SakAppsTest {
                     "/api/v1/files/{id}/thumbnail",
                     "/api/v1/files/{id}/discover/text",
                     "/api/v1/health",
+                    "/api/v1/status",
                 )
             // the routes behind the login require the session token or a signed request of
             // sakadmin, the login itself does not
