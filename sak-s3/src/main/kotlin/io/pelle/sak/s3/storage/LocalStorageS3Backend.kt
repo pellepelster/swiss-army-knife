@@ -3,7 +3,9 @@ package io.pelle.sak.s3.storage
 import io.pelle.sak.storage.FilesystemLocalStorage
 import java.time.Instant
 import io.pelle.sak.storage.WriteGuard
+import io.pelle.sak.api.storage.KeyOrderEntry
 import io.pelle.sak.api.storage.LocalStorage
+import io.pelle.sak.api.storage.Walk
 import io.pelle.sak.api.storage.model.BlobPath
 import io.pelle.sak.api.storage.model.BlobPathConflictException
 import io.pelle.sak.api.storage.model.BlobUsage
@@ -106,6 +108,10 @@ class LocalStorageS3Backend(
         storage.delete(metaPath(bucketPath, key))
     }
 
+    // walks the bucket in the order of the keys from startAfter on and stops once the page is full
+    // (#153): only the directory the prefix points into, and with the delimiter / a directory that is a
+    // common prefix is answered without going into it. A startAfter of a common prefix
+    // (ContinuationToken.afterPrefix) goes on after all of its keys
     override fun listObjects(
         bucket: String,
         prefix: String?,
@@ -117,65 +123,88 @@ class LocalStorageS3Backend(
         // s3 answers max-keys=0 with an empty listing that is not truncated
         if (maxKeys <= 0) return ObjectListing(emptyList(), emptyList(), isTruncated = false, nextContinuationToken = null)
 
-        val entries = entriesAfter(bucketPath, prefix, startAfter)
+        val skipUnder = startAfter?.takeIf { it.startsWith(ContinuationToken.AFTER_PREFIX) }?.drop(1)
+        val after = skipUnder ?: startAfter
+        // only the directory the prefix points into is walked ('a/b/c' -> 'a/b/'), not the bucket
+        val prefixDirectory = prefix?.substringBeforeLast('/', "")?.split('/')?.filter { it.isNotEmpty() }.orEmpty()
 
         val objects = mutableListOf<StoredObjectInfo>()
         val commonPrefixes = sortedSetOf<String>()
         var truncated = false
-        var lastKey: String? = null
+        // where the next page goes on
+        var next: String? = null
 
-        for (entry in entries) {
-            val key = entry.path
-            val rolledUp = commonPrefix(key, prefix, delimiter)
+        fun full() = objects.size + commonPrefixes.size >= maxKeys
 
-            if (rolledUp != null && rolledUp in commonPrefixes) {
-                lastKey = key
-                continue
+        try {
+            storage.walkInKeyOrder(bucketPath.resolve(DATA), prefixDirectory, after, skipUnder) { entry ->
+                when (entry) {
+                    is KeyOrderEntry.Directory -> {
+                        val directory = entry.key
+                        when {
+                            // on the way to the prefix: into it
+                            prefix != null && prefix.startsWith(directory) -> Walk.CONTINUE
+                            // no key below it starts with the prefix
+                            prefix != null && !directory.startsWith(prefix) -> Walk.SKIP
+                            // startAfter is in it: only a key after it makes it a common prefix, so it
+                            // is gone into and its first such key rolled up
+                            after != null && after.startsWith(directory) -> Walk.CONTINUE
+                            // with the delimiter /, a directory is a common prefix: answered once, not walked
+                            delimiter == "/" -> {
+                                val rolledUp = commonPrefix(directory, prefix, delimiter)!!
+                                when {
+                                    rolledUp in commonPrefixes -> Walk.SKIP
+                                    full() -> {
+                                        truncated = true
+                                        Walk.STOP
+                                    }
+                                    else -> {
+                                        commonPrefixes.add(rolledUp)
+                                        next = ContinuationToken.AFTER_PREFIX + rolledUp
+                                        Walk.SKIP
+                                    }
+                                }
+                            }
+                            else -> Walk.CONTINUE
+                        }
+                    }
+                    is KeyOrderEntry.Blob -> {
+                        val key = entry.entry.path
+                        if (prefix != null && !key.startsWith(prefix)) {
+                            Walk.CONTINUE
+                        } else {
+                            // the key starts with the prefix, which it is cut off
+                            val rolledUp = commonPrefix(key, prefix, delimiter)
+                            when {
+                                rolledUp != null && rolledUp in commonPrefixes -> {
+                                    next = key
+                                    Walk.CONTINUE
+                                }
+                                full() -> {
+                                    truncated = true
+                                    Walk.STOP
+                                }
+                                else -> {
+                                    if (rolledUp != null) commonPrefixes.add(rolledUp) else objects.add(info(bucketPath, key, entry.entry.size, entry.entry.lastModified))
+                                    next = key
+                                    Walk.CONTINUE
+                                }
+                            }
+                        }
+                    }
+                }
             }
-
-            if (objects.size + commonPrefixes.size >= maxKeys) {
-                truncated = true
-                break
-            }
-
-            if (rolledUp != null) {
-                commonPrefixes.add(rolledUp)
-            } else {
-                objects.add(info(bucketPath, key, entry.size, entry.lastModified))
-            }
-            lastKey = key
+        } catch (_: IllegalArgumentException) {
+            // a prefix with an invalid path segment ('..') matches no key
+            return ObjectListing(emptyList(), emptyList(), isTruncated = false, nextContinuationToken = null)
         }
 
         return ObjectListing(
             objects = objects,
             commonPrefixes = commonPrefixes.toList(),
             isTruncated = truncated,
-            nextContinuationToken = if (truncated) ContinuationToken.of(lastKey!!) else null,
+            nextContinuationToken = if (truncated) ContinuationToken.of(next!!) else null,
         )
-    }
-
-    // the objects of the bucket whose key starts with the prefix and comes after startAfter, in the
-    // order of their keys
-    private fun entriesAfter(
-        bucketPath: BlobPath,
-        prefix: String?,
-        startAfter: String?,
-    ) = run {
-        // only the directory the prefix points into is walked ('a/b/c' -> 'a/b/'), not the bucket
-        val prefixDirectory = prefix?.substringBeforeLast('/', "")?.split('/')?.filter { it.isNotEmpty() }.orEmpty()
-        val listed =
-            try {
-                storage.list(bucketPath.resolve(DATA).resolve(prefixDirectory))
-            } catch (_: IllegalArgumentException) {
-                // a prefix with an invalid path segment ('..') matches no key
-                emptyList()
-            }
-
-        listed
-            .asSequence()
-            .map { it.copy(segments = prefixDirectory + it.segments) }
-            .filter { prefix == null || it.path.startsWith(prefix) }
-            .filter { startAfter == null || it.path > startAfter }
     }
 
     // the key up to its first delimiter after the prefix, which a listing answers once for all keys

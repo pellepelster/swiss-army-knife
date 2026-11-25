@@ -5,6 +5,8 @@ import io.pelle.sak.api.storage.StagedWrite
 import io.pelle.sak.api.storage.model.BlobPathConflictException
 import io.pelle.sak.api.storage.model.BlobChangedException
 import io.pelle.sak.api.storage.model.BlobInfo
+import io.pelle.sak.api.storage.KeyOrderEntry
+import io.pelle.sak.api.storage.Walk
 import io.pelle.sak.api.storage.model.BlobListEntry
 import io.pelle.sak.api.storage.model.BlobPath
 import java.io.IOException
@@ -257,6 +259,64 @@ class FilesystemLocalStorage(
         walk(dir) { file, attributes ->
             visit(BlobListEntry(dir.relativize(file).map { it.toString() }, attributes.size(), attributes.lastModifiedTime().toInstant()))
         }
+    }
+
+    override fun walkInKeyOrder(
+        root: BlobPath,
+        below: List<String>,
+        startAfter: String?,
+        skipUnder: String?,
+        visit: (KeyOrderEntry) -> Walk,
+    ) {
+        val dir = resolve(root.resolve(below))
+        if (Files.isDirectory(dir)) walkSorted(dir, below, startAfter, skipUnder, visit)
+    }
+
+    // the entries of one directory in the order of the keys, a directory sorted as its name and a slash
+    // (a-b before a/b, as in a key '-' is before '/'), each directory before what is below it; false
+    // once the walk is to end
+    private fun walkSorted(
+        dir: Path,
+        segments: List<String>,
+        startAfter: String?,
+        skipUnder: String?,
+        visit: (KeyOrderEntry) -> Walk,
+    ): Boolean {
+        val names =
+            try {
+                Files.list(dir).use { entries -> entries.filter { it != tmpDir }.toList() }
+            } catch (_: NoSuchFileException) {
+                return true
+            }
+        val sorted = names.map { it to Files.isDirectory(it) }.sortedBy { (path, isDirectory) -> path.fileName.toString() + if (isDirectory) "/" else "" }
+        for ((path, isDirectory) in sorted) {
+            val below = segments + path.fileName.toString()
+            val key = below.joinToString("/")
+            if (isDirectory) {
+                val prefix = "$key/"
+                // every key below it is not after startAfter, or is to be skipped
+                if (startAfter != null && prefix < startAfter && !startAfter.startsWith(prefix)) continue
+                if (skipUnder != null && prefix.startsWith(skipUnder)) continue
+                when (visit(KeyOrderEntry.Directory(below))) {
+                    Walk.STOP -> return false
+                    Walk.SKIP -> continue
+                    Walk.CONTINUE -> if (!walkSorted(path, below, startAfter, skipUnder, visit)) return false
+                }
+            } else {
+                if (startAfter != null && key <= startAfter) continue
+                if (skipUnder != null && key.startsWith(skipUnder)) continue
+                val attributes =
+                    try {
+                        Files.readAttributes(path, BasicFileAttributes::class.java)
+                    } catch (_: NoSuchFileException) {
+                        // deleted since the directory was read
+                        continue
+                    }
+                if (!attributes.isRegularFile) continue
+                if (visit(KeyOrderEntry.Blob(BlobListEntry(below, attributes.size(), attributes.lastModifiedTime().toInstant()))) == Walk.STOP) return false
+            }
+        }
+        return true
     }
 
     override fun children(path: BlobPath): List<String> {

@@ -106,7 +106,14 @@ interface S3BucketStorage {
 // the token of a listing that goes on: the last key of the page before, so that it holds no state
 // of the storage
 object ContinuationToken {
+    // a key no listing goes on with: the mark of a common prefix all of whose keys are listed, NUL,
+    // which no key has
+    const val AFTER_PREFIX = '\u0000'
+
     fun of(key: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(key.toByteArray())
+
+    // goes on after every key that starts with the prefix, a common prefix answered without its keys
+    fun afterPrefix(prefix: String): String = of(AFTER_PREFIX + prefix)
 
     // null for what is no token
     fun key(token: String): String? =

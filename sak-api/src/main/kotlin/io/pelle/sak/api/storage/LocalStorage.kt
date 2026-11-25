@@ -87,6 +87,19 @@ interface LocalStorage : StorageUsageReporter {
         visit: (BlobListEntry) -> Unit,
     )
 
+    // the blobs and the directories below root/below, in the order of their keys as strings (the order of
+    // S3, the key being the path from root joined with slashes), one directory read at a time, so a walk
+    // that stops early reads only what it passed. Nothing up to startAfter is met: neither a blob whose
+    // key is not after it, nor a directory whose keys all are not; nor anything whose key starts with
+    // skipUnder. visit says how to go on
+    fun walkInKeyOrder(
+        root: BlobPath,
+        below: List<String>,
+        startAfter: String?,
+        skipUnder: String?,
+        visit: (KeyOrderEntry) -> Walk,
+    )
+
     // the names of the blobs and directories right below the path, sorted, without walking deeper;
     // none when there is nothing at the path. The staged writes are left out
     fun children(path: BlobPath): List<String>
