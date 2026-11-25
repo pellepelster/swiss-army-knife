@@ -1,16 +1,16 @@
 package io.pelle.sak.backend.openrouter
 
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.settings.BooleanSetting
+import io.pelle.sak.settings.model.BooleanSetting
 import io.pelle.sak.settings.ReadOnlyValues
-import io.pelle.sak.settings.SettingName
-import io.pelle.sak.settings.SettingScope
-import io.pelle.sak.settings.SettingScopeName
+import io.pelle.sak.settings.model.SettingName
+import io.pelle.sak.settings.model.SettingsGroup
+import io.pelle.sak.settings.model.SettingScope
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.SettingValue
+import io.pelle.sak.settings.model.SettingValue
 import io.pelle.sak.settings.StoredSettingsService
-import io.pelle.sak.settings.TextSetting
-import io.pelle.sak.settings.valueOf
+import io.pelle.sak.settings.model.TextSetting
+import io.pelle.sak.settings.model.valueOf
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.openrouter.ApiKeyCheck
 import io.pelle.sak.openrouter.ApiKeyStatus
@@ -126,8 +126,8 @@ class OpenRouterManager(
             )
 
         val SCOPE =
-            SettingScope(
-                SettingScopeName("ai"),
+            SettingsGroup(
+                SettingScope("ai"),
                 OpenRouterTexts.SCOPE_LABEL,
                 OpenRouterTexts.SCOPE_DESCRIPTION,
                 listOf(ENABLED, API_KEY, VISION_MODEL, SPEECH_MODEL),

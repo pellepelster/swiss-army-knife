@@ -3,6 +3,12 @@ package io.pelle.sak.settings
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.settings.model.BooleanSetting
+import io.pelle.sak.settings.model.ChoiceSetting
+import io.pelle.sak.settings.model.SettingChoice
+import io.pelle.sak.settings.model.SettingName
+import io.pelle.sak.settings.model.SettingValue
+import io.pelle.sak.settings.model.TextSetting
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive

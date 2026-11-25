@@ -13,7 +13,11 @@ import io.pelle.sak.api.errors
 import io.pelle.sak.api.language
 import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.owner
-import io.pelle.sak.settings.SettingDefinition
+import io.pelle.sak.settings.model.SettingDefinition
+import io.pelle.sak.settings.model.SettingValue
+import io.pelle.sak.settings.SettingsRegistry
+import io.pelle.sak.settings.SettingsService
+import io.pelle.sak.settings.SettingsUpdateResult
 import io.pelle.sak.settings.model.SettingsRequest
 import io.pelle.sak.settings.response
 import io.pelle.sak.settings.user.model.UserSettingResponse
@@ -26,33 +30,40 @@ import kotlinx.coroutines.withContext
 
 private const val USER_SETTINGS_TAG = "user settings"
 
-private fun UserSettingValue.response(language: Language) =
-    UserSettingResponse(
+// a setting of the user with its value, whether it counts now and why not
+private fun SettingValue<*>.response(
+    service: SettingsService,
+    language: Language,
+): UserSettingResponse {
+    val unavailable = service.unavailable(setting)
+    return UserSettingResponse(
         setting.name.value,
-        setting.definition.label.render(language),
+        setting.label.render(language),
         setting.description().render(language),
-        setting.definition.type.response(),
-        setting.definition.toJsonDefault(),
-        value,
+        setting.type.response(),
+        setting.defaultJson(),
+        toApiJson(),
         unavailable == null,
         unavailable?.render(language),
     )
+}
 
-private fun <T : Any> SettingDefinition<T>.toJsonDefault() = toJson(default)
+private fun <T : Any> SettingDefinition<T>.defaultJson() = toJson(default)
 
-private fun UserSettingScope.response(
-    values: List<UserSettingValue>,
+// the settings of the user in the scope of the service
+private fun SettingsService.response(
+    user: String,
     language: Language,
-) = UserSettingScopeResponse(name.value, label.render(language), values.map { it.response(language) })
+) = UserSettingScopeResponse(scope.name.value, scope.label.render(language), all(user).map { it.response(this, language) })
 
 // the settings of the user signed in, meant to be mounted behind the authentication for every user;
 // the user is the one of the session, never one of the request, so a user reaches only their own
 @OptIn(ExperimentalKtorApi::class)
-fun Route.userSettings(service: UserSettingsService) {
+fun Route.userSettings(registry: SettingsRegistry) {
     get {
         val user = call.owner
         val language = call.language()
-        val scopes = withContext(Dispatchers.IO) { service.scopes.map { it.response(service.values(user, it), language) } }
+        val scopes = withContext(Dispatchers.IO) { registry.userServices.map { it.response(user, language) } }
         call.respond(UserSettingsResponse(scopes))
     }.describe {
         tag(USER_SETTINGS_TAG)
@@ -72,12 +83,15 @@ fun Route.userSettings(service: UserSettingsService) {
     put("/{scope}") {
         val request = call.receive<SettingsRequest>()
         val scope = call.parameters["scope"].orEmpty()
-        when (val result = withContext(Dispatchers.IO) { service.update(call.owner, scope, request.settings) }) {
-            is UserSettingsUpdateResult.Updated ->
-                call.respond(service.scopes.first { it.name.value == scope }.response(result.values, call.language()))
-            is UserSettingsUpdateResult.Invalid -> call.respondErrors(result.errors)
-            is UserSettingsUpdateResult.Unavailable -> call.respondErrors(result.errors, status = HttpStatusCode.Conflict)
-            UserSettingsUpdateResult.NotFound -> call.respond(HttpStatusCode.NotFound)
+        val user = call.owner
+        when (val result = withContext(Dispatchers.IO) { registry.updateOfUser(user, scope, request.settings) }) {
+            is SettingsUpdateResult.Updated -> {
+                val service = registry.userServices.first { it.scope.name.value == scope }
+                call.respond(withContext(Dispatchers.IO) { service.response(user, call.language()) })
+            }
+            is SettingsUpdateResult.Invalid -> call.respondErrors(result.errors)
+            is SettingsUpdateResult.Unavailable -> call.respondErrors(result.errors, status = HttpStatusCode.Conflict)
+            SettingsUpdateResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }
     }.describe {
         tag(USER_SETTINGS_TAG)

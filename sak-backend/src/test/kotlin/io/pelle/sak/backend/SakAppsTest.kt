@@ -65,7 +65,6 @@ import java.nio.file.Path
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
 import io.pelle.sak.model.testing.Media
-import io.pelle.sak.settings.SettingName
 import io.pelle.sak.settings.SystemSettings
 import java.security.KeyPairGenerator
 import java.security.PrivateKey
@@ -138,7 +137,7 @@ class SakAppsTest {
     }
 
     // the key the server signs the tokens with, kept in its settings
-    private fun signingKey(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { testSettings(it).get(SettingName.AUTH_SIGNING_KEY) }
+    private fun signingKey(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { testSettings(it).get(BackendSettings.AUTH_SIGNING_KEY) }
 
     // the buckets of the server's database
     private fun buckets(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { S3BucketService(it) }
@@ -1684,7 +1683,7 @@ class SakAppsTest {
     fun `an unreadable signing key leaves the apps out but serves the s3 api`() {
         val config = config()
         Files.createDirectories(config.dataDir)
-        SakDatabase.open(databaseFile(config)).let { testSettings(it).put(SettingName.AUTH_SIGNING_KEY, SystemSettings.SCOPE, "not a key", owner = "admin@example.org") }
+        SakDatabase.open(databaseFile(config)).let { testSettings(it).put(BackendSettings.AUTH_SIGNING_KEY, SystemSettings.SCOPE, "not a key", owner = "admin@example.org") }
 
         withServer(config) { port ->
             get(port, "/").statusCode() shouldBe 404
@@ -1996,7 +1995,7 @@ class SakAppsTest {
             }
             get(port, "/api/v1/settings/restic", session).body() shouldBe """{"s3":false}"""
             put(port, "/api/v1/settings/restic", """{"s3":true}""", session).let {
-                it.statusCode() shouldBe 400
+                it.statusCode() shouldBe 409
                 it.body() shouldBe
                     """{"errors":[{"code":"settings.requires","message":"\"Keep the backups in the S3 storage\" needs \"S3 storage\" of \"Storage\" turned on."}]}"""
             }
@@ -2159,7 +2158,7 @@ class SakAppsTest {
         }
         buckets(single).byName("by-mail")!!.owner shouldBe "admin@example.org"
         buckets(single).byName("by-password")!!.owner shouldBe ADMIN_USERNAME
-        SettingRepository(SakDatabase.open(databaseFile(single))).byNameAndScope(SettingName.AUTH_SIGNING_KEY.value, SystemSettings.SCOPE.value)!!.owner shouldBe
+        SettingRepository(SakDatabase.open(databaseFile(single))).byNameAndScope(BackendSettings.AUTH_SIGNING_KEY.value, SystemSettings.SCOPE.value)!!.owner shouldBe
             SYSTEM_OWNER
     }
 

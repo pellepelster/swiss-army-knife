@@ -5485,6 +5485,16 @@
                                 }
                             }
                         }
+                    },
+                    "409": {
+                        "description": "A setting that does not count now, e.g. one whose required setting is off",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [

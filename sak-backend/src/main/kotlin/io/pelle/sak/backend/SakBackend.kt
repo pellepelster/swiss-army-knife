@@ -31,7 +31,6 @@ import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.settings.SettingService
 import io.pelle.sak.backend.notes.NotesUserSettings
-import io.pelle.sak.settings.user.UserSettingsService
 import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.backend.openrouter.OpenRouterManager
 import io.pelle.sak.backend.storage.S3StorageManager
@@ -105,8 +104,6 @@ class SakServices(
     val settings: SettingService,
     // every scope of settings the settings api serves
     val settingsRegistry: SettingsRegistry,
-    // the settings each user sets for themselves
-    val userSettings: UserSettingsService,
     val bucketService: S3BucketService,
     val redirectService: RedirectService,
     val labelService: LabelService,
@@ -174,9 +171,8 @@ fun Application.sak(config: SakConfig): SakServices {
     val settings = SettingService(database)
     val openRouter = OpenRouterManager(config.openrouter, settings)
     // the AI of an app, turned on by each user for themselves
-    val notesUserSettings = NotesUserSettings(openRouter)
-    val groceryUserSettings = GroceryUserSettings(openRouter)
-    val userSettings = UserSettingsService(settings, listOf(notesUserSettings.scope, groceryUserSettings.scope))
+    val notesUserSettings = NotesUserSettings(openRouter, settings)
+    val groceryUserSettings = GroceryUserSettings(openRouter, settings)
     val s3Storage = S3StorageManager(settings, config.name)
     val resticSettings = ResticSettingsService(settings)
     // a bucket is not served at a redirected domain and the other way round
@@ -211,7 +207,7 @@ fun Application.sak(config: SakConfig): SakServices {
             guard = WriteGuard({ Files.getFileStore(config.filesDir).usableSpace }, config.minFreeBytes, FileService.DEFAULT_MAX_SIZE),
         )
     val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber) { owner ->
-            userSettings.on(owner, notesUserSettings.scope, notesUserSettings.ai)
+            notesUserSettings.aiOn(owner)
         }
     val noteService = NoteService(database, labelService, fileService)
     val groceryService = GroceryService(database, fileService)
@@ -254,8 +250,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val services =
         SakServices(
             settings = settings,
-            settingsRegistry = SettingsRegistry(listOf(openRouter, s3Storage, resticSettings)),
-            userSettings = userSettings,
+            settingsRegistry = SettingsRegistry(listOf(openRouter, s3Storage, resticSettings, notesUserSettings.service, groceryUserSettings.service)),
             bucketService = bucketService,
             redirectService = redirectService,
             labelService = labelService,
@@ -267,7 +262,7 @@ fun Application.sak(config: SakConfig): SakServices {
             fileService = fileService,
             fileTextService = fileTextService,
             groceryDiscovery = GroceryDiscovery(fileService, openRouter::ingredientRecognizer) { owner ->
-                    userSettings.on(owner, groceryUserSettings.scope, groceryUserSettings.ai)
+                    groceryUserSettings.aiOn(owner)
                 },
             hostingHealth = HostingHealth(bucketService, domainCheck, config.addresses),
             redirectsHealth = RedirectsHealth(redirectService, domainCheck, config.addresses),

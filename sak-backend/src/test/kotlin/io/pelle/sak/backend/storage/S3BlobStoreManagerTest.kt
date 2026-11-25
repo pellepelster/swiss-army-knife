@@ -9,7 +9,7 @@ import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.SettingValue
+import io.pelle.sak.settings.model.SettingValue
 import io.pelle.sak.settings.SettingsTexts
 import io.pelle.sak.settings.Validation
 import io.pelle.sak.model.SakDatabase
@@ -55,6 +55,7 @@ class S3BlobStoreManagerTest {
         val json = values.associate { (name, value) -> name to if (value is Boolean) JsonPrimitive(value) else JsonPrimitive(value.toString()) }
         return when (val validation = manager.validate(json)) {
             is Validation.Invalid -> validation.errors
+            is Validation.Unavailable -> validation.errors
             is Validation.Valid -> emptyList<ErrorMessage>().also { manager.set(validation.values, owner = "admin@example.org") }
         }
     }

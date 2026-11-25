@@ -9,18 +9,18 @@ import io.pelle.sak.storage.s3.HeadBucketKeyCheck
 import io.pelle.sak.storage.s3.S3KeyStatus
 import io.pelle.sak.storage.s3.StorageTexts
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.settings.BooleanSetting
-import io.pelle.sak.settings.ChoiceSetting
-import io.pelle.sak.settings.SettingChoice
-import io.pelle.sak.settings.SettingDefinition
-import io.pelle.sak.settings.SettingName
-import io.pelle.sak.settings.SettingScope
-import io.pelle.sak.settings.SettingScopeName
+import io.pelle.sak.settings.model.BooleanSetting
+import io.pelle.sak.settings.model.ChoiceSetting
+import io.pelle.sak.settings.model.SettingChoice
+import io.pelle.sak.settings.model.SettingDefinition
+import io.pelle.sak.settings.model.SettingName
+import io.pelle.sak.settings.model.SettingsGroup
+import io.pelle.sak.settings.model.SettingScope
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.SettingValue
+import io.pelle.sak.settings.model.SettingValue
 import io.pelle.sak.settings.StoredSettingsService
-import io.pelle.sak.settings.TextSetting
-import io.pelle.sak.settings.valueOf
+import io.pelle.sak.settings.model.TextSetting
+import io.pelle.sak.settings.model.valueOf
 
 // the S3 storage of the deployment, a bucket at a provider (Hetzner Object Storage): its settings
 // and the one place the provider is asked and its client is made (EXT-1). The repositories of restic
@@ -149,8 +149,8 @@ class S3StorageManager(
         private val CHECKED: List<SettingDefinition<*>> = listOf(ENDPOINT_TYPE, REGION, BUCKET, ACCESS_KEY, SECRET_KEY)
 
         val SCOPE =
-            SettingScope(
-                SettingScopeName("storage"),
+            SettingsGroup(
+                SettingScope("storage"),
                 StorageTexts.SCOPE_LABEL,
                 StorageTexts.SCOPE_DESCRIPTION,
                 listOf(ENABLED, ENDPOINT_TYPE, REGION, BUCKET, ACCESS_KEY, SECRET_KEY),

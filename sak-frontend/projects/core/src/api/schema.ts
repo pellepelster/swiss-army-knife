@@ -4825,6 +4825,15 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
+        /** @description A setting that does not count now, e.g. one whose required setting is off */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
       };
     };
     post?: never;

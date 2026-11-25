@@ -67,6 +67,7 @@ class StorageKeysIntegrationTest {
             )
         return when (val validation = manager.validate(json)) {
             is Validation.Invalid -> validation.errors
+            is Validation.Unavailable -> validation.errors
             is Validation.Valid -> emptyList<ErrorMessage>().also { manager.set(validation.values, owner = "admin@example.org") }
         }
     }

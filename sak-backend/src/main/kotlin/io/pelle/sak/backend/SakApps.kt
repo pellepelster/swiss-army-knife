@@ -34,7 +34,6 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
 import io.pelle.sak.auth.LoginListener
-import io.pelle.sak.settings.SettingName
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.API_SIGNATURE_AUTH
 import io.pelle.sak.auth.ApiSignature
@@ -168,7 +167,7 @@ fun Application.apps(
     // items of the grocery lists
     val discoverLimiter = discoverTextLimiter()
     // generated once and kept in the settings, so sessions survive restarts
-    val signingKey = settings.getOrCreate(SettingName.AUTH_SIGNING_KEY) { SigningKey.generate().toPem() }
+    val signingKey = settings.getOrCreate(BackendSettings.AUTH_SIGNING_KEY) { SigningKey.generate().toPem() }
     val tokens = TokenService(SigningKey.fromPem(signingKey), config.frontendUrl)
     // the e-mail login only with a mail server, the password login only with an admin password
     val mailSender =
@@ -278,7 +277,7 @@ fun Application.apps(
                         }
                         route(ApiPath.USER_SETTINGS) {
                             requireRole(Role.ADMIN, Role.USER)
-                            userSettings(services.userSettings)
+                            userSettings(settingsRegistry)
                         }
                         route(ApiPath.HEALTH) {
                             requireRole(Role.ADMIN)

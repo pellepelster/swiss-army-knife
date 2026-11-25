@@ -1,8 +1,5 @@
 package io.pelle.sak.settings
 
-import io.pelle.sak.core.render
-import io.pelle.sak.api.language
-import io.pelle.sak.core.Language
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
@@ -14,18 +11,27 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.errors
-import io.pelle.sak.auth.owner
+import io.pelle.sak.api.language
 import io.pelle.sak.api.model.PageResponse
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
 import io.pelle.sak.api.respondErrors
-import io.pelle.sak.settings.model.SettingRequirementResponse
-import io.pelle.sak.settings.model.SettingScopeResponse
-import io.pelle.sak.settings.model.SettingTypeResponse
+import io.pelle.sak.auth.owner
+import io.pelle.sak.core.Language
+import io.pelle.sak.core.render
+import io.pelle.sak.settings.model.ChoiceSetting
 import io.pelle.sak.settings.model.SettingChoiceResponse
+import io.pelle.sak.settings.model.SettingDefinition
+import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingRequirementResponse
 import io.pelle.sak.settings.model.SettingResponse
+import io.pelle.sak.settings.model.SettingScopeResponse
+import io.pelle.sak.settings.model.SettingType
+import io.pelle.sak.settings.model.SettingTypeResponse
+import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.model.SettingsRequest
 import io.pelle.sak.settings.model.SettingsResponse
+import io.pelle.sak.settings.model.TextSetting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -35,7 +41,7 @@ private fun <T : Any> SettingDefinition<T>.response(language: Language) =
     SettingResponse(
         name.value,
         label.render(language),
-        description.render(language),
+        description().render(language),
         type.response(),
         toJson(default),
         (this as? TextSetting)?.maxLength,
@@ -52,9 +58,15 @@ internal fun SettingType.response() =
         SettingType.CHOICE -> SettingTypeResponse.CHOICE
     }
 
-// in the language of the user
-fun SettingScope.response(language: Language) =
-    SettingScopeResponse(name.value, label.render(language), description.render(language), settings.map { it.response(language) }, enabledBy?.name?.value)
+// in the language of the user: the settings of the instance only, the page of the admins
+fun SettingsGroup.response(language: Language) =
+    SettingScopeResponse(
+        name.value,
+        label.render(language),
+        description?.render(language).orEmpty(),
+        of(SettingUser.INSTANCE).map { it.response(language) },
+        enabledBy?.name?.value,
+    )
 
 // the scopes of settings and the settings of each, meant to be mounted behind the authentication
 // and the admin role; the values are read and set one scope at a time
@@ -62,7 +74,7 @@ fun SettingScope.response(language: Language) =
 fun Route.settings(registry: SettingsRegistry) {
     get {
         val page = call.pageRequest() ?: return@get
-        call.respond(page.of(page.of(registry.services.map { it.scope.response(call.language()) })))
+        call.respond(page.of(page.of(registry.instanceServices.map { it.scope.response(call.language()) })))
     }.describe {
         tag(SETTINGS_TAG)
         summary = "The scopes of settings"
@@ -108,8 +120,9 @@ fun Route.settings(registry: SettingsRegistry) {
     put("/{scope}") {
         val request = call.receive<SettingsRequest>()
         when (val result = withContext(Dispatchers.IO) { registry.update(call.parameters["scope"].orEmpty(), request.settings, call.owner) }) {
-            is SettingsUpdateResult.Updated -> call.respond(SettingsResponse(result.values))
+            is SettingsUpdateResult.Updated -> call.respond(SettingsResponse(result.values.json()))
             is SettingsUpdateResult.Invalid -> call.respondErrors(result.errors)
+            is SettingsUpdateResult.Unavailable -> call.respondErrors(result.errors, status = HttpStatusCode.Conflict)
             SettingsUpdateResult.NotFound -> call.respond(HttpStatusCode.NotFound)
         }
     }.describe {
@@ -130,6 +143,7 @@ fun Route.settings(registry: SettingsRegistry) {
             }
             errors(HttpStatusCode.BadRequest, "An unknown setting, a value of the wrong type or not valid, or a malformed request")
             errors(HttpStatusCode.NotFound, "There is no such scope")
+            errors(HttpStatusCode.Conflict, "A setting that does not count now, e.g. one whose required setting is off")
         }
     }
 }

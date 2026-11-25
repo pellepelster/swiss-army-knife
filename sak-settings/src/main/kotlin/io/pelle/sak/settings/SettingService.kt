@@ -3,12 +3,14 @@ package io.pelle.sak.settings
 import io.pelle.sak.model.SYSTEM_OWNER
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.settings.SettingRepository
+import io.pelle.sak.settings.model.SettingName
+import io.pelle.sak.settings.model.SettingScope
 import java.time.Clock
 
 // the settings of the whole deployment that no admin changes
 object SystemSettings {
-    // where e.g. SettingName.AUTH_SIGNING_KEY is stored, served by no api
-    val SCOPE = SettingScopeName("system")
+    // where the settings the backend keeps for itself are, e.g. its signing key; served by no api
+    val SCOPE = SettingScope("system")
 }
 
 // every setting of the controller, the only way to them; the values are handed out as they are, a
@@ -25,14 +27,14 @@ class SettingService(
     // user null for the setting of the instance, else the one of the user (UserSettingsService)
     fun get(
         name: SettingName,
-        scope: SettingScopeName = SystemSettings.SCOPE,
+        scope: SettingScope = SystemSettings.SCOPE,
         user: String? = null,
     ): String? = repository.byNameAndScope(name.value, scope.value, user)?.value
 
     // false when the name and scope have a setting already
     fun put(
         name: SettingName,
-        scope: SettingScopeName,
+        scope: SettingScope,
         value: String,
         // who sets it (MODEL-5)
         owner: String,
@@ -40,7 +42,7 @@ class SettingService(
 
     // the values of the names in one go, a value replaced stays as a deleted row
     fun set(
-        scope: SettingScopeName,
+        scope: SettingScope,
         values: Map<SettingName, String>,
         // who sets them (MODEL-5)
         owner: String,
@@ -51,7 +53,7 @@ class SettingService(
     // the setting, created once when there is none, by the backend on its own
     fun getOrCreate(
         name: SettingName,
-        scope: SettingScopeName = SystemSettings.SCOPE,
+        scope: SettingScope = SystemSettings.SCOPE,
         create: () -> String,
     ): String {
         get(name, scope)?.let { return it }

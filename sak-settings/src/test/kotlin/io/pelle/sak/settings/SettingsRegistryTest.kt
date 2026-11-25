@@ -4,16 +4,22 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.settings.model.BooleanSetting
+import io.pelle.sak.settings.model.Requirement
+import io.pelle.sak.settings.model.SettingName
+import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.model.SettingsGroup
+import io.pelle.sak.settings.model.TextSetting
+import java.nio.file.Path
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import java.nio.file.Path
 
 private val FLAG = BooleanSetting(SettingName("flag"), t("A flag"), t("Turns something on."), default = false)
 
 private val SECRET = TextSetting(SettingName("secret"), t("A secret"), t("Hides itself."), default = "", mask = 2)
 
-private val SCOPE = SettingScope(SettingScopeName("test"), t("Test"), t("Settings to test with."), listOf(FLAG, SECRET))
+private val SCOPE = SettingsGroup(SettingScope("test"), t("Test"), t("Settings to test with."), listOf(FLAG, SECRET))
 
 class SettingsRegistryTest {
     @TempDir
@@ -31,8 +37,8 @@ class SettingsRegistryTest {
 
     @Test
     fun `updates the settings named of a scope and answers all of them, masked`() {
-        registry.update("test", mapOf("flag" to JsonPrimitive(true), "secret" to JsonPrimitive("the secret")), owner = "admin@example.org") shouldBe
-            SettingsUpdateResult.Updated(mapOf("flag" to JsonPrimitive(true), "secret" to JsonPrimitive("th••••••••")))
+        (registry.update("test", mapOf("flag" to JsonPrimitive(true), "secret" to JsonPrimitive("the secret")), owner = "admin@example.org") as SettingsUpdateResult.Updated)
+            .values.json() shouldBe mapOf("flag" to JsonPrimitive(true), "secret" to JsonPrimitive("th••••••••"))
         test.get(FLAG) shouldBe true
         test.get(SECRET) shouldBe "the secret"
     }
@@ -40,7 +46,7 @@ class SettingsRegistryTest {
     @Test
     fun `sets nothing when any value is not valid, nothing for an unknown scope`() {
         registry.update("test", mapOf("flag" to JsonPrimitive(true), "other" to JsonPrimitive(true)), owner = "admin@example.org") shouldBe
-            SettingsUpdateResult.Invalid(listOf(ErrorMessage(SettingsTexts.UNKNOWN_SETTING, "name" to "other", "scope" to SettingScopeName("test"))))
+            SettingsUpdateResult.Invalid(listOf(ErrorMessage(SettingsTexts.UNKNOWN_SETTING, "name" to "other", "scope" to SettingScope("test"))))
         test.get(FLAG) shouldBe false
         registry.update("other", mapOf("flag" to JsonPrimitive(true)), owner = "admin@example.org") shouldBe SettingsUpdateResult.NotFound
     }
@@ -49,7 +55,7 @@ class SettingsRegistryTest {
     fun `a scope a setting requires is served`() {
         val dependent =
             BooleanSetting(SettingName("dependent"), t("Dependent"), t("Needs the flag."), default = false, requires = Requirement(SCOPE, FLAG))
-        val other = StoredSettingsService(SettingScope(SettingScopeName("other"), t("Other"), t("Needs test."), listOf(dependent)), SettingService(SakDatabase.open(tempDir.resolve("sak.db"))))
+        val other = StoredSettingsService(SettingsGroup(SettingScope("other"), t("Other"), t("Needs test."), listOf(dependent)), SettingService(SakDatabase.open(tempDir.resolve("sak.db"))))
         shouldThrow<IllegalArgumentException> { SettingsRegistry(listOf(other)) }
         SettingsRegistry(listOf(test, other)).values("other", effective = true) shouldBe mapOf("dependent" to JsonPrimitive(false))
     }

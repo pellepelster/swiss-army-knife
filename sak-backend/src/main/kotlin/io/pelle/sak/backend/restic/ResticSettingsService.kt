@@ -1,10 +1,10 @@
 package io.pelle.sak.backend.restic
 
-import io.pelle.sak.settings.BooleanSetting
-import io.pelle.sak.settings.Requirement
-import io.pelle.sak.settings.SettingName
-import io.pelle.sak.settings.SettingScope
-import io.pelle.sak.settings.SettingScopeName
+import io.pelle.sak.settings.model.BooleanSetting
+import io.pelle.sak.settings.model.Requirement
+import io.pelle.sak.settings.model.SettingName
+import io.pelle.sak.settings.model.SettingsGroup
+import io.pelle.sak.settings.model.SettingScope
 import io.pelle.sak.settings.SettingService
 import io.pelle.sak.settings.StoredSettingsService
 import io.pelle.sak.backend.storage.S3StorageManager
@@ -30,6 +30,6 @@ class ResticSettingsService(
                 requires = Requirement(S3StorageManager.SCOPE, S3StorageManager.ENABLED),
             )
 
-        val SCOPE = SettingScope(SettingScopeName("restic"), ResticTexts.SCOPE_LABEL, ResticTexts.SCOPE_DESCRIPTION, listOf(S3))
+        val SCOPE = SettingsGroup(SettingScope("restic"), ResticTexts.SCOPE_LABEL, ResticTexts.SCOPE_DESCRIPTION, listOf(S3))
     }
 }
