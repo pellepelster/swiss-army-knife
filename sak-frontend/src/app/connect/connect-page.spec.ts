@@ -221,7 +221,7 @@ describe('ConnectPage', () => {
     const { harness } = await open();
     answer();
     await harness.fixture.whenStable();
-    await harness.navigateByUrl('/downloads');
+    await harness.navigateByUrl('/download');
     http.expectOne('/api/v1/info').flush({ name: 'alpha', dnsMode: 'domain', userMode: 'multi' });
 
     await advance(harness, 10 * POLL_MS);

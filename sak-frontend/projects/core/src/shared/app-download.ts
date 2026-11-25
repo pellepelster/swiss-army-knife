@@ -18,9 +18,13 @@ const TITLES: Record<AndroidApp, TextKey> = {
   todo: 'todo.download.title',
 };
 
+// a file of the release of a version, e.g. sak-notes-1.4.2.apk or sak-backup-linux-x86_64-1.4.2.deb
+export const releaseUrl = (version: string, file: string) =>
+  `${RELEASES_URL}/download/v${version}/${file}`;
+
 // the apk of an android app of a release
 export const apkUrl = (app: AndroidApp, version: string) =>
-  `${RELEASES_URL}/download/v${version}/sak-${app}-${version}.apk`;
+  releaseUrl(version, `sak-${app}-${version}.apk`);
 
 // /<app>/download/app, without a session: downloads the android app of the route (data `app`) of the
 // version the deployment runs from its github release. GitHub answers the apk as a download, the page

@@ -16,7 +16,7 @@ answer.
 Each link downloads the app in the version of your SAK instance:
 
 - **The page of the Android apps:** tap **Android apps** on the index page of your SAK address, or open
-  `<SAK address>/downloads` on the phone (no sign-in needed). It has a link for each app.
+  `<SAK address>/download` on the phone (no sign-in needed). It has a link for each app.
 - **An e-mail from your admin:** on the **Users** page, the admin opens the ⋮ menu of a user and selects **Send links
   to the Android apps**. This needs a mail server.
 - **The download of one app:** `<SAK address>/notes/download/app`, `<SAK address>/grocery/download/app` or

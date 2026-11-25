@@ -54,10 +54,10 @@ const MAINTENANCE: readonly MaintenanceEntry[] = [
     multiUserOnly: true,
   },
   {
-    name: 'home.downloads',
-    description: 'home.downloads_description',
-    icon: 'fa-mobile-screen-button',
-    path: '/downloads',
+    name: 'home.download',
+    description: 'home.download_description',
+    icon: 'fa-download',
+    path: '/download',
     everyone: true,
   },
 ];

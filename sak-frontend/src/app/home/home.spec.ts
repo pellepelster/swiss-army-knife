@@ -63,7 +63,7 @@ describe('Home', () => {
       ['Settings', '/settings'],
       ['API', '/swagger/'],
       ['Users', '/users'],
-      ['Android apps', '/downloads'],
+      ['Download', '/download'],
     ]);
     // the console is gone
     expect(page.querySelector('a[href="/console"]')).toBeNull();
@@ -149,7 +149,7 @@ describe('Home', () => {
       null,
       null,
       null,
-      '/downloads',
+      '/download',
     ]);
     expect(
       page.querySelector('nav[aria-label="Maintenance"] [aria-disabled]')?.getAttribute('title'),
@@ -176,7 +176,7 @@ describe('Home', () => {
       ['Settings', '/settings'],
       ['API', '/swagger/'],
       ['Users', null],
-      ['Android apps', '/downloads'],
+      ['Download', '/download'],
     ]);
   });
 });

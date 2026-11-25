@@ -30,12 +30,15 @@ export const routes: Routes = [
   notesDownloadRoute,
   groceryRoute,
   todoRoute,
-  // the download links of the android apps, without a session so the link opens on a phone
+  // the download links of the android apps and SAK Backup, without a session so the link opens on a
+  // phone
   {
-    path: 'downloads',
-    loadComponent: () => import('./downloads/downloads-page').then((m) => m.DownloadsPage),
-    title: pageTitle('downloads.page_title'),
+    path: 'download',
+    loadComponent: () => import('./download/download-page').then((m) => m.DownloadPage),
+    title: pageTitle('download.page_title'),
   },
+  // where the downloads were before they had SAK Backup too
+  { path: 'downloads', redirectTo: 'download' },
   statusRoute,
   healthRedirect,
   usersRoute,

@@ -332,14 +332,26 @@ backend:
       days: { en: "%{count} days", de: "%{count} Tage" }
 
 web:
-  downloads:
-    page_title: { en: "Android apps", de: "Android-Apps" }
-    title: { en: "Android apps", de: "Android-Apps" }
-    intro:
+  download:
+    page_title: { en: "Download", de: "Download" }
+    title: { en: "Download", de: "Download" }
+    android: { en: "Android apps", de: "Android-Apps" }
+    android_intro:
       en: "Install the apps on an Android phone, then sign in to them with your e-mail address."
       de: "Installiere die Apps auf einem Android-Handy und melde dich dann mit deiner E-Mail-Adresse darin an."
+    desktop: { en: "Desktop apps", de: "Desktop-Apps" }
+    desktop_intro:
+      en: "Install SAK Backup on a computer to back it up to this SAK instance, then sign in to it with this SAK instance."
+      de: "Installiere SAK Backup auf einem Computer, um ihn auf diese SAK-Instanz zu sichern, und melde dich dann darin mit dieser SAK-Instanz an."
+    sak_backup: { en: "SAK Backup", de: "SAK Backup" }
     download: { en: "Download %{app}", de: "%{app} herunterladen" }
     version: { en: "Version %{version}", de: "Version %{version}" }
+    files: { en: "The files of %{app}", de: "Die Dateien von %{app}" }
+    windows: { en: "Windows", de: "Windows" }
+    macos: { en: "macOS", de: "macOS" }
+    linux_deb: { en: "Linux (deb)", de: "Linux (deb)" }
+    linux_rpm: { en: "Linux (rpm)", de: "Linux (rpm)" }
+    linux_appimage: { en: "Linux (AppImage)", de: "Linux (AppImage)" }
   app_download:
     started: { en: "The download of the app has started.", de: "Der Download der App hat begonnen." }
     again: { en: "Download again", de: "Erneut herunterladen" }
@@ -370,15 +382,13 @@ web:
     only_admin: { en: "Only for an admin", de: "Nur für einen Admin" }
     needs_multi_user: { en: "Needs the multi user mode", de: "Braucht den Mehrbenutzermodus" }
     maintenance: { en: "Maintenance", de: "Wartung" }
-    status_description: { en: "The health checks and what the storages keep", de: "Die Zustandsprüfungen und was die Speicher belegen" }
+    status_description: { en: "Current status and health of the system", de: "Aktueller Status und Zustand des Systems" }
     settings_description: { en: "Configuration for system and apps", de: "Konfiguration für System und Apps" }
     api: { en: "API", de: "API" }
-    api_description:
-      en: "The full api of the backend, to try out"
-      de: "Die ganze API des Backends, zum Ausprobieren"
+    api_description: { en: "API documentation for the backend", de: "API-Dokumentation für das Backend" }
     users_description: { en: "Who may sign in besides the admins", de: "Wer sich außer den Admins anmelden darf" }
-    downloads: { en: "Android apps", de: "Android-Apps" }
-    downloads_description: { en: "The apps for Android phones to download", de: "Die Apps für Android-Handys zum Herunterladen" }
+    download: { en: "Download", de: "Download" }
+    download_description: { en: "All SAK apps for all platforms", de: "Alle SAK-Apps für alle Plattformen" }
   connect:
     title: { en: "Connect an app", de: "App verbinden" }
     instructions:
@@ -1719,7 +1729,7 @@ status:
       counted: { en: "Counted", de: "Gezählt" }
       total: { en: "Total", de: "Gesamt" }
       names:
-        files: { en: "Files of the apps", de: "Dateien der Apps" }
+        files: { en: "Files", de: "Dateien" }
         buckets: { en: "Buckets", de: "Buckets" }
         restic: { en: "Backups", de: "Backups" }
         database: { en: "Database", de: "Datenbank" }

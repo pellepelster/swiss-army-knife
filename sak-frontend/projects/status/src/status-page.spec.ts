@@ -144,7 +144,7 @@ describe('StatusPage', () => {
     );
     expect(rows).toEqual([
       ['Backups', '2 MB', '40'],
-      ['Files of the apps', '500 kB', '12'],
+      ['Files', '500 kB', '12'],
       // a storage the page does not know shows by its name
       ['other', '1 kB', '1'],
     ]);
