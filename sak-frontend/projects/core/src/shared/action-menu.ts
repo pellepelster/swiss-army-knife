@@ -103,7 +103,7 @@ export class ActionMenu {
   protected readonly label = computed(() => {
     const name = this.name();
     return name === null
-      ? this.i18n.t('shared.action_menu.menu')
+      ? this.i18n.t('shared.menu')
       : this.i18n.t('shared.action_menu.actions_of', { name });
   });
 

@@ -572,7 +572,7 @@ fun RenameDialog(
                 Text(stringResource(R.string.shared_save))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.shared_cancel)) } },
     )
 }
 

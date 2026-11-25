@@ -233,7 +233,7 @@ fun DeploymentScreen(
             )
             Error(screen.error)
             OutlinedButton(onClick = { connect(input) }, enabled = input.isNotBlank() && !screen.busy, modifier = Modifier.testTag("connect")) {
-                Text(stringResource(if (screen.busy) R.string.connecting else R.string.connect))
+                Text(stringResource(if (screen.busy) R.string.shared_connecting else R.string.shared_connect))
             }
         }
     }
@@ -355,7 +355,7 @@ fun AccountMenu(
 ) {
     var menu by rememberSaveable { mutableStateOf(false) }
     IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu")) {
-        Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.menu))
+        Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.shared_menu))
     }
     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
         DropdownMenuItem(text = { Text(stringResource(R.string.signed_in_as, screen.user)) }, onClick = {}, enabled = false)

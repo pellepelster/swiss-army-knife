@@ -68,7 +68,7 @@ common:
     not_found: "There is no SAK instance named %{name}."
     wrong_password: "The password is not the one of the SAK instance %{name}."
     cancelled: "Cancelled. What was done stays, a deploy finishes the rest."
-    unverifiable: "Nothing of the SAK instance %{name} carries what its password could be checked against, so nothing of it is changed or shown. Delete what is left of it in the console of the Hetzner Cloud project."
+    unverifiable: "The password of %{name} can not be checked: nothing of the SAK instance is left to check it against. So nothing is changed or shown. Delete what is left in the console of your Hetzner Cloud project."
     no_provider: "No provider token to create the SAK instance at."
     name_taken: "A SAK instance named %{name} exists already."
     failed: "The SAK instances at %{provider} could not be listed: %{error}"
@@ -268,7 +268,6 @@ ui:
   providers:
     title: "Provider tokens"
     empty: "No provider tokens yet. Add the API tokens of the providers Swiss Army Knife creates resources at."
-    add: "Add token"
   select:
     title: "Select the provider"
   token:

@@ -168,7 +168,7 @@ fun QrScanScreen(
             },
             dismissButton = {
                 TextButton(onClick = model.qr::close, modifier = Modifier.testTag("qr-stay")) {
-                    Text(stringResource(if (switch.signedIn) R.string.qr_stay else R.string.cancel))
+                    Text(stringResource(if (switch.signedIn) R.string.qr_stay else R.string.shared_cancel))
                 }
             },
         )
@@ -233,7 +233,7 @@ private fun Scanner(
                     scan.busy ->
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(Modifier.size(24.dp))
-                            Text(stringResource(R.string.qr_signing_in))
+                            Text(stringResource(R.string.login_signing_in))
                         }
                     else -> Text(stringResource(R.string.qr_point), modifier = Modifier.testTag("qr-point"))
                 }

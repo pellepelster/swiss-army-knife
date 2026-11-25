@@ -12,6 +12,10 @@ card:
   labels: "Labels"
   labels_full: "Eine Notiz hat höchstens %{max} Labels."
   discover: "Text erkennen"
+  photo:
+    discover: "Text in Foto %{number} erkennen"
+  recording:
+    discover: "Text in Aufnahme %{number} erkennen"
 colors:
   yellow: "gelb"
   pink: "rosa"
@@ -27,6 +31,9 @@ errors:
   recording_not_stored: "Die Aufnahme konnte nicht gespeichert werden."
   no_text_in_recording: "In der Aufnahme ist kein Text."
   not_discovered: "Der Text konnte nicht erkannt werden."
+  not_created: "Die Notiz konnte nicht erstellt werden."
+  no_text_in_photo: "Auf dem Foto ist kein Text."
+stop_recording: "Aufnahme beenden"
 first_list: "Meine Notizen"
 text_too_long: "Der Text darf höchstens %{max} Zeichen haben."
 invalid_color: "Die Farbe muss eine von %{colors} sein."
@@ -39,5 +46,5 @@ no_list: "Du hast noch keine Notizliste, melde dich erneut an, um eine zu bekomm
 settings:
   ai:
     label: "KI verwenden"
-    description: "Erkennt den Text in einem Foto oder einer Aufnahme, die du auswählst. Sie werden an OpenRouter gesendet (Modell %{vision_model} für Fotos, %{speech_model} für Aufnahmen), mit der Bitte, sie nicht aufzubewahren."
+    description: "Erkennt den Text in einem Foto oder einer Aufnahme, die du auswählst, mit einer externen KI."
   label: "Notizen"

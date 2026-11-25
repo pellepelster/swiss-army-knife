@@ -19,7 +19,7 @@ let opener = null;
 
 // the text of a password restic refused, by where it came from
 const WRONG = {
-  wrong_password: 'ui.plans.run_wrong_password',
+  wrong_password: 'common.password.wrong',
   wrong_environment_password: 'ui.plans.run_wrong_environment',
   wrong_kept_password: 'ui.plans.run_wrong_kept',
 };
@@ -51,7 +51,7 @@ form.addEventListener('submit', (event) => {
     return;
   }
   if (!repeatField.hidden && password.value !== repeat.value) {
-    error.textContent = text('ui.plans.run_passwords_differ');
+    error.textContent = text('common.password.differ');
     return;
   }
   close({ password: password.value, remember: remember.checked });

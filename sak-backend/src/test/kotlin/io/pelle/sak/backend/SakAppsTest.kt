@@ -1834,8 +1834,7 @@ class SakAppsTest {
                     it.string("value") shouldBe "false"
                     it.string("available") shouldBe "false"
                     it.string("unavailableReason") shouldBe "No AI is set up for this SAK instance."
-                    // where the data goes, with the models
-                    it.string("description") shouldContain "OpenRouter (model anthropic/claude-haiku-5.5 for photos, openai/whisper-large-v3-turbo for recordings)"
+                    it.string("description") shouldBe "Discovers the text in a photo or a recording you choose using an external AI."
                 }
                 put(port, "/api/v1/user/settings/notes", """{"ai":true}""", user).let {
                     it.statusCode() shouldBe 409

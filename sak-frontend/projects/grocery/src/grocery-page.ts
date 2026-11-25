@@ -114,7 +114,7 @@ interface ItemGroup {
     }
   `,
   template: `
-    <header appPageHeader back="/grocery" [backLabel]="'grocery.all_lists' | t">
+    <header appPageHeader back="/grocery" [backLabel]="'lists.all_lists' | t">
       @if (shown(); as list) {
         <app-list-icon [name]="list.name" [icon]="list.icon" />
       }
@@ -122,7 +122,7 @@ interface ItemGroup {
         {{ shown()?.name }}
         @if (shown()?.shared) {
           <span class="badge border text-body-secondary fw-normal fs-6 align-middle">{{
-            'grocery.shared_badge' | t
+            'lists.shared_badge' | t
           }}</span>
         }
       </h1>
@@ -671,7 +671,7 @@ interface ItemGroup {
         <button
           type="button"
           class="btn-close btn-close-white position-absolute top-0 end-0 m-3"
-          [attr.aria-label]="'grocery.photo.close' | t"
+          [attr.aria-label]="'photo.close' | t"
         ></button>
       </div>
     }
@@ -1099,7 +1099,7 @@ export class GroceryPage {
         },
       );
     } catch (error: unknown) {
-      this.addError.set(apiErrorMessage(error, this.i18n.t('grocery.discover.not_read')));
+      this.addError.set(apiErrorMessage(error, this.i18n.t('photo.not_read')));
     } finally {
       this.discovering.set(false);
     }
@@ -1294,7 +1294,7 @@ export class GroceryPage {
     } catch (error: unknown) {
       if (this.viewing()?.id !== item.id) return;
       this.viewing.set(null);
-      this.itemError.set(item.id, apiErrorMessage(error, this.i18n.t('grocery.photo.not_loaded')));
+      this.itemError.set(item.id, apiErrorMessage(error, this.i18n.t('photo.not_loaded')));
     }
   }
 

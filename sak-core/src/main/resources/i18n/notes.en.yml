@@ -12,6 +12,10 @@ card:
   labels: "Labels"
   labels_full: "A note has at most %{max} labels."
   discover: "Discover the text"
+  photo:
+    discover: "Discover the text in photo %{number}"
+  recording:
+    discover: "Discover the text in recording %{number}"
 colors:
   yellow: "yellow"
   pink: "pink"
@@ -27,6 +31,9 @@ errors:
   recording_not_stored: "The recording could not be stored."
   no_text_in_recording: "There is no text in the recording."
   not_discovered: "The text could not be discovered."
+  not_created: "The note could not be created."
+  no_text_in_photo: "There is no text in the photo."
+stop_recording: "Stop recording"
 first_list: "My Notes"
 text_too_long: "The text must have at most %{max} characters."
 invalid_color: "The color must be one of %{colors}."
@@ -39,5 +46,5 @@ no_list: "You have no list of notes yet, sign in again to get one."
 settings:
   ai:
     label: "Use AI"
-    description: "Discovers the text in a photo or a recording you choose. It is sent to OpenRouter (model %{vision_model} for photos, %{speech_model} for recordings), which is asked not to keep it."
+    description: "Discovers the text in a photo or a recording you choose using an external AI."
   label: "Notes"

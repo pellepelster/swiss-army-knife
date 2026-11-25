@@ -1,32 +1,25 @@
 # the texts of the catalog grocery in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 only_owner_shares: "Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf."
-list_gone: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
-all_lists: "Alle Listen"
-lists_not_loaded: "Die Listen konnten nicht geladen werden."
 lists:
   to_buy_none: "Keine Artikel zu kaufen"
-form:
-  create: "Liste erstellen"
-  no_icon: "Kein Icon"
-  delete_list: "Liste löschen"
-  not_saved: "Die Liste konnte nicht gespeichert werden."
-  not_deleted: "Die Liste konnte nicht gelöscht werden."
-  choose_icon: "Icon auswählen"
 photo:
   attach: "Foto anhängen"
   replace: "Foto ersetzen"
   remove: "Foto entfernen"
   of: "Foto von %{name}"
-  close: "Foto schließen"
   not_attached: "Das Foto konnte nicht angehängt werden."
   not_removed: "Das Foto konnte nicht entfernt werden."
-  not_loaded: "Das Foto konnte nicht geladen werden."
 list:
   item: "Artikel"
   no_category: "Keine Kategorie"
   not_added: "Der Artikel konnte nicht hinzugefügt werden."
   not_checked: "Der Artikel konnte nicht abgehakt werden."
   items_not_loaded: "Die Artikel konnten nicht geladen werden."
+  category: "Kategorie"
+  not_deleted: "Der Artikel konnte nicht gelöscht werden."
+  show_bought: "Gekaufte Artikel zeigen"
+  not_renamed: "Der Artikel konnte nicht umbenannt werden."
+  rename: "Umbenennen"
 quantity:
   label: "Menge"
   of: "Menge von %{name}"
@@ -57,8 +50,17 @@ discover:
   include: "%{name} hinzufügen"
   name_of: "Name von Artikel %{number}"
   add: "Zur Liste hinzufügen"
-  not_read: "Das Foto konnte nicht gelesen werden."
   not_all_added: "Nicht jeder Artikel konnte hinzugefügt werden."
+categories:
+  title: "Kategorien"
+  none: "Die Liste hat noch keine Kategorien."
+  new: "Neue Kategorie"
+  add: "Kategorie hinzufügen"
+  not_loaded: "Die Kategorien konnten nicht geladen werden."
+  not_saved: "Die Kategorie konnte nicht gespeichert werden."
+  not_deleted: "Die Kategorie konnte nicht gelöscht werden."
+  move_up: "Nach oben schieben"
+  move_down: "Nach unten schieben"
 first_list: "Meine Einkäufe"
 category:
   fruit_vegetables: "Obst & Gemüse"
@@ -89,5 +91,5 @@ discovery_failed: "Die Artikel im Foto konnten nicht erkannt werden, bitte versu
 settings:
   ai:
     label: "KI verwenden"
-    description: "Erkennt die Artikel in einem Foto eines Rezepts oder Einkaufszettels, das du auswählst. Das Foto wird an OpenRouter gesendet (Modell %{vision_model}), mit der Bitte, es nicht aufzubewahren."
+    description: "Erkennt die Artikel in einem Foto eines Rezepts oder Einkaufszettels, das du auswählst, mit einer externen KI."
   label: "Einkaufslisten"

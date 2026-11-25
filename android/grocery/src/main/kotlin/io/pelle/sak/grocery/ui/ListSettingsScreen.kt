@@ -112,7 +112,7 @@ private fun Categories(
 ) {
     HorizontalDivider()
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.grocery_categories), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.grocery_categories_title), style = MaterialTheme.typography.titleMedium)
         if (settings.categoriesPending > 0) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
     }
     Box(Modifier.testTag("categories-error")) { Error(settings.categoriesError) }
@@ -126,7 +126,7 @@ private fun Categories(
         }
         return
     }
-    if (settings.categories.isEmpty()) Text(stringResource(R.string.grocery_no_categories))
+    if (settings.categories.isEmpty()) Text(stringResource(R.string.grocery_categories_none))
     val drag = remember { CategoryDrag() }
     val categories = settings.categories
     val target = drag.target(categories)
@@ -166,7 +166,7 @@ private fun Categories(
         OutlinedTextField(
             value = settings.newCategory,
             onValueChange = model::editNewCategory,
-            label = { Text(stringResource(R.string.grocery_category_name)) },
+            label = { Text(stringResource(R.string.grocery_categories_new)) },
             singleLine = true,
             isError = settings.newCategoryInvalid,
             supportingText = if (settings.newCategoryInvalid) ({ Text(stringResource(R.string.grocery_category_name_invalid)) }) else null,
@@ -178,7 +178,7 @@ private fun Categories(
             onClick = model::addCategory,
             enabled = settings.newCategory.isNotBlank(),
             modifier = Modifier.padding(top = 8.dp).testTag("add-category"),
-        ) { Text(stringResource(R.string.grocery_category_add)) }
+        ) { Text(stringResource(R.string.grocery_categories_add)) }
     }
 }
 
@@ -255,8 +255,8 @@ private fun CategoryRow(
     var picking by rememberSaveable { mutableStateOf(false) }
     var menu by rememberSaveable { mutableStateOf(false) }
     var confirming by rememberSaveable { mutableStateOf(false) }
-    val up = stringResource(R.string.grocery_category_up)
-    val down = stringResource(R.string.grocery_category_down)
+    val up = stringResource(R.string.grocery_categories_move_up)
+    val down = stringResource(R.string.grocery_categories_move_down)
     val haptics = LocalHapticFeedback.current
     // the gesture starts once for the row and outlives recompositions: it calls the callbacks of now
     val dragStart by rememberUpdatedState(onDragStart)
@@ -342,11 +342,11 @@ private fun CategoryRow(
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 MenuEntry(
-                    stringResource(R.string.grocery_form_choose_icon),
+                    stringResource(CoreR.string.lists_form_choose_icon),
                     close = { menu = false },
                 ) { picking = true }
                 MenuEntry(
-                    stringResource(R.string.grocery_form_no_icon),
+                    stringResource(CoreR.string.lists_form_no_icon),
                     close = { menu = false },
                     enabled = category.icon != null,
                 ) { model.setCategoryIcon(category.id, null) }

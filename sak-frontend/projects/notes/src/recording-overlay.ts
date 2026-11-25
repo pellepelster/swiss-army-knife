@@ -28,7 +28,7 @@ function clock(seconds: number): string {
           type="button"
           class="recording-stop btn btn-danger rounded-circle"
           [attr.aria-label]="subject.stop"
-          [title]="'notes.recording.stop' | t"
+          [title]="'notes.stop_recording' | t"
           (click)="stop()"
         >
           <i class="fa-solid fa-stop" aria-hidden="true"></i>

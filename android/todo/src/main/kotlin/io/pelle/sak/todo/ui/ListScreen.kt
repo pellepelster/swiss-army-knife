@@ -89,7 +89,7 @@ internal fun ListScreen(
         screen,
         open,
         screen.lists.firstOrNull { it.id == open }?.summary(),
-        stringResource(R.string.todo_all_lists),
+        stringResource(CoreR.string.lists_all_lists),
         screen.loading,
         screen.error,
         stringResource(R.string.todo_nothing_to_do).takeIf { screen.items.isEmpty() },
@@ -187,7 +187,7 @@ private fun DuePicker(
                 onPick(state.selectedDateMillis?.let { Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate() })
             }, modifier = Modifier.testTag("due-picker-ok")) { Text(stringResource(R.string.todo_ok)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(CoreR.string.cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(CoreR.string.shared_cancel)) } },
     ) { DatePicker(state, showModeToggle = !low) }
 }
 

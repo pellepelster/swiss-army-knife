@@ -160,7 +160,7 @@ import { CHANGES_DEBOUNCE_MS, EVERYTHING, GroceryChanges } from './grocery-chang
                         (click)="iconOf(category, null)"
                       >
                         <i class="fa-solid fa-xmark me-2" aria-hidden="true"></i
-                        >{{ 'grocery.form.no_icon' | t }}
+                        >{{ 'lists.form.no_icon' | t }}
                       </button>
                     </app-action-menu>
                   </div>

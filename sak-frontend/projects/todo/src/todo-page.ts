@@ -68,7 +68,7 @@ const PRIORITY_LABEL = {
     '(document:keydown.escape)': 'choosingPriority.set(false)',
   },
   template: `
-    <header appPageHeader back="/todo" [backLabel]="'todo.all_lists' | t">
+    <header appPageHeader back="/todo" [backLabel]="'lists.all_lists' | t">
       @if (shown(); as list) {
         <app-list-icon [name]="list.name" [icon]="list.icon" />
       }
@@ -76,7 +76,7 @@ const PRIORITY_LABEL = {
         {{ shown()?.name }}
         @if (shown()?.shared) {
           <span class="badge border text-body-secondary fw-normal fs-6 align-middle">{{
-            'todo.shared_badge' | t
+            'lists.shared_badge' | t
           }}</span>
         }
       </h1>

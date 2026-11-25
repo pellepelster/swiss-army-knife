@@ -128,7 +128,7 @@ mod tests {
         let mut creates = 0;
         for button in html.split("<button").skip(1) {
             let button = button.split("</button>").next().unwrap_or_default();
-            let creating = ["ui.providers.add", "ui.token.add", "ui.deployments.create"]
+            let creating = ["ui.token.add", "ui.token.add", "ui.deployments.create"]
                 .iter()
                 .any(|key| button.contains(key));
             if creating {

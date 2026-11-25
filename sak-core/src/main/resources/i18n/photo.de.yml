@@ -1,0 +1,4 @@
+# the texts of the catalog photo in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+close: "Foto schließen"
+not_loaded: "Das Foto konnte nicht geladen werden."
+not_read: "Das Foto konnte nicht gelesen werden."

@@ -17,6 +17,7 @@ import io.pelle.sak.api.model.TodoListResponse
 import io.pelle.sak.api.model.TodoNewItemRequest
 import io.pelle.sak.api.model.TodoPriorityRequest
 import io.pelle.sak.api.model.TodoPurgeRequest
+import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.api.SakApi
 import io.pelle.sak.core.lists.ListsApi
 import io.pelle.sak.todo.Priority
@@ -34,7 +35,7 @@ class TodoApi(
 ) : SakApi(client, url, token, languages, LOGIN_CLIENT),
     ListsApi<TodoListResponse> {
     // in the order the backend gives them: by name
-    override suspend fun lists(): List<TodoListResponse> = all("$url/todo/lists", R.string.todo_lists_not_loaded)
+    override suspend fun lists(): List<TodoListResponse> = all("$url/todo/lists", CoreR.string.lists_not_loaded)
 
     override suspend fun createList(
         name: String,
@@ -46,7 +47,7 @@ class TodoApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(TodoListRequest(name, shared, icon))
-            }.answer(R.string.todo_error_list_not_created)
+            }.answer(CoreR.string.lists_not_created)
 
     override suspend fun updateList(
         id: Int,
@@ -59,11 +60,11 @@ class TodoApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(TodoListRequest(name, shared, icon))
-            }.answer(R.string.todo_form_not_saved)
+            }.answer(CoreR.string.lists_form_not_saved)
 
     // only a list of the user's own, with its tasks, the last one too (LIST-1)
     override suspend fun deleteList(id: Int) {
-        client.delete("$url/todo/lists/$id") { session() }.answer<Unit>(R.string.todo_form_not_deleted)
+        client.delete("$url/todo/lists/$id") { session() }.answer<Unit>(CoreR.string.lists_form_not_deleted)
     }
 
     // a done one in its place (TODO-3), in TASK_ORDER (TODO-5)

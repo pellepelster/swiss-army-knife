@@ -1,5 +1,6 @@
 package io.pelle.sak.todo
 
+import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.SakSetup
 import io.pelle.sak.api.model.TodoItemResponse
 import io.pelle.sak.api.model.TodoListResponse
@@ -26,16 +27,16 @@ const val UNDO_MS = 2_000L
 internal val TODO_TEXTS =
     ListTexts(
         appName = R.string.todo_app_name,
-        create = R.string.todo_form_create,
-        allLists = R.string.todo_all_lists,
-        chooseIcon = R.string.todo_form_choose_icon,
-        noIcon = R.string.todo_form_no_icon,
-        deleteList = R.string.todo_form_delete_list,
-        notCreated = R.string.todo_error_list_not_created,
-        notSaved = R.string.todo_form_not_saved,
-        notDeleted = R.string.todo_form_not_deleted,
-        notLoaded = R.string.todo_lists_not_loaded,
-        gone = R.string.todo_list_gone,
+        create = CoreR.string.lists_form_create,
+        allLists = CoreR.string.lists_all_lists,
+        chooseIcon = CoreR.string.lists_form_choose_icon,
+        noIcon = CoreR.string.lists_form_no_icon,
+        deleteList = CoreR.string.lists_form_delete_list,
+        notCreated = CoreR.string.lists_not_created,
+        notSaved = CoreR.string.lists_form_not_saved,
+        notDeleted = CoreR.string.lists_form_not_deleted,
+        notLoaded = CoreR.string.lists_not_loaded,
+        gone = CoreR.string.lists_list_gone,
     )
 
 // the logic of the app, without android, on top of ListsModel: the tasks of the list open, a task added

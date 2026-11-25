@@ -40,7 +40,7 @@ class NotesApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(note)
-            }.answer(R.string.notes_error_not_created)
+            }.answer(R.string.notes_errors_not_created)
 
     // the whole note is replaced: its text, color, labels, photos and recordings
     suspend fun updateNote(

@@ -1,32 +1,25 @@
 # the texts of the catalog grocery in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
 only_owner_shares: "Only the owner of a list renames, shares or unshares it."
-list_gone: "The list is gone, or its owner no longer shares it."
-all_lists: "All lists"
-lists_not_loaded: "The lists could not be loaded."
 lists:
   to_buy_none: "No items to buy"
-form:
-  create: "Create list"
-  no_icon: "No icon"
-  delete_list: "Delete list"
-  not_saved: "The list could not be saved."
-  not_deleted: "The list could not be deleted."
-  choose_icon: "Choose icon"
 photo:
   attach: "Attach photo"
   replace: "Replace photo"
   remove: "Remove photo"
   of: "Photo of %{name}"
-  close: "Close the photo"
   not_attached: "The photo could not be attached."
   not_removed: "The photo could not be removed."
-  not_loaded: "The photo could not be loaded."
 list:
   item: "Item"
   no_category: "No category"
   not_added: "The item could not be added."
   not_checked: "The item could not be checked."
   items_not_loaded: "The items could not be loaded."
+  category: "Category"
+  not_deleted: "The item could not be deleted."
+  show_bought: "Show bought items"
+  not_renamed: "The item could not be renamed."
+  rename: "Rename"
 quantity:
   label: "Quantity"
   of: "Quantity of %{name}"
@@ -57,8 +50,17 @@ discover:
   include: "Add %{name}"
   name_of: "Name of item %{number}"
   add: "Add to the list"
-  not_read: "The photo could not be read."
   not_all_added: "Not every item could be added."
+categories:
+  title: "Categories"
+  none: "The list has no categories yet."
+  new: "New category"
+  add: "Add category"
+  not_loaded: "The categories could not be loaded."
+  not_saved: "The category could not be saved."
+  not_deleted: "The category could not be deleted."
+  move_up: "Move up"
+  move_down: "Move down"
 first_list: "My Groceries"
 category:
   fruit_vegetables: "Fruit & vegetables"
@@ -89,5 +91,5 @@ discovery_failed: "The items in the photo could not be discovered, please try ag
 settings:
   ai:
     label: "Use AI"
-    description: "Discovers the items in a photo you choose of a recipe or a shopping list. The photo is sent to OpenRouter (model %{vision_model}), which is asked not to keep it."
+    description: "Discovers the items in a photo of a recipe or a shopping list you choose using an external AI."
   label: "Grocery"

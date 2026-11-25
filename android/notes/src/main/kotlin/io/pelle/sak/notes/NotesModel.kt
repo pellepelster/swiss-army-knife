@@ -1,5 +1,6 @@
 package io.pelle.sak.notes
 
+import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.SakSetup
 import io.pelle.sak.api.model.FileResponse
 import io.pelle.sak.api.model.LabelResponse
@@ -589,7 +590,7 @@ class NotesModel(
 
     fun microphoneDenied() = notes { it.copy(error = uiText(R.string.notes_error_microphone_denied)) }
 
-    fun photoNotRead() = notes { it.copy(error = uiText(R.string.notes_error_photo_not_read)) }
+    fun photoNotRead() = notes { it.copy(error = uiText(CoreR.string.photo_not_read)) }
 
     // the discovered text is added to the text of the note (NOTES-5); only with the AI turned on
     fun discover(
@@ -606,7 +607,7 @@ class NotesModel(
             when {
                 text == null -> {}
                 text.isBlank() ->
-                    notes { it.copy(error = uiText(if (recording) R.string.notes_errors_no_text_in_recording else R.string.notes_error_no_text_in_photo)) }
+                    notes { it.copy(error = uiText(if (recording) R.string.notes_errors_no_text_in_recording else R.string.notes_errors_no_text_in_photo)) }
                 change(id) { note -> note.copy(text = (if (note.text.isBlank()) text else "${note.text.trimEnd()}\n\n$text").take(MAX_TEXT_LENGTH)) } -> {
                     pendingText.remove(id)?.cancel()
                     save(id)
@@ -654,7 +655,7 @@ class NotesModel(
     ): ByteArray? {
         val key = "$id-$thumbnail"
         files[key]?.let { return it }
-        val failure = if (recording) R.string.notes_error_recording_not_loaded else R.string.notes_error_photo_not_loaded
+        val failure = if (recording) R.string.notes_error_recording_not_loaded else CoreR.string.photo_not_loaded
         val failed: (UiText) -> Unit = { error -> if (!thumbnail) notes { it.copy(error = error) } }
         return request(failure, failed) { it.file(id, thumbnail, failure) }?.also { files.put(key, it) }
     }
@@ -677,7 +678,7 @@ class NotesModel(
     ) {
         val labels = listOfNotNull(notesScreen()?.filter)
         val note =
-            request(R.string.notes_error_not_created, ::failed) {
+            request(R.string.notes_errors_not_created, ::failed) {
                 it.createNote(NoteRequest(text, NOTE_COLORS.first().value, labels, photos, recordings))
             }
         if (note != null) {

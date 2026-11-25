@@ -25,6 +25,7 @@ import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.api.PageResponse
 import io.pelle.sak.core.api.SakApi
 import io.pelle.sak.core.lists.ListsApi
@@ -41,7 +42,7 @@ class GroceryApi(
 ) : SakApi(client, url, token, languages, LOGIN_CLIENT),
     ListsApi<GroceryListResponse> {
     // in the order the backend gives them: by name
-    override suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", R.string.grocery_lists_not_loaded)
+    override suspend fun lists(): List<GroceryListResponse> = all("$url/grocery/lists", CoreR.string.lists_not_loaded)
 
     override suspend fun createList(
         name: String,
@@ -53,7 +54,7 @@ class GroceryApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(GroceryListRequest(name, shared, icon))
-            }.answer(R.string.grocery_error_list_not_created)
+            }.answer(CoreR.string.lists_not_created)
 
     override suspend fun updateList(
         id: Int,
@@ -66,12 +67,12 @@ class GroceryApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(GroceryListRequest(name, shared, icon))
-            }.answer(R.string.grocery_form_not_saved)
+            }.answer(CoreR.string.lists_form_not_saved)
 
     // a list of the user's own with its items, the last one too (LIST-1)
     override suspend fun deleteList(id: Int) {
         client
-            .delete("$url/grocery/lists/$id") { session() }.answer<Unit>(R.string.grocery_form_not_deleted)
+            .delete("$url/grocery/lists/$id") { session() }.answer<Unit>(CoreR.string.lists_form_not_deleted)
     }
 
     // the items to buy; with checked also the bought ones after them in each category (GROCERY-14)
@@ -124,7 +125,7 @@ class GroceryApi(
     suspend fun updateItem(
         id: Int,
         request: GroceryItemRequest,
-        @StringRes failure: Int = R.string.grocery_item_not_renamed,
+        @StringRes failure: Int = R.string.grocery_list_not_renamed,
     ): GroceryItemResponse =
         client
             .put("$url/grocery/items/$id") {
@@ -138,7 +139,7 @@ class GroceryApi(
         client
             .delete("$url/grocery/items/$id") {
                 session()
-            }.answer<Unit>(R.string.grocery_item_not_deleted)
+            }.answer<Unit>(R.string.grocery_list_not_deleted)
     }
 
     // the items the AI discovers in an uploaded photo (GROCERY-16); nothing is added to a list
@@ -147,7 +148,7 @@ class GroceryApi(
             .post("$url/grocery/files/$fileId/discover/items") {
                 session()
                 longTransfer()
-            }.answer<GroceryDiscoveredResponse>(R.string.grocery_discover_not_read)
+            }.answer<GroceryDiscoveredResponse>(CoreR.string.photo_not_read)
             .items
 
     // whether the user turned the AI of the grocery lists on and a provider is set up, and whether one is
@@ -155,7 +156,7 @@ class GroceryApi(
     suspend fun settings(): GrocerySettingsResponse =
         client
             .get("$url/grocery/settings") { session() }
-            .answer(R.string.grocery_discover_not_read)
+            .answer(CoreR.string.photo_not_read)
 
     // the photo of the item, and of the next item of its name on the list (GROCERY-12)
     suspend fun attachPhoto(
@@ -186,14 +187,14 @@ class GroceryApi(
                 session()
                 longTransfer()
                 size?.let { parameter("size", it) }
-            }.answer(R.string.grocery_photo_not_loaded)
+            }.answer(CoreR.string.photo_not_loaded)
 
     // the ids of the lists the user sees as they change (LIST-4, SakApi.listChanges)
     override fun changes(opened: suspend () -> Unit): Flow<Int> = listChanges("$url/grocery/changes", opened)
 
     // the categories of a list the user sees, in the order it shows them (GROCERY-13)
     suspend fun categories(listId: Int): List<GroceryCategoryResponse> =
-        all("$url/grocery/lists/$listId/categories", R.string.grocery_error_categories_not_loaded)
+        all("$url/grocery/lists/$listId/categories", R.string.grocery_categories_not_loaded)
 
     // added as the last category of the list
     suspend fun createCategory(
@@ -206,7 +207,7 @@ class GroceryApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(GroceryCategoryRequest(name, icon))
-            }.answer(R.string.grocery_category_not_saved)
+            }.answer(R.string.grocery_categories_not_saved)
 
     suspend fun updateCategory(
         listId: Int,
@@ -219,7 +220,7 @@ class GroceryApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(GroceryCategoryRequest(name, icon))
-            }.answer(R.string.grocery_category_not_saved)
+            }.answer(R.string.grocery_categories_not_saved)
 
     // its items and the suggestions of the list lose it
     suspend fun deleteCategory(
@@ -227,7 +228,7 @@ class GroceryApi(
         id: Int,
     ) {
         client
-            .delete("$url/grocery/lists/$listId/categories/$id") { session() }.answer<Unit>(R.string.grocery_category_not_deleted)
+            .delete("$url/grocery/lists/$listId/categories/$id") { session() }.answer<Unit>(R.string.grocery_categories_not_deleted)
     }
 
     // the ids of all categories of the list, each once, in their new order; answers the categories in it
@@ -240,7 +241,7 @@ class GroceryApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(GroceryCategoryOrderRequest(ids))
-            }.answer<PageResponse<GroceryCategoryResponse>>(R.string.grocery_category_not_saved)
+            }.answer<PageResponse<GroceryCategoryResponse>>(R.string.grocery_categories_not_saved)
             .items
 
     // one of its list or none; the next item of its name on the list gets it too

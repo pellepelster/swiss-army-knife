@@ -95,7 +95,7 @@ type State =
                 [disabled]="current.kind === 'connecting'"
                 (click)="cancel()"
               >
-                {{ 'connect_desktop.cancel' | t }}
+                {{ 'shared.cancel' | t }}
               </button>
               <button
                 type="button"
@@ -103,12 +103,7 @@ type State =
                 [disabled]="current.kind === 'connecting' || !code()"
                 (click)="connect()"
               >
-                {{
-                  (current.kind === 'connecting'
-                    ? 'connect_desktop.connecting'
-                    : 'connect_desktop.connect'
-                  ) | t
-                }}
+                {{ (current.kind === 'connecting' ? 'shared.connecting' : 'shared.connect') | t }}
               </button>
             </div>
           }

@@ -51,10 +51,6 @@ class OpenRouterManager(
     // whether the AI is set up: turned on with an api key
     fun configured(): Boolean = clients() != null
 
-    // the models of the configuration, named to the users before they turn the AI on
-    val visionModel get() = config.model
-    val speechModel get() = config.speechModel
-
     // null without an api key
     fun textRecognizer(): TextRecognizer? = clients()?.recognizer
 

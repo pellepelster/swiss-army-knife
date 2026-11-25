@@ -197,7 +197,7 @@ let excludeCaches = false;
 
 function showExcludes(readOnly) {
   const lines = patternLines(excludes).length;
-  const parts = [lines ? text('ui.plans.excludes_summary', { count: lines }) : text('ui.plans.excludes_none')];
+  const parts = [lines ? text('ui.excludes.count', { count: lines }) : text('ui.plans.excludes_none')];
   if (excludeCaches) parts.push(text('ui.plans.excludes_caches_on'));
   $('plan-excludes-summary').textContent = parts.join(' · ');
   const edit = $('plan-excludes-edit');
@@ -351,7 +351,7 @@ form.addEventListener('submit', async (event) => {
   } catch (error) {
     if (signedOut(error, shell)) return;
     setStatus(formStatus, '');
-    if (sendsExcludes && isMalformed(error)) setFailure(formStatus, text('ui.plans.excludes_unsupported'));
+    if (sendsExcludes && isMalformed(error)) setFailure(formStatus, text('common.excludes.unsupported'));
     else saveFailed(error, FIELD_OF, (field) => $(`plan-${field}-error`), formStatus);
   } finally {
     setBusy(form, false);

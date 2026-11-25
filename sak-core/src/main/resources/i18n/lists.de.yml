@@ -1,0 +1,11 @@
+# the texts of the catalog lists in de, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+list_gone: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
+all_lists: "Alle Listen"
+not_loaded: "Die Listen konnten nicht geladen werden."
+form:
+  create: "Liste erstellen"
+  no_icon: "Kein Icon"
+  delete_list: "Liste löschen"
+  not_saved: "Die Liste konnte nicht gespeichert werden."
+  not_deleted: "Die Liste konnte nicht gelöscht werden."
+  choose_icon: "Icon auswählen"

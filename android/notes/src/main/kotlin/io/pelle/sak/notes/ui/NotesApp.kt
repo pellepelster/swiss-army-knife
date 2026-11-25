@@ -302,13 +302,13 @@ private fun PhotoMenu(
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = dismiss) {
         MenuEntry(
-            stringResource(R.string.notes_photo_take),
+            stringResource(CoreR.string.photo_take),
             close = dismiss,
             leadingIcon = { Icon(painterResource(R.drawable.ic_camera), contentDescription = null) },
             enabled = picker.hasCamera,
         ) { picker.take(noteId) }
         MenuEntry(
-            stringResource(R.string.notes_photo_choose),
+            stringResource(CoreR.string.photo_choose),
             close = dismiss,
             leadingIcon = { Icon(painterResource(R.drawable.ic_image), contentDescription = null) },
         ) { picker.choose(noteId) }
@@ -633,7 +633,7 @@ private fun Media(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(name, color = NOTE_INK, modifier = Modifier.weight(1f))
-                    Discover(screen, note.id, photo.id, stringResource(R.string.notes_discover_photo, number), model)
+                    Discover(screen, note.id, photo.id, stringResource(R.string.notes_card_photo_discover, number), model)
                     IconButton(onClick = { model.removePhoto(note.id, photo.id) }, modifier = Modifier.testTag("remove-photo-${photo.id}")) {
                         Icon(painterResource(R.drawable.ic_xmark), contentDescription = stringResource(R.string.notes_photo_remove, number), tint = NOTE_INK)
                     }
@@ -723,7 +723,7 @@ private fun RecordingRow(
                 )
             }
             Text(stringResource(R.string.notes_recording_of, number), color = NOTE_INK, modifier = Modifier.weight(1f))
-            Discover(screen, noteId, fileId, stringResource(R.string.notes_discover_recording, number), model)
+            Discover(screen, noteId, fileId, stringResource(R.string.notes_card_recording_discover, number), model)
             IconButton(onClick = { model.removeRecording(noteId, fileId) }, modifier = Modifier.testTag("remove-recording-$fileId")) {
                 Icon(painterResource(R.drawable.ic_xmark), contentDescription = stringResource(R.string.notes_recording_remove, number), tint = NOTE_INK)
             }
@@ -768,7 +768,7 @@ private fun RecordingBar(
             )
             Button(onClick = model::stopRecording, modifier = Modifier.testTag("stop-recording")) {
                 Icon(painterResource(R.drawable.ic_stop), contentDescription = null, modifier = Modifier.size(16.dp))
-                Text(stringResource(R.string.notes_recording_stop), modifier = Modifier.padding(start = 8.dp))
+                Text(stringResource(R.string.notes_stop_recording), modifier = Modifier.padding(start = 8.dp))
             }
         }
     }

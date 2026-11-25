@@ -30,6 +30,8 @@ common:
     link_invalid:
       en: "The login link is invalid, expired or was already used."
       de: "Der Login-Link ist ungültig, abgelaufen oder wurde schon benutzt."
+    signing_in: { en: "Signing in…", de: "Wird angemeldet…" }
+    wrong_password: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
   shared:
     undo: { en: "Undo", de: "Rückgängig" }
     delete: { en: "Delete", de: "Löschen" }
@@ -41,10 +43,32 @@ common:
     my_settings: { en: "My settings", de: "Meine Einstellungen" }
     turn_on_ai: { en: "Turn on the AI in my settings", de: "KI in meinen Einstellungen einschalten" }
     email: { en: "E-mail address", de: "E-Mail-Adresse" }
+    cancel: { en: "Cancel", de: "Abbrechen" }
+    connect: { en: "Connect", de: "Verbinden" }
+    connecting: { en: "Connecting…", de: "Verbinde…" }
+    menu: { en: "Menu", de: "Menü" }
   users:
     invalid_email:
       en: "An e-mail address like name@example.org is needed."
       de: "Eine E-Mail-Adresse wie name@example.org ist nötig."
+  photo:
+    # what a screen reader says a tap on a photo shown in full does
+    close: { en: "Close the photo", de: "Foto schließen" }
+    not_loaded: { en: "The photo could not be loaded.", de: "Das Foto konnte nicht geladen werden." }
+    not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
+  lists:
+    list_gone:
+      en: "The list is gone, or its owner no longer shares it."
+      de: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
+    all_lists: { en: "All lists", de: "Alle Listen" }
+    not_loaded: { en: "The lists could not be loaded.", de: "Die Listen konnten nicht geladen werden." }
+    form:
+      create: { en: "Create list", de: "Liste erstellen" }
+      no_icon: { en: "No icon", de: "Kein Icon" }
+      delete_list: { en: "Delete list", de: "Liste löschen" }
+      not_saved: { en: "The list could not be saved.", de: "Die Liste konnte nicht gespeichert werden." }
+      not_deleted: { en: "The list could not be deleted.", de: "Die Liste konnte nicht gelöscht werden." }
+      choose_icon: { en: "Choose icon", de: "Icon auswählen" }
 
 backend:
   api:
@@ -416,9 +440,6 @@ web:
       en: "Connect it only if you just started the sign-in in the app yourself and the app shows this code:"
       de: "Verbinde sie nur, wenn du die Anmeldung gerade selbst in der App gestartet hast und die App diesen Code zeigt:"
     code: { en: "Code of the desktop app", de: "Code der Desktop-App" }
-    connect: { en: "Connect", de: "Verbinden" }
-    cancel: { en: "Cancel", de: "Abbrechen" }
-    connecting: { en: "Connecting…", de: "Verbinde…" }
     invalid:
       en: "This link of a desktop app is not valid. Start the sign-in in the app again."
       de: "Dieser Link einer Desktop-App ist nicht gültig. Starte die Anmeldung in der App erneut."
@@ -451,16 +472,12 @@ web:
     range: { en: "%{first}–%{last} of %{total}", de: "%{first}–%{last} von %{total}" }
     all_apps: { en: "All apps", de: "Alle Apps" }
     loading: { en: "Loading…", de: "Wird geladen…" }
-    cancel: { en: "Cancel", de: "Abbrechen" }
     ok: "OK"
-    add: { en: "Add", de: "Hinzufügen" }
-    create: { en: "Create", de: "Erstellen" }
     edit: { en: "Edit", de: "Bearbeiten" }
     actions: { en: "Actions", de: "Aktionen" }
     form_actions: { en: "Actions of the form", de: "Aktionen des Formulars" }
     delete_name: { en: "Delete %{name}", de: "%{name} löschen" }
     action_menu:
-      menu: { en: "Menu", de: "Menü" }
       actions_of: { en: "Actions of %{name}", de: "Aktionen von %{name}" }
     view:
       overview: { en: "Overview", de: "Übersicht" }
@@ -530,28 +547,34 @@ web:
     sent_after:
       en: "may sign in, a link is on its way. Open it in this browser to continue."
       de: "anmelden darf, ist ein Link unterwegs. Öffne ihn in diesem Browser, um fortzufahren."
-    signing_in: { en: "Signing in…", de: "Wird angemeldet…" }
     sending: { en: "Sending…", de: "Wird gesendet…" }
-    wrong_password: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
     rate_limited:
       en: "Too many login attempts, please try again later."
       de: "Zu viele Anmeldeversuche, bitte versuche es später erneut."
     failed:
       en: "The sign in did not work, please try again."
       de: "Die Anmeldung hat nicht funktioniert, bitte versuche es erneut."
+  lists:
+    settings_of: { en: "Settings of %{name}", de: "Einstellungen von %{name}" }
+    only_owner_deletes: { en: "Only the owner of a list deletes it.", de: "Nur der Besitzer einer Liste löscht sie." }
+    shared_badge: { en: "shared", de: "geteilt" }
+    empty: { en: "You have no list yet, create one first.", de: "Du hast noch keine Liste, erstelle zuerst eine." }
+    form:
+      icon: { en: "Icon", de: "Icon" }
+      no_such_list: { en: "There is no such list.", de: "Es gibt keine solche Liste." }
+      not_loaded: { en: "The list could not be loaded.", de: "Die Liste konnte nicht geladen werden." }
+      shared: { en: "Shared", de: "Geteilt" }
+    back: { en: "Back", de: "Zurück" }
 
 android:
   deployment_hint:
     en: "Enter the SAK address of your SAK instance, the address its web app is at, e.g. sak.example.org."
     de: "Gib die SAK-Adresse deiner SAK-Instanz ein, die Adresse ihrer Web-App, z. B. sak.example.org."
   sak_address: { en: "SAK address", de: "SAK-Adresse" }
-  connecting: { en: "Connecting…", de: "Verbinde…" }
-  connect: { en: "Connect", de: "Verbinden" }
   other_deployment: { en: "Other SAK instance", de: "Andere SAK-Instanz" }
   send_again: { en: "Send again", de: "Erneut senden" }
   other_address: { en: "Other address", de: "Andere Adresse" }
   retry: { en: "Try again", de: "Erneut versuchen" }
-  menu: { en: "Menu", de: "Menü" }
   link_sent:
     en: "A login link is on its way to %{email} if the address may sign in. Open it on this phone and tap \"Open in the app\"."
     de: "Ein Login-Link ist an %{email} unterwegs, wenn sich die Adresse anmelden darf. Öffne ihn auf diesem Handy und tippe auf \"In der App öffnen\"."
@@ -572,9 +595,6 @@ android:
     en: "Your SAK instance runs no release, there is no update for the app."
     de: "Deine SAK-Instanz läuft mit keinem Release, es gibt kein Update für die App."
   ok: "OK"
-  cancel: { en: "Cancel", de: "Abbrechen" }
-  # what a screen reader says a tap on a photo shown in full does
-  photo_close: { en: "Close the photo", de: "Foto schließen" }
   # the three ways to sign in, the QR code first (UX-7)
   sign_in_password_hint:
     en: "Sign in to a single user SAK instance with a password."
@@ -597,7 +617,6 @@ android:
     point:
       en: "Point the camera at the QR code the web app shows."
       de: "Richte die Kamera auf den QR-Code, den die Web-App zeigt."
-    signing_in: { en: "Signing in…", de: "Wird angemeldet…" }
     scan_again: { en: "Scan again", de: "Erneut scannen" }
     back: { en: "Back", de: "Zurück" }
     torch_on: { en: "Turn on the light", de: "Licht einschalten" }
@@ -655,7 +674,6 @@ android:
       en: "This login link was not requested in this app, or it is older than %{minutes} minutes. Request a new one."
       de: "Dieser Login-Link wurde nicht in dieser App angefordert oder ist älter als %{minutes} Minuten. Fordere einen neuen an."
     password_not_checked: { en: "The password could not be checked.", de: "Das Passwort konnte nicht geprüft werden." }
-    password_wrong: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
     user_not_read: { en: "The user could not be read.", de: "Der Benutzer konnte nicht gelesen werden." }
     settings_not_read: { en: "Your settings could not be read.", de: "Deine Einstellungen konnten nicht gelesen werden." }
     settings_not_saved:
@@ -694,6 +712,10 @@ android:
   update_not_installed_because:
     en: "The update was not installed: %{reason}"
     de: "Das Update wurde nicht installiert: %{reason}"
+  photo_take: { en: "Take photo", de: "Foto aufnehmen" }
+  photo_choose: { en: "Choose photo", de: "Foto auswählen" }
+  lists:
+    not_created: { en: "The list could not be created.", de: "Die Liste konnte nicht erstellt werden." }
 
 admin_cli:
   common:
@@ -827,7 +849,7 @@ admin_cli:
         de: "Die SAK-Instanz konnte bei %{provider} nicht erstellt werden: %{error}"
       destroy_failed:
         en: "The SAK instance could not be destroyed at %{provider}: %{error}"
-        de: "Die SAK-Instanz konnte bei %{provider} nicht zerstört werden: %{error}"
+        de: "Die SAK-Instanz konnte bei %{provider} nicht gelöscht werden: %{error}"
       not_found: { en: "There is no SAK instance named %{name}.", de: "Es gibt keine SAK-Instanz namens %{name}." }
       wrong_password:
         en: "The password is not the one of the SAK instance %{name}."
@@ -836,8 +858,8 @@ admin_cli:
         en: "Cancelled. What was done stays, a deploy finishes the rest."
         de: "Abgebrochen. Was erledigt ist, bleibt, ein Deploy erledigt den Rest."
       unverifiable:
-        en: "Nothing of the SAK instance %{name} carries what its password could be checked against, so nothing of it is changed or shown. Delete what is left of it in the console of the Hetzner Cloud project."
-        de: "Nichts von der SAK-Instanz %{name} trägt etwas, gegen das ihr Passwort geprüft werden kann, darum wird nichts davon geändert oder gezeigt. Lösche, was davon übrig ist, in der Konsole des Hetzner-Cloud-Projekts."
+        en: "The password of %{name} can not be checked: nothing of the SAK instance is left to check it against. So nothing is changed or shown. Delete what is left in the console of your Hetzner Cloud project."
+        de: "Das Passwort von %{name} kann nicht geprüft werden: Von der SAK-Instanz ist nichts übrig, gegen das es geprüft werden kann. Darum wird nichts geändert oder gezeigt. Lösche den Rest in der Konsole deines Hetzner-Cloud-Projekts."
       no_provider:
         en: "No provider token to create the SAK instance at."
         de: "Kein Provider-Token, bei dem die SAK-Instanz erstellt werden kann."
@@ -1015,10 +1037,10 @@ admin_cli:
       intro_deploy:
         en: "Redeploy the SAK instance"
         de: "Rolle die SAK-Instanz erneut aus"
-      intro_destroy: { en: "Destroy the SAK instance", de: "Zerstöre die SAK-Instanz" }
+      intro_destroy: { en: "Destroy the SAK instance", de: "Lösche die SAK-Instanz" }
       will_create: { en: "will be created", de: "wird erstellt" }
       will_update: { en: "will be updated", de: "wird aktualisiert" }
-      will_destroy: { en: "will be destroyed", de: "wird zerstört" }
+      will_destroy: { en: "will be destroyed", de: "wird gelöscht" }
       will_keep: { en: "will be kept", de: "wird behalten" }
       already_deleted: { en: "already deleted", de: "schon gelöscht" }
       will_run: { en: "will run", de: "wird ausgeführt" }
@@ -1028,11 +1050,11 @@ admin_cli:
       working_update: { en: "updating…", de: "wird geändert…" }
       working_recreate: { en: "recreating…", de: "wird neu erstellt…" }
       working_check: { en: "checking…", de: "wird geprüft…" }
-      working_destroy: { en: "destroying…", de: "wird zerstört…" }
+      working_destroy: { en: "destroying…", de: "wird gelöscht…" }
     done:
       created: { en: "created", de: "erstellt" }
       updated: { en: "updated", de: "aktualisiert" }
-      destroyed: { en: "destroyed", de: "zerstört" }
+      destroyed: { en: "destroyed", de: "gelöscht" }
     ssh:
       failed: { en: "ssh to the server failed: %{error}", de: "ssh zum Server ist fehlgeschlagen: %{error}" }
     sak_backend:
@@ -1128,10 +1150,10 @@ admin_cli:
         de: "Gib sie korrekt mit --smtp-from an, oder lass sie weg für noreply@<Root-Domain>."
     destroyed:
       en: "The SAK instance %{name} is destroyed, its data volume stays."
-      de: "Die SAK-Instanz %{name} ist zerstört, ihr Datenvolume bleibt."
+      de: "Die SAK-Instanz %{name} ist gelöscht, ihr Datenvolume bleibt."
     destroyed_with_data:
       en: "The SAK instance %{name} and its data volume are destroyed."
-      de: "Die SAK-Instanz %{name} und ihr Datenvolume sind zerstört."
+      de: "Die SAK-Instanz %{name} und ihr Datenvolume sind gelöscht."
     task:
       ok: { en: "[ok] %{task}", de: "[ok] %{task}" }
       changed: { en: "[changed] %{task}", de: "[geändert] %{task}" }
@@ -1236,7 +1258,6 @@ admin_cli:
       empty:
         en: "No provider tokens yet. Add the API tokens of the providers Swiss Army Knife creates resources at."
         de: "Noch keine Provider-Tokens. Füge die API-Tokens der Provider hinzu, bei denen Swiss Army Knife Ressourcen erstellt."
-      add: { en: "Add token", de: "Token hinzufügen" }
     select:
       title: { en: "Select the provider", de: "Wähle den Provider" }
     token:
@@ -1261,7 +1282,7 @@ admin_cli:
         en: "The SAK instance changed since its plan was shown, nothing was changed. Plan or check it again and look at the new plan before you go on."
         de: "Die SAK-Instanz hat sich geändert, seit ihr Plan angezeigt wurde, nichts wurde geändert. Plane oder prüfe sie erneut und sieh dir den neuen Plan an, bevor du weitermachst."
       maintenance: { en: "Maintenance", de: "Wartung" }
-      destroy: { en: "Destroy", de: "Zerstören" }
+      destroy: { en: "Destroy", de: "Löschen" }
       check: { en: "Check", de: "Prüfen" }
       checking: { en: "Checking the SAK instance…", de: "Prüfe die SAK-Instanz…" }
       changes: { en: "%{count} of its resources have changes.", de: "%{count} seiner Ressourcen haben Änderungen." }
@@ -1338,7 +1359,7 @@ admin_cli:
       source_none:
         en: "Nothing is known of the settings of the SAK instance. It did not answer: %{error}"
         de: "Von den Einstellungen der SAK-Instanz ist nichts bekannt. Sie hat nicht geantwortet: %{error}"
-      title_destroy: { en: "Destroy the SAK instance", de: "SAK-Instanz zerstören" }
+      title_destroy: { en: "Destroy the SAK instance", de: "SAK-Instanz löschen" }
       password_hint_destroy:
         en: "The password the SAK instance was created with; everything but its data volume is deleted."
         de: "Das Passwort, mit dem die SAK-Instanz erstellt wurde; alles außer ihrem Datenvolume wird gelöscht."
@@ -1414,7 +1435,7 @@ admin_cli:
         en: "Planning, the resources are compared with the project…"
         de: "Plane, die Ressourcen werden mit dem Projekt verglichen…"
     confirm:
-      title: { en: "Destroy %{name}?", de: "%{name} zerstören?" }
+      title: { en: "Destroy %{name}?", de: "%{name} löschen?" }
       text:
         en: "Its DNS records, server, addresses, firewall and ssh key are deleted. Its data volume stays."
         de: "Seine DNS-Einträge, sein Server, seine Adressen, seine Firewall und sein SSH-Key werden gelöscht. Sein Datenvolume bleibt."
@@ -1432,23 +1453,23 @@ admin_cli:
       force_deploy: { en: "Force deploy", de: "Erzwungen ausrollen" }
       title_create: { en: "Creating %{name}", de: "%{name} wird erstellt" }
       title_deploy: { en: "Redeploying %{name}", de: "%{name} wird neu ausgerollt" }
-      title_destroy: { en: "Destroying %{name}", de: "%{name} wird zerstört" }
+      title_destroy: { en: "Destroying %{name}", de: "%{name} wird gelöscht" }
       deploying:
         en: "Deploying… A server that must change is replaced. The data volume and the IP addresses stay."
         de: "Rolle aus… Ein Server, der sich ändern muss, wird ersetzt. Das Datenvolume und die IP-Adressen bleiben."
-      destroy: { en: "Destroy", de: "Zerstören" }
+      destroy: { en: "Destroy", de: "Löschen" }
       destroying:
         en: "Destroying the SAK instance, its data volume stays…"
-        de: "Zerstöre die SAK-Instanz, ihr Datenvolume bleibt…"
+        de: "Lösche die SAK-Instanz, ihr Datenvolume bleibt…"
       destroying_with_data:
         en: "Destroying the SAK instance and its data volume…"
-        de: "Zerstöre die SAK-Instanz und ihr Datenvolume…"
+        de: "Lösche die SAK-Instanz und ihr Datenvolume…"
       destroyed:
         en: "The SAK instance is destroyed, its data volume stays."
-        de: "Die SAK-Instanz ist zerstört, ihr Datenvolume bleibt."
+        de: "Die SAK-Instanz ist gelöscht, ihr Datenvolume bleibt."
       destroyed_with_data:
         en: "The SAK instance and its data volume are destroyed."
-        de: "Die SAK-Instanz und ihr Datenvolume sind zerstört."
+        de: "Die SAK-Instanz und ihr Datenvolume sind gelöscht."
       creating:
         en: "Creating the SAK instance, this takes a few minutes…"
         de: "Erstelle die SAK-Instanz, das dauert ein paar Minuten…"
@@ -1463,35 +1484,26 @@ grocery:
     only_owner_shares:
       en: "Only the owner of a list renames, shares or unshares it."
       de: "Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf."
-    list_gone:
-      en: "The list is gone, or its owner no longer shares it."
-      de: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
-    all_lists: { en: "All lists", de: "Alle Listen" }
-    lists_not_loaded: { en: "The lists could not be loaded.", de: "Die Listen konnten nicht geladen werden." }
     lists:
       to_buy_none: { en: "No items to buy", de: "Keine Artikel zu kaufen" }
-    form:
-      create: { en: "Create list", de: "Liste erstellen" }
-      no_icon: { en: "No icon", de: "Kein Icon" }
-      delete_list: { en: "Delete list", de: "Liste löschen" }
-      not_saved: { en: "The list could not be saved.", de: "Die Liste konnte nicht gespeichert werden." }
-      not_deleted: { en: "The list could not be deleted.", de: "Die Liste konnte nicht gelöscht werden." }
-      choose_icon: { en: "Choose icon", de: "Icon auswählen" }
     photo:
       attach: { en: "Attach photo", de: "Foto anhängen" }
       replace: { en: "Replace photo", de: "Foto ersetzen" }
       remove: { en: "Remove photo", de: "Foto entfernen" }
       of: { en: "Photo of %{name}", de: "Foto von %{name}" }
-      close: { en: "Close the photo", de: "Foto schließen" }
       not_attached: { en: "The photo could not be attached.", de: "Das Foto konnte nicht angehängt werden." }
       not_removed: { en: "The photo could not be removed.", de: "Das Foto konnte nicht entfernt werden." }
-      not_loaded: { en: "The photo could not be loaded.", de: "Das Foto konnte nicht geladen werden." }
     list:
       item: { en: "Item", de: "Artikel" }
       no_category: { en: "No category", de: "Keine Kategorie" }
       not_added: { en: "The item could not be added.", de: "Der Artikel konnte nicht hinzugefügt werden." }
       not_checked: { en: "The item could not be checked.", de: "Der Artikel konnte nicht abgehakt werden." }
       items_not_loaded: { en: "The items could not be loaded.", de: "Die Artikel konnten nicht geladen werden." }
+      category: { en: "Category", de: "Kategorie" }
+      not_deleted: { en: "The item could not be deleted.", de: "Der Artikel konnte nicht gelöscht werden." }
+      show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
+      not_renamed: { en: "The item could not be renamed.", de: "Der Artikel konnte nicht umbenannt werden." }
+      rename: { en: "Rename", de: "Umbenennen" }
     # the quantity of an item from the menu of its row (GROCERY-15)
     quantity:
       label: { en: "Quantity", de: "Menge" }
@@ -1531,8 +1543,17 @@ grocery:
       include: { en: "Add %{name}", de: "%{name} hinzufügen" }
       name_of: { en: "Name of item %{number}", de: "Name von Artikel %{number}" }
       add: { en: "Add to the list", de: "Zur Liste hinzufügen" }
-      not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
       not_all_added: { en: "Not every item could be added.", de: "Nicht jeder Artikel konnte hinzugefügt werden." }
+    categories:
+      title: { en: "Categories", de: "Kategorien" }
+      none: { en: "The list has no categories yet.", de: "Die Liste hat noch keine Kategorien." }
+      new: { en: "New category", de: "Neue Kategorie" }
+      add: { en: "Add category", de: "Kategorie hinzufügen" }
+      not_loaded: { en: "The categories could not be loaded.", de: "Die Kategorien konnten nicht geladen werden." }
+      not_saved: { en: "The category could not be saved.", de: "Die Kategorie konnte nicht gespeichert werden." }
+      not_deleted: { en: "The category could not be deleted.", de: "Die Kategorie konnte nicht gelöscht werden." }
+      move_up: { en: "Move up", de: "Nach oben schieben" }
+      move_down: { en: "Move down", de: "Nach unten schieben" }
   backend:
     first_list: { en: "My Groceries", de: "Meine Einkäufe" }
     category:
@@ -1589,34 +1610,25 @@ grocery:
       ai:
         label: { en: "Use AI", de: "KI verwenden" }
         description:
-          en: "Discovers the items in a photo you choose of a recipe or a shopping list. The photo is sent to OpenRouter (model %{vision_model}), which is asked not to keep it."
-          de: "Erkennt die Artikel in einem Foto eines Rezepts oder Einkaufszettels, das du auswählst. Das Foto wird an OpenRouter gesendet (Modell %{vision_model}), mit der Bitte, es nicht aufzubewahren."
+          en: "Discovers the items in a photo of a recipe or a shopping list you choose using an external AI."
+          de: "Erkennt die Artikel in einem Foto eines Rezepts oder Einkaufszettels, das du auswählst, mit einer externen KI."
       label: { en: "Grocery", de: "Einkaufslisten" }
   web:
     page_title:
       create: { en: "Create list · Grocery", de: "Liste erstellen · Einkaufslisten" }
       list: { en: "List · Grocery", de: "Liste · Einkaufslisten" }
       settings: { en: "Settings · Grocery", de: "Einstellungen · Einkaufslisten" }
-    back: { en: "Back", de: "Zurück" }
-    settings_of: { en: "Settings of %{name}", de: "Einstellungen von %{name}" }
-    only_owner_deletes: { en: "Only the owner of a list deletes it.", de: "Nur der Besitzer einer Liste löscht sie." }
-    shared_badge: { en: "shared", de: "geteilt" }
     lists_forbidden:
       en: "Your role does not allow to see the grocery lists."
       de: "Deine Rolle erlaubt es nicht, die Einkaufslisten zu sehen."
     lists:
       label: { en: "Grocery lists", de: "Einkaufslisten" }
-      empty: { en: "You have no list yet, create one first.", de: "Du hast noch keine Liste, erstelle zuerst eine." }
       to_buy_one: { en: "1 item to buy", de: "1 Artikel zu kaufen" }
       to_buy_other: { en: "%{count} items to buy", de: "%{count} Artikel zu kaufen" }
     form:
-      icon: { en: "Icon", de: "Icon" }
-      shared: { en: "Shared", de: "Geteilt" }
       shared_hint:
         en: "Every user sees a shared list and adds and deletes its items."
         de: "Jeder Benutzer sieht eine geteilte Liste und fügt ihre Artikel hinzu und löscht sie."
-      no_such_list: { en: "There is no such list.", de: "Es gibt keine solche Liste." }
-      not_loaded: { en: "The list could not be loaded.", de: "Die Liste konnte nicht geladen werden." }
     download:
       page_title: { en: "Download the app · Grocery", de: "App herunterladen · Einkaufslisten" }
       title: { en: "The grocery app for Android", de: "Die Einkaufslisten-App für Android" }
@@ -1624,70 +1636,39 @@ grocery:
       add_item: { en: "Add item", de: "Artikel hinzufügen" }
       empty: { en: "Nothing to buy yet, add something.", de: "Noch nichts zu kaufen, füge etwas hinzu." }
       bought: { en: "%{name} bought", de: "%{name} gekauft" }
-      category: { en: "Category", de: "Kategorie" }
       category_not_set: { en: "The category could not be set.", de: "Die Kategorie konnte nicht gesetzt werden." }
-      not_deleted: { en: "The item could not be deleted.", de: "Der Artikel konnte nicht gelöscht werden." }
-      show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
       hide_bought: { en: "Hide bought items", de: "Gekaufte Artikel ausblenden" }
       renaming: { en: "The name is changed in its row.", de: "Der Name wird in seiner Zeile geändert." }
-      rename: { en: "Rename", de: "Umbenennen" }
       name_of: { en: "Name of %{name}", de: "Name von %{name}" }
       name_required: { en: "An item needs a name.", de: "Ein Artikel braucht einen Namen." }
-      not_renamed: { en: "The item could not be renamed.", de: "Der Artikel konnte nicht umbenannt werden." }
     categories:
-      title: { en: "Categories", de: "Kategorien" }
       hint:
         en: "The items of the list show in groups of their category, in this order."
         de: "Die Artikel der Liste stehen in Gruppen nach ihrer Kategorie, in dieser Reihenfolge."
-      none: { en: "The list has no categories yet.", de: "Die Liste hat noch keine Kategorien." }
       name_of: { en: "Name of %{name}", de: "Name von %{name}" }
       icon_of: { en: "Choose the icon of %{name}", de: "Icon von %{name} auswählen" }
       drag: { en: "Drag to move %{name}", de: "Ziehen, um %{name} zu verschieben" }
-      move_up: { en: "Move up", de: "Nach oben schieben" }
-      move_down: { en: "Move down", de: "Nach unten schieben" }
       first: { en: "The category is the first.", de: "Die Kategorie ist die erste." }
       last: { en: "The category is the last.", de: "Die Kategorie ist die letzte." }
-      new: { en: "New category", de: "Neue Kategorie" }
-      add: { en: "Add category", de: "Kategorie hinzufügen" }
       name_required: { en: "A category needs a name.", de: "Eine Kategorie braucht einen Namen." }
       no_icon_yet: { en: "The category has no icon.", de: "Die Kategorie hat kein Icon." }
       saving:
         en: "Wait until the changes of the categories are saved."
         de: "Warte, bis die Änderungen der Kategorien gespeichert sind."
-      not_loaded: { en: "The categories could not be loaded.", de: "Die Kategorien konnten nicht geladen werden." }
-      not_saved: { en: "The category could not be saved.", de: "Die Kategorie konnte nicht gespeichert werden." }
-      not_deleted: { en: "The category could not be deleted.", de: "Die Kategorie konnte nicht gelöscht werden." }
       not_ordered:
         en: "The order of the categories could not be saved."
         de: "Die Reihenfolge der Kategorien konnte nicht gespeichert werden."
   android:
     # the name of the app, also the title of the deployment screen
     app_name: "SAK Grocery List"
-    photo_take: { en: "Take photo", de: "Foto aufnehmen" }
-    photo_choose: { en: "Choose photo", de: "Foto auswählen" }
-    photo_not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
-    item_not_deleted: { en: "The item could not be deleted.", de: "Der Artikel konnte nicht gelöscht werden." }
-    item_rename: { en: "Rename", de: "Umbenennen" }
     item_name_invalid: { en: "An item name must have 1 to 128 characters.", de: "Ein Artikelname muss 1 bis 128 Zeichen haben." }
-    item_not_renamed: { en: "The item could not be renamed.", de: "Der Artikel konnte nicht umbenannt werden." }
-    show_bought: { en: "Show bought items", de: "Gekaufte Artikel zeigen" }
-    settings_of: { en: "Settings of %{list}", de: "Einstellungen von %{list}" }
     nothing_to_buy: { en: "Nothing to buy.", de: "Nichts zu kaufen." }
     bought: { en: "%{item} bought", de: "%{item} gekauft" }
-    item_category: { en: "Category", de: "Kategorie" }
     category_of: { en: "Category of %{item}", de: "Kategorie von %{item}" }
-    categories: { en: "Categories", de: "Kategorien" }
-    no_categories: { en: "The list has no categories yet.", de: "Die Liste hat noch keine Kategorien." }
-    category_name: { en: "New category", de: "Neue Kategorie" }
-    category_add: { en: "Add category", de: "Kategorie hinzufügen" }
-    category_up: { en: "Move up", de: "Nach oben" }
-    category_down: { en: "Move down", de: "Nach unten" }
     category_icon: { en: "Icon of %{category}", de: "Icon von %{category}" }
     category_name_invalid:
       en: "A category name must have 1 to 32 characters."
       de: "Ein Kategoriename muss 1 bis 32 Zeichen haben."
-    category_not_saved: { en: "The category could not be saved.", de: "Die Kategorie konnte nicht gespeichert werden." }
-    category_not_deleted: { en: "The category could not be deleted.", de: "Die Kategorie konnte nicht gelöscht werden." }
     category_not_set:
       en: "The category of the item could not be set."
       de: "Die Kategorie des Artikels konnte nicht gesetzt werden."
@@ -1697,11 +1678,6 @@ grocery:
     to_buy:
       en: { one: "%{count} item to buy", other: "%{count} items to buy" }
       de: { one: "%{count} Artikel zu kaufen", other: "%{count} Artikel zu kaufen" }
-    error:
-      categories_not_loaded:
-        en: "The categories could not be loaded."
-        de: "Die Kategorien konnten nicht geladen werden."
-      list_not_created: { en: "The list could not be created.", de: "Die Liste konnte nicht erstellt werden." }
 
 status:
   web:
@@ -1937,8 +1913,8 @@ notes:
       ai:
         label: { en: "Use AI", de: "KI verwenden" }
         description:
-          en: "Discovers the text in a photo or a recording you choose. It is sent to OpenRouter (model %{vision_model} for photos, %{speech_model} for recordings), which is asked not to keep it."
-          de: "Erkennt den Text in einem Foto oder einer Aufnahme, die du auswählst. Sie werden an OpenRouter gesendet (Modell %{vision_model} für Fotos, %{speech_model} für Aufnahmen), mit der Bitte, sie nicht aufzubewahren."
+          en: "Discovers the text in a photo or a recording you choose using an external AI."
+          de: "Erkennt den Text in einem Foto oder einer Aufnahme, die du auswählst, mit einer externen KI."
       label: { en: "Notes", de: "Notizen" }
   common:
     page:
@@ -1954,6 +1930,10 @@ notes:
       labels: { en: "Labels", de: "Labels" }
       labels_full: { en: "A note has at most %{max} labels.", de: "Eine Notiz hat höchstens %{max} Labels." }
       discover: { en: "Discover the text", de: "Text erkennen" }
+      photo:
+        discover: { en: "Discover the text in photo %{number}", de: "Text in Foto %{number} erkennen" }
+      recording:
+        discover: { en: "Discover the text in recording %{number}", de: "Text in Aufnahme %{number} erkennen" }
     colors:
       yellow: { en: "yellow", de: "gelb" }
       pink: { en: "pink", de: "rosa" }
@@ -1971,6 +1951,9 @@ notes:
         de: "Die Aufnahme konnte nicht gespeichert werden."
       no_text_in_recording: { en: "There is no text in the recording.", de: "In der Aufnahme ist kein Text." }
       not_discovered: { en: "The text could not be discovered.", de: "Der Text konnte nicht erkannt werden." }
+      not_created: { en: "The note could not be created.", de: "Die Notiz konnte nicht erstellt werden." }
+      no_text_in_photo: { en: "There is no text in the photo.", de: "Auf dem Foto ist kein Text." }
+    stop_recording: { en: "Stop recording", de: "Aufnahme beenden" }
   web:
     download:
       page_title: { en: "Download the app · Notes", de: "App herunterladen · Notizen" }
@@ -1987,12 +1970,10 @@ notes:
       media: { en: "Photos and recordings", de: "Fotos und Aufnahmen" }
       photo:
         alt: { en: "Photo %{number} of note %{note}", de: "Foto %{number} von Notiz %{note}" }
-        discover: { en: "Discover the text in photo %{number}", de: "Text in Foto %{number} erkennen" }
         remove: { en: "Remove photo %{number} from the note", de: "Foto %{number} von der Notiz entfernen" }
       recording:
         play: { en: "Play Recording %{number}", de: "Aufnahme %{number} abspielen" }
         pause: { en: "Pause Recording %{number}", de: "Aufnahme %{number} pausieren" }
-        discover: { en: "Discover the text in recording %{number}", de: "Text in Aufnahme %{number} erkennen" }
         remove: { en: "Remove recording %{number} from the note", de: "Aufnahme %{number} von der Notiz entfernen" }
       text_of: { en: "Text of note %{note}", de: "Text von Notiz %{note}" }
       show_labelled: { en: "Show the notes labelled %{label}", de: "Die Notizen mit dem Label %{label} zeigen" }
@@ -2009,18 +1990,12 @@ notes:
       dialog: { en: "Recording note %{note}", de: "Aufnahme für Notiz %{note}" }
       stop_new: { en: "Stop the recording of the new note", de: "Die Aufnahme für die neue Notiz stoppen" }
       stop_of: { en: "Stop the recording of note %{note}", de: "Die Aufnahme für Notiz %{note} stoppen" }
-      stop: { en: "Stop recording", de: "Aufnahme stoppen" }
       starting: { en: "Starting…", de: "Wird gestartet…" }
       subject_new: { en: "the new note", de: "die neue Notiz" }
       subject: { en: "note %{note}", de: "Notiz %{note}" }
-    errors:
-      not_created: { en: "The note could not be created.", de: "Die Notiz konnte nicht angelegt werden." }
-      no_text_in_photo: { en: "There is no text in the photo.", de: "Auf dem Foto ist kein Text." }
   android:
     # the name of the app, also the title of the deployment screen
     app_name: "SAK Notes"
-    photo_take: { en: "Take photo", de: "Foto aufnehmen" }
-    photo_choose: { en: "Choose photo", de: "Foto auswählen" }
     empty: { en: "No notes yet, create one with the plus at the top.", de: "Noch keine Notizen, erstelle eine mit dem Plus oben." }
     all_count: { en: "All (%{count})", de: "Alle (%{count})" }
     note: { en: "Note", de: "Notiz" }
@@ -2055,30 +2030,22 @@ notes:
     recording_pause: { en: "Pause recording %{number}", de: "Aufnahme %{number} pausieren" }
     recording_remove: { en: "Remove recording %{number}", de: "Aufnahme %{number} entfernen" }
     recording: { en: "Recording… %{time}", de: "Aufnahme läuft… %{time}" }
-    recording_stop: { en: "Stop recording", de: "Aufnahme beenden" }
     uploading: { en: "Storing…", de: "Wird gespeichert…" }
-    discover_photo: { en: "Discover the text in photo %{number}", de: "Den Text in Foto %{number} erkennen" }
-    discover_recording: { en: "Discover the text in recording %{number}", de: "Den Text in Aufnahme %{number} erkennen" }
     discover_off:
       en: "No AI is set up for this SAK instance."
       de: "Für diese SAK-Instanz ist keine KI eingerichtet."
     discover_turn_on:
       en: "Turn on the AI in your settings to discover the text with the robot."
       de: "Schalte die KI in deinen Einstellungen ein, um den Text mit dem Roboter zu erkennen."
-    discovering: { en: "Discovering the text…", de: "Der Text wird erkannt…" }
     delete_note: { en: "Delete note", de: "Notiz löschen" }
     note_menu: { en: "Menu of the note", de: "Menü der Notiz" }
     this_note: { en: "this note", de: "diese Notiz" }
     error:
-      not_created: { en: "The note could not be created.", de: "Die Notiz konnte nicht erstellt werden." }
-      photo_not_read: { en: "The photo could not be read.", de: "Das Foto konnte nicht gelesen werden." }
-      photo_not_loaded: { en: "The photo could not be loaded.", de: "Das Foto konnte nicht geladen werden." }
       microphone_denied:
         en: "The app may not use the microphone, allow it in the settings of the phone."
         de: "Die App darf das Mikrofon nicht verwenden, erlaube es in den Einstellungen des Handys."
       recording_not_loaded: { en: "The recording could not be loaded.", de: "Die Aufnahme konnte nicht geladen werden." }
       recording_not_played: { en: "The recording could not be played.", de: "Die Aufnahme konnte nicht abgespielt werden." }
-      no_text_in_photo: { en: "There is no text in the photo.", de: "Im Foto ist kein Text." }
 backups:
   web:
     list:
@@ -2198,26 +2165,13 @@ todo:
     only_owner_shares:
       en: "Only the owner of a list renames, shares or unshares it."
       de: "Nur der Besitzer einer Liste benennt sie um, teilt sie oder hebt das Teilen auf."
-    list_gone:
-      en: "The list is gone, or its owner no longer shares it."
-      de: "Die Liste gibt es nicht mehr, oder ihr Besitzer teilt sie nicht mehr."
-    all_lists: { en: "All lists", de: "Alle Listen" }
-    lists_not_loaded: { en: "The lists could not be loaded.", de: "Die Listen konnten nicht geladen werden." }
     lists:
       open_none: { en: "No open tasks", de: "Keine offenen Aufgaben" }
-    form:
-      create: { en: "Create list", de: "Liste erstellen" }
-      no_icon: { en: "No icon", de: "Kein Icon" }
-      delete_list: { en: "Delete list", de: "Liste löschen" }
-      not_saved: { en: "The list could not be saved.", de: "Die Liste konnte nicht gespeichert werden." }
-      not_deleted: { en: "The list could not be deleted.", de: "Die Liste konnte nicht gelöscht werden." }
-      choose_icon: { en: "Choose icon", de: "Icon auswählen" }
     list:
       task: { en: "Task", de: "Aufgabe" }
       not_added: { en: "The task could not be added.", de: "Die Aufgabe konnte nicht hinzugefügt werden." }
       not_done: { en: "The task could not be marked done.", de: "Die Aufgabe konnte nicht als erledigt markiert werden." }
       items_not_loaded: { en: "The tasks could not be loaded.", de: "Die Aufgaben konnten nicht geladen werden." }
-      done_of: { en: "Mark %{title} done", de: "%{title} als erledigt markieren" }
       # the purge of the done tasks of a list (TODO-6)
       purge: { en: "Remove done tasks", de: "Erledigte Aufgaben entfernen" }
       purged: { en: "Done tasks removed", de: "Erledigte Aufgaben entfernt" }
@@ -2251,26 +2205,17 @@ todo:
       create: { en: "Create list · Todo", de: "Liste erstellen · Aufgaben" }
       list: { en: "List · Todo", de: "Liste · Aufgaben" }
       settings: { en: "Settings · Todo", de: "Einstellungen · Aufgaben" }
-    back: { en: "Back", de: "Zurück" }
-    settings_of: { en: "Settings of %{name}", de: "Einstellungen von %{name}" }
-    only_owner_deletes: { en: "Only the owner of a list deletes it.", de: "Nur der Besitzer einer Liste löscht sie." }
-    shared_badge: { en: "shared", de: "geteilt" }
     lists_forbidden:
       en: "Your role does not allow to see the todo lists."
       de: "Deine Rolle erlaubt es nicht, die Aufgabenlisten zu sehen."
     lists:
       label: { en: "Todo lists", de: "Aufgabenlisten" }
-      empty: { en: "You have no list yet, create one first.", de: "Du hast noch keine Liste, erstelle zuerst eine." }
       open_one: { en: "1 open task", de: "1 offene Aufgabe" }
       open_other: { en: "%{count} open tasks", de: "%{count} offene Aufgaben" }
     form:
-      icon: { en: "Icon", de: "Icon" }
-      shared: { en: "Shared", de: "Geteilt" }
       shared_hint:
         en: "Every user sees a shared list and adds its tasks and marks them done."
         de: "Jeder Benutzer sieht eine geteilte Liste, fügt ihre Aufgaben hinzu und erledigt sie."
-      no_such_list: { en: "There is no such list.", de: "Es gibt keine solche Liste." }
-      not_loaded: { en: "The list could not be loaded.", de: "Die Liste konnte nicht geladen werden." }
     download:
       page_title: { en: "Download the app · Todo", de: "App herunterladen · Aufgaben" }
       title: { en: "The todo app for Android", de: "Die Aufgaben-App für Android" }
@@ -2291,8 +2236,6 @@ todo:
     open:
       en: { one: "%{count} open task", other: "%{count} open tasks" }
       de: { one: "%{count} offene Aufgabe", other: "%{count} offene Aufgaben" }
-    error:
-      list_not_created: { en: "The list could not be created.", de: "Die Liste konnte nicht erstellt werden." }
   backend:
     first_list: { en: "My Todos", de: "Meine Todos" }
     invalid_icon: { en: "An icon must be one emoji.", de: "Ein Icon muss ein Emoji sein." }
@@ -2324,6 +2267,9 @@ sak_backup:
         build: { en: "Project build output", de: "Build-Ausgaben von Projekten" }
         scratch: { en: "Editor and system scratch files", de: "Hilfsdateien von Editoren und System" }
         downloads: { en: "Downloads", de: "Downloads" }
+      unsupported:
+        en: "This SAK instance does not know excludes yet. Update it with sakadmin, then save the backup plan again."
+        de: "Diese SAK-Instanz kennt noch keine Ausschlüsse. Aktualisiere sie mit sakadmin und speichere den Backup-Plan dann erneut."
     checks:
       restic:
         name: { en: "Find restic", de: "restic suchen" }
@@ -2334,6 +2280,23 @@ sak_backup:
         failed:
           en: "%{program} does not run: %{error}"
           de: "%{program} läuft nicht: %{error}"
+    progress:
+      rate: { en: "%{rate}/s processed", de: "%{rate}/s verarbeitet" }
+      left: { en: "about %{left} left", de: "noch etwa %{left}" }
+    duration:
+      seconds: { en: "%{seconds} s", de: "%{seconds} s" }
+      minutes: { en: "%{minutes} min", de: "%{minutes} min" }
+      hours: { en: "%{hours} h %{minutes} min", de: "%{hours} h %{minutes} min" }
+    run:
+      skipped: { en: "Skipped: %{message}", de: "Übersprungen: %{message}" }
+      expire_failed:
+        en: "The backup is done, but the older snapshots could not be removed: %{error}"
+        de: "Das Backup ist fertig, aber die älteren Snapshots konnten nicht entfernt werden: %{error}"
+    password:
+      differ: { en: "The passwords are not the same.", de: "Die Passwörter sind nicht gleich." }
+      wrong:
+        en: "This is not the password of the repository."
+        de: "Das ist nicht das Passwort des Repositorys."
   ui:
     quit: { en: "Quit", de: "Beenden" }
     # the dialog of the excludes of a backup plan (excludes-dialog.js)
@@ -2437,11 +2400,7 @@ sak_backup:
       excludes_edit: { en: "Edit excludes…", de: "Ausschlüsse bearbeiten…" }
       excludes_show: { en: "Show excludes…", de: "Ausschlüsse anzeigen…" }
       excludes_none: { en: "Nothing is left out.", de: "Nichts wird ausgelassen." }
-      excludes_summary: { en: "%{count} patterns", de: "%{count} Muster" }
       excludes_caches_on: { en: "cache folders left out", de: "Cache-Ordner ausgelassen" }
-      excludes_unsupported:
-        en: "This SAK instance does not know excludes yet. Update it with sakadmin, then save the backup plan again."
-        de: "Diese SAK-Instanz kennt noch keine Ausschlüsse. Aktualisiere sie mit sakadmin und speichere den Backup-Plan dann erneut."
       delete_title: { en: "Delete %{name}", de: "%{name} löschen" }
       delete_confirm:
         en: "Delete the backup plan %{name}? Its paths are no longer backed up by it. Its repository and the snapshots in it stay."
@@ -2512,25 +2471,12 @@ sak_backup:
       run_progress:
         en: "%{files} of %{total} files, %{done} of %{size}"
         de: "%{files} von %{total} Dateien, %{done} von %{size}"
-      run_rate: { en: "%{rate}/s processed", de: "%{rate}/s verarbeitet" }
-      run_left: { en: "about %{left} left", de: "noch etwa %{left}" }
-      run_seconds: { en: "%{seconds} s", de: "%{seconds} s" }
-      run_minutes: { en: "%{minutes} min", de: "%{minutes} min" }
-      run_hours: { en: "%{hours} h %{minutes} min", de: "%{hours} h %{minutes} min" }
       run_done:
         en: "Backed up: %{new} new and %{changed} changed files, %{added} added."
         de: "Gesichert: %{new} neue und %{changed} geänderte Dateien, %{added} hinzugefügt."
-      run_skipped: { en: "Skipped: %{message}", de: "Übersprungen: %{message}" }
       run_expiring: { en: "Removing the snapshots the plan no longer keeps…", de: "Entferne die Snapshots, die der Plan nicht mehr behält…" }
       run_removed: { en: "%{count} older snapshots were removed.", de: "%{count} ältere Snapshots wurden entfernt." }
-      run_expire_failed:
-        en: "The backup is done, but the older snapshots could not be removed: %{error}"
-        de: "Das Backup ist fertig, aber die älteren Snapshots konnten nicht entfernt werden: %{error}"
-      run_passwords_differ: { en: "The passwords are not the same.", de: "Die Passwörter sind nicht gleich." }
       run_no_password: { en: "The password is needed.", de: "Das Passwort wird gebraucht." }
-      run_wrong_password:
-        en: "This is not the password of the repository."
-        de: "Das ist nicht das Passwort des Repositorys."
       run_wrong_kept:
         en: "The repository refused the remembered password. Enter the password here; the remembered one stays until you forget it in the menu of the repository."
         de: "Das Repository hat das gemerkte Passwort abgelehnt. Gib das Passwort hier an; das gemerkte bleibt, bis du es im Menü des Repositorys löschst."
@@ -2597,11 +2543,6 @@ sak_backup:
     progress:
       en: "%{percent}% · %{files} of %{total} files, %{done} of %{size}"
       de: "%{percent} % · %{files} von %{total} Dateien, %{done} von %{size}"
-    progress_rate: { en: "%{rate}/s processed", de: "%{rate}/s verarbeitet" }
-    progress_left: { en: "about %{left} left", de: "noch etwa %{left}" }
-    seconds: { en: "%{seconds} s", de: "%{seconds} s" }
-    minutes: { en: "%{minutes} min", de: "%{minutes} min" }
-    hours: { en: "%{hours} h %{minutes} min", de: "%{hours} h %{minutes} min" }
     backed_up:
       en: "Backed up: %{new} new and %{changed} changed files, %{added} bytes added, snapshot %{snapshot}."
       de: "Gesichert: %{new} neue und %{changed} geänderte Dateien, %{added} Bytes hinzugefügt, Snapshot %{snapshot}."
@@ -2612,9 +2553,6 @@ sak_backup:
       en: "Use --keep-*, --exclude, --exclude-file, --preset or --[no-]exclude-caches to change the backup plan."
       de: "Gib --keep-*, --exclude, --exclude-file, --preset oder --[no-]exclude-caches an, um den Backup-Plan zu ändern."
     exclude_file_unreadable: { en: "%{file} can not be read: %{error}", de: "%{file} kann nicht gelesen werden: %{error}" }
-    excludes_unsupported:
-      en: "This SAK instance does not know excludes yet. Update it with sakadmin, then save the backup plan again."
-      de: "Diese SAK-Instanz kennt noch keine Ausschlüsse. Aktualisiere sie mit sakadmin und speichere den Backup-Plan dann erneut."
     excludes_caches_on:
       en: "and the folders marked as caches (CACHEDIR.TAG)"
       de: "und die als Cache markierten Ordner (CACHEDIR.TAG)"
@@ -2626,9 +2564,6 @@ sak_backup:
       de: "Dieser Backup-Plan gehört zum Computer %{host}; er wird dort gelöscht."
     expiring: { en: "Removing the snapshots the backup plan no longer keeps…", de: "Entferne die Snapshots, die der Backup-Plan nicht mehr behält…" }
     removed: { en: "Removed %{count} older snapshots.", de: "%{count} ältere Snapshots entfernt." }
-    expire_failed:
-      en: "The backup is done, but the older snapshots could not be removed: %{error}"
-      de: "Das Backup ist fertig, aber die älteren Snapshots konnten nicht entfernt werden: %{error}"
     unknown_snapshot: { en: "The repository has no snapshot of this id.", de: "Das Repository hat keinen Snapshot mit dieser ID." }
     cancelled: { en: "The run was cancelled.", de: "Der Lauf wurde abgebrochen." }
     running: { en: "Another backup or restore is running.", de: "Ein anderes Backup oder eine Wiederherstellung läuft gerade." }
@@ -2641,7 +2576,6 @@ sak_backup:
     restored_partly:
       en: "Restored the newest snapshot of %{plan} below %{target}, but %{count} files could not be written."
       de: "Neuesten Snapshot von %{plan} unter %{target} wiederhergestellt, aber %{count} Dateien konnten nicht geschrieben werden."
-    skipped: { en: "Skipped: %{message}", de: "Übersprungen: %{message}" }
     unknown_repository: { en: "You have no repository %{name}.", de: "Du hast kein Repository %{name}." }
     unknown_plan: { en: "You have no backup plan %{name}.", de: "Du hast keinen Backup-Plan %{name}." }
     not_signed_in:
@@ -2650,11 +2584,9 @@ sak_backup:
     invalid_address: { en: "%{address} is not a SAK address.", de: "%{address} ist keine SAK-Adresse." }
     password_prompt: { en: "Password of the repository: ", de: "Passwort des Repositorys: " }
     password_repeat: { en: "Repeat the password: ", de: "Passwort wiederholen: " }
-    passwords_differ: { en: "The passwords are not the same.", de: "Die Passwörter sind nicht gleich." }
     no_password:
       en: "The password of the repository is needed: set SAK_BACKUP_REPO_PASSWORD, or run on a terminal and type it."
       de: "Das Passwort des Repositorys wird gebraucht: Setze SAK_BACKUP_REPO_PASSWORD, oder starte im Terminal und tippe es."
-    wrong_password: { en: "This is not the password of the repository.", de: "Das ist nicht das Passwort des Repositorys." }
     no_restic:
       en: "restic is not installed on this computer. Install it, e.g. with the package manager."
       de: "restic ist auf diesem Computer nicht installiert. Installiere es, z. B. mit dem Paketmanager."

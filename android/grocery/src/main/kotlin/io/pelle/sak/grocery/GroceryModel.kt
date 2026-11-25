@@ -1,6 +1,7 @@
 package io.pelle.sak.grocery
 
 import androidx.annotation.StringRes
+import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.SakSetup
 import io.pelle.sak.api.model.GroceryCategoryResponse
 import io.pelle.sak.api.model.GroceryItemRequest
@@ -33,16 +34,16 @@ const val UNDO_MS = 1500L
 internal val GROCERY_TEXTS =
     ListTexts(
         appName = R.string.grocery_app_name,
-        create = R.string.grocery_form_create,
-        allLists = R.string.grocery_all_lists,
-        chooseIcon = R.string.grocery_form_choose_icon,
-        noIcon = R.string.grocery_form_no_icon,
-        deleteList = R.string.grocery_form_delete_list,
-        notCreated = R.string.grocery_error_list_not_created,
-        notSaved = R.string.grocery_form_not_saved,
-        notDeleted = R.string.grocery_form_not_deleted,
-        notLoaded = R.string.grocery_lists_not_loaded,
-        gone = R.string.grocery_list_gone,
+        create = CoreR.string.lists_form_create,
+        allLists = CoreR.string.lists_all_lists,
+        chooseIcon = CoreR.string.lists_form_choose_icon,
+        noIcon = CoreR.string.lists_form_no_icon,
+        deleteList = CoreR.string.lists_form_delete_list,
+        notCreated = CoreR.string.lists_not_created,
+        notSaved = CoreR.string.lists_form_not_saved,
+        notDeleted = CoreR.string.lists_form_not_deleted,
+        notLoaded = CoreR.string.lists_not_loaded,
+        gone = CoreR.string.lists_list_gone,
     )
 
 // the logic of the app, without android, on top of core: the lists, the items of the list open with
@@ -154,7 +155,7 @@ class GroceryModel(
         // an error of an earlier action goes with this one (as in todo)
         listsState { it.copy(deleting = null, error = null) }
         scope.launch {
-            request(R.string.grocery_item_not_deleted, ::failed) { it.deleteItem(item.id) } ?: return@launch
+            request(R.string.grocery_list_not_deleted, ::failed) { it.deleteItem(item.id) } ?: return@launch
             load()
         }
     }
@@ -184,7 +185,7 @@ class GroceryModel(
         // a check that can still be undone puts the item back under its new name
         checks.update { if (it.id == item.id) it.copy(name = name) else it }
         scope.launch {
-            request(R.string.grocery_item_not_renamed, ::failed) {
+            request(R.string.grocery_list_not_renamed, ::failed) {
                 it.updateItem(item.id, GroceryItemRequest(name, item.amount, item.unit, item.categoryId))
             } ?: return@launch
             load()
@@ -254,11 +255,11 @@ class GroceryModel(
                 listsState { it.copy(discovery = Discovery(listId), error = null) }
                 val jpeg = read()
                 if (jpeg == null) {
-                    listsState { it.copy(discovery = null, error = uiText(R.string.grocery_photo_not_read)) }
+                    listsState { it.copy(discovery = null, error = uiText(CoreR.string.photo_not_read)) }
                     return@launch
                 }
                 val failed = { error: UiText -> listsState { it.copy(discovery = null, error = error) } }
-                val items = request(R.string.grocery_discover_not_read, failed) { api -> api.discoverItems(api.upload(jpeg, ContentType.Image.JPEG, R.string.grocery_discover_not_read).id) } ?: return@launch
+                val items = request(CoreR.string.photo_not_read, failed) { api -> api.discoverItems(api.upload(jpeg, ContentType.Image.JPEG, CoreR.string.photo_not_read).id) } ?: return@launch
                 discovery(listId) { discovery ->
                     discovery.copy(reading = false, rows = items.mapIndexed { index, item -> DiscoveredRow(index, item.name, amountText(item.amount), item.unit) })
                 }
@@ -407,7 +408,7 @@ class GroceryModel(
         scope.launch {
             categoryChanges.withLock {
                 val failed = { error: UiText -> settings(id) { it.copy(categoriesLoaded = false, categoriesLoading = false, categoriesError = error) } }
-                val categories = request(R.string.grocery_error_categories_not_loaded, failed) { it.categories(id) } ?: return@withLock
+                val categories = request(R.string.grocery_categories_not_loaded, failed) { it.categories(id) } ?: return@withLock
                 settings(id) { settings ->
                     val ids = categories.map { it.id }.toSet()
                     settings.copy(
@@ -432,7 +433,7 @@ class GroceryModel(
             settingsOf { it.copy(newCategoryInvalid = true) }
             return
         }
-        categoriesRequest(R.string.grocery_category_not_saved) { api, id ->
+        categoriesRequest(R.string.grocery_categories_not_saved) { api, id ->
             val created = api.createCategory(id, name, null)
             settings(id) { it.copy(categories = it.categories + created, newCategory = if (it.newCategory.trim() == name) "" else it.newCategory) }
         }
@@ -474,7 +475,7 @@ class GroceryModel(
                 drafts = if (settings.drafts[categoryId] == draft) settings.drafts - categoryId else settings.drafts,
             )
         }
-        categoriesRequest(R.string.grocery_category_not_saved) { api, id -> api.updateCategory(id, categoryId, renamed.name, renamed.icon) }
+        categoriesRequest(R.string.grocery_categories_not_saved) { api, id -> api.updateCategory(id, categoryId, renamed.name, renamed.icon) }
     }
 
     // the names typed and not yet saved, saved before the settings close; an invalid one is not
@@ -497,7 +498,7 @@ class GroceryModel(
         if (category.icon == icon) return
         val changed = category.copy(icon = icon)
         settingsOf { settings -> settings.copy(categories = settings.categories.map { if (it.id == categoryId) changed else it }) }
-        categoriesRequest(R.string.grocery_category_not_saved) { api, id -> api.updateCategory(id, categoryId, changed.name, changed.icon) }
+        categoriesRequest(R.string.grocery_categories_not_saved) { api, id -> api.updateCategory(id, categoryId, changed.name, changed.icon) }
     }
 
     // a category one place up or down, from the menu of its row or an action of a screen reader; the
@@ -527,12 +528,12 @@ class GroceryModel(
         // the order as it is now, also when the settings close before its turn; a later move
         // sends its own order after it
         val ids = moved.map { it.id }
-        categoriesRequest(R.string.grocery_category_not_saved) { api, listId -> api.orderCategories(listId, ids) }
+        categoriesRequest(R.string.grocery_categories_not_saved) { api, listId -> api.orderCategories(listId, ids) }
     }
 
     // a category of the list of the settings, after the user confirmed it (UX-4.1); its items lose it
     fun deleteCategory(categoryId: Int) =
-        categoriesRequest(R.string.grocery_category_not_deleted) { api, id ->
+        categoriesRequest(R.string.grocery_categories_not_deleted) { api, id ->
             api.deleteCategory(id, categoryId)
             settings(id) {
                 it.copy(
@@ -594,7 +595,7 @@ class GroceryModel(
             }
             val jpeg = read()
             if (jpeg == null) {
-                listsState { it.copy(error = uiText(R.string.grocery_photo_not_read)) }
+                listsState { it.copy(error = uiText(CoreR.string.photo_not_read)) }
                 return@launch
             }
             photoRequest(itemId, R.string.grocery_photo_not_attached) { api -> api.attachPhoto(itemId, api.upload(jpeg, ContentType.Image.JPEG, R.string.grocery_photo_not_attached).id) }
@@ -632,7 +633,7 @@ class GroceryModel(
         val key = "$fileId-${size ?: "full"}"
         photos[key]?.let { return it }
         val failed: (UiText) -> Unit = { error -> if (full) listsState { it.copy(viewing = null, error = error) } }
-        return request(R.string.grocery_photo_not_loaded, failed) { it.photo(item.id, fileId, size) }?.also { photos.put(key, it) }
+        return request(CoreR.string.photo_not_loaded, failed) { it.photo(item.id, fileId, size) }?.also { photos.put(key, it) }
     }
 
     // the photo in full over the list, null for none
@@ -679,7 +680,7 @@ class GroceryModel(
     // the AI of the grocery lists turned on or off by the user: the robot follows
     override fun userSettingsChanged() {
         scope.launch {
-            val settings = request(R.string.grocery_discover_not_read, {}) { it.settings() } ?: return@launch
+            val settings = request(CoreR.string.photo_not_read, {}) { it.settings() } ?: return@launch
             listsState { it.copy(discoverItems = settings.discoverItems, aiConfigured = settings.aiConfigured) }
         }
     }

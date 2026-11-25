@@ -89,7 +89,7 @@ internal fun ListScreen(
         screen,
         open,
         screen.lists.firstOrNull { it.id == open }?.summary(),
-        stringResource(R.string.grocery_all_lists),
+        stringResource(CoreR.string.lists_all_lists),
         screen.loading,
         screen.error,
         stringResource(R.string.grocery_nothing_to_buy).takeIf { !toBuy },
@@ -103,7 +103,7 @@ internal fun ListScreen(
             IconToggleButton(checked = screen.showBought, onCheckedChange = { model.toggleBought() }, modifier = Modifier.testTag("toggle-bought")) {
                 Icon(
                     painterResource(if (screen.showBought) R.drawable.ic_eye else R.drawable.ic_eye_slash),
-                    contentDescription = stringResource(R.string.grocery_show_bought),
+                    contentDescription = stringResource(R.string.grocery_list_show_bought),
                 )
             }
         },
@@ -241,12 +241,12 @@ private fun DiscoverButton(busy: Boolean) {
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             MenuEntry(
-                stringResource(R.string.grocery_photo_take),
+                stringResource(CoreR.string.photo_take),
                 close = { menu = false },
                 enabled = photos.hasCamera,
             ) { photos.take(DISCOVER) }
             MenuEntry(
-                stringResource(R.string.grocery_photo_choose),
+                stringResource(CoreR.string.photo_choose),
                 close = { menu = false },
             ) { photos.choose(DISCOVER) }
         }
@@ -324,7 +324,7 @@ private fun ItemMenu(
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             MenuEntry(
-                stringResource(R.string.grocery_item_rename),
+                stringResource(R.string.grocery_list_rename),
                 close = { menu = false },
                 modifier = Modifier.testTag("rename-item-${item.id}"),
             ) { model.askRename(item) }
@@ -334,17 +334,17 @@ private fun ItemMenu(
                 modifier = Modifier.testTag("quantity-item-${item.id}"),
             ) { model.askQuantity(item) }
             MenuEntry(
-                stringResource(R.string.grocery_item_category),
+                stringResource(R.string.grocery_list_category),
                 close = { menu = false },
                 modifier = Modifier.testTag("category-item-${item.id}"),
             ) { model.chooseCategory(item) }
             MenuEntry(
-                stringResource(R.string.grocery_photo_take),
+                stringResource(CoreR.string.photo_take),
                 close = { menu = false },
                 enabled = photos.hasCamera && !busy,
             ) { photos.take(item.id) }
             MenuEntry(
-                stringResource(if (item.photoId == null) R.string.grocery_photo_choose else R.string.grocery_photo_replace),
+                stringResource(if (item.photoId == null) CoreR.string.photo_choose else R.string.grocery_photo_replace),
                 close = { menu = false },
                 enabled = !busy,
             ) { photos.choose(item.id) }
@@ -370,7 +370,7 @@ private fun RenameItem(
 ) = RenameDialog(
     renaming,
     GroceryModel.validItemName(renaming.name),
-    stringResource(R.string.grocery_item_rename),
+    stringResource(R.string.grocery_list_rename),
     stringResource(CoreR.string.shared_name),
     stringResource(R.string.grocery_item_name_invalid),
     onEdit = model::editRename,
@@ -409,6 +409,6 @@ private fun QuantityItem(
                 Text(stringResource(CoreR.string.shared_save))
             }
         },
-        dismissButton = { TextButton(onClick = model::dismissQuantity) { Text(stringResource(CoreR.string.cancel)) } },
+        dismissButton = { TextButton(onClick = model::dismissQuantity) { Text(stringResource(CoreR.string.shared_cancel)) } },
     )
 }

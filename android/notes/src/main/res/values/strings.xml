@@ -12,6 +12,8 @@
     <string name="notes_card_labels">Labels</string>
     <string name="notes_card_labels_full">A note has at most %1$s labels.</string>
     <string name="notes_card_discover">Discover the text</string>
+    <string name="notes_card_photo_discover">Discover the text in photo %1$s</string>
+    <string name="notes_card_recording_discover">Discover the text in recording %1$s</string>
     <string name="notes_colors_yellow">yellow</string>
     <string name="notes_colors_pink">pink</string>
     <string name="notes_colors_blue">blue</string>
@@ -25,9 +27,10 @@
     <string name="notes_errors_recording_not_stored">The recording could not be stored.</string>
     <string name="notes_errors_no_text_in_recording">There is no text in the recording.</string>
     <string name="notes_errors_not_discovered">The text could not be discovered.</string>
+    <string name="notes_errors_not_created">The note could not be created.</string>
+    <string name="notes_errors_no_text_in_photo">There is no text in the photo.</string>
+    <string name="notes_stop_recording">Stop recording</string>
     <string name="notes_app_name" translatable="false">SAK Notes</string>
-    <string name="notes_photo_take">Take photo</string>
-    <string name="notes_photo_choose">Choose photo</string>
     <string name="notes_empty">No notes yet, create one with the plus at the top.</string>
     <string name="notes_all_count">All (%1$d)</string>
     <string name="notes_note">Note</string>
@@ -58,21 +61,13 @@
     <string name="notes_recording_pause">Pause recording %1$s</string>
     <string name="notes_recording_remove">Remove recording %1$s</string>
     <string name="notes_recording">Recording… %1$s</string>
-    <string name="notes_recording_stop">Stop recording</string>
     <string name="notes_uploading">Storing…</string>
-    <string name="notes_discover_photo">Discover the text in photo %1$s</string>
-    <string name="notes_discover_recording">Discover the text in recording %1$s</string>
     <string name="notes_discover_off">No AI is set up for this SAK instance.</string>
     <string name="notes_discover_turn_on">Turn on the AI in your settings to discover the text with the robot.</string>
-    <string name="notes_discovering">Discovering the text…</string>
     <string name="notes_delete_note">Delete note</string>
     <string name="notes_note_menu">Menu of the note</string>
     <string name="notes_this_note">this note</string>
-    <string name="notes_error_not_created">The note could not be created.</string>
-    <string name="notes_error_photo_not_read">The photo could not be read.</string>
-    <string name="notes_error_photo_not_loaded">The photo could not be loaded.</string>
     <string name="notes_error_microphone_denied">The app may not use the microphone, allow it in the settings of the phone.</string>
     <string name="notes_error_recording_not_loaded">The recording could not be loaded.</string>
     <string name="notes_error_recording_not_played">The recording could not be played.</string>
-    <string name="notes_error_no_text_in_photo">There is no text in the photo.</string>
 </resources>

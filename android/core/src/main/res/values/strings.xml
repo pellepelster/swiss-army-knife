@@ -8,6 +8,8 @@
     <string name="login_use_password">Sign in with password</string>
     <string name="login_sign_out">Sign out</string>
     <string name="login_link_invalid">The login link is invalid, expired or was already used.</string>
+    <string name="login_signing_in">Signing in…</string>
+    <string name="login_wrong_password">The password is wrong.</string>
     <string name="shared_undo">Undo</string>
     <string name="shared_delete">Delete</string>
     <string name="shared_keep">Keep</string>
@@ -18,16 +20,30 @@
     <string name="shared_my_settings">My settings</string>
     <string name="shared_turn_on_ai">Turn on the AI in my settings</string>
     <string name="shared_email">E-mail address</string>
+    <string name="shared_cancel">Cancel</string>
+    <string name="shared_connect">Connect</string>
+    <string name="shared_connecting">Connecting…</string>
+    <string name="shared_menu">Menu</string>
     <string name="users_invalid_email">An e-mail address like name@example.org is needed.</string>
+    <string name="photo_close">Close the photo</string>
+    <string name="photo_not_loaded">The photo could not be loaded.</string>
+    <string name="photo_not_read">The photo could not be read.</string>
+    <string name="lists_list_gone">The list is gone, or its owner no longer shares it.</string>
+    <string name="lists_all_lists">All lists</string>
+    <string name="lists_not_loaded">The lists could not be loaded.</string>
+    <string name="lists_form_create">Create list</string>
+    <string name="lists_form_no_icon">No icon</string>
+    <string name="lists_form_delete_list">Delete list</string>
+    <string name="lists_form_not_saved">The list could not be saved.</string>
+    <string name="lists_form_not_deleted">The list could not be deleted.</string>
+    <string name="lists_form_choose_icon">Choose icon</string>
+    <string name="lists_not_created">The list could not be created.</string>
     <string name="deployment_hint">Enter the SAK address of your SAK instance, the address its web app is at, e.g. sak.example.org.</string>
     <string name="sak_address">SAK address</string>
-    <string name="connecting">Connecting…</string>
-    <string name="connect">Connect</string>
     <string name="other_deployment">Other SAK instance</string>
     <string name="send_again">Send again</string>
     <string name="other_address">Other address</string>
     <string name="retry">Try again</string>
-    <string name="menu">Menu</string>
     <string name="link_sent">A login link is on its way to %1$s if the address may sign in. Open it on this phone and tap \"Open in the app\".</string>
     <string name="signed_in_as">Signed in as %1$s</string>
     <string name="update_available">Version %1$s of the app is available. The update downloads it from GitHub.</string>
@@ -40,8 +56,6 @@
     <string name="update_app_no_release">This build of the app is no release, it is not updated.</string>
     <string name="update_deployment_no_release">Your SAK instance runs no release, there is no update for the app.</string>
     <string name="ok" translatable="false">OK</string>
-    <string name="cancel">Cancel</string>
-    <string name="photo_close">Close the photo</string>
     <string name="sign_in_password_hint">Sign in to a single user SAK instance with a password.</string>
     <string name="sign_in_email_hint">Sign in to a multi user SAK instance by e-mail.</string>
     <string name="sign_in_email">Sign in by e-mail</string>
@@ -51,7 +65,6 @@
     <string name="qr_hint">Signed in to the web app? Open “Connect an app” there and scan its QR code.</string>
     <string name="qr_or_address">Or enter the SAK address:</string>
     <string name="qr_point">Point the camera at the QR code the web app shows.</string>
-    <string name="qr_signing_in">Signing in…</string>
     <string name="qr_scan_again">Scan again</string>
     <string name="qr_back">Back</string>
     <string name="qr_torch_on">Turn on the light</string>
@@ -84,7 +97,6 @@
     <string name="error_link_not_used">The login link could not be used.</string>
     <string name="error_not_asked">This login link was not requested in this app, or it is older than %1$s minutes. Request a new one.</string>
     <string name="error_password_not_checked">The password could not be checked.</string>
-    <string name="error_password_wrong">The password is wrong.</string>
     <string name="error_user_not_read">The user could not be read.</string>
     <string name="error_settings_not_read">Your settings could not be read.</string>
     <string name="error_settings_not_saved">Your settings could not be saved.</string>
@@ -101,4 +113,6 @@
     <string name="error_update_damaged">The download of version %1$s is damaged, please try again.</string>
     <string name="update_not_installed">The update was not installed</string>
     <string name="update_not_installed_because">The update was not installed: %1$s</string>
+    <string name="photo_take">Take photo</string>
+    <string name="photo_choose">Choose photo</string>
 </resources>

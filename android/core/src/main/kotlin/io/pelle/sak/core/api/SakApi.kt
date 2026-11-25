@@ -155,7 +155,7 @@ open class SakApi(
                 session()
                 contentType(ContentType.Application.Json)
                 setBody(PasswordLoginRequest(password))
-            }.answer(R.string.error_password_not_checked, unauthorized = R.string.error_password_wrong)
+            }.answer(R.string.error_password_not_checked, unauthorized = R.string.login_wrong_password)
 
     // the settings of the user signed in, by scope; every role has them
     suspend fun userSettings(): UserSettingsResponse = client.get("$url/user/settings") { session() }.answer(R.string.error_settings_not_read)

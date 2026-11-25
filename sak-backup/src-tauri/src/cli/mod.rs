@@ -498,7 +498,7 @@ async fn command(command: Command) -> Result<(), String> {
                             }
                             RunEvent::Skipped { message } => {
                                 line.clear();
-                                eprintln!("{}", t!("cli.skipped", message = message))
+                                eprintln!("{}", t!("common.run.skipped", message = message))
                             }
                             progress @ RunEvent::Progress { .. } => line.show(&progress),
                         }
@@ -531,7 +531,7 @@ async fn command(command: Command) -> Result<(), String> {
             }
             // the backup is done, the command still fails
             if let Some(error) = summary.expire_failed {
-                return Err(t!("cli.expire_failed", error = message(&error)).to_string());
+                return Err(t!("common.run.expire_failed", error = message(&error)).to_string());
             }
         }
         Command::Snapshot(SnapshotCommand::List { repo }) => {
@@ -569,7 +569,7 @@ async fn command(command: Command) -> Result<(), String> {
             .await?;
             // the others are restored, the command still fails
             for file in &skipped {
-                eprintln!("{}", t!("cli.skipped", message = file));
+                eprintln!("{}", t!("common.run.skipped", message = file));
             }
             if !skipped.is_empty() {
                 return Err(t!(
@@ -648,7 +648,7 @@ fn password(new: bool) -> Result<String, String> {
         let repeated = rpassword::prompt_password(t!("cli.password_repeat").as_ref())
             .map_err(|error| error.to_string())?;
         if repeated != typed {
-            return Err(t!("cli.passwords_differ").to_string());
+            return Err(t!("common.password.differ").to_string());
         }
     }
     if typed.is_empty() {
@@ -757,10 +757,10 @@ fn progress_text(event: &RunEvent) -> String {
         .to_string(),
     ];
     if let Some(rate) = bytes_per_second {
-        parts.push(t!("cli.progress_rate", rate = size(*rate)).to_string());
+        parts.push(t!("common.progress.rate", rate = size(*rate)).to_string());
     }
     if let Some(seconds) = seconds_remaining.filter(|_| *percent < 1.0) {
-        parts.push(t!("cli.progress_left", left = duration(seconds)).to_string());
+        parts.push(t!("common.progress.left", left = duration(seconds)).to_string());
     }
     parts.join(" · ")
 }
@@ -784,13 +784,13 @@ fn size(bytes: u64) -> String {
 /// a time left, in its largest units
 fn duration(seconds: u64) -> String {
     if seconds < 60 {
-        return t!("cli.seconds", seconds = seconds).to_string();
+        return t!("common.duration.seconds", seconds = seconds).to_string();
     }
     let minutes = (seconds + 30) / 60;
     if minutes < 60 {
-        return t!("cli.minutes", minutes = minutes).to_string();
+        return t!("common.duration.minutes", minutes = minutes).to_string();
     }
-    t!("cli.hours", hours = minutes / 60, minutes = minutes % 60).to_string()
+    t!("common.duration.hours", hours = minutes / 60, minutes = minutes % 60).to_string()
 }
 
 /// the text of a failed save of a plan: a SAK instance from before the excludes can not read a
@@ -805,7 +805,7 @@ fn excludes_message(error: &ApiError, sends_excludes: bool) -> String {
                 .iter()
                 .any(|each| each.code == "api.malformed_request") =>
         {
-            t!("cli.excludes_unsupported").to_string()
+            t!("common.excludes.unsupported").to_string()
         }
         error => api_message(error),
     }
@@ -854,7 +854,7 @@ fn message(error: &RunError) -> String {
         RunError::NoRestic => t!("cli.no_restic").to_string(),
         RunError::WrongPassword
         | RunError::WrongEnvironmentPassword
-        | RunError::WrongKeptPassword => t!("cli.wrong_password").to_string(),
+        | RunError::WrongKeptPassword => t!("common.password.wrong").to_string(),
         RunError::NoPassword => t!("cli.no_password").to_string(),
         RunError::OtherComputer { host } => t!("cli.other_computer", host = host).to_string(),
         RunError::NoSnapshot => t!("cli.no_snapshot").to_string(),

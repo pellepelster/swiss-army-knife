@@ -63,7 +63,7 @@ internal fun DiscoveryDialog(
                         Text(stringResource(R.string.grocery_discover_reading))
                     }
                 },
-                confirmButton = { TextButton(onClick = model::dismissDiscovery) { Text(stringResource(CoreR.string.cancel)) } },
+                confirmButton = { TextButton(onClick = model::dismissDiscovery) { Text(stringResource(CoreR.string.shared_cancel)) } },
             )
         discovery.rows.isEmpty() ->
             AlertDialog(
@@ -111,7 +111,7 @@ private fun DiscoveredItems(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (discovery.adding) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                    TextButton(onClick = model::dismissDiscovery, enabled = !discovery.adding) { Text(stringResource(CoreR.string.cancel)) }
+                    TextButton(onClick = model::dismissDiscovery, enabled = !discovery.adding) { Text(stringResource(CoreR.string.shared_cancel)) }
                     TextButton(
                         onClick = model::addDiscovered,
                         enabled = !discovery.adding && discovery.rows.any { it.included && it.valid },

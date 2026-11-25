@@ -84,10 +84,10 @@ export function size(bytes) {
 
 // a time left, in its largest units
 export function duration(seconds) {
-  if (seconds < 60) return text('ui.plans.run_seconds', { seconds });
+  if (seconds < 60) return text('common.duration.seconds', { seconds });
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return text('ui.plans.run_minutes', { minutes });
-  return text('ui.plans.run_hours', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
+  if (minutes < 60) return text('common.duration.minutes', { minutes });
+  return text('common.duration.hours', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
 }
 
 // how far a backup is: the files and bytes, how fast restic reads them, and the time left
@@ -98,8 +98,8 @@ function progressText(event) {
     done: size(event.bytes_done),
     size: size(event.total_bytes),
   })];
-  if (event.bytes_per_second != null) parts.push(text('ui.plans.run_rate', { rate: size(event.bytes_per_second) }));
-  if (event.seconds_remaining != null && event.percent < 1) parts.push(text('ui.plans.run_left', { left: duration(event.seconds_remaining) }));
+  if (event.bytes_per_second != null) parts.push(text('common.progress.rate', { rate: size(event.bytes_per_second) }));
+  if (event.seconds_remaining != null && event.percent < 1) parts.push(text('common.progress.left', { left: duration(event.seconds_remaining) }));
   return parts.join(' · ');
 }
 
@@ -158,7 +158,7 @@ async function run(password, init, remember) {
       setStatus(status, text('ui.plans.run_expiring'));
     } else if (event.kind === 'skipped') {
       const line = document.createElement('li');
-      line.textContent = text('ui.plans.run_skipped', { message: event.message });
+      line.textContent = text('common.run.skipped', { message: event.message });
       skipped.append(line);
     }
   };
@@ -179,7 +179,7 @@ async function run(password, init, remember) {
     } else if (summary.expireFailed) {
       // null: the session is gone, the sign-in shows
       const why = runFailure(summary.expireFailed, shell, shown.repository, (error) => error);
-      if (why !== null) setFailure(status, `${done} ${text('ui.plans.run_expire_failed', { error: why })}`);
+      if (why !== null) setFailure(status, `${done} ${text('common.run.expire_failed', { error: why })}`);
     } else if (summary.removed > 0) {
       setStatus(status, `${done} ${text('ui.plans.run_removed', { count: summary.removed })}`);
     } else {
