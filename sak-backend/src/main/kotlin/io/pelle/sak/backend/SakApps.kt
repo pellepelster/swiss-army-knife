@@ -34,7 +34,7 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.pelle.sak.auth.LoginApp
 import io.pelle.sak.auth.LoginListener
-import io.pelle.sak.backend.settings.SettingName
+import io.pelle.sak.settings.SettingName
 import io.pelle.sak.auth.Role
 import io.pelle.sak.auth.API_SIGNATURE_AUTH
 import io.pelle.sak.auth.ApiSignature
@@ -62,8 +62,8 @@ import io.pelle.sak.backend.grocery.grocery
 import io.pelle.sak.backend.todo.todo
 import io.pelle.sak.backend.restic.restic
 import io.pelle.sak.backend.redirects.redirects
-import io.pelle.sak.backend.settings.settings as settingsRoutes
-import io.pelle.sak.backend.settings.userSettings
+import io.pelle.sak.settings.settings as settingsRoutes
+import io.pelle.sak.settings.user.userSettings
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.logs.accessLogs

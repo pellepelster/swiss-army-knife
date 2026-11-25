@@ -9,7 +9,7 @@ import io.pelle.sak.backend.labels.LabelsTexts
 import io.pelle.sak.backend.notes.NotesTexts
 import io.pelle.sak.backend.openrouter.OpenRouterTexts
 import io.pelle.sak.backend.redirects.RedirectsTexts
-import io.pelle.sak.backend.settings.SettingsTexts
+import io.pelle.sak.settings.SettingsTexts
 import io.pelle.sak.storage.s3.StorageTexts
 import io.pelle.sak.backend.todo.TodoTexts
 import io.pelle.sak.backend.users.UsersTexts

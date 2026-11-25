@@ -1,6 +1,6 @@
 package io.pelle.sak.backend
 
-import io.pelle.sak.backend.settings.SettingService
+import io.pelle.sak.settings.SettingService
 import io.pelle.sak.model.SakDatabase
 import java.time.Clock
 

@@ -5,8 +5,8 @@ import io.pelle.sak.storage.s3.StorageTexts
 import io.kotest.matchers.collections.shouldBeIn
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.backend.settings.SettingService
-import io.pelle.sak.backend.settings.Validation
+import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.Validation
 import io.pelle.sak.model.SakDatabase
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Tag

@@ -8,10 +8,10 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.backend.settings.SettingService
-import io.pelle.sak.backend.settings.SettingValue
-import io.pelle.sak.backend.settings.SettingsTexts
-import io.pelle.sak.backend.settings.Validation
+import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingValue
+import io.pelle.sak.settings.SettingsTexts
+import io.pelle.sak.settings.Validation
 import io.pelle.sak.model.SakDatabase
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Test

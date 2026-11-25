@@ -17,6 +17,7 @@ dependencies {
     runtimeOnly(project(":sak-frontend"))
     // the client of the S3 storage (S3StorageManager): one small jar without dependencies
     implementation(project(":sak-storage-s3"))
+    implementation(project(":sak-settings"))
     implementation(libs.caffeine)
     implementation(libs.ktor.serialization.kotlinx.json)
     implementation(libs.ktor.server.body.limit)

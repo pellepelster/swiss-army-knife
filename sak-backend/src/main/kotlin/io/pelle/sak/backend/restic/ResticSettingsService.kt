@@ -1,12 +1,12 @@
 package io.pelle.sak.backend.restic
 
-import io.pelle.sak.backend.settings.BooleanSetting
-import io.pelle.sak.backend.settings.Requirement
-import io.pelle.sak.backend.settings.SettingName
-import io.pelle.sak.backend.settings.SettingScope
-import io.pelle.sak.backend.settings.SettingScopeName
-import io.pelle.sak.backend.settings.SettingService
-import io.pelle.sak.backend.settings.StoredSettingsService
+import io.pelle.sak.settings.BooleanSetting
+import io.pelle.sak.settings.Requirement
+import io.pelle.sak.settings.SettingName
+import io.pelle.sak.settings.SettingScope
+import io.pelle.sak.settings.SettingScopeName
+import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.StoredSettingsService
 import io.pelle.sak.backend.storage.S3StorageManager
 
 // the settings of the backups: where the repositories of restic are kept, on the data volume of the

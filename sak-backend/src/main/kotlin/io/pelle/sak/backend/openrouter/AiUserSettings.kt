@@ -1,8 +1,8 @@
 package io.pelle.sak.backend.openrouter
 
-import io.pelle.sak.backend.settings.BooleanSetting
-import io.pelle.sak.backend.settings.SettingName
-import io.pelle.sak.backend.settings.UserSetting
+import io.pelle.sak.settings.BooleanSetting
+import io.pelle.sak.settings.SettingName
+import io.pelle.sak.settings.user.UserSetting
 import io.pelle.sak.core.TextKey
 
 // the AI of an app, which each user turns on for themselves once (PRIVACY-2), off until they do; it

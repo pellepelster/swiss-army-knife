@@ -29,10 +29,10 @@ import io.pelle.sak.backend.hosting.InvalidatingS3StorageBackend
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
-import io.pelle.sak.backend.settings.SettingService
+import io.pelle.sak.settings.SettingService
 import io.pelle.sak.backend.notes.NotesUserSettings
-import io.pelle.sak.backend.settings.UserSettingsService
-import io.pelle.sak.backend.settings.SettingsRegistry
+import io.pelle.sak.settings.user.UserSettingsService
+import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.backend.openrouter.OpenRouterManager
 import io.pelle.sak.backend.storage.S3StorageManager
 import io.pelle.sak.backend.storage.StorageUsageService

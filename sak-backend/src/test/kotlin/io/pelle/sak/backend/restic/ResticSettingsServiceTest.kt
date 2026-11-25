@@ -2,9 +2,9 @@ package io.pelle.sak.backend.restic
 
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.backend.settings.SettingService
-import io.pelle.sak.backend.settings.SettingsRegistry
-import io.pelle.sak.backend.settings.SettingsTexts
+import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistry
+import io.pelle.sak.settings.SettingsTexts
 import io.pelle.sak.storage.s3.S3KeyStatus
 import io.pelle.sak.backend.storage.S3StorageManager
 import io.pelle.sak.storage.s3.StorageTexts

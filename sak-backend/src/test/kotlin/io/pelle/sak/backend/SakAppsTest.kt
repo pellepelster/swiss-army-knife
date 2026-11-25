@@ -65,8 +65,8 @@ import java.nio.file.Path
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
 import io.pelle.sak.model.testing.Media
-import io.pelle.sak.backend.settings.SettingName
-import io.pelle.sak.backend.settings.SystemSettings
+import io.pelle.sak.settings.SettingName
+import io.pelle.sak.settings.SystemSettings
 import java.security.KeyPairGenerator
 import java.security.PrivateKey
 import java.security.SecureRandom

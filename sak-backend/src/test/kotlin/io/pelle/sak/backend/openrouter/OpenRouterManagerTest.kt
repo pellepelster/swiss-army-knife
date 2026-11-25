@@ -4,8 +4,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldNotContain
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.backend.settings.SettingService
-import io.pelle.sak.backend.settings.SettingValue
+import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingValue
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.openrouter.ApiKeyStatus
