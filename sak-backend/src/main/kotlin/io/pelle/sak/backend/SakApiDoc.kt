@@ -67,10 +67,15 @@ fun Route.apiDoc() {
 
 // corrects what jsonSchema of ktor writes wrong: a JsonPrimitive is any primitive, not a string; the
 // nullability of a property that refers to a schema goes on the schema itself, so it is nullable
-// everywhere. Only the default and the requirement of a setting have these; a new one adds its line here
+// everywhere. Only the default and the requirement of a setting, and the default and the value of a
+// setting of a user, have these; a new one adds its line here
 internal fun corrected(document: JsonObject): JsonObject =
     document
         .patch("components", "schemas", "SettingResponse", "properties", "default") {
+            put("type", JsonArray(listOf("string", "boolean", "number").map(::JsonPrimitive)))
+        }.patch("components", "schemas", "UserSettingResponse", "properties", "default") {
+            put("type", JsonArray(listOf("string", "boolean", "number").map(::JsonPrimitive)))
+        }.patch("components", "schemas", "UserSettingResponse", "properties", "value") {
             put("type", JsonArray(listOf("string", "boolean", "number").map(::JsonPrimitive)))
         }.patch("components", "schemas", "SettingResponse", "properties", "requires") {
             val reference = JsonObject(mapOf("\$ref" to JsonPrimitive("#/components/schemas/SettingRequirementResponse")))

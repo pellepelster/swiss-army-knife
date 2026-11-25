@@ -62,7 +62,8 @@
     <string name="notes_uploading">Storing…</string>
     <string name="notes_discover_photo">Discover the text in photo %1$s</string>
     <string name="notes_discover_recording">Discover the text in recording %1$s</string>
-    <string name="notes_discover_off">The AI features are not turned on.</string>
+    <string name="notes_discover_off">No AI is set up for this SAK instance.</string>
+    <string name="notes_discover_turn_on">Turn on the AI in your settings to discover the text with the robot.</string>
     <string name="notes_discovering">Discovering the text…</string>
     <string name="notes_delete_note">Delete note</string>
     <string name="notes_note_menu">Menu of the note</string>

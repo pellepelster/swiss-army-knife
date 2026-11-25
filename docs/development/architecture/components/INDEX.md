@@ -37,6 +37,10 @@ sakadmin is no part of the backend: it is the desktop app in `sak-admin-cli` tha
   else. An app that links labels drops its links when a label is deleted.
 - `SHARED-3` **The file storage.** Every app keeps its files in one storage: each upload is a file with an id and its
   owner, the type is told by the first bytes and never taken from the uploader.
+- `SHARED-4` **Settings of the instance and of each user.** A setting belongs to the instance (the admins,
+  `/api/v1/settings`) or to one user (`/api/v1/user/settings`, every role, each only their own). A setting of a user is
+  off or its default until the user sets it. One that does not count now says why and can still go back to its
+  default.
 
 ## List-based apps
 

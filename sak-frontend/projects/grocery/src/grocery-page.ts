@@ -185,6 +185,17 @@ interface ItemGroup {
             >
               <i class="fa-solid fa-robot" aria-hidden="true"></i>
             </button>
+          } @else if (aiConfigured()) {
+            <!-- set up, but not turned on by the user: leads to their settings (PRIVACY-2) -->
+            <a
+              class="btn btn-outline-secondary btn-field-primary"
+              routerLink="/user/settings"
+              data-testid="turn-on-ai"
+              [attr.aria-label]="'shared.turn_on_ai' | t"
+              [title]="'shared.turn_on_ai' | t"
+            >
+              <i class="fa-solid fa-robot opacity-50" aria-hidden="true"></i>
+            </a>
           }
           <!-- only the icon of what it adds, its label and tooltip say what it does (UX-2) -->
           <button
@@ -750,7 +761,10 @@ export class GroceryPage {
       .settings()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (settings) => this.discoverItems.set(settings.discoverItems === true),
+        next: (settings) => {
+          this.discoverItems.set(settings.discoverItems === true);
+          this.aiConfigured.set(settings.aiConfigured === true);
+        },
         error: () => this.discoverItems.set(false),
       });
     // again when another list is chosen, not when the lists load again; what was done on the list
@@ -1042,6 +1056,8 @@ export class GroceryPage {
 
   // the AI features turned on, asked once with the page, false when that fails (GROCERY-16)
   protected readonly discoverItems = signal(false);
+  // set up, so the user may turn the AI on in their settings
+  protected readonly aiConfigured = signal(false);
   protected readonly discovering = signal(false);
   // null while none are shown
   protected readonly discovered = signal<DiscoveredRow[] | null>(null);

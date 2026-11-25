@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -188,8 +189,21 @@ private fun NewItem(
         screen.adding,
         model::addItem,
         tag = "item-name",
-        end = if (screen.discoverItems) 4.dp else 16.dp,
-    ) { if (screen.discoverItems) DiscoverButton(busy = screen.discovery != null) }
+        end = if (screen.discoverItems || screen.aiConfigured) 4.dp else 16.dp,
+    ) {
+        when {
+            screen.discoverItems -> DiscoverButton(busy = screen.discovery != null)
+            // set up but not turned on by the user, the robot leads to their settings (PRIVACY-2)
+            screen.aiConfigured ->
+                IconButton(onClick = model.userSettings::open, modifier = Modifier.testTag("turn-on-ai")) {
+                    Icon(
+                        painterResource(R.drawable.ic_robot),
+                        contentDescription = stringResource(CoreR.string.shared_turn_on_ai),
+                        tint = LocalContentColor.current.copy(alpha = 0.38f),
+                    )
+                }
+        }
+    }
     if (screen.suggestions.isNotEmpty()) {
         val label = stringResource(R.string.grocery_suggestions)
         Surface(

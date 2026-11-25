@@ -80,6 +80,7 @@ fun SakContent(
 ) {
     val screen by model.screen.collectAsStateWithLifecycle()
     val scan by model.qr.scan.collectAsStateWithLifecycle()
+    val settings by model.userSettings.dialog.collectAsStateWithLifecycle()
     val open = scan
     Box(Modifier.fillMaxSize()) {
         Box(if (open != null) Modifier.fillMaxSize().clearAndSetSemantics {} else Modifier.fillMaxSize()) {
@@ -89,6 +90,7 @@ fun SakContent(
                 else -> content()
             }
         }
+        settings?.let { if (open == null) UserSettingsDialog(it, model.userSettings) }
         if (open != null) QrScanScreen(open, model)
     }
 }

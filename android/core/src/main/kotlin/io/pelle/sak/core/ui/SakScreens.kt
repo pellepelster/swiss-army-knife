@@ -368,6 +368,11 @@ fun AccountMenu(
                 modifier = Modifier.testTag("check-update"),
             ) { model.updates.check() }
         }
+        MenuEntry(
+            stringResource(R.string.shared_my_settings),
+            close = { menu = false },
+            modifier = Modifier.testTag("menu-user-settings"),
+        ) { model.userSettings.open() }
         // another user or deployment by the QR code of the web app; it asks before the session goes
         MenuEntry(
             stringResource(R.string.qr_scan),

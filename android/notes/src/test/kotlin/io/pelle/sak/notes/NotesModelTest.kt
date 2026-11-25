@@ -1,5 +1,9 @@
 package io.pelle.sak.notes
 
+import io.pelle.sak.testing.aiSetting
+import io.pelle.sak.testing.userScope
+import io.pelle.sak.testing.userSettings
+import io.pelle.sak.testing.json
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.core.R as CoreR
 import io.pelle.sak.core.Screen
@@ -323,6 +327,25 @@ class NotesModelTest {
             assertEquals("The microphone could not be used.", model.notes().error.english())
             model.microphoneDenied()
             assertTrue(model.notes().error.english()!!.contains("may not use the microphone"))
+        }
+
+    @Test
+    fun `set up but not turned on, the user turns the AI on in their settings and the robot follows (PRIVACY-2)`() =
+        runTest {
+            backend.answers["GET /notes/settings"] = HttpStatusCode.OK to notesSettings(discoverText = false, aiConfigured = true)
+            val model = model().also { it.start() }
+            advanceUntilIdle()
+            assertFalse(model.notes().ai)
+            assertTrue(model.notes().aiConfigured)
+
+            backend.answers["GET /user/settings"] = HttpStatusCode.OK to userSettings(userScope("notes", "Notes", aiSetting(false)))
+            backend.answers["PUT /user/settings/notes"] = HttpStatusCode.OK to json(userScope("notes", "Notes", aiSetting(true)))
+            backend.answers["GET /notes/settings"] = HttpStatusCode.OK to notesSettings(discoverText = true)
+            model.userSettings.open()
+            advanceUntilIdle()
+            model.userSettings.set("notes", "ai", true)
+            advanceUntilIdle()
+            assertTrue(model.notes().ai)
         }
 
     @Test

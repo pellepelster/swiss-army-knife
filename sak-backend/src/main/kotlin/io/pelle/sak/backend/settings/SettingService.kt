@@ -22,10 +22,12 @@ class SettingService(
         clock: Clock = Clock.systemUTC(),
     ) : this(SettingRepository(database, clock))
 
+    // user null for the setting of the instance, else the one of the user (UserSettingsService)
     fun get(
         name: SettingName,
         scope: SettingScopeName = SystemSettings.SCOPE,
-    ): String? = repository.byNameAndScope(name.value, scope.value)?.value
+        user: String? = null,
+    ): String? = repository.byNameAndScope(name.value, scope.value, user)?.value
 
     // false when the name and scope have a setting already
     fun put(
@@ -42,7 +44,9 @@ class SettingService(
         values: Map<SettingName, String>,
         // who sets them (MODEL-5)
         owner: String,
-    ) = repository.replace(scope.value, values.mapKeys { it.key.value }, owner)
+        // null for settings of the instance
+        user: String? = null,
+    ) = repository.replace(scope.value, values.mapKeys { it.key.value }, owner, user)
 
     // the setting, created once when there is none, by the backend on its own
     fun getOrCreate(

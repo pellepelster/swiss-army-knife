@@ -57,16 +57,18 @@ class GroceryDiscoveryTest {
         discovery.discover(PELLE, 4711, counting) shouldBe GroceryDiscoverResult.NotFound
         discovery.discover("anna@pelle.io", recipe, counting) shouldBe GroceryDiscoverResult.NotFound
         aiEnabled = false
-        discovery.available() shouldBe false
+        discovery.available(PELLE) shouldBe false
+        discovery.configured() shouldBe true
         discovery.discover(PELLE, recipe, counting) shouldBe GroceryDiscoverResult.Disabled
         aiEnabled = true
         keySet = false
-        discovery.available() shouldBe false
+        discovery.available(PELLE) shouldBe false
+        discovery.configured() shouldBe false
         discovery.discover(PELLE, recipe, counting) shouldBe GroceryDiscoverResult.NotConfigured
         keySet = true
         asked shouldBe 0
 
-        discovery.available() shouldBe true
+        discovery.available(PELLE) shouldBe true
         discovery.discover(PELLE, recipe, counting) shouldBe GroceryDiscoverResult.Discovered(listOf(DiscoveredItem("Mehl", BigDecimal("250"), "g")))
         asked shouldBe 1
         discovery.discover(PELLE, recipe) { false } shouldBe GroceryDiscoverResult.Limited

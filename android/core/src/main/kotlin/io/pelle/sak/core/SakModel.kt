@@ -16,6 +16,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import io.pelle.sak.core.settings.UserSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -137,6 +138,19 @@ abstract class SakModel<A : SakApi>(
             exchange = { url, token -> apiOf(url, null).connectExchange(token) },
             switch = ::switch,
         )
+
+    // the settings of the user signed in, in a dialog over the screen of the app
+    val userSettings =
+        UserSettings(
+            scope,
+            load = { failed -> request(R.string.error_settings_not_read, failed) { it.userSettings() } },
+            save = { name, values, failed -> request(R.string.error_settings_not_saved, failed) { it.setUserSettings(name, values) } },
+            changed = ::userSettingsChanged,
+        )
+
+    // the user changed a setting of theirs, e.g. the AI of the app turned on: what the app shows of it
+    // is asked again
+    protected open fun userSettingsChanged() {}
 
     // the update of the app to the version of the deployment, on the screen of the app (UX-13)
     val updates =
@@ -275,6 +289,7 @@ abstract class SakModel<A : SakApi>(
     ): Boolean {
         epoch++
         if (!forget()) return false
+        userSettings.close()
         show()
         sessionGone()
         return true

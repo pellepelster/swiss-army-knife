@@ -335,6 +335,17 @@ describe('NotesPage', () => {
     expect(button('Discover the text in recording 1', notes()[2])).toBeUndefined();
   });
 
+  it('set up but not turned on by the user, the robot leads to their settings (PRIVACY-2)', async () => {
+    const store = TestBed.inject(NotesStore);
+    store.discoverAvailable.set(false);
+    store.aiConfigured.set(true);
+    await fixture.whenStable();
+    expect(button('Discover the text in photo 1', notes()[2])).toBeUndefined();
+    const link = notes()[2].querySelector<HTMLAnchorElement>('a[data-testid=turn-on-ai]')!;
+    expect(link.getAttribute('aria-label')).toBe('Turn on the AI in my settings');
+    expect(link.getAttribute('href')).toBe('/user/settings');
+  });
+
   it('shows the waveform of a recording, plays it and discovers its text with the robot', async () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
     const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});

@@ -31,8 +31,8 @@ and add it to the note.
   by.
 - `NOTES-5` **The backend discovers the text of a file.** Discover the text in a photo or a recording of the user (`POST
   /api/v1/files/{id}/discover/text`). Every user may ask whether it can be done now (`GET /api/v1/notes/settings`,
-  `discoverText`): the AI turned on by an admin and a provider set up; the switches themselves are settings of the
-  admins, and the backend checks them on every discovery.
+  `discoverText`): the AI turned on by the user for the notes and a provider set up (`aiConfigured`); the backend
+  checks both on every discovery.
 
 ## Android
 
@@ -49,8 +49,8 @@ and add it to the note.
 
 ## Settings
 
-- `ai` (scope `notes`): the AI features of the notes (`NOTES-5`), off by default; it needs the AI of the deployment
-  turned on (scope `ai`).
+- `ai` (scope `notes`, a setting of each user): the AI features of the notes (`NOTES-5`), off by default; it counts
+  only while the AI of the instance is set up (scope `ai`).
 
 ## External systems
 

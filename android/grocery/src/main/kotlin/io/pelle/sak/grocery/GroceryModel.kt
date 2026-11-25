@@ -676,6 +676,14 @@ class GroceryModel(
         super.refresh()
     }
 
+    // the AI of the grocery lists turned on or off by the user: the robot follows
+    override fun userSettingsChanged() {
+        scope.launch {
+            val settings = request(R.string.grocery_discover_not_read, {}) { it.settings() } ?: return@launch
+            listsState { it.copy(discoverItems = settings.discoverItems, aiConfigured = settings.aiConfigured) }
+        }
+    }
+
     // suggestions follow after a pause of typing (GROCERY-11)
     fun typed(name: String) {
         listsState { it.copy(itemName = name) }
@@ -735,7 +743,9 @@ class GroceryModel(
     ): (ListsScreen) -> ListsScreen {
         val items = open?.let { api.items(it, checked = listsScreen()?.showBought == true) }.orEmpty()
         val categories = open?.let { api.categories(it) }.orEmpty()
-        val discoverItems = if (open != null && askDiscover) (attempt { api.discoverAvailable() } ?: false).also { askDiscover = false } else null
+        // asked and not answered, there is no robot
+        val asked = open != null && askDiscover
+        val settings = if (asked) attempt { api.settings() }.also { askDiscover = false } else null
         return { current ->
             // the dialogs belong to the list open: when it went, they go
             val stays = current.open == open
@@ -759,7 +769,8 @@ class GroceryModel(
                 choosing = choosing,
                 renaming = renaming,
                 quantity = quantity,
-                discoverItems = discoverItems ?: current.discoverItems,
+                discoverItems = if (asked) settings?.discoverItems ?: false else current.discoverItems,
+                aiConfigured = if (asked) settings?.aiConfigured ?: false else current.aiConfigured,
                 discovery = discovery,
                 deleting = deleting,
                 viewing = viewing,

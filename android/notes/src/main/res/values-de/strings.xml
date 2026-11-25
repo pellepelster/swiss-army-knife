@@ -61,7 +61,8 @@
     <string name="notes_uploading">Wird gespeichert…</string>
     <string name="notes_discover_photo">Den Text in Foto %1$s erkennen</string>
     <string name="notes_discover_recording">Den Text in Aufnahme %1$s erkennen</string>
-    <string name="notes_discover_off">Die KI-Funktionen sind nicht eingeschaltet.</string>
+    <string name="notes_discover_off">Für diese SAK-Instanz ist keine KI eingerichtet.</string>
+    <string name="notes_discover_turn_on">Schalte die KI in deinen Einstellungen ein, um den Text mit dem Roboter zu erkennen.</string>
     <string name="notes_discovering">Der Text wird erkannt…</string>
     <string name="notes_delete_note">Notiz löschen</string>
     <string name="notes_note_menu">Menü der Notiz</string>

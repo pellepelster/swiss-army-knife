@@ -17,3 +17,4 @@ settings:
 key_refused: "OpenRouter does not accept the API key."
 key_missing: "The AI features need an API key of OpenRouter to be turned on."
 key_unchecked: "The API key could not be checked at OpenRouter, please try again later."
+not_set_up: "No AI is set up for this SAK instance."

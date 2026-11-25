@@ -12,7 +12,6 @@ object GroceryTexts : Catalog("grocery") {
     val AI_LABEL = text("settings.ai.label")
     val AI_DESCRIPTION = text("settings.ai.description")
     val SCOPE_LABEL = text("settings.label")
-    val SCOPE_DESCRIPTION = text("settings.description")
     val FRUIT_VEGETABLES = text("category.fruit_vegetables")
     val BAKERY = text("category.bakery")
     val DAIRY = text("category.dairy")

@@ -45,7 +45,7 @@ private fun <T : Any> SettingDefinition<T>.response(language: Language) =
         requires?.let { SettingRequirementResponse(it.scope.name.value, it.setting.name.value) },
     )
 
-private fun SettingType.response() =
+internal fun SettingType.response() =
     when (this) {
         SettingType.BOOLEAN -> SettingTypeResponse.BOOLEAN
         SettingType.TEXT -> SettingTypeResponse.TEXT

@@ -65,3 +65,11 @@ export type SettingValue = boolean | string;
 export type SettingRequirement = Schemas['SettingRequirementResponse'];
 export type SettingDefinition = Schemas['SettingResponse'];
 export type SettingScope = Schemas['SettingScopeResponse'];
+// a setting of the user signed in with its value, and the settings of one scope (/user/settings)
+export type UserSetting = Omit<Schemas['UserSettingResponse'], 'default' | 'value'> & {
+  default: SettingValue;
+  value: SettingValue;
+};
+export type UserSettingScope = Omit<Schemas['UserSettingScopeResponse'], 'settings'> & {
+  settings: UserSetting[];
+};

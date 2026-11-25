@@ -67,4 +67,8 @@ fun found(
     unit: String? = null,
 ) = GroceryDiscoveredItemResponse(name, amount, unit)
 
-fun grocerySettings(discoverItems: Boolean) = json(GrocerySettingsResponse(discoverItems))
+// aiConfigured: an AI is set up, by default when the user turned it on
+fun grocerySettings(
+    discoverItems: Boolean,
+    aiConfigured: Boolean = discoverItems,
+) = json(GrocerySettingsResponse(discoverItems, aiConfigured))

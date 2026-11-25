@@ -1155,6 +1155,16 @@ describe('Grocery', () => {
     expect(button(robotLabel)).toBeUndefined();
   });
 
+  it('set up but not turned on by the user, the robot leads to their settings (PRIVACY-2)', async () => {
+    await open('/grocery/lists/1');
+    http.expectOne('/api/v1/grocery/settings').flush({ discoverItems: false, aiConfigured: true });
+    http.expectOne('/api/v1/grocery/lists?offset=0&limit=100').flush(pageOf([defaultList]));
+    await harness.fixture.whenStable();
+    await flushItems(1, []);
+    expect(button(robotLabel)).toBeUndefined();
+    expect(button('Turn on the AI in my settings').getAttribute('href')).toBe('/user/settings');
+  });
+
   it('settings that can not be loaded offer no robot (GROCERY-16)', async () => {
     await open('/grocery/lists/1');
     http

@@ -6,7 +6,7 @@ import { hostingRoute } from '@sak/hosting';
 import { notesDownloadRoute, notesRoute } from '@sak/notes';
 import { redirectsRoute } from '@sak/redirects';
 import { healthRedirect, statusRoute } from '@sak/status';
-import { settingsRoute } from '@sak/settings';
+import { settingsRoute, userSettingsRoute } from '@sak/settings';
 import { todoDownloadRoute, todoRoute } from '@sak/todo';
 import { usersRoute } from '@sak/users';
 import { Home } from './home/home';
@@ -43,6 +43,7 @@ export const routes: Routes = [
   healthRedirect,
   usersRoute,
   settingsRoute,
+  userSettingsRoute,
   // the QR code that connects an app, with the qr generator, which only this page needs
   {
     path: 'connect-app',

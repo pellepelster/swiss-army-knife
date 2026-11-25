@@ -15,12 +15,15 @@ data class SettingRow(
     // the name of the scope of settings, e.g. 'system'
     val scope: String,
     val value: String,
+    // whose setting it is: null for the instance, else the user
+    val user: String?,
     val createdAt: Instant,
     // who set it (MODEL-5)
     val owner: String,
 )
 
-// the settings, for SettingService only; reads live settings only
+// the settings, for SettingService only; reads live settings only. A setting is of the instance (user
+// null) or of one user; every read and write names whose, so a user reaches only their own (MODEL-6)
 class SettingRepository(
     private val database: SakDatabase,
     // the created, updated and deleted times are taken from it, never from the callers
@@ -29,12 +32,26 @@ class SettingRepository(
     fun byNameAndScope(
         name: String,
         scope: String,
+        // null for the setting of the instance
+        user: String? = null,
     ): SettingRow? =
         database.dsl
             .selectFrom(SETTINGS)
-            .where(SETTINGS.NAME.eq(name), SETTINGS.SCOPE.eq(scope), SETTINGS.DELETED_AT.isNull)
+            .where(SETTINGS.NAME.eq(name), SETTINGS.SCOPE.eq(scope), whose(user), SETTINGS.DELETED_AT.isNull)
             .fetchOne()
             ?.toRow()
+
+    // the settings of the user in the scope, by their names
+    fun ofUser(
+        scope: String,
+        user: String,
+    ): Map<String, SettingRow> =
+        database.dsl
+            .selectFrom(SETTINGS)
+            .where(SETTINGS.SCOPE.eq(scope), whose(user), SETTINGS.DELETED_AT.isNull)
+            .fetch()
+            .map { it.toRow() }
+            .associateBy { it.name }
 
     // null when the name and scope have a setting already
     fun insert(
@@ -43,6 +60,8 @@ class SettingRepository(
         value: String,
         // who creates it (MODEL-5), e.g. SYSTEM_OWNER for a setting the backend generates
         owner: String,
+        // null for a setting of the instance
+        user: String? = null,
     ): SettingRow? =
         try {
             database.dsl
@@ -50,6 +69,7 @@ class SettingRepository(
                 .set(SETTINGS.NAME, name)
                 .set(SETTINGS.SCOPE, scope)
                 .set(SETTINGS.VALUE, value)
+                .set(SETTINGS.USER, user)
                 .set(SETTINGS.CREATED_AT, clock.instant())
                 .set(SETTINGS.OWNER, owner)
                 .returning()
@@ -66,12 +86,14 @@ class SettingRepository(
         values: Map<String, String>,
         // who sets them, the owner of the rows of the new values
         owner: String,
+        // null for settings of the instance
+        user: String? = null,
     ): Unit =
         database.dsl.transaction { configuration ->
             val dsl = DSL.using(configuration)
             val now = clock.instant()
             values.forEach { (name, value) ->
-                val live = SETTINGS.NAME.eq(name).and(SETTINGS.SCOPE.eq(scope)).and(SETTINGS.DELETED_AT.isNull)
+                val live = SETTINGS.NAME.eq(name).and(SETTINGS.SCOPE.eq(scope)).and(whose(user)).and(SETTINGS.DELETED_AT.isNull)
                 if (dsl.fetchExists(SETTINGS, live.and(SETTINGS.VALUE.eq(value)))) return@forEach
                 dsl.update(SETTINGS).set(SETTINGS.DELETED_AT, now).where(live).execute()
                 dsl
@@ -79,6 +101,7 @@ class SettingRepository(
                     .set(SETTINGS.NAME, name)
                     .set(SETTINGS.SCOPE, scope)
                     .set(SETTINGS.VALUE, value)
+                    .set(SETTINGS.USER, user)
                     .set(SETTINGS.CREATED_AT, now)
                     .set(SETTINGS.OWNER, owner)
                     .execute()
@@ -89,14 +112,19 @@ class SettingRepository(
     fun delete(
         name: String,
         scope: String,
+        // null for the setting of the instance
+        user: String? = null,
     ): SettingRow? =
         database.dsl
             .update(SETTINGS)
             .set(SETTINGS.DELETED_AT, clock.instant())
-            .where(SETTINGS.NAME.eq(name), SETTINGS.SCOPE.eq(scope), SETTINGS.DELETED_AT.isNull)
+            .where(SETTINGS.NAME.eq(name), SETTINGS.SCOPE.eq(scope), whose(user), SETTINGS.DELETED_AT.isNull)
             .returning()
             .fetchOne()
             ?.toRow()
+
+    // the rows of the instance, or of the user
+    private fun whose(user: String?) = if (user == null) SETTINGS.USER.isNull else SETTINGS.USER.eq(user)
 
     private fun SettingsRecord.toRow() =
         SettingRow(
@@ -104,6 +132,7 @@ class SettingRepository(
             name = name!!,
             scope = scope!!,
             value = value!!,
+            user = user,
             createdAt = createdAt!!,
             owner = owner!!,
         )

@@ -5,6 +5,7 @@ import io.pelle.sak.api.model.FileResponse
 import io.pelle.sak.api.model.LabelResponse
 import io.pelle.sak.api.model.NoteRequest
 import io.pelle.sak.api.model.NoteResponse
+import io.pelle.sak.api.model.NotesSettingsResponse
 import io.pelle.sak.api.model.PhotoResponse
 import io.pelle.sak.api.model.RecordingResponse
 import io.ktor.http.ContentType
@@ -94,7 +95,8 @@ private data class Loaded(
     val notes: List<NoteResponse>,
     val shared: List<String>,
     val used: List<String>?,
-    val ai: Boolean,
+    // null when it could not be read
+    val settings: NotesSettingsResponse?,
 )
 
 // the wall of the notes, newest first, of the label filtered by or all (NOTES-1: the app opens on the
@@ -116,8 +118,10 @@ data class NotesScreen(
     val error: UiText? = null,
     // no error, e.g. that a recording stopped at its longest
     val notice: UiText? = null,
-    // off until the backend says otherwise
+    // off until the backend says otherwise: turned on by the user and set up
     val ai: Boolean = false,
+    // an AI is set up, so the user may turn it on in their settings
+    val aiConfigured: Boolean = false,
     // the note open in its own screen
     val open: Int? = null,
     // the photo of the open note shown in full, also after a rotation; it goes with the note
@@ -251,14 +255,14 @@ class NotesModel(
                             api.notes(filter),
                             attempt { api.labels().map { it.name } }.orEmpty(),
                             attempt { api.usedLabels().map { it.name } },
-                            attempt { api.discoverAvailable() } ?: false,
+                            attempt { api.settings() },
                         )
                     }
                 if (loaded == null) {
                     notes { it.copy(loading = false) }
                     return@launch
                 }
-                val (all, shared, used, ai) = loaded
+                val (all, shared, used, settings) = loaded
                 all.filter { it.id !in changedWhileLoading }.forEach { stored[it.id] = it }
                 notes { screen ->
                     val here = screen.notes.filter { it.id in changedWhileLoading }.associateBy { it.id }
@@ -271,13 +275,22 @@ class NotesModel(
                         labels = (shared + notes.flatMap { note -> note.labels.map { it.name } }).distinct().sorted(),
                         used = used ?: screen.used,
                         allCount = if (filter == null) notes.size else screen.allCount,
-                        ai = ai,
+                        ai = settings?.discoverText ?: false,
+                        aiConfigured = settings?.aiConfigured ?: false,
                         loading = false,
                     )
                 }
                 loadedAt = clock.instant()
                 attachWaitingPhotos()
             }
+    }
+
+    // the AI of the notes turned on or off by the user: the robot follows
+    override fun userSettingsChanged() {
+        scope.launch {
+            val settings = request(R.string.notes_errors_not_loaded, ::failed) { it.settings() } ?: return@launch
+            notes { it.copy(ai = settings.discoverText, aiConfigured = settings.aiConfigured) }
+        }
     }
 
     // the notes may have changed elsewhere (no stream of changes): they load again when the app is

@@ -88,7 +88,6 @@ too_many_discoveries: "Too many photos were read, please try again later."
 discovery_failed: "The items in the photo could not be discovered, please try again later."
 settings:
   ai:
-    label: "AI features"
-    description: "Lets the grocery lists discover the items in photos of recipes and shopping lists with the AI features."
-  label: "Grocery lists"
-  description: "The settings of the grocery lists."
+    label: "Use AI"
+    description: "Discovers the items in a photo you choose of a recipe or a shopping list. The photo is sent to OpenRouter (model %{vision_model}), which is asked not to keep it."
+  label: "Grocery"

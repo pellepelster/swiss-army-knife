@@ -559,16 +559,18 @@ class SakAppsTest {
             get(port, "/api/v1/grocery/lists", anna).statusCode() shouldBe 200
             get(port, "/api/v1/todo/lists", anna).statusCode() shouldBe 200
             get(port, "/api/v1/notes", anna).statusCode() shouldBe 200
-            // the user may know whether the AI discovers texts, the switch itself is the admin's
+            // the user may know whether the AI discovers texts, and whether it is set up so they may turn it on
             get(port, "/api/v1/notes/settings", anna).let {
                 it.statusCode() shouldBe 200
-                it.json().string("discoverText") shouldBe "false"
+                it.body() shouldBe """{"discoverText":false,"aiConfigured":false}"""
             }
             // the same for the items of a photo of the grocery lists (GROCERY-16); AI off, nothing is read
             get(port, "/api/v1/grocery/settings", anna).let {
                 it.statusCode() shouldBe 200
-                it.json().string("discoverItems") shouldBe "false"
+                it.body() shouldBe """{"discoverItems":false,"aiConfigured":false}"""
             }
+            // the settings of the user are their own
+            get(port, "/api/v1/user/settings", anna).statusCode() shouldBe 200
             post(port, "/api/v1/grocery/files/4711/discover/items", "", anna).statusCode() shouldBe 404
             listOf("/api/v1/static-hosting", "/api/v1/redirects", "/api/v1/settings", "/api/v1/health", "/api/v1/status", "/api/v1/users").forEach {
                 get(port, it, anna).statusCode() shouldBe 403
@@ -1239,10 +1241,10 @@ class SakAppsTest {
                 ) = post(port, "/api/v1/files/$file/discover/text", "", sessionToken)
 
                 discover(receipt, null).statusCode() shouldBe 401
-                // nothing goes to openrouter until the AI features are turned on
+                // nothing goes to openrouter until the AI is set up and the user turned it on
                 discover(receipt).let {
                     it.statusCode() shouldBe 409
-                    it.body() shouldBe """{"errors":[{"code":"files.ai_off","message":"The AI features are turned off in the settings."}]}"""
+                    it.body() shouldBe """{"errors":[{"code":"files.ai_off","message":"The AI is turned off for this app in your settings."}]}"""
                 }
                 completions shouldBe emptyList()
                 put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"wrong"}""", session).let {
@@ -1252,10 +1254,11 @@ class SakAppsTest {
                 // the key shows its first four characters only
                 put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", session).body() shouldBe
                     """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
-                // the notes need their own switch as well
+                // set up, the user turns the AI of the notes on for themselves
                 discover(receipt).statusCode() shouldBe 409
-                get(port, "/api/v1/settings/notes", session).body() shouldBe """{"ai":false}"""
-                put(port, "/api/v1/settings/notes", """{"ai":true}""", session).statusCode() shouldBe 200
+                get(port, "/api/v1/notes/settings", session).body() shouldBe """{"discoverText":false,"aiConfigured":true}"""
+                put(port, "/api/v1/user/settings/notes", """{"ai":true}""", session).statusCode() shouldBe 200
+                get(port, "/api/v1/notes/settings", session).body() shouldBe """{"discoverText":true,"aiConfigured":true}"""
                 discover(receipt).let {
                     it.statusCode() shouldBe 200
                     it.json().string("text") shouldBe "Total 12.50"
@@ -1586,6 +1589,8 @@ class SakAppsTest {
                     "/api/v1/users/app-link",
                     "/api/v1/users/{id}",
                     "/api/v1/grocery/settings",
+                    "/api/v1/user/settings",
+                    "/api/v1/user/settings/{scope}",
                     "/api/v1/grocery/files/{id}/discover/items",
                     "/api/v1/grocery/lists",
                     "/api/v1/grocery/lists/{id}",
@@ -1797,6 +1802,77 @@ class SakAppsTest {
     }
 
     @Test
+    fun `each user turns the AI of an app on for themselves, once the AI is set up`() {
+        // openrouter takes the key "token" only
+        val openrouter =
+            HttpServer.create(InetSocketAddress("localhost", 0), 0).apply {
+                createContext("/api/v1/key") { exchange ->
+                    exchange.sendResponseHeaders(if (exchange.requestHeaders.getFirst("Authorization") == "Bearer token") 200 else 401, -1)
+                    exchange.close()
+                }
+                start()
+            }
+        val config = config().copy(openrouter = SakConfig.OpenRouterConfig(url = "http://localhost:${openrouter.address.port}/api/v1"))
+        try {
+            withServer(config) { port ->
+                get(port, "/api/v1/user/settings").statusCode() shouldBe 401
+                val admin = signIn(port)
+                val user = signIn(port, "second@example.org", mails = 2)
+                fun ai(
+                    session: String,
+                    scope: String,
+                ) = get(port, "/api/v1/user/settings", session).json().getValue("scopes").jsonArray.map { it.jsonObject }
+                    .single { it.string("name") == scope }.getValue("settings").jsonArray.single().jsonObject
+
+                // without the AI set up the switches do nothing, they say why
+                get(port, "/api/v1/user/settings", user).json().getValue("scopes").jsonArray.map { it.jsonObject.string("label") } shouldBe listOf("Notes", "Grocery")
+                ai(user, "notes").let {
+                    it.string("name") shouldBe "ai"
+                    it.string("label") shouldBe "Use AI"
+                    it.string("type") shouldBe "boolean"
+                    it.string("default") shouldBe "false"
+                    it.string("value") shouldBe "false"
+                    it.string("available") shouldBe "false"
+                    it.string("unavailableReason") shouldBe "No AI is set up for this SAK instance."
+                    // where the data goes, with the models
+                    it.string("description") shouldContain "OpenRouter (model anthropic/claude-haiku-5.5 for photos, openai/whisper-large-v3-turbo for recordings)"
+                }
+                put(port, "/api/v1/user/settings/notes", """{"ai":true}""", user).let {
+                    it.statusCode() shouldBe 409
+                    it.body() shouldBe """{"errors":[{"code":"openrouter.not_set_up","message":"No AI is set up for this SAK instance."}]}"""
+                }
+
+                put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", admin).statusCode() shouldBe 200
+                // set up, each user turns it on for themselves, for one app
+                ai(user, "notes").string("available") shouldBe "true"
+                put(port, "/api/v1/user/settings/notes", """{"ai":true}""", user).let {
+                    it.statusCode() shouldBe 200
+                    it.json().string("name") shouldBe "notes"
+                    it.json().getValue("settings").jsonArray.single().jsonObject.string("value") shouldBe "true"
+                }
+                get(port, "/api/v1/notes/settings", user).body() shouldBe """{"discoverText":true,"aiConfigured":true}"""
+                get(port, "/api/v1/grocery/settings", user).body() shouldBe """{"discoverItems":false,"aiConfigured":true}"""
+                get(port, "/api/v1/notes/settings", admin).body() shouldBe """{"discoverText":false,"aiConfigured":true}"""
+                ai(admin, "notes").string("value") shouldBe "false"
+                put(port, "/api/v1/user/settings/grocery", """{"ai":"yes"}""", user).statusCode() shouldBe 400
+                put(port, "/api/v1/user/settings/todo", """{"ai":true}""", user).statusCode() shouldBe 404
+
+                // turned off for the instance the user keeps their value, the AI is used no more
+                put(port, "/api/v1/settings/ai", """{"enabled":false}""", admin).statusCode() shouldBe 200
+                ai(user, "notes").let {
+                    it.string("value") shouldBe "true"
+                    it.string("available") shouldBe "false"
+                }
+                get(port, "/api/v1/notes/settings", user).body() shouldBe """{"discoverText":false,"aiConfigured":false}"""
+                // withdrawn also then
+                put(port, "/api/v1/user/settings/notes", """{"ai":false}""", user).statusCode() shouldBe 200
+            }
+        } finally {
+            openrouter.stop(0)
+        }
+    }
+
+    @Test
     fun `admins read and change the settings, a value that is not valid changes nothing`() {
         // openrouter takes the key "token" only
         val openrouter =
@@ -1822,9 +1898,9 @@ class SakAppsTest {
 
             // the scopes, what the settings page is built from
             val scopes = get(port, "/api/v1/settings", session).json()
-            scopes.getValue("pagination").jsonObject.string("total") shouldBe "5"
+            scopes.getValue("pagination").jsonObject.string("total") shouldBe "3"
             val ai = scopes.getValue("items").jsonArray.first().jsonObject
-            scopes.getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("ai", "notes", "grocery", "storage", "restic")
+            scopes.getValue("items").jsonArray.map { it.jsonObject.string("name") } shouldBe listOf("ai", "storage", "restic")
             ai.string("name") shouldBe "ai"
             ai.string("enabledBy") shouldBe "enabled"
             val (enabled, apiKey) = ai.getValue("settings").jsonArray.map { it.jsonObject }
@@ -1841,11 +1917,8 @@ class SakAppsTest {
 
             // the values, one scope at a time
             get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":false,"api_key":"","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
-            // the notes need the AI of the deployment turned on
-            put(port, "/api/v1/settings/notes", """{"ai":true}""", session).let {
-                it.statusCode() shouldBe 400
-                it.body() shouldBe """{"errors":[{"code":"settings.requires","message":"\"AI features\" needs \"AI features\" of \"AI\" turned on."}]}"""
-            }
+            // the AI of an app is a setting of each user, not of the admins
+            get(port, "/api/v1/settings/notes", session).statusCode() shouldBe 404
             // turned on only with an api key
             put(port, "/api/v1/settings/ai", """{"enabled":true}""", session).let {
                 it.statusCode() shouldBe 400
@@ -1869,19 +1942,10 @@ class SakAppsTest {
             }
             get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
 
-            put(port, "/api/v1/settings/notes", """{"ai":true}""", session).statusCode() shouldBe 200
-            // turned off for the deployment, the notes keep their value but use the AI no more
             put(port, "/api/v1/settings/ai", """{"enabled":false}""", session).statusCode() shouldBe 200
-            get(port, "/api/v1/settings/notes", session).body() shouldBe """{"ai":true}"""
-            get(port, "/api/v1/settings/notes?effective=true", session).body() shouldBe """{"ai":false}"""
-            val notes = get(port, "/api/v1/settings", session).json().getValue("items").jsonArray[1].jsonObject
-            notes.getValue("settings").jsonArray.single().jsonObject.getValue("requires").jsonObject.let {
-                it.string("scope") shouldBe "ai"
-                it.string("setting") shouldBe "enabled"
-            }
 
             // the S3 storage: its type and its region are choices, its secret key shows no character
-            val storage = scopes.getValue("items").jsonArray[3].jsonObject
+            val storage = scopes.getValue("items").jsonArray[1].jsonObject
             storage.string("enabledBy") shouldBe "enabled"
             val settings = storage.getValue("settings").jsonArray.map { it.jsonObject }
             settings.map { it.string("name") to it.string("type") } shouldBe

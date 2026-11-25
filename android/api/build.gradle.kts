@@ -42,6 +42,9 @@ val models =
         "NoteRequest",
         "DiscoverTextResponse",
         "NotesSettingsResponse",
+        "UserSettingsResponse",
+        "UserSettingScopeResponse",
+        "UserSettingResponse",
         "TodoListResponse",
         "TodoListRequest",
         "TodoItemResponse",
@@ -77,7 +80,16 @@ openApiGenerate {
     )
     // the document has no formats: an integer is an Int, an amount a Double, a time a String. Int is
     // enough for FileResponse.size: the backend takes files far below 2 GB (FileService.DEFAULT_MAX_SIZE)
-    typeMappings.set(mapOf("number" to "kotlin.Double", "integer" to "kotlin.Int"))
+    // a value of a setting is any primitive, a JsonPrimitive of the backend; the generator names its type
+    // after the first setting with one
+    typeMappings.set(
+        mapOf(
+            "number" to "kotlin.Double",
+            "integer" to "kotlin.Int",
+            "SettingResponseDefault" to "kotlinx.serialization.json.JsonPrimitive",
+        ),
+    )
+    importMappings.set(mapOf("SettingResponseDefault" to "kotlinx.serialization.json.JsonPrimitive"))
     cleanupOutput.set(true)
 }
 

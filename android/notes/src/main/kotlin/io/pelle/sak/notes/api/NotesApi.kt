@@ -71,19 +71,18 @@ class NotesApi(
             }
             .answer(failure)
 
-    // NOTES-5; the backend refuses it while an admin has not turned the AI on
+    // NOTES-5; the backend refuses it while the user has not turned the AI of the notes on
     suspend fun discoverText(fileId: Int): String =
         client
             .post("$url/files/$fileId/discover/text") { session() }
             .answer<DiscoverTextResponse>(R.string.notes_errors_not_discovered)
             .text
 
-    // whether an admin turned the discovery on and a provider is set up; every signed in user may ask
-    suspend fun discoverAvailable(): Boolean =
+    // whether the user turned the AI of the notes on and a provider is set up, and whether one is set up
+    suspend fun settings(): NotesSettingsResponse =
         client
             .get("$url/notes/settings") { session() }
-            .answer<NotesSettingsResponse>(R.string.notes_errors_not_loaded)
-            .discoverText
+            .answer(R.string.notes_errors_not_loaded)
 
     companion object {
         val LOGIN_CLIENT = LoginRequest.Client.NOTES_ANDROID

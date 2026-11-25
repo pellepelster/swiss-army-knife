@@ -20,7 +20,7 @@ sealed interface FileTextDiscoverResult {
     // nothing is set up to discover the text in files of the type, e.g. no api key
     data object NotConfigured : FileTextDiscoverResult
 
-    // the AI features are turned off in the settings (NotesSettingsService.AI and what it requires)
+    // the owner has not turned on the AI of the notes for themselves (NotesUserSettings.ai)
     data object Disabled : FileTextDiscoverResult
 
     // the file would go to the AI provider, but the owner asked for too many texts lately
@@ -39,12 +39,14 @@ class FileTextService(
     // asked for each file, null while none is set up (OpenRouterManager)
     private val recognizer: () -> TextRecognizer?,
     private val transcriber: () -> SpeechTranscriber?,
-    // whether the files may be sent to the AI provider at all
-    private val aiEnabled: () -> Boolean,
+    // whether the files of the owner may be sent to the AI provider: turned on by the owner
+    private val aiEnabled: (owner: String) -> Boolean,
 ) {
-    // the AI features on and a provider set up; every user may know this, the switches are for the
-    // admins
-    fun available(): Boolean = aiEnabled() && (recognizer() != null || transcriber() != null)
+    // whether an AI provider is set up, so a user may turn the AI on
+    fun configured(): Boolean = recognizer() != null || transcriber() != null
+
+    // the AI turned on by the owner and a provider set up
+    fun available(owner: String): Boolean = aiEnabled(owner) && configured()
 
     // a text discovered once is answered also when the AI features are off or not set up any more.
     // mayAsk is asked only right before the file goes to the AI provider, so the limit counts
@@ -62,7 +64,7 @@ class FileTextService(
                 else -> return FileTextDiscoverResult.Unsupported
             }
         file.discovered?.let { return FileTextDiscoverResult.Discovered(it) }
-        if (!aiEnabled()) return FileTextDiscoverResult.Disabled
+        if (!aiEnabled(owner)) return FileTextDiscoverResult.Disabled
         val read: (BlobContent) -> String =
             if (image) {
                 recognizer()?.let { { content -> it.recognize(content, file.contentType) } }

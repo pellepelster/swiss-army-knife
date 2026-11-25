@@ -63,6 +63,7 @@ import io.pelle.sak.backend.todo.todo
 import io.pelle.sak.backend.restic.restic
 import io.pelle.sak.backend.redirects.redirects
 import io.pelle.sak.backend.settings.settings as settingsRoutes
+import io.pelle.sak.backend.settings.userSettings
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.logs.accessLogs
@@ -83,6 +84,7 @@ object ApiPath {
     const val RESTIC = "/restic"
     const val USERS = "/users"
     const val SETTINGS = "/settings"
+    const val USER_SETTINGS = "/user/settings"
     const val HEALTH = "/health"
     const val STATUS = "/status"
     const val FILES = "/files"
@@ -252,7 +254,7 @@ fun Application.apps(
                         }
                         route(ApiPath.NOTES) {
                             requireRole(Role.ADMIN, Role.USER)
-                            notes(noteService, fileTextService::available)
+                            notes(noteService, fileTextService::available, fileTextService::configured)
                         }
                         route(ApiPath.GROCERY) {
                             requireRole(Role.ADMIN, Role.USER)
@@ -273,6 +275,10 @@ fun Application.apps(
                         route(ApiPath.SETTINGS) {
                             requireRole(Role.ADMIN)
                             settingsRoutes(settingsRegistry)
+                        }
+                        route(ApiPath.USER_SETTINGS) {
+                            requireRole(Role.ADMIN, Role.USER)
+                            userSettings(services.userSettings)
                         }
                         route(ApiPath.HEALTH) {
                             requireRole(Role.ADMIN)

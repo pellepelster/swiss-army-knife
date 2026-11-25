@@ -264,6 +264,13 @@ a {
   }
 }
 
+// the link to the settings of the user, the AI not turned on: centred as the buttons are
+a.photo-discover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 // a recording: its waveform with a play button over it, it plays in place
 .photo-open,
 .recording {

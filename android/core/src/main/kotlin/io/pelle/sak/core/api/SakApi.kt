@@ -8,6 +8,8 @@ import io.pelle.sak.api.model.FileResponse
 import io.pelle.sak.api.model.InfoResponse
 import io.pelle.sak.api.model.LoginRequest
 import io.pelle.sak.api.model.PasswordLoginRequest
+import io.pelle.sak.api.model.UserSettingScopeResponse
+import io.pelle.sak.api.model.UserSettingsResponse
 import io.pelle.sak.api.model.WhoAmIResponse
 import androidx.annotation.StringRes
 import io.ktor.client.HttpClient
@@ -23,6 +25,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.prepareGet
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -32,6 +35,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.encodeURLPathPart
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.readLine
@@ -40,6 +44,8 @@ import io.pelle.sak.core.attempt
 import io.pelle.sak.core.UiText
 import io.pelle.sak.core.uiText
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
@@ -150,6 +156,21 @@ open class SakApi(
                 contentType(ContentType.Application.Json)
                 setBody(PasswordLoginRequest(password))
             }.answer(R.string.error_password_not_checked, unauthorized = R.string.error_password_wrong)
+
+    // the settings of the user signed in, by scope; every role has them
+    suspend fun userSettings(): UserSettingsResponse = client.get("$url/user/settings") { session() }.answer(R.string.error_settings_not_read)
+
+    // the others of the scope keep their values; the scope as after the change
+    suspend fun setUserSettings(
+        scope: String,
+        values: Map<String, JsonPrimitive>,
+    ): UserSettingScopeResponse =
+        client
+            .put("$url/user/settings/${scope.encodeURLPathPart()}") {
+                session()
+                contentType(ContentType.Application.Json)
+                setBody(JsonObject(values))
+            }.answer(R.string.error_settings_not_saved)
 
     // the signed in user, with their name if they have one
     suspend fun whoAmI(): WhoAmIResponse =

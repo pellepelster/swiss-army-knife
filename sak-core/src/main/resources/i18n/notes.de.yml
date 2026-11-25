@@ -38,7 +38,6 @@ too_many_recordings: "Eine Notiz kann höchstens %{max} Aufnahmen haben."
 no_list: "Du hast noch keine Notizliste, melde dich erneut an, um eine zu bekommen."
 settings:
   ai:
-    label: "KI-Funktionen"
-    description: "Lässt die Notizen den Text in Fotos und Aufnahmen mit den KI-Funktionen erkennen."
+    label: "KI verwenden"
+    description: "Erkennt den Text in einem Foto oder einer Aufnahme, die du auswählst. Sie werden an OpenRouter gesendet (Modell %{vision_model} für Fotos, %{speech_model} für Aufnahmen), mit der Bitte, sie nicht aufzubewahren."
   label: "Notizen"
-  description: "Die Einstellungen der Notizen."

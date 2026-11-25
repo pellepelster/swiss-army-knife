@@ -62,7 +62,11 @@ fun saved(
     note(id, request.text.orEmpty(), request.color ?: "yellow", request.labels.orEmpty(), request.photos.orEmpty(), request.recordings.orEmpty())
 }
 
-fun notesSettings(discoverText: Boolean) = json(NotesSettingsResponse(discoverText))
+// aiConfigured: an AI is set up, by default when the user turned it on
+fun notesSettings(
+    discoverText: Boolean,
+    aiConfigured: Boolean = discoverText,
+) = json(NotesSettingsResponse(discoverText, aiConfigured))
 
 // the text the AI discovered in a photo or a recording
 fun discovered(text: String) = json(DiscoverTextResponse(text))

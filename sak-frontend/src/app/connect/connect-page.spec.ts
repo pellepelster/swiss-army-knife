@@ -95,11 +95,12 @@ describe('ConnectPage', () => {
       ...harness.routeNativeElement!.querySelectorAll<HTMLElement>('[role=menu] [role=menuitem]'),
     ];
     expect(entries.map((entry) => entry.textContent?.trim())).toEqual([
+      'My settings',
       'Connect an app',
       'Sign out',
     ]);
-    expect(entries[0].querySelector('i')?.className).toContain('fa-qrcode');
-    entries[0].click();
+    expect(entries[1].querySelector('i')?.className).toContain('fa-qrcode');
+    entries[1].click();
     await harness.fixture.whenStable();
 
     expect(TestBed.inject(Router).url).toBe('/connect-app');

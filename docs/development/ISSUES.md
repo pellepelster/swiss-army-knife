@@ -19,25 +19,6 @@ answered there; when it is work to do, it is moved here and closed there.
 A weakness that is kept on purpose is in [ACCEPTED-RISKS.md](ACCEPTED-RISKS.md), the open findings of the reviews are
 in [the reviews](reviews/).
 
-## `#129` Ask for consent before text discovery sends a file to OpenRouter
-
-**Created:** 2026-10-29. **Labels:** enhancement, area: backend, area: frontend, security.
-
-Text discovery sends a photo or a recording to OpenRouter. The rule "Activation and consent first"
-(`docs/development/ARCHITECTURE.md`, "Privacy") requires the consent of the user before the data goes out, with the
-name of the receiver.
-
-- **Activation: done.** Text discovery is off unless the configuration of the backend has `openrouter`. The
-  provisioning never writes it.
-- **Consent: missing.** The button "Discover the text" of a note (`sak-frontend/src/app/notes/note-card.ts`) sends the
-  file at once. Nothing tells the user that the photo or the recording goes to OpenRouter.
-
-**Recommended change:** Before the first discovery, show a confirmation that names the receiver (OpenRouter, and the
-model), what it gets (the photo or the recording) and that OpenRouter is asked not to collect it
-(`provider.data_collection: deny`). The user confirms or cancels. Keep the consent for each user (a setting of the
-user scope), and let the user withdraw it. Without the consent, the backend refuses the discovery, so a client other
-than the frontend cannot skip it.
-
 ## `#130` Coordinate the automatic reboot of unattended upgrades with sak-backend reboot
 
 **Created:** 2026-10-30. **Labels:** enhancement.

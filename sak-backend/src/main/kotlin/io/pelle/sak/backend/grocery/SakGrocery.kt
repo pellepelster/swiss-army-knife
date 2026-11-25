@@ -121,13 +121,14 @@ fun Route.grocery(
     discoverLimiter: RateLimiter,
 ) {
     get("/settings") {
-        call.respond(GrocerySettingsResponse(withContext(Dispatchers.IO) { discovery.available() }))
+        val owner = call.owner
+        call.respond(withContext(Dispatchers.IO) { GrocerySettingsResponse(discovery.available(owner), discovery.configured()) })
     }.describe {
         tag(GROCERY_TAG)
         summary = "What the grocery lists may do"
         description =
-            "For every signed in user: whether the items in a photo can be discovered now (GROCERY-16). The switches " +
-            "themselves are settings of the admins (GET $API_BASE_PATH${ApiPath.SETTINGS}/grocery)."
+            "For the signed in user: whether the items in a photo can be discovered now (GROCERY-16), and whether the AI " +
+            "is set up. Each user turns the AI on for themselves (PUT $API_BASE_PATH${ApiPath.USER_SETTINGS}/grocery)."
         responses {
             HttpStatusCode.OK {
                 description = "What the grocery lists may do"

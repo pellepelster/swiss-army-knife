@@ -1627,7 +1627,7 @@
                     "notes"
                 ],
                 "summary": "What the notes app may do",
-                "description": "For every signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5). The switches themselves are settings of the admins (GET /api/v1/settings/notes).",
+                "description": "For the signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5), and whether the AI is set up. Each user turns the AI on for themselves (PUT /api/v1/user/settings/notes).",
                 "responses": {
                     "200": {
                         "description": "What the notes app may do",
@@ -2031,7 +2031,7 @@
                     "grocery"
                 ],
                 "summary": "What the grocery lists may do",
-                "description": "For every signed in user: whether the items in a photo can be discovered now (GROCERY-16). The switches themselves are settings of the admins (GET /api/v1/settings/grocery).",
+                "description": "For the signed in user: whether the items in a photo can be discovered now (GROCERY-16), and whether the AI is set up. Each user turns the AI on for themselves (PUT /api/v1/user/settings/grocery).",
                 "responses": {
                     "200": {
                         "description": "What the grocery lists may do",
@@ -5556,6 +5556,118 @@
                 ]
             }
         },
+        "/api/v1/user/settings": {
+            "get": {
+                "tags": [
+                    "user settings"
+                ],
+                "summary": "The settings of the user",
+                "description": "Every setting of the user signed in, by scope, with its label, type, default and value, what the dialog of the user settings is built from. A setting that does not count now, e.g. the AI of an app while no AI is set up, says why.",
+                "responses": {
+                    "200": {
+                        "description": "The settings of the user",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSettingsResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/settings/{scope}": {
+            "put": {
+                "tags": [
+                    "user settings"
+                ],
+                "summary": "Change settings of the user",
+                "description": "Sets the values of the settings named of the user signed in; the others keep their values. Every value is validated first, one that is not valid sets none.",
+                "parameters": [
+                    {
+                        "name": "scope",
+                        "in": "path",
+                        "description": "The name of the scope, e.g. notes",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/JsonElement"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Every setting of the scope of the user, after the change",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserSettingScopeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "An unknown setting, a value of the wrong type, or a malformed request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "There is no such scope",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "A setting that does not count now, e.g. the AI while none is set up",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
         "/api/v1/health": {
             "get": {
                 "tags": [
@@ -6722,10 +6834,14 @@
                 "type": "object",
                 "title": "NotesSettingsResponse",
                 "required": [
-                    "discoverText"
+                    "discoverText",
+                    "aiConfigured"
                 ],
                 "properties": {
                     "discoverText": {
+                        "type": "boolean"
+                    },
+                    "aiConfigured": {
                         "type": "boolean"
                     }
                 }
@@ -6862,10 +6978,14 @@
                 "type": "object",
                 "title": "GrocerySettingsResponse",
                 "required": [
-                    "discoverItems"
+                    "discoverItems",
+                    "aiConfigured"
                 ],
                 "properties": {
                     "discoverItems": {
+                        "type": "boolean"
+                    },
+                    "aiConfigured": {
                         "type": "boolean"
                     }
                 }
@@ -7808,6 +7928,99 @@
             "JsonElement": {
                 "type": "object",
                 "title": "JsonElement"
+            },
+            "UserSettingResponse": {
+                "type": "object",
+                "title": "UserSettingResponse",
+                "required": [
+                    "name",
+                    "label",
+                    "description",
+                    "type",
+                    "default",
+                    "value",
+                    "available"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "boolean",
+                            "text",
+                            "choice"
+                        ]
+                    },
+                    "default": {
+                        "type": [
+                            "string",
+                            "boolean",
+                            "number"
+                        ]
+                    },
+                    "value": {
+                        "type": [
+                            "string",
+                            "boolean",
+                            "number"
+                        ]
+                    },
+                    "available": {
+                        "type": "boolean"
+                    },
+                    "unavailableReason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                }
+            },
+            "UserSettingScopeResponse": {
+                "type": "object",
+                "title": "UserSettingScopeResponse",
+                "required": [
+                    "name",
+                    "label",
+                    "settings"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "settings": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserSettingResponse"
+                        }
+                    }
+                }
+            },
+            "UserSettingsResponse": {
+                "type": "object",
+                "title": "UserSettingsResponse",
+                "required": [
+                    "scopes"
+                ],
+                "properties": {
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserSettingScopeResponse"
+                        }
+                    }
+                }
             },
             "HealthDetailResponse": {
                 "type": "object",

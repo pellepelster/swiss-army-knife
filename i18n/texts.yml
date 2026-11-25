@@ -38,6 +38,8 @@ common:
     save: { en: "Save", de: "Speichern" }
     name: { en: "Name", de: "Name" }
     settings: { en: "Settings", de: "Einstellungen" }
+    my_settings: { en: "My settings", de: "Meine Einstellungen" }
+    turn_on_ai: { en: "Turn on the AI in my settings", de: "KI in meinen Einstellungen einschalten" }
     email: { en: "E-mail address", de: "E-Mail-Adresse" }
   users:
     invalid_email:
@@ -158,8 +160,8 @@ backend:
       en: "No OpenRouter API key is set in the settings."
       de: "In den Einstellungen ist kein API-Schlüssel für OpenRouter gesetzt."
     ai_off:
-      en: "The AI features are turned off in the settings."
-      de: "Die KI-Funktionen sind in den Einstellungen ausgeschaltet."
+      en: "The AI is turned off for this app in your settings."
+      de: "Die KI ist für diese App in deinen Einstellungen ausgeschaltet."
     discovery_failed:
       en: "The text could not be discovered, please try again later."
       de: "Der Text konnte nicht erkannt werden, bitte versuche es später erneut."
@@ -195,6 +197,9 @@ backend:
     key_unchecked:
       en: "The API key could not be checked at OpenRouter, please try again later."
       de: "Der API-Schlüssel konnte bei OpenRouter nicht geprüft werden, bitte versuche es später erneut."
+    not_set_up:
+      en: "No AI is set up for this SAK instance."
+      de: "Für diese SAK-Instanz ist keine KI eingerichtet."
   settings:
     not_boolean: { en: "\"%{label}\" must be true or false.", de: "\"%{label}\" muss wahr oder falsch sein." }
     not_text: { en: "\"%{label}\" must be a text.", de: "\"%{label}\" muss ein Text sein." }
@@ -471,6 +476,10 @@ web:
     no_scope: { en: "There is no such scope of settings.", de: "Diesen Bereich der Einstellungen gibt es nicht." }
     not_loaded: { en: "The settings could not be loaded.", de: "Die Einstellungen konnten nicht geladen werden." }
     not_saved: { en: "The settings could not be saved.", de: "Die Einstellungen konnten nicht gespeichert werden." }
+    mine_intro:
+      en: "Your own settings, the same on every device you use."
+      de: "Deine eigenen Einstellungen, gleich auf jedem Gerät, das du benutzt."
+    saved: { en: "Saved.", de: "Gespeichert." }
     forbidden_see:
       en: "Your role does not allow to see the settings."
       de: "Deine Rolle erlaubt nicht, die Einstellungen zu sehen."
@@ -648,6 +657,10 @@ android:
     password_not_checked: { en: "The password could not be checked.", de: "Das Passwort konnte nicht geprüft werden." }
     password_wrong: { en: "The password is wrong.", de: "Das Passwort ist falsch." }
     user_not_read: { en: "The user could not be read.", de: "Der Benutzer konnte nicht gelesen werden." }
+    settings_not_read: { en: "Your settings could not be read.", de: "Deine Einstellungen konnten nicht gelesen werden." }
+    settings_not_saved:
+      en: "Your settings could not be saved."
+      de: "Deine Einstellungen konnten nicht gespeichert werden."
     deployment_unreachable: { en: "The SAK instance could not be reached.", de: "Die SAK-Instanz war nicht erreichbar." }
     connection:
       en: "The SAK instance could not be reached, check the connection."
@@ -1574,12 +1587,11 @@ grocery:
       de: "Die Artikel im Foto konnten nicht erkannt werden, bitte versuche es später erneut."
     settings:
       ai:
-        label: { en: "AI features", de: "KI-Funktionen" }
+        label: { en: "Use AI", de: "KI verwenden" }
         description:
-          en: "Lets the grocery lists discover the items in photos of recipes and shopping lists with the AI features."
-          de: "Lässt die Einkaufslisten die Artikel in Fotos von Rezepten und Einkaufszetteln mit den KI-Funktionen erkennen."
-      label: { en: "Grocery lists", de: "Einkaufslisten" }
-      description: { en: "The settings of the grocery lists.", de: "Die Einstellungen der Einkaufslisten." }
+          en: "Discovers the items in a photo you choose of a recipe or a shopping list. The photo is sent to OpenRouter (model %{vision_model}), which is asked not to keep it."
+          de: "Erkennt die Artikel in einem Foto eines Rezepts oder Einkaufszettels, das du auswählst. Das Foto wird an OpenRouter gesendet (Modell %{vision_model}), mit der Bitte, es nicht aufzubewahren."
+      label: { en: "Grocery", de: "Einkaufslisten" }
   web:
     page_title:
       create: { en: "Create list · Grocery", de: "Liste erstellen · Einkaufslisten" }
@@ -1923,12 +1935,11 @@ notes:
       de: "Du hast noch keine Notizliste, melde dich erneut an, um eine zu bekommen."
     settings:
       ai:
-        label: { en: "AI features", de: "KI-Funktionen" }
+        label: { en: "Use AI", de: "KI verwenden" }
         description:
-          en: "Lets the notes discover the text in photos and recordings with the AI features."
-          de: "Lässt die Notizen den Text in Fotos und Aufnahmen mit den KI-Funktionen erkennen."
+          en: "Discovers the text in a photo or a recording you choose. It is sent to OpenRouter (model %{vision_model} for photos, %{speech_model} for recordings), which is asked not to keep it."
+          de: "Erkennt den Text in einem Foto oder einer Aufnahme, die du auswählst. Sie werden an OpenRouter gesendet (Modell %{vision_model} für Fotos, %{speech_model} für Aufnahmen), mit der Bitte, sie nicht aufzubewahren."
       label: { en: "Notes", de: "Notizen" }
-      description: { en: "The settings of the notes.", de: "Die Einstellungen der Notizen." }
   common:
     page:
       create_note: { en: "Create note", de: "Notiz erstellen" }
@@ -2049,8 +2060,11 @@ notes:
     discover_photo: { en: "Discover the text in photo %{number}", de: "Den Text in Foto %{number} erkennen" }
     discover_recording: { en: "Discover the text in recording %{number}", de: "Den Text in Aufnahme %{number} erkennen" }
     discover_off:
-      en: "The AI features are not turned on."
-      de: "Die KI-Funktionen sind nicht eingeschaltet."
+      en: "No AI is set up for this SAK instance."
+      de: "Für diese SAK-Instanz ist keine KI eingerichtet."
+    discover_turn_on:
+      en: "Turn on the AI in your settings to discover the text with the robot."
+      de: "Schalte die KI in deinen Einstellungen ein, um den Text mit dem Roboter zu erkennen."
     discovering: { en: "Discovering the text…", de: "Der Text wird erkannt…" }
     delete_note: { en: "Delete note", de: "Notiz löschen" }
     note_menu: { en: "Menu of the note", de: "Menü der Notiz" }

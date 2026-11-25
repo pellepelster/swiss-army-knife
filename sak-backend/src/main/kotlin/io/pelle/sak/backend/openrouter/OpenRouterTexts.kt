@@ -17,4 +17,5 @@ object OpenRouterTexts : Catalog("openrouter") {
     val KEY_REFUSED = text("key_refused")
     val KEY_UNCHECKED = text("key_unchecked")
     val KEY_MISSING = text("key_missing")
+    val NOT_SET_UP = text("not_set_up")
 }

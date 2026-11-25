@@ -3,6 +3,7 @@ import { Component, computed, DestroyRef, inject, input, output, signal } from '
 import { I18n, LocalDateTimePipe, TranslatePipe } from '@sak/core';
 import { MAX_LABELS, Note, NOTE_COLORS, NotesStore } from './notes-store';
 import { StoredFiles, ThumbnailPipe } from './stored-files';
+import { RouterLink } from '@angular/router';
 
 // how long an opened photo keeps its object url, its tab has loaded it by then
 const OPENED_URL_LIFETIME_MS = 60_000;
@@ -23,7 +24,7 @@ interface Media {
 // below it; a photo opens whole in a tab, a recording plays in place
 @Component({
   selector: 'app-note-card',
-  imports: [AsyncPipe, LocalDateTimePipe, ThumbnailPipe, TranslatePipe],
+  imports: [AsyncPipe, LocalDateTimePipe, RouterLink, ThumbnailPipe, TranslatePipe],
   host: {
     '[class]': "'note note-' + note().color",
     '[attr.data-testid]': "'note-' + note().id",
@@ -72,6 +73,17 @@ interface Media {
                   <i class="fa-solid fa-robot" aria-hidden="true"></i>
                 }
               </button>
+            } @else if (store.aiConfigured()) {
+              <!-- set up, but not turned on by the user: leads to their settings (PRIVACY-2) -->
+              <a
+                class="photo-discover"
+                routerLink="/user/settings"
+                data-testid="turn-on-ai"
+                [attr.aria-label]="'shared.turn_on_ai' | t"
+                [title]="'shared.turn_on_ai' | t"
+              >
+                <i class="fa-solid fa-robot opacity-50" aria-hidden="true"></i>
+              </a>
             }
             <button
               type="button"

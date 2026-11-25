@@ -38,7 +38,6 @@ too_many_recordings: "A note can have at most %{max} recordings."
 no_list: "You have no list of notes yet, sign in again to get one."
 settings:
   ai:
-    label: "AI features"
-    description: "Lets the notes discover the text in photos and recordings with the AI features."
+    label: "Use AI"
+    description: "Discovers the text in a photo or a recording you choose. It is sent to OpenRouter (model %{vision_model} for photos, %{speech_model} for recordings), which is asked not to keep it."
   label: "Notes"
-  description: "The settings of the notes."

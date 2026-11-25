@@ -126,9 +126,11 @@ export class NotesStore {
 
   // the photos and recordings whose text is being discovered
   readonly discovering = signal<ReadonlySet<number>>(new Set());
-  // whether photos and recordings offer to discover their text (GET /notes/settings): the AI
-  // functions are on and a provider is set up; false until it is known
+  // whether photos and recordings offer to discover their text (GET /notes/settings): the user
+  // turned the AI of the notes on and a provider is set up; false until it is known
   readonly discoverAvailable = signal(false);
+  // whether an AI provider is set up, so the user may turn the AI on in their settings
+  readonly aiConfigured = signal(false);
 
   // what was removed last while it can be brought back with undoRemove, null otherwise
   readonly removed = this.removal.current.asReadonly();
@@ -376,8 +378,14 @@ export class NotesStore {
   // what the notes app may do for the signed in user, whatever their role
   loadSettings(): void {
     this.http.get<NotesSettings>('/api/v1/notes/settings').subscribe({
-      next: (settings) => this.discoverAvailable.set(settings.discoverText),
-      error: () => this.discoverAvailable.set(false),
+      next: (settings) => {
+        this.discoverAvailable.set(settings.discoverText);
+        this.aiConfigured.set(settings.aiConfigured);
+      },
+      error: () => {
+        this.discoverAvailable.set(false);
+        this.aiConfigured.set(false);
+      },
     });
   }
 

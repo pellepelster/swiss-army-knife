@@ -38,6 +38,35 @@ class SettingRepositoryTest {
     }
 
     @Test
+    fun `a setting of a user is apart from the one of the instance and from the ones of the other users`() {
+        repository.insert("ai", "notes", "true", owner = OWNER)!!.user shouldBe null
+        repository.replace("notes", mapOf("ai" to "false"), owner = "anna@example.org", user = "anna@example.org")
+        repository.replace("notes", mapOf("ai" to "true"), owner = "bert@example.org", user = "bert@example.org")
+
+        repository.byNameAndScope("ai", "notes")!!.let {
+            it.value shouldBe "true"
+            it.user shouldBe null
+        }
+        repository.byNameAndScope("ai", "notes", "anna@example.org")!!.let {
+            it.value shouldBe "false"
+            it.user shouldBe "anna@example.org"
+            it.owner shouldBe "anna@example.org"
+        }
+        repository.byNameAndScope("ai", "notes", "carl@example.org") shouldBe null
+        repository.ofUser("notes", "bert@example.org").mapValues { it.value.value } shouldBe mapOf("ai" to "true")
+        repository.ofUser("grocery", "bert@example.org") shouldBe emptyMap()
+
+        // a user replaces and deletes only their own
+        repository.replace("notes", mapOf("ai" to "true"), owner = "anna@example.org", user = "anna@example.org")
+        repository.byNameAndScope("ai", "notes", "anna@example.org")!!.value shouldBe "true"
+        repository.insert("ai", "notes", "false", owner = "anna@example.org", user = "anna@example.org") shouldBe null
+        repository.delete("ai", "notes", "anna@example.org") shouldNotBe null
+        repository.byNameAndScope("ai", "notes", "anna@example.org") shouldBe null
+        repository.byNameAndScope("ai", "notes", "bert@example.org")!!.value shouldBe "true"
+        repository.byNameAndScope("ai", "notes")!!.value shouldBe "true"
+    }
+
+    @Test
     fun `replaces values in one go, the old row stays as deleted and an equal value is kept`() {
         repository.insert("A_SETTING", "system", "old", owner = OWNER)!!
 

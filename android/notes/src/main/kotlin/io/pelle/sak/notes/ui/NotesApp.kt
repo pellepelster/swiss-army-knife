@@ -665,7 +665,12 @@ private fun Media(
         if (recordingsFull) Text(stringResource(R.string.notes_recordings_full, MAX_RECORDINGS), style = MaterialTheme.typography.bodySmall, color = NOTE_INK)
         if (uploading) Text(stringResource(R.string.notes_uploading), color = NOTE_INK)
         if (!screen.ai && (note.photos.isNotEmpty() || note.recordings.isNotEmpty())) {
-            Text(stringResource(R.string.notes_discover_off), style = MaterialTheme.typography.bodySmall, color = NOTE_INK, modifier = Modifier.testTag("discover-off"))
+            Text(
+                stringResource(if (screen.aiConfigured) R.string.notes_discover_turn_on else R.string.notes_discover_off),
+                style = MaterialTheme.typography.bodySmall,
+                color = NOTE_INK,
+                modifier = Modifier.testTag("discover-off"),
+            )
         }
     }
 }
@@ -679,15 +684,20 @@ private fun Discover(
     model: NotesModel,
 ) {
     val discovering = fileId in screen.discovering
+    // set up but not turned on by the user, the robot leads to their settings (PRIVACY-2)
     IconButton(
-        onClick = { model.discover(noteId, fileId) },
-        enabled = screen.ai && !discovering,
+        onClick = { if (screen.ai) model.discover(noteId, fileId) else model.userSettings.open() },
+        enabled = (screen.ai || screen.aiConfigured) && !discovering,
         modifier = Modifier.testTag("discover-$fileId"),
     ) {
         if (discovering) {
             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
         } else {
-            Icon(painterResource(R.drawable.ic_robot), contentDescription = description, tint = if (screen.ai) NOTE_INK else NOTE_INK.copy(alpha = 0.38f))
+            Icon(
+                painterResource(R.drawable.ic_robot),
+                contentDescription = if (screen.ai) description else stringResource(CoreR.string.shared_turn_on_ai),
+                tint = if (screen.ai) NOTE_INK else NOTE_INK.copy(alpha = 0.38f),
+            )
         }
     }
 }

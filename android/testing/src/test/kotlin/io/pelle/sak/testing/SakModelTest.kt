@@ -16,6 +16,7 @@ import io.pelle.sak.core.session.MemorySessionStore
 import io.pelle.sak.core.session.PendingLogin
 import io.pelle.sak.core.session.SessionStore
 import io.pelle.sak.core.session.Stored
+import io.pelle.sak.core.settings.locked
 import io.pelle.sak.core.uiText
 import io.pelle.sak.core.update.AppUpdate
 import io.pelle.sak.core.update.UpdateException
@@ -25,6 +26,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -78,6 +80,13 @@ private class ThingsModel(
         state.value = ThingsScreen(stored.email.orEmpty())
     }
 
+    // how often the user changed a setting of theirs
+    var settingsChanged = 0
+
+    override fun userSettingsChanged() {
+        settingsChanged++
+    }
+
     fun load() =
         scope.launch {
             val things = request(R.string.error_user_not_read, { error -> app { it.copy(error = error) } }) { it.things() } ?: return@launch
@@ -121,6 +130,65 @@ class SakModelTest {
     private fun signedIn(token: String = "session") = MemorySessionStore(signedIn(now.plusSeconds(3600), token))
 
     private fun signedOut() = MemorySessionStore(io.pelle.sak.testing.signedOut())
+
+    @Test
+    fun `the settings of the user open over the app, a switch is saved when turned and the app is told`() =
+        runTest {
+            backend.answers["GET /user/settings"] =
+                HttpStatusCode.OK to userSettings(userScope("notes", "Notes", aiSetting(false)), userScope("grocery", "Grocery", aiSetting(false, available = false)))
+            backend.answers["PUT /user/settings/notes"] = HttpStatusCode.OK to json(userScope("notes", "Notes", aiSetting(true)))
+            val model = model(signedIn()).also { it.start() }
+            advanceUntilIdle()
+            assertNull(model.userSettings.dialog.value)
+
+            model.userSettings.open()
+            advanceUntilIdle()
+            val scopes = model.userSettings.dialog.value!!.scopes!!
+            assertEquals(listOf("notes", "grocery"), scopes.map { it.name })
+            // without an AI set up it can not be turned on
+            assertFalse(scopes[0].settings.single().locked)
+            assertTrue(scopes[1].settings.single().locked)
+
+            model.userSettings.set("notes", "ai", true)
+            advanceUntilIdle()
+            assertTrue("PUT /user/settings/notes {\"ai\":true}" in backend.requests)
+            assertEquals(JsonPrimitive(true), model.userSettings.dialog.value!!.scopes!![0].settings.single().value)
+            assertEquals(1, model.settingsChanged)
+
+            // a switch that could not be saved stays as it was, the dialog says why, the app is not told
+            backend.answers["PUT /user/settings/notes"] = HttpStatusCode.Conflict to refused("No AI is set up.")
+            model.userSettings.set("notes", "ai", false)
+            advanceUntilIdle()
+            model.userSettings.dialog.value!!.let {
+                assertEquals(UiText.Plain("No AI is set up."), it.error)
+                assertFalse(it.saving)
+                assertEquals(JsonPrimitive(true), it.scopes!![0].settings.single().value)
+            }
+            assertEquals(1, model.settingsChanged)
+
+            model.userSettings.close()
+            assertNull(model.userSettings.dialog.value)
+            // the end of the session closes it
+            model.userSettings.open()
+            advanceUntilIdle()
+            model.changeDeployment()
+            advanceUntilIdle()
+            assertNull(model.userSettings.dialog.value)
+        }
+
+    @Test
+    fun `settings that could not be read say why`() =
+        runTest {
+            backend.answers["GET /user/settings"] = HttpStatusCode.BadGateway to ""
+            val model = model(signedIn()).also { it.start() }
+            advanceUntilIdle()
+            model.userSettings.open()
+            advanceUntilIdle()
+            model.userSettings.dialog.value!!.let {
+                assertNull(it.scopes)
+                assertEquals(uiText(R.string.error_settings_not_read), it.error)
+            }
+        }
 
     @Test
     fun `the answer of a session that went changes nothing, also when it worked (AA-1)`() =

@@ -150,13 +150,12 @@ class GroceryApi(
             }.answer<GroceryDiscoveredResponse>(R.string.grocery_discover_not_read)
             .items
 
-    // the AI features of the grocery lists are on and a provider is set up; every signed in user may
-    // ask, the backend still refuses a discover while they are off
-    suspend fun discoverAvailable(): Boolean =
+    // whether the user turned the AI of the grocery lists on and a provider is set up, and whether one is
+    // set up; the backend still refuses a discover while the user has not turned it on
+    suspend fun settings(): GrocerySettingsResponse =
         client
             .get("$url/grocery/settings") { session() }
-            .answer<GrocerySettingsResponse>(R.string.grocery_discover_not_read)
-            .discoverItems
+            .answer(R.string.grocery_discover_not_read)
 
     // the photo of the item, and of the next item of its name on the list (GROCERY-12)
     suspend fun attachPhoto(

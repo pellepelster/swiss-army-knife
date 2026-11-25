@@ -211,7 +211,8 @@ How the backend keeps its data is in [MODEL.md](MODEL.md).
   `@fontsource`, `swagger-ui-dist`). The content security policy (`contentSecurityPolicy`) allows only the page's own
   origin and `api.<base domain>` and is never widened.
 - `PRIVACY-2` **Activation and consent first.** Nothing sends data to a third party until it is explicitly activated,
-  and the user agrees before each transfer and knows where the data goes. No default activates such a connection.
+  and the user agrees once, for each app, and may withdraw it at any time, knowing where the data goes. No default
+  activates such a connection.
 - `PRIVACY-3` **Exemption: the container registries.** sakadmin and the server pull the images of SAK from the GitHub
   container registry (ghcr.io) without asking: sakadmin the image of its tools and the canary on each start, the server
   the images of the backend and the ingress on each deploy. The server also pulls the two images of its logs

@@ -88,7 +88,6 @@ too_many_discoveries: "Es wurden zu viele Fotos gelesen, bitte versuche es spät
 discovery_failed: "Die Artikel im Foto konnten nicht erkannt werden, bitte versuche es später erneut."
 settings:
   ai:
-    label: "KI-Funktionen"
-    description: "Lässt die Einkaufslisten die Artikel in Fotos von Rezepten und Einkaufszetteln mit den KI-Funktionen erkennen."
+    label: "KI verwenden"
+    description: "Erkennt die Artikel in einem Foto eines Rezepts oder Einkaufszettels, das du auswählst. Das Foto wird an OpenRouter gesendet (Modell %{vision_model}), mit der Bitte, es nicht aufzubewahren."
   label: "Einkaufslisten"
-  description: "Die Einstellungen der Einkaufslisten."

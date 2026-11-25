@@ -1,5 +1,9 @@
 package io.pelle.sak.grocery
 
+import io.pelle.sak.testing.aiSetting
+import io.pelle.sak.testing.userScope
+import io.pelle.sak.testing.userSettings
+import io.pelle.sak.testing.json
 import io.ktor.client.plugins.HttpSend
 import io.ktor.client.plugins.plugin
 import io.ktor.http.HttpStatusCode
@@ -348,6 +352,25 @@ class GroceryModelTest {
             model.saveQuantity()
             advanceUntilIdle()
             assertEquals("The quantity could not be saved.", model.lists().error.english())
+        }
+
+    @Test
+    fun `set up but not turned on, the user turns the AI on in their settings and the robot follows (PRIVACY-2)`() =
+        runTest {
+            backend.answers["GET /grocery/settings"] = HttpStatusCode.OK to grocerySettings(discoverItems = false, aiConfigured = true)
+            val model = signedIn()
+            advanceUntilIdle()
+            assertFalse(model.lists().discoverItems)
+            assertTrue(model.lists().aiConfigured)
+
+            backend.answers["GET /user/settings"] = HttpStatusCode.OK to userSettings(userScope("grocery", "Grocery", aiSetting(false)))
+            backend.answers["PUT /user/settings/grocery"] = HttpStatusCode.OK to json(userScope("grocery", "Grocery", aiSetting(true)))
+            backend.answers["GET /grocery/settings"] = HttpStatusCode.OK to grocerySettings(discoverItems = true)
+            model.userSettings.open()
+            advanceUntilIdle()
+            model.userSettings.set("grocery", "ai", true)
+            advanceUntilIdle()
+            assertTrue(model.lists().discoverItems)
         }
 
     @Test

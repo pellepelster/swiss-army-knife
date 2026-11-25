@@ -42,7 +42,7 @@ An app to manage grocery lists.
   l, EL, TL, Prise, Packung, Dose, Bund, Stück), or none. A unit the item has that is not in the list stays one to
   choose. No number takes the unit away too. The web shows the fields in the row, Enter or Save saves, Escape or Cancel
   keeps the quantity; Android shows them in a dialog, Save saves, Cancel keeps it.
-- `GROCERY-16` **Items from a photo.** With the AI features turned on (the setting of the grocery lists)
+- `GROCERY-16` **Items from a photo.** With the AI turned on by the user for the grocery lists and a provider set up
   a robot next to the field of a new item takes a photo or lets the user choose one, of a recipe or a shopping list.
   Its label names OpenRouter, where the photo goes (`PRIVACY-2`). The AI reads the items in it, with their quantity
   (`GROCERY-15`); an item the recipe names twice is one, its quantities added up, water from the tap is none;
@@ -66,8 +66,8 @@ now (`GET /api/v1/grocery/settings`, `discoverItems`) and discover them in a pho
 
 ## Settings
 
-- `ai` (scope `grocery`): the AI features of the grocery lists (`GROCERY-16`), off by default; it needs the AI of the
-  deployment turned on (scope `ai`).
+- `ai` (scope `grocery`, a setting of each user): the AI features of the grocery lists (`GROCERY-16`), off by default;
+  it counts only while the AI of the instance is set up (scope `ai`).
 
 ## External systems
 

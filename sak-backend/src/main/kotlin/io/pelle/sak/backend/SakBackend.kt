@@ -30,7 +30,8 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.backend.settings.SettingService
-import io.pelle.sak.backend.notes.NotesSettingsService
+import io.pelle.sak.backend.notes.NotesUserSettings
+import io.pelle.sak.backend.settings.UserSettingsService
 import io.pelle.sak.backend.settings.SettingsRegistry
 import io.pelle.sak.backend.openrouter.OpenRouterManager
 import io.pelle.sak.backend.storage.S3StorageManager
@@ -39,7 +40,7 @@ import io.pelle.sak.backend.redirects.RedirectService
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.FileTextService
 import io.pelle.sak.backend.grocery.GroceryDiscovery
-import io.pelle.sak.backend.grocery.GrocerySettingsService
+import io.pelle.sak.backend.grocery.GroceryUserSettings
 import io.pelle.sak.backend.labels.LabelService
 import io.pelle.sak.backend.notes.NoteService
 import io.pelle.sak.backend.grocery.GroceryService
@@ -104,6 +105,8 @@ class SakServices(
     val settings: SettingService,
     // every scope of settings the settings api serves
     val settingsRegistry: SettingsRegistry,
+    // the settings each user sets for themselves
+    val userSettings: UserSettingsService,
     val bucketService: S3BucketService,
     val redirectService: RedirectService,
     val labelService: LabelService,
@@ -170,8 +173,10 @@ fun Application.sak(config: SakConfig): SakServices {
     // whole database is encrypted
     val settings = SettingService(database)
     val openRouter = OpenRouterManager(config.openrouter, settings)
-    val notesSettings = NotesSettingsService(settings)
-    val grocerySettings = GrocerySettingsService(settings)
+    // the AI of an app, turned on by each user for themselves
+    val notesUserSettings = NotesUserSettings(openRouter)
+    val groceryUserSettings = GroceryUserSettings(openRouter)
+    val userSettings = UserSettingsService(settings, listOf(notesUserSettings.scope, groceryUserSettings.scope))
     val s3Storage = S3StorageManager(settings, config.name)
     val resticSettings = ResticSettingsService(settings)
     // a bucket is not served at a redirected domain and the other way round
@@ -205,7 +210,9 @@ fun Application.sak(config: SakConfig): SakServices {
             fileStorage,
             guard = WriteGuard({ Files.getFileStore(config.filesDir).usableSpace }, config.minFreeBytes, FileService.DEFAULT_MAX_SIZE),
         )
-    val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber, notesSettings::aiEnabled)
+    val fileTextService = FileTextService(fileService, openRouter::textRecognizer, openRouter::speechTranscriber) { owner ->
+            userSettings.on(owner, notesUserSettings.scope, notesUserSettings.ai)
+        }
     val noteService = NoteService(database, labelService, fileService)
     val groceryService = GroceryService(database, fileService)
     val todoService = TodoService(database)
@@ -247,7 +254,8 @@ fun Application.sak(config: SakConfig): SakServices {
     val services =
         SakServices(
             settings = settings,
-            settingsRegistry = SettingsRegistry(listOf(openRouter, notesSettings, grocerySettings, s3Storage, resticSettings)),
+            settingsRegistry = SettingsRegistry(listOf(openRouter, s3Storage, resticSettings)),
+            userSettings = userSettings,
             bucketService = bucketService,
             redirectService = redirectService,
             labelService = labelService,
@@ -258,7 +266,9 @@ fun Application.sak(config: SakConfig): SakServices {
             resticBackupPlanService = resticBackupPlanService,
             fileService = fileService,
             fileTextService = fileTextService,
-            groceryDiscovery = GroceryDiscovery(fileService, openRouter::ingredientRecognizer, grocerySettings::aiEnabled),
+            groceryDiscovery = GroceryDiscovery(fileService, openRouter::ingredientRecognizer) { owner ->
+                    userSettings.on(owner, groceryUserSettings.scope, groceryUserSettings.ai)
+                },
             hostingHealth = HostingHealth(bucketService, domainCheck, config.addresses),
             redirectsHealth = RedirectsHealth(redirectService, domainCheck, config.addresses),
             userService = userService,

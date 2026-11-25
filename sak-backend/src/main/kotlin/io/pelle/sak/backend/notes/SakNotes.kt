@@ -76,17 +76,20 @@ private suspend fun RoutingCall.respondSaved(
 @OptIn(ExperimentalKtorApi::class)
 fun Route.notes(
     noteService: NoteService,
-    // whether a text can be discovered now (FileTextService.available)
-    discoverText: () -> Boolean = { false },
+    // whether a text of the owner can be discovered now (FileTextService.available)
+    discoverText: (owner: String) -> Boolean = { false },
+    // whether an AI provider is set up (FileTextService.configured)
+    aiConfigured: () -> Boolean = { false },
 ) {
     get("/settings") {
-        call.respond(NotesSettingsResponse(withContext(Dispatchers.IO) { discoverText() }))
+        val owner = call.owner
+        call.respond(withContext(Dispatchers.IO) { NotesSettingsResponse(discoverText(owner), aiConfigured()) })
     }.describe {
         tag(NOTES_TAG)
         summary = "What the notes app may do"
         description =
-            "For every signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5). The " +
-            "switches themselves are settings of the admins (GET $API_BASE_PATH${ApiPath.SETTINGS}/notes)."
+            "For the signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5), and " +
+            "whether the AI is set up. Each user turns the AI on for themselves (PUT $API_BASE_PATH${ApiPath.USER_SETTINGS}/notes)."
         responses {
             HttpStatusCode.OK {
                 description = "What the notes app may do"

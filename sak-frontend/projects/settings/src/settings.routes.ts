@@ -14,3 +14,11 @@ export const settingsRoute: Route = {
     },
   ],
 };
+
+// the settings of the user signed in, every role has them
+export const userSettingsRoute: Route = {
+  path: 'user/settings',
+  loadComponent: () => import('./user-settings-page').then((m) => m.UserSettingsPage),
+  canActivate: [authGuard],
+  title: pageTitle('shared.my_settings'),
+};

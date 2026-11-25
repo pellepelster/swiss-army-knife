@@ -1474,7 +1474,7 @@ export interface paths {
     };
     /**
      * What the notes app may do
-     * @description For every signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5). The switches themselves are settings of the admins (GET /api/v1/settings/notes).
+     * @description For the signed in user: whether the text of a photo or a recording can be discovered now (NOTES-5), and whether the AI is set up. Each user turns the AI on for themselves (PUT /api/v1/user/settings/notes).
      */
     get: {
       parameters: {
@@ -1804,7 +1804,7 @@ export interface paths {
     };
     /**
      * What the grocery lists may do
-     * @description For every signed in user: whether the items in a photo can be discovered now (GROCERY-16). The switches themselves are settings of the admins (GET /api/v1/settings/grocery).
+     * @description For the signed in user: whether the items in a photo can be discovered now (GROCERY-16), and whether the AI is set up. Each user turns the AI on for themselves (PUT /api/v1/user/settings/grocery).
      */
     get: {
       parameters: {
@@ -4834,6 +4834,120 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/user/settings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * The settings of the user
+     * @description Every setting of the user signed in, by scope, with its label, type, default and value, what the dialog of the user settings is built from. A setting that does not count now, e.g. the AI of an app while no AI is set up, says why.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description The settings of the user */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UserSettingsResponse'];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/user/settings/{scope}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Change settings of the user
+     * @description Sets the values of the settings named of the user signed in; the others keep their values. Every value is validated first, one that is not valid sets none.
+     */
+    put: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @description The name of the scope, e.g. notes */
+          scope: string;
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          'application/json': {
+            [key: string]: components['schemas']['JsonElement'];
+          };
+        };
+      };
+      responses: {
+        /** @description Every setting of the scope of the user, after the change */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['UserSettingScopeResponse'];
+          };
+        };
+        /** @description An unknown setting, a value of the wrong type, or a malformed request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description There is no such scope */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description A setting that does not count now, e.g. the AI while none is set up */
+        409: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+      };
+    };
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/health': {
     parameters: {
       query?: never;
@@ -5442,6 +5556,7 @@ export interface components {
     /** NotesSettingsResponse */
     NotesSettingsResponse: {
       discoverText: boolean;
+      aiConfigured: boolean;
     };
     /** PhotoResponse */
     PhotoResponse: {
@@ -5478,6 +5593,7 @@ export interface components {
     /** GrocerySettingsResponse */
     GrocerySettingsResponse: {
       discoverItems: boolean;
+      aiConfigured: boolean;
     };
     /** GroceryDiscoveredItemResponse */
     GroceryDiscoveredItemResponse: {
@@ -5718,6 +5834,28 @@ export interface components {
     };
     /** JsonElement */
     JsonElement: Record<string, never>;
+    /** UserSettingResponse */
+    UserSettingResponse: {
+      name: string;
+      label: string;
+      description: string;
+      /** @enum {string} */
+      type: 'boolean' | 'text' | 'choice';
+      default: string | boolean | number;
+      value: string | boolean | number;
+      available: boolean;
+      unavailableReason?: string | null;
+    };
+    /** UserSettingScopeResponse */
+    UserSettingScopeResponse: {
+      name: string;
+      label: string;
+      settings: components['schemas']['UserSettingResponse'][];
+    };
+    /** UserSettingsResponse */
+    UserSettingsResponse: {
+      scopes: components['schemas']['UserSettingScopeResponse'][];
+    };
     /** HealthDetailResponse */
     HealthDetailResponse: {
       name: string;

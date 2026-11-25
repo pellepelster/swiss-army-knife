@@ -31,7 +31,7 @@ sealed interface GroceryDiscoverResult {
     // no api key is set
     data object NotConfigured : GroceryDiscoverResult
 
-    // the AI features are turned off in the settings (GrocerySettingsService.AI and what it requires)
+    // the owner has not turned on the AI of the grocery lists for themselves (GroceryUserSettings.ai)
     data object Disabled : GroceryDiscoverResult
 
     // the photo would go to the AI provider, but the owner asked for too many lately
@@ -49,12 +49,14 @@ class GroceryDiscovery(
     private val files: FileService,
     // asked for each photo, null while no api key is set (OpenRouterManager)
     private val recognizer: () -> IngredientRecognizer?,
-    // whether the photos may be sent to the AI provider at all
-    private val aiEnabled: () -> Boolean,
+    // whether the photos of the owner may be sent to the AI provider: turned on by the owner
+    private val aiEnabled: (owner: String) -> Boolean,
 ) {
-    // the AI features on and an api key set; every user may know this, the switches are for the
-    // admins
-    fun available(): Boolean = aiEnabled() && recognizer() != null
+    // whether an api key is set, so a user may turn the AI on
+    fun configured(): Boolean = recognizer() != null
+
+    // the AI turned on by the owner and an api key set
+    fun available(owner: String): Boolean = aiEnabled(owner) && configured()
 
     // mayAsk is asked only right before the photo goes to the AI provider, so the limit counts
     // nothing else
@@ -65,7 +67,7 @@ class GroceryDiscovery(
     ): GroceryDiscoverResult {
         val file = files.byId(owner, fileId) ?: return GroceryDiscoverResult.NotFound
         if (!file.contentType.startsWith("image/")) return GroceryDiscoverResult.NotAPhoto
-        if (!aiEnabled()) return GroceryDiscoverResult.Disabled
+        if (!aiEnabled(owner)) return GroceryDiscoverResult.Disabled
         val recognizer = recognizer() ?: return GroceryDiscoverResult.NotConfigured
         val content = files.content(file) ?: return GroceryDiscoverResult.Failed(IOException("the content of file ${file.id} is not in the storage"))
         if (!mayAsk()) return GroceryDiscoverResult.Limited

@@ -15,6 +15,8 @@
     <string name="shared_save">Speichern</string>
     <string name="shared_name">Name</string>
     <string name="shared_settings">Einstellungen</string>
+    <string name="shared_my_settings">Meine Einstellungen</string>
+    <string name="shared_turn_on_ai">KI in meinen Einstellungen einschalten</string>
     <string name="shared_email">E-Mail-Adresse</string>
     <string name="users_invalid_email">Eine E-Mail-Adresse wie name@example.org ist nötig.</string>
     <string name="deployment_hint">Gib die SAK-Adresse deiner SAK-Instanz ein, die Adresse ihrer Web-App, z. B. sak.example.org.</string>
@@ -83,6 +85,8 @@
     <string name="error_password_not_checked">Das Passwort konnte nicht geprüft werden.</string>
     <string name="error_password_wrong">Das Passwort ist falsch.</string>
     <string name="error_user_not_read">Der Benutzer konnte nicht gelesen werden.</string>
+    <string name="error_settings_not_read">Deine Einstellungen konnten nicht gelesen werden.</string>
+    <string name="error_settings_not_saved">Deine Einstellungen konnten nicht gespeichert werden.</string>
     <string name="error_deployment_unreachable">Die SAK-Instanz war nicht erreichbar.</string>
     <string name="error_connection">Die SAK-Instanz war nicht erreichbar, prüfe die Verbindung.</string>
     <string name="error_session_ended">Deine Sitzung ist abgelaufen, bitte melde dich erneut an.</string>

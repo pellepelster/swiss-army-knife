@@ -116,9 +116,11 @@ data class ListsScreen(
     val renaming: Renaming<GroceryItemResponse>? = null,
     // the item whose quantity is set in a dialog over the list, kept like renaming (GROCERY-15)
     val quantity: Quantity? = null,
-    // the AI features of the grocery lists are on (GROCERY-16): the field of a new item can read the
-    // items of a photo; false when the backend can not say
+    // the user turned the AI of the grocery lists on and it is set up (GROCERY-16): the field of a new
+    // item can read the items of a photo; false when the backend can not say
     val discoverItems: Boolean = false,
+    // an AI is set up, so the user may turn it on in their settings
+    val aiConfigured: Boolean = false,
     // the items of a photo, read or to be confirmed, over the list (GROCERY-16)
     val discovery: Discovery? = null,
     // the item whose Delete asks for a confirmation in a dialog over the list (UX-4.1)
