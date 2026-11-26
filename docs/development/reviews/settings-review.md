@@ -32,12 +32,6 @@ fixed findings are in the history of git.
 
 ## Could fix
 
-### `SET-8` The check of a group never sees the values of the users
-
-`checkOf` runs only for the instance (`user == null` in `set` and `validate`). A group with settings of the users and a
-check registers without a word, and its check never runs for them. Either `register` refuses that, or the check gets the
-user too.
-
 ### `SET-9` The switch of a group does not turn off the settings of its users
 
 `get` honours `SettingsGroup.enabledBy` only for settings of the instance. A group with a switch and settings of the

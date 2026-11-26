@@ -22,6 +22,17 @@ class SettingsRegistryTest {
     private val registry = SettingsRegistry().also { it.register(SettingsRegistration(GROUP)) }
 
     @Test
+    fun `a group with settings of the users has no check, the check sees the instance only (SET-8)`() {
+        val scope = SettingScope("users")
+        val text = TextSetting(scope, SettingName("text"), t("A text"), t("Says something."), default = "", level = SettingLevel.USER)
+        val group = SettingsGroup(scope, t("Other"), null, listOf(text))
+        val error = shouldThrow<IllegalArgumentException> { registry.register(SettingsRegistration(group, check = { emptyList() })) }
+        error.message shouldBe "the check of the group users sees the settings of the instance only, the group has settings of the users"
+        // without a check it is registered
+        registry.register(SettingsRegistration(group))
+    }
+
+    @Test
     fun `a group whose requirement is not registered is not registered either`() {
         val baseScope = SettingScope("base")
         val switch = BooleanSetting(baseScope, SettingName("enabled"), t("On"), t("Turns the base on."), default = false)

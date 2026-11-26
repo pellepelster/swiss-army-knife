@@ -14,8 +14,12 @@ class SettingsRegistry {
     // a group the settings api serves; what it requires is registered before, so requirements never go
     // round in a circle
     fun register(registration: SettingsRegistration) {
-        val (group, _, readOnly) = registration
+        val (group, check, readOnly) = registration
         require(group.name !in registered) { "the group ${group.name} is registered twice" }
+        // a check sees the values of the instance only, a group of users would never be checked (SET-8)
+        require(check === SettingsCheck.NONE || group.of(SettingLevel.USER).isEmpty()) {
+            "the check of the group ${group.name} sees the settings of the instance only, the group has settings of the users"
+        }
         group.settings.filter { it.readOnly }.forEach {
             require(readOnly.has(it)) { "the read-only setting ${it.name} of the group ${group.name} has no value" }
         }
