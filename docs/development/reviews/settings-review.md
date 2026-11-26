@@ -30,14 +30,6 @@ fixed findings are in the history of git.
 - **Tests of the rules.** `SettingServiceTest` and `UserSettingsTest` cover the defaults, masks, read-only values, the
   switch of a group, chained requirements, the check of a group, both levels and the views by level.
 
-## Could fix
-
-### `SET-9` The switch of a group does not turn off the settings of its users
-
-`get` honours `SettingsGroup.enabledBy` only for settings of the instance. A group with a switch and settings of the
-users keeps the users' settings on while the admins turned the group off. No group has both today; which way it should
-be is not written down.
-
 ## Notes
 
 - `SET-11` (accepted for now): a change is validated, the check asks the provider (OpenRouter, Hetzner), and then it is

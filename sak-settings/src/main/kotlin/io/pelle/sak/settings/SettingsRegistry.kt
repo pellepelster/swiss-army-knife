@@ -20,6 +20,10 @@ class SettingsRegistry {
         require(check === SettingsCheck.NONE || group.of(SettingLevel.USER).isEmpty()) {
             "the check of the group ${group.name} sees the settings of the instance only, the group has settings of the users"
         }
+        // a switch turns off the settings of the instance only, the users' would stay on (SET-9)
+        require(group.enabledBy == null || group.of(SettingLevel.USER).isEmpty()) {
+            "the switch of the group ${group.name} turns off the settings of the instance only, the group has settings of the users"
+        }
         group.settings.filter { it.readOnly }.forEach {
             require(readOnly.has(it)) { "the read-only setting ${it.name} of the group ${group.name} has no value" }
         }

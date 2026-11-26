@@ -33,6 +33,20 @@ class SettingsRegistryTest {
     }
 
     @Test
+    fun `a group with settings of the users has no switch, the switch turns off the instance only (SET-9)`() {
+        val scope = SettingScope("switched")
+        val switch = BooleanSetting(scope, SettingName("enabled"), t("On"), t("Turns the scope on."), default = false)
+        val text = TextSetting(scope, SettingName("text"), t("A text"), t("Says something."), default = "", level = SettingLevel.USER)
+        val error =
+            shouldThrow<IllegalArgumentException> {
+                registry.register(SettingsRegistration(SettingsGroup(scope, t("Switched"), t("Turned on and off."), listOf(switch, text), enabledBy = switch)))
+            }
+        error.message shouldBe "the switch of the group switched turns off the settings of the instance only, the group has settings of the users"
+        // without the switch it is registered
+        registry.register(SettingsRegistration(SettingsGroup(scope, t("Switched"), t("Turned on and off."), listOf(switch, text))))
+    }
+
+    @Test
     fun `a group whose requirement is not registered is not registered either`() {
         val baseScope = SettingScope("base")
         val switch = BooleanSetting(baseScope, SettingName("enabled"), t("On"), t("Turns the base on."), default = false)
