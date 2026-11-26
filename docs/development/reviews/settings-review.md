@@ -32,26 +32,6 @@ fixed findings are in the history of git.
 
 ## Could fix
 
-### `SET-4` The routes are tested only through the backend
-
-`SakSettings.kt` and `user/SakUserSettings.kt` (404 for a group of the other level, 400 and 409, the masked values in
-an answer, `effective=true`, the answer of a user's change) have no test in the module; `SakAppsTest` covers them with
-the real groups of the backend. A test with `testApplication` and a group of the tests (the fixtures of `sak-api` are
-there) would check the module's api where it is made.
-
-### `SET-5` The placeholders of a description are not tested
-
-`descriptionArgs` and `description()` have no test; the routes render `description()`, so a placeholder its arguments
-do not fill shows only on the page.
-
-### `SET-6` A group is registered as a side effect of a constructor
-
-`OpenRouterManager`, `S3StorageManager`, `ResticSettings`, `NotesUserSettings` and `GroceryUserSettings` register their
-groups in `init`. The order of the settings page and the rule that a required group comes first then depend on the
-order of the constructors in `SakBackend`, and a second instance on the same `SettingService` (e.g. in a test) throws.
-Registering the groups in one place of `SakBackend`, with the checks and read-only values the parts give, would make the
-order visible.
-
 ### `SET-7` `SettingService` does three jobs
 
 It reads and writes values, keeps the registry of the groups, and handles the requests of the api (`validate`,
@@ -69,10 +49,6 @@ user too.
 `get` honours `SettingsGroup.enabledBy` only for settings of the instance. A group with a switch and settings of the
 users keeps the users' settings on while the admins turned the group off. No group has both today; which way it should
 be is not written down.
-
-### `SET-10` The api documentation names the scope `openrouter`
-
-The parameter `scope` of the admins' routes says "e.g. openrouter", but the scope of OpenRouter is `ai`.
 
 ## Notes
 

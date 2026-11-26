@@ -4745,7 +4745,7 @@ export interface paths {
         };
         header?: never;
         path: {
-          /** @description The name of the scope, e.g. openrouter */
+          /** @description The name of the scope, e.g. ai */
           scope: string;
         };
         cookie?: never;
@@ -4783,7 +4783,7 @@ export interface paths {
         query?: never;
         header?: never;
         path: {
-          /** @description The name of the scope, e.g. openrouter */
+          /** @description The name of the scope, e.g. ai */
           scope: string;
         };
         cookie?: never;

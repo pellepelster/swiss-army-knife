@@ -18,6 +18,7 @@ import io.pelle.sak.settings.model.internal.SettingsGroup
 import io.pelle.sak.settings.model.internal.SettingScope
 import io.pelle.sak.settings.ChangedValues
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistration
 import io.pelle.sak.settings.model.internal.TextSetting
 
 // the S3 storage of the deployment, a bucket at a provider (Hetzner Object Storage): its settings
@@ -31,9 +32,9 @@ class S3StorageManager(
     private val endpoint: (S3EndpointType, String) -> S3Endpoint = S3EndpointType::endpoint,
     private val keyCheck: S3KeyCheck = HeadBucketKeyCheck(),
 ) {
-    init {
-        settings.register(GROUP, { check(it) })
-    }
+    // its group, with the check of the bucket and the keys at the provider; registered by the backend
+    // (SET-6)
+    val registration = SettingsRegistration(GROUP, { check(it) })
 
     // made again when a setting changes
     @Volatile

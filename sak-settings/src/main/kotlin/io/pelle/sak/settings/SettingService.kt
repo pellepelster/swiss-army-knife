@@ -45,13 +45,10 @@ class SettingService(
     // by scope, in the order of registration, the order of the settings page
     private val registered = linkedMapOf<SettingScope, Registration>()
 
-    // a group the settings api serves; what it requires is registered before, so requirements never
-    // go round in a circle
-    fun register(
-        group: SettingsGroup,
-        check: SettingsCheck = SettingsCheck.NONE,
-        readOnly: ReadOnlyValues = ReadOnlyValues(),
-    ) {
+    // a group the settings api serves, in the order of the settings page; what it requires is registered
+    // before, so requirements never go round in a circle
+    fun register(registration: SettingsRegistration) {
+        val (group, check, readOnly) = registration
         require(group.name !in registered) { "the group ${group.name} is registered twice" }
         group.settings.filter { it.readOnly }.forEach {
             require(readOnly.has(it)) { "the read-only setting ${it.name} of the group ${group.name} has no value" }

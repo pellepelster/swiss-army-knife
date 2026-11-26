@@ -47,7 +47,7 @@ class S3BlobStoreManagerTest {
                 bucket != "the-bucket" -> S3KeyStatus.NO_BUCKET
                 else -> S3KeyStatus.VALID
             }
-        }
+        }.also { service.register(it.registration) }
     }
 
     // the settings, with the group of the manager registered

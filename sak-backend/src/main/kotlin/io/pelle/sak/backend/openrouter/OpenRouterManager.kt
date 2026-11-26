@@ -8,6 +8,7 @@ import io.pelle.sak.settings.model.internal.SettingsGroup
 import io.pelle.sak.settings.model.internal.SettingScope
 import io.pelle.sak.settings.ChangedValues
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistration
 import io.pelle.sak.settings.model.internal.TextSetting
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.openrouter.ApiKeyCheck
@@ -31,13 +32,14 @@ class OpenRouterManager(
     private val httpClient: HttpClient = openRouterHttpClient(),
     private val keyCheck: ApiKeyCheck = OpenRouterApiKeyCheck(config.url, httpClient),
 ) {
-    init {
-        settings.register(
+    // its group, with the check of the api key and the models of the configuration; registered by the
+    // backend (SET-6)
+    val registration =
+        SettingsRegistration(
             GROUP,
             { check(it) },
             ReadOnlyValues().with(VISION_MODEL) { config.model }.with(SPEECH_MODEL) { config.speechModel },
         )
-    }
 
     private class Clients(
         val apiKey: String,

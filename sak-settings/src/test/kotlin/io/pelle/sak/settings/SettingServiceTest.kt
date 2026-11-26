@@ -38,7 +38,7 @@ class SettingServiceTest {
 
     private val repository by lazy { SettingRepository(SakDatabase.open(tempDir.resolve("sak.db"))) }
 
-    private val settings by lazy { SettingService(repository).also { it.register(GROUP) } }
+    private val settings by lazy { SettingService(repository).also { it.register(SettingsRegistration(GROUP)) } }
 
     private fun stored(
         scope: SettingScope,
@@ -79,7 +79,7 @@ class SettingServiceTest {
         error.message shouldBe "the setting loose.needs requires base.enabled, whose group is not registered"
         shouldThrow<IllegalStateException> { settings.set(needs, true) }
         // registered, the requirement counts as for every other setting
-        settings.register(SettingsGroup(baseScope, t("Base"), t("Required."), listOf(switch)))
+        settings.register(SettingsRegistration(SettingsGroup(baseScope, t("Base"), t("Required."), listOf(switch))))
         settings.get(needs) shouldBe null
         settings.set(switch, true)
         settings.get(needs) shouldBe false
@@ -91,7 +91,7 @@ class SettingServiceTest {
         val switch = BooleanSetting(scope, SettingName("enabled"), t("On"), t("Turns the scope on."), default = false)
         val text = TextSetting(scope, SettingName("greeting"), t("A greeting"), t("Says hello."), default = "hello", maxLength = 10)
         val switched = SettingsGroup(scope, t("Switched"), t("Turned on and off."), listOf(switch, text), enabledBy = switch)
-        settings.register(switched)
+        settings.register(SettingsRegistration(switched))
 
         settings.get(switch) shouldBe false
         settings.get(text) shouldBe null
@@ -120,7 +120,7 @@ class SettingServiceTest {
         val fixed = TextSetting(scope, SettingName("fixed"), t("Fixed"), t("Given by the code."), default = "", readOnly = true)
         val group = SettingsGroup(scope, t("Fixed"), t("With a fixed value."), listOf(flag, fixed))
         var value = "first"
-        settings.register(group, readOnly = ReadOnlyValues().with(fixed) { value })
+        settings.register(SettingsRegistration(group, readOnly = ReadOnlyValues().with(fixed) { value }))
 
         settings.get(fixed) shouldBe "first"
         value = "second"
@@ -137,10 +137,10 @@ class SettingServiceTest {
 
     @Test
     fun `a group is registered once, with a value for each read-only setting`() {
-        shouldThrow<IllegalArgumentException> { settings.register(GROUP) }
+        shouldThrow<IllegalArgumentException> { settings.register(SettingsRegistration(GROUP)) }
         val scope = SettingScope("fixed")
         val fixed = TextSetting(scope, SettingName("fixed"), t("Fixed"), t("Given by the code."), default = "", readOnly = true)
-        shouldThrow<IllegalArgumentException> { settings.register(SettingsGroup(scope, t("Fixed"), t("With a fixed value."), listOf(fixed))) }
+        shouldThrow<IllegalArgumentException> { settings.register(SettingsRegistration(SettingsGroup(scope, t("Fixed"), t("With a fixed value."), listOf(fixed)))) }
         shouldThrow<IllegalArgumentException> { ReadOnlyValues().with(FLAG) { true } }
     }
 
@@ -154,9 +154,9 @@ class SettingServiceTest {
         val text = TextSetting(dependentScope, SettingName("greeting"), t("A greeting"), t("Says hello."), default = "hello", maxLength = 10)
         val dependent = SettingsGroup(dependentScope, t("Dependent"), t("Requires."), listOf(needs, text))
         // what it requires is registered first
-        shouldThrow<IllegalArgumentException> { settings.register(dependent) }
-        settings.register(base)
-        settings.register(dependent)
+        shouldThrow<IllegalArgumentException> { settings.register(SettingsRegistration(dependent)) }
+        settings.register(SettingsRegistration(base))
+        settings.register(SettingsRegistration(dependent))
         val error = ErrorMessage(SettingsTexts.REQUIRES, "label" to t("Needs"), "required" to t("On"), "scope" to t("Base"))
 
         settings.get(needs) shouldBe null
@@ -184,7 +184,7 @@ class SettingServiceTest {
         // a requirement needs its own requirement met
         val lastScope = SettingScope("last")
         val chained = BooleanSetting(lastScope, SettingName("chained"), t("Chained"), t("Needs needs."), default = true, requires = needs)
-        settings.register(SettingsGroup(lastScope, t("Last"), t("At the end."), listOf(chained)))
+        settings.register(SettingsRegistration(SettingsGroup(lastScope, t("Last"), t("At the end."), listOf(chained))))
         settings.get(chained) shouldBe null
         settings.set(switch, true)
         settings.set(needs, true)
@@ -198,10 +198,10 @@ class SettingServiceTest {
         val key = TextSetting(scope, SettingName("key"), t("A text"), t("Says something."), default = "")
         val group = SettingsGroup(scope, t("Base"), t("Required."), listOf(on, key))
         val seen = mutableListOf<Triple<Boolean, String?, String>>()
-        settings.register(group, check = { values ->
+        settings.register(SettingsRegistration(group, check = { values ->
             seen += Triple(values[on], values.new(key), values.stored(key))
             if (values[on] && values[key].isEmpty()) listOf(ErrorMessage(t("Required."))) else emptyList()
-        })
+        }))
 
         settings.set(on, true) shouldBe ErrorMessage(t("Required."))
         settings.validate(group, mapOf("on" to JsonPrimitive(true))) shouldBe Validation.Invalid(listOf(ErrorMessage(t("Required."))))
@@ -215,7 +215,7 @@ class SettingServiceTest {
         val scope = SettingScope("masked")
         val secret = TextSetting(scope, SettingName("secret"), t("Secret"), t("Hides itself."), default = "", mask = 2)
         val group = SettingsGroup(scope, t("Masked"), t("Hides."), listOf(secret))
-        settings.register(group)
+        settings.register(SettingsRegistration(group))
         settings.set(secret, "the secret") shouldBe null
 
         settings.validate(group, mapOf("secret" to JsonPrimitive("th••••••••"))).shouldBeInstanceOf<Validation.Valid>().values shouldBe emptyList()
@@ -234,7 +234,7 @@ class SettingServiceTest {
         val choice =
             ChoiceSetting(scope, SettingName("choice"), t("A choice"), t("Takes one."), listOf(SettingChoice("first", t("First")), SettingChoice("second", t("Second"))), default = "first")
         val group = SettingsGroup(scope, t("Test"), t("Settings to test with."), listOf(choice))
-        settings.register(group)
+        settings.register(SettingsRegistration(group))
 
         settings.get(choice) shouldBe "first"
         (settings.validate(group, mapOf("choice" to JsonPrimitive("third"))) as Validation.Invalid).errors shouldBe
@@ -273,7 +273,7 @@ class SettingServiceTest {
         val flag = BooleanSetting(scope, SettingName("flag"), t("A flag"), t("Turns something on."), default = false)
         val secret = TextSetting(scope, SettingName("secret"), t("A secret"), t("Hides itself."), default = "", mask = 2)
         val group = SettingsGroup(scope, t("Secret"), t("Hides."), listOf(flag, secret))
-        settings.register(group)
+        settings.register(SettingsRegistration(group))
 
         settings.update(group, mapOf("flag" to JsonPrimitive(true), "other" to JsonPrimitive(true)), owner = ADMIN) shouldBe
             SettingsUpdateResult.Invalid(listOf(ErrorMessage(SettingsTexts.UNKNOWN_SETTING, "name" to "other", "scope" to scope)))
@@ -287,7 +287,7 @@ class SettingServiceTest {
     fun `the groups are served in the order they are registered, by their level`() {
         val users = SettingScope("users")
         val text = TextSetting(users, SettingName("text"), t("A text"), t("Says something."), default = "", level = SettingLevel.USER)
-        settings.register(SettingsGroup(users, t("Other"), null, listOf(text)))
+        settings.register(SettingsRegistration(SettingsGroup(users, t("Other"), null, listOf(text))))
 
         settings.groups.map { it.name } shouldBe listOf(TEST, users)
         settings.groups(SettingLevel.INSTANCE).map { it.name } shouldBe listOf(TEST)

@@ -5,6 +5,7 @@ import io.pelle.sak.settings.model.internal.SettingName
 import io.pelle.sak.settings.model.internal.SettingsGroup
 import io.pelle.sak.settings.model.internal.SettingScope
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistration
 import io.pelle.sak.backend.storage.S3StorageManager
 
 // the settings of the backups: where the repositories of restic are kept, on the data volume of the
@@ -13,9 +14,8 @@ import io.pelle.sak.backend.storage.S3StorageManager
 class ResticSettings(
     private val settings: SettingService,
 ) {
-    init {
-        settings.register(GROUP)
-    }
+    // its group, which requires the S3 storage; registered by the backend after it (SET-6)
+    val registration = SettingsRegistration(GROUP)
 
     // whether the repositories are kept in the S3 storage: turned on here and the S3 storage turned on
     fun s3(): Boolean = settings.on(S3)

@@ -3,6 +3,8 @@ package io.pelle.sak.settings
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
+import io.pelle.sak.core.Language
+import io.pelle.sak.core.Text
 import io.pelle.sak.settings.model.internal.BooleanSetting
 import io.pelle.sak.settings.model.internal.ChoiceSetting
 import io.pelle.sak.settings.model.internal.SettingChoice
@@ -24,6 +26,21 @@ class SettingDefinitionTest {
     private val flag = BooleanSetting(TEST, SettingName("flag"), t("A flag"), t("Turns something on."), default = false)
 
     private val text = TextSetting(TEST, SettingName("text"), t("A text"), t("Says something."), default = "", maxLength = 5)
+
+    @Test
+    fun `the description fills its placeholders with the arguments asked for when it is read (SET-5)`() {
+        var model = "the first model"
+        val described =
+            BooleanSetting(TEST, SettingName("ai"), t("A flag"), t("Greets %{name}."), default = false, descriptionArgs = { mapOf("name" to model) })
+        described.description() shouldBe Text(t("Greets %{name}."), "name" to "the first model")
+        described.description().render(Language.EN) shouldBe "Greets the first model."
+        // asked again, e.g. after the configuration named another model
+        model = "another model"
+        described.description().render(Language.EN) shouldBe "Greets another model."
+        // without arguments, the text as it is
+        flag.description() shouldBe Text(t("Turns something on."))
+        flag.description().render(Language.EN) shouldBe "Turns something on."
+    }
 
     @Test
     fun `a boolean is stored and answered as it is, only true and false are one`() {

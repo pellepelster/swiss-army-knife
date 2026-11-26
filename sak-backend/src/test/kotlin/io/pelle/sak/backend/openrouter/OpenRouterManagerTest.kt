@@ -33,7 +33,7 @@ class OpenRouterManagerTest {
                 key.startsWith("good") -> ApiKeyStatus.VALID
                 else -> ApiKeyStatus.INVALID
             }
-        }
+        }.also { service.register(it.registration) }
     }
 
     // the settings, with the group of the manager registered

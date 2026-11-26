@@ -50,7 +50,7 @@ class UserSettingsTest {
 
     private val group = SettingsGroup(APP, t("Base"), t("Required."), listOf(flag, text, greeting))
 
-    private val settings by lazy { SettingService(repository).also { it.register(group) } }
+    private val settings by lazy { SettingService(repository).also { it.register(SettingsRegistration(group)) } }
 
     private fun Validation.values() = (this as Validation.Valid).values
 

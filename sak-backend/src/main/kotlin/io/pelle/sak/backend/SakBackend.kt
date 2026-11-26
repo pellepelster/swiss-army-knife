@@ -172,6 +172,15 @@ fun Application.sak(config: SakConfig): SakServices {
     val groceryUserSettings = GroceryUserSettings(openRouter, settings)
     val s3Storage = S3StorageManager(settings, config.name)
     val resticSettings = ResticSettings(settings)
+    // the groups of the settings, in the order of the settings page; a group a setting requires comes
+    // before the group of that setting: restic requires the S3 storage (SET-6)
+    listOf(
+        openRouter.registration,
+        notesUserSettings.registration,
+        groceryUserSettings.registration,
+        s3Storage.registration,
+        resticSettings.registration,
+    ).forEach(settings::register)
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(reservedDomains(config))
     // everything the backend does on its own runs here and ends with it

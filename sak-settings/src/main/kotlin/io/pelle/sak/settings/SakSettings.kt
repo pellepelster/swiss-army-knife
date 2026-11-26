@@ -152,7 +152,7 @@ fun Route.settings(settings: SettingService) {
 
 private fun Parameters.Builder.scope() =
     path("scope") {
-        description = "The name of the scope, e.g. openrouter"
+        description = "The name of the scope, e.g. ai"
         required = true
         schema = jsonSchema<String>()
     }

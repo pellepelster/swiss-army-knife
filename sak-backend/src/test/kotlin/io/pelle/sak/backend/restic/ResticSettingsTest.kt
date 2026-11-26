@@ -19,9 +19,11 @@ class ResticSettingsTest {
     private val database by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db"))) }
 
     // an S3 storage that takes every bucket and key, registered before the backups that require it
-    private val storage by lazy { S3StorageManager(database, "the-deployment") { _, _, _, _ -> S3KeyStatus.VALID } }
+    private val storage by lazy {
+        S3StorageManager(database, "the-deployment") { _, _, _, _ -> S3KeyStatus.VALID }.also { database.register(it.registration) }
+    }
 
-    private val service by lazy { storage.let { ResticSettings(database) } }
+    private val service by lazy { storage.let { ResticSettings(database).also { database.register(it.registration) } } }
 
     // the settings with both groups registered
     private val settings: SettingService get() = service.let { database }

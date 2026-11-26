@@ -577,6 +577,21 @@ class SakAppsTest {
             listOf("/api/v1/static-hosting", "/api/v1/redirects", "/api/v1/settings", "/api/v1/health", "/api/v1/status", "/api/v1/users").forEach {
                 get(port, it, anna).statusCode() shouldBe 403
             }
+            // every endpoint of the settings as SakApps mounts it (SET-4): none without a session, the ones of the
+            // admins not for a user, the ones of the users for them
+            fun answer(
+                method: String,
+                path: String,
+                session: String?,
+            ) = request(port, method, path, session, if (method == "PUT") """{"ai":true}""".toByteArray() else null, answer = HttpResponse.BodyHandlers.ofString())
+                .statusCode()
+            val endpoints =
+                listOf("GET" to "/api/v1/settings", "GET" to "/api/v1/settings/ai", "PUT" to "/api/v1/settings/ai", "GET" to "/api/v1/user/settings", "PUT" to "/api/v1/user/settings/notes")
+            endpoints.forEach { (method, path) -> answer(method, path, null) shouldBe 401 }
+            endpoints.take(3).forEach { (method, path) -> answer(method, path, anna) shouldBe 403 }
+            answer("GET", "/api/v1/user/settings", anna) shouldBe 200
+            // the AI is not set up: valid, but it does not count now
+            answer("PUT", "/api/v1/user/settings/notes", anna) shouldBe 409
 
             // deleted: the next request of the session is refused, no new link
             delete(port, "/api/v1/users/$annaId", admin).statusCode() shouldBe 204

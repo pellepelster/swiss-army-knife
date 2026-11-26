@@ -14,4 +14,6 @@ dependencies {
     testImplementation(testFixtures(project(":sak-api")))
     testImplementation(testFixtures(project(":sak-core")))
     testImplementation(testFixtures(project(":sak-model")))
+    // the routes in an application of the tests
+    testImplementation(libs.ktor.server.test.host)
 }
