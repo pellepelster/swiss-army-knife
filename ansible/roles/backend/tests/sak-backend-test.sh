@@ -65,6 +65,13 @@ echo checkpoint > $data/vector/checkpoints.json
 chown -R sak:sak $data/backend/data $data/ingress $data/vector
 runuser -u sak -- sqlite3 $data/backend/data/sak.db \
   'PRAGMA journal_mode=WAL; CREATE TABLE notes (text TEXT); INSERT INTO notes VALUES (\"first\");' >/dev/null"
+echo "a backup while victorialogs has no line yet: no snapshot, nothing of victorialogs but its directory"
+on_server "sak-backend backup \$(age-keygen -y /work/backup.key) > /work/empty.age 2> /work/empty.log"
+on_server "! grep -q 'not deleted' /work/empty.log" || { on_server "cat /work/empty.log" >&2; fail "a snapshot that is none is deleted"; }
+empty=$(on_server "age -d -i /work/backup.key /work/empty.age | zstd -dc | tar -t" | grep '^victorialogs/')
+[ "$empty" = "victorialogs/
+victorialogs/partitions/" ] || fail "the backup without a line of victorialogs has more of it: $empty"
+
 for i in 1 2; do
   on_server "printf '{\"_msg\":\"line $i\",\"_time\":\"%s\"}\n' \"\$(date -u +%FT%TZ)\" \
     | curl -fsS -X POST -H 'Content-Type: application/stream+json' --data-binary @- \

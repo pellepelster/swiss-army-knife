@@ -291,7 +291,9 @@ backup() {
   step "taking a snapshot of victorialogs"
   install -d -m 0700 -o {{ backend_user }} -g {{ backend_group }} "$staging/victorialogs" "$staging/victorialogs/partitions"
   answer=$(curl -fsS -X POST --data-urlencode "authKey=$auth_key" "$snapshot_api/create")
-  mapfile -t snapshots < <(python3 -c 'import json, sys; print("\n".join(json.load(sys.stdin)))' <<<"$answer")
+  # a line for each snapshot, none for none: victorialogs without a partition yet answers [], which
+  # must not become one empty snapshot, the whole data of victorialogs
+  mapfile -t snapshots < <(python3 -c 'import json, sys; [print(path) for path in json.load(sys.stdin)]' <<<"$answer")
   for snapshot in "${snapshots[@]}"; do
     # /victoria-logs-data/partitions/<day>/snapshots/<id>, the path in the container; the delete
     # takes it as it is
