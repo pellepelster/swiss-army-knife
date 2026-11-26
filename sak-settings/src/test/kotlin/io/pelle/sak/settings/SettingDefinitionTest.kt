@@ -13,6 +13,7 @@ import io.pelle.sak.settings.model.internal.SettingScope
 import io.pelle.sak.settings.model.internal.SettingLevel
 import io.pelle.sak.settings.model.internal.SettingValue
 import io.pelle.sak.settings.model.internal.SettingsGroup
+import io.pelle.sak.settings.model.internal.MASKED
 import io.pelle.sak.settings.model.internal.TextSetting
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -66,11 +67,17 @@ class SettingDefinitionTest {
     }
 
     @Test
-    fun `a masked text shows its first characters and a fixed mask`() {
+    fun `a masked text shows its first characters and a fixed mask, at most a quarter of it (#157)`() {
         val masked = TextSetting(TEST, SettingName("masked"), t("Masked"), t("Hides itself."), default = "", mask = 2)
-        masked.toApiJson("secret") shouldBe JsonPrimitive("se••••••••")
-        masked.toApiJson("se") shouldBe JsonPrimitive("se")
+        masked.toApiJson("secret-1") shouldBe JsonPrimitive("se••••••••")
+        // shorter than four times the mask, or no longer than it: only the mask, of every length the same
+        masked.toApiJson("secret") shouldBe JsonPrimitive(MASKED)
+        masked.toApiJson("se") shouldBe JsonPrimitive(MASKED)
+        masked.toApiJson("s") shouldBe JsonPrimitive(MASKED)
+        // not set: nothing to hide
         masked.toApiJson("") shouldBe JsonPrimitive("")
+        val hidden = TextSetting(TEST, SettingName("hidden"), t("Hidden"), t("Hides itself."), default = "", mask = 0)
+        hidden.toApiJson("a long secret") shouldBe JsonPrimitive(MASKED)
         text.toApiJson("hello") shouldBe JsonPrimitive("hello")
     }
 

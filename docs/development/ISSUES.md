@@ -243,18 +243,6 @@ values again in the transaction that writes them.
 From the review of the settings (`SET-11`), at commit c412815a; the review is removed, its open findings are these
 issues.
 
-## `#157` (`SET-12`) A masked text no longer than its mask shows in full
-
-**Created:** 2026-11-26. **Labels:** enhancement, area: backend, review, severity: low, security.
-
-`TextSetting.toApiJson` shows the first `mask` characters of a value and a fixed mask; a value of at most `mask`
-characters is answered as it is. The api key of OpenRouter has `mask = 4`, so a key of four characters or less would
-show in full on the settings page. The keys of OpenRouter and Hetzner are far longer, so it is not seen.
-
-Fix: mask a value that is not longer than its mask completely, e.g. only the mask.
-
-From the review of the settings (`SET-12`), at commit c412815a.
-
 ## `#158` (`SET-13`) The registry of the settings is not synchronized
 
 **Created:** 2026-11-26. **Labels:** enhancement, area: backend, review, severity: low.

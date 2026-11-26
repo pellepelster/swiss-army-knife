@@ -109,9 +109,13 @@ class OpenRouterManagerTest {
     }
 
     @Test
-    fun `the api key shows its first characters only`() {
+    fun `the api key shows its first characters only, a short one nothing of it (#157)`() {
+        fun shown() = settings.all(OpenRouterManager.GROUP).single { it.setting === OpenRouterManager.API_KEY }.toApiJson()
+        settings.set(OpenRouterManager.API_KEY, "sk-or-v1-0123456789abcdef")
+        shown() shouldBe JsonPrimitive("sk-o••••••••")
+        SettingValue(OpenRouterManager.API_KEY, "sk-or-v1-0123456789abcdef").toString() shouldNotContain "sk-o"
+        // shorter than 16 characters: only the mask, which tells nothing of the length
         settings.set(OpenRouterManager.API_KEY, "sk-or-v1-secret")
-        settings.all(OpenRouterManager.GROUP).single { it.setting === OpenRouterManager.API_KEY }.toApiJson() shouldBe JsonPrimitive("sk-o••••••••")
-        SettingValue(OpenRouterManager.API_KEY, "sk-or-v1-secret").toString() shouldNotContain "sk-o"
+        shown() shouldBe JsonPrimitive("••••••••")
     }
 }

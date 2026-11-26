@@ -1281,9 +1281,9 @@ class SakAppsTest {
                     it.statusCode() shouldBe 400
                     it.body() shouldBe """{"errors":[{"code":"openrouter.key_refused","message":"OpenRouter does not accept the API key."}]}"""
                 }
-                // the key shows its first four characters only
+                // a key this short shows only the mask (#157)
                 put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", session).body() shouldBe
-                    """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+                    """{"enabled":true,"api_key":"••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
                 // set up, the user turns the AI of the notes on for themselves
                 discover(receipt).statusCode() shouldBe 409
                 get(port, "/api/v1/notes/settings", session).body() shouldBe """{"discoverText":false,"aiConfigured":true}"""
@@ -1955,7 +1955,7 @@ class SakAppsTest {
             }
             put(port, "/api/v1/settings/ai", """{"enabled":true,"api_key":"token"}""", session).let {
                 it.statusCode() shouldBe 200
-                it.body() shouldBe """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+                it.body() shouldBe """{"enabled":true,"api_key":"••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
             }
             put(port, "/api/v1/settings/ai", """{"enabled":"false","other":1}""", session).let {
                 it.statusCode() shouldBe 400
@@ -1969,7 +1969,7 @@ class SakAppsTest {
                 it.statusCode() shouldBe 400
                 it.body() shouldBe """{"errors":[{"code":"settings.read_only","message":"\"Vision model\" cannot be changed."}]}"""
             }
-            get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":true,"api_key":"toke••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
+            get(port, "/api/v1/settings/ai", session).body() shouldBe """{"enabled":true,"api_key":"••••••••","vision_model":"anthropic/claude-haiku-5.5","speech_model":"openai/whisper-large-v3-turbo"}"""
 
             put(port, "/api/v1/settings/ai", """{"enabled":false}""", session).statusCode() shouldBe 200
 
