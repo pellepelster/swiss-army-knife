@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 
 open class TextSetting(
+    scope: SettingScope,
     name: SettingName,
     label: TextKey,
     description: TextKey,
@@ -17,11 +18,11 @@ open class TextSetting(
     // A masked value never shows in a log line
     val mask: Int? = null,
     readOnly: Boolean = false,
-    requires: Requirement? = null,
+    requires: BooleanSetting? = null,
     level: SettingUser = SettingUser.INSTANCE,
     unavailable: () -> ErrorMessage? = { null },
     descriptionArgs: () -> Map<String, Any?> = { emptyMap() },
-) : SettingDefinition<String>(name, label, description, default, readOnly, requires, level, unavailable, descriptionArgs) {
+) : SettingDefinition<String>(scope, name, label, description, default, readOnly, requires, level, unavailable, descriptionArgs) {
     init {
         require((mask ?: 0) >= 0) { "the mask of $name is negative" }
     }

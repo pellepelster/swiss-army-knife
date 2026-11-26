@@ -7,17 +7,23 @@ import io.pelle.sak.settings.model.BooleanSetting
 import io.pelle.sak.settings.model.ChoiceSetting
 import io.pelle.sak.settings.model.SettingChoice
 import io.pelle.sak.settings.model.SettingName
+import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.model.SettingUser
 import io.pelle.sak.settings.model.SettingValue
+import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.model.TextSetting
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Test
 
-class SettingDefinitionTest {
-    private val flag = BooleanSetting(SettingName("flag"), t("A flag"), t("Turns something on."), default = false)
+// the scope of the settings of the tests
+private val TEST = SettingScope("test")
 
-    private val text = TextSetting(SettingName("text"), t("A text"), t("Says something."), default = "", maxLength = 5)
+class SettingDefinitionTest {
+    private val flag = BooleanSetting(TEST, SettingName("flag"), t("A flag"), t("Turns something on."), default = false)
+
+    private val text = TextSetting(TEST, SettingName("text"), t("A text"), t("Says something."), default = "", maxLength = 5)
 
     @Test
     fun `a boolean is stored and answered as it is, only true and false are one`() {
@@ -44,7 +50,7 @@ class SettingDefinitionTest {
 
     @Test
     fun `a masked text shows its first characters and a fixed mask`() {
-        val masked = TextSetting(SettingName("masked"), t("Masked"), t("Hides itself."), default = "", mask = 2)
+        val masked = TextSetting(TEST, SettingName("masked"), t("Masked"), t("Hides itself."), default = "", mask = 2)
         masked.toApiJson("secret") shouldBe JsonPrimitive("se••••••••")
         masked.toApiJson("se") shouldBe JsonPrimitive("se")
         masked.toApiJson("") shouldBe JsonPrimitive("")
@@ -54,7 +60,7 @@ class SettingDefinitionTest {
     @Test
     fun `a choice is one of its values`() {
         val choices = listOf(SettingChoice("first", t("First")), SettingChoice("second", t("Second")))
-        val choice = ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), choices, default = "first")
+        val choice = ChoiceSetting(TEST, SettingName("choice"), t("A choice"), t("Takes one."), choices, default = "first")
 
         choice.decode(choice.encode("second")) shouldBe "second"
         // a value stored that is no choice any more
@@ -70,8 +76,38 @@ class SettingDefinitionTest {
     @Test
     fun `a choice has choices, each value once, and its default is one of them`() {
         val first = SettingChoice("first", t("First"))
-        shouldThrow<IllegalArgumentException> { ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), emptyList(), default = "first") }
-        shouldThrow<IllegalArgumentException> { ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), listOf(first, first), default = "first") }
-        shouldThrow<IllegalArgumentException> { ChoiceSetting(SettingName("choice"), t("A choice"), t("Takes one."), listOf(first), default = "second") }
+        shouldThrow<IllegalArgumentException> { ChoiceSetting(TEST, SettingName("choice"), t("A choice"), t("Takes one."), emptyList(), default = "first") }
+        shouldThrow<IllegalArgumentException> { ChoiceSetting(TEST, SettingName("choice"), t("A choice"), t("Takes one."), listOf(first, first), default = "first") }
+        shouldThrow<IllegalArgumentException> { ChoiceSetting(TEST, SettingName("choice"), t("A choice"), t("Takes one."), listOf(first), default = "second") }
+    }
+
+    @Test
+    fun `a setting of a user is never read-only, nor requires a read-only one or one of a user`() {
+        shouldThrow<IllegalArgumentException> {
+            BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, readOnly = true, level = SettingUser.USER)
+        }
+        val fixed = BooleanSetting(TEST, SettingName("fixed"), t("Fixed"), t("Given by the code."), default = false, readOnly = true)
+        shouldThrow<IllegalArgumentException> { TextSetting(TEST, SettingName("needs"), t("Needs"), t("Needs the flag."), default = "", requires = fixed) }
+        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingUser.USER)
+        shouldThrow<IllegalArgumentException> { TextSetting(TEST, SettingName("needs"), t("Needs"), t("Needs the flag."), default = "", requires = mine) }
+    }
+
+    @Test
+    fun `a group has the settings of its scope, each name once, and is turned on by one of its own settings of the instance`() {
+        SettingsGroup(TEST, t("Test"), t("Settings to test with."), listOf(flag, text), enabledBy = flag).setting("text") shouldBe text
+        val other = TextSetting(SettingScope("other"), SettingName("other"), t("Other"), t("Says something."), default = "")
+        shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Test"), t("Settings to test with."), listOf(flag, other)) }
+        val twice = TextSetting(TEST, SettingName("text"), t("A text"), t("Says something."), default = "")
+        shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Test"), t("Settings to test with."), listOf(text, twice)) }
+        shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Switched"), t("Turned on and off."), listOf(text), enabledBy = flag) }
+        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingUser.USER)
+        shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Switched"), t("Turned on and off."), listOf(mine, text), enabledBy = mine) }
+    }
+
+    @Test
+    fun `a group of the admins has a description, one of the users only needs none`() {
+        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingUser.USER)
+        SettingsGroup(TEST, t("Test"), null, listOf(mine)).of(SettingUser.USER) shouldBe listOf(mine)
+        shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Test"), null, listOf(mine, flag)) }
     }
 }

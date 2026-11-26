@@ -31,7 +31,6 @@ import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.settings.SettingService
 import io.pelle.sak.backend.notes.NotesUserSettings
-import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.backend.openrouter.OpenRouterManager
 import io.pelle.sak.backend.storage.S3StorageManager
 import io.pelle.sak.backend.storage.StorageUsageService
@@ -50,7 +49,7 @@ import io.pelle.sak.storage.LocalBlobStore
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.backend.restic.resticRest
 import io.pelle.sak.backend.restic.ResticStore
-import io.pelle.sak.backend.restic.ResticSettingsService
+import io.pelle.sak.backend.restic.ResticSettings
 import io.pelle.sak.backend.restic.BlobResticFileStorage
 import io.pelle.sak.backend.restic.ResticRepositoryService
 import io.pelle.sak.backend.restic.ResticBackupPlanService
@@ -102,8 +101,6 @@ fun Application.module() {
 // that are no service (the roles, the manager of the access logs, the storage of the buckets, the jobs)
 class SakServices(
     val settings: SettingService,
-    // every scope of settings the settings api serves
-    val settingsRegistry: SettingsRegistry,
     val bucketService: S3BucketService,
     val redirectService: RedirectService,
     val labelService: LabelService,
@@ -146,7 +143,7 @@ fun databaseFile(config: SakConfig) = config.dataDir.resolve("sak.db")
 fun resticStore(
     config: SakConfig,
     s3Storage: S3StorageManager,
-    resticSettings: ResticSettingsService,
+    resticSettings: ResticSettings,
 ): ResticStore {
     Files.createDirectories(config.resticDir)
     val volume =
@@ -174,7 +171,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val notesUserSettings = NotesUserSettings(openRouter, settings)
     val groceryUserSettings = GroceryUserSettings(openRouter, settings)
     val s3Storage = S3StorageManager(settings, config.name)
-    val resticSettings = ResticSettingsService(settings)
+    val resticSettings = ResticSettings(settings)
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(reservedDomains(config))
     // everything the backend does on its own runs here and ends with it
@@ -250,7 +247,6 @@ fun Application.sak(config: SakConfig): SakServices {
     val services =
         SakServices(
             settings = settings,
-            settingsRegistry = SettingsRegistry(listOf(openRouter, s3Storage, resticSettings, notesUserSettings.service, groceryUserSettings.service)),
             bucketService = bucketService,
             redirectService = redirectService,
             labelService = labelService,

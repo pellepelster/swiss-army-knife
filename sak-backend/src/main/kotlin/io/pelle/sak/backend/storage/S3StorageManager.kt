@@ -16,23 +16,25 @@ import io.pelle.sak.settings.model.SettingDefinition
 import io.pelle.sak.settings.model.SettingName
 import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.ChangedValues
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.model.SettingValue
-import io.pelle.sak.settings.StoredSettingsService
 import io.pelle.sak.settings.model.TextSetting
-import io.pelle.sak.settings.model.valueOf
 
 // the S3 storage of the deployment, a bucket at a provider (Hetzner Object Storage): its settings
 // and the one place the provider is asked and its client is made (EXT-1). The repositories of restic
-// are kept in the bucket while the settings of the backups say so (ResticSettingsService)
+// are kept in the bucket while the settings of the backups say so (ResticSettings)
 class S3StorageManager(
-    settings: SettingService,
+    private val settings: SettingService,
     // the name of the deployment, every object in the bucket is below it
     private val deployment: String,
     // the endpoint of a type and a region; another one for a test
     private val endpoint: (S3EndpointType, String) -> S3Endpoint = S3EndpointType::endpoint,
     private val keyCheck: S3KeyCheck = HeadBucketKeyCheck(),
-) : StoredSettingsService(SCOPE, settings) {
+) {
+    init {
+        settings.register(GROUP, { check(it) })
+    }
+
     // made again when a setting changes
     @Volatile
     private var bucket: S3Bucket? = null
@@ -40,10 +42,10 @@ class S3StorageManager(
     // the bucket and its client, null while the storage is turned off
     fun bucket(): S3Bucket? {
         // null while turned off
-        val name = get(BUCKET)?.trim()?.ifEmpty { null } ?: return null
-        val accessKey = get(ACCESS_KEY)?.trim()?.ifEmpty { null } ?: return null
-        val secretKey = get(SECRET_KEY)?.trim()?.ifEmpty { null } ?: return null
-        val endpoint = endpoint(S3EndpointType.of(get(ENDPOINT_TYPE) ?: ENDPOINT_TYPE.default), get(REGION) ?: REGION.default)
+        val name = settings.get(BUCKET)?.trim()?.ifEmpty { null } ?: return null
+        val accessKey = settings.get(ACCESS_KEY)?.trim()?.ifEmpty { null } ?: return null
+        val secretKey = settings.get(SECRET_KEY)?.trim()?.ifEmpty { null } ?: return null
+        val endpoint = endpoint(S3EndpointType.of(settings.get(ENDPOINT_TYPE) ?: ENDPOINT_TYPE.default), settings.get(REGION) ?: REGION.default)
         bucket?.takeIf { it.isOf(endpoint, name, accessKey, secretKey) }?.let { return it }
         return S3Bucket(endpoint, name, deployment, accessKey, secretKey).also { bucket = it }
     }
@@ -51,12 +53,12 @@ class S3StorageManager(
     // turned on it needs a bucket and both keys. They are checked at the provider when it is turned
     // on and when one of them, the type or the region changes while it is on: nothing goes to the
     // provider before
-    override fun check(values: List<SettingValue<*>>): List<ErrorMessage> {
-        val enabled = values.valueOf(ENABLED) ?: stored(ENABLED)
+    private fun check(values: ChangedValues): List<ErrorMessage> {
+        val enabled = values[ENABLED]
         if (!enabled) return emptyList()
-        val bucket = now(values, BUCKET).trim()
-        val accessKey = now(values, ACCESS_KEY).trim()
-        val secretKey = now(values, SECRET_KEY).trim()
+        val bucket = values[BUCKET].trim()
+        val accessKey = values[ACCESS_KEY].trim()
+        val secretKey = values[SECRET_KEY].trim()
         val missing =
             listOfNotNull(
                 StorageTexts.BUCKET_MISSING.takeIf { bucket.isEmpty() },
@@ -64,9 +66,9 @@ class S3StorageManager(
                 StorageTexts.SECRET_KEY_MISSING.takeIf { secretKey.isEmpty() },
             )
         if (missing.isNotEmpty()) return missing.map { ErrorMessage(it) }
-        val changed = !stored(ENABLED) || CHECKED.any { setting -> values.any { it.setting === setting && it.value != stored(setting) } }
+        val changed = !values.stored(ENABLED) || CHECKED.any { values.changed(it) }
         if (!changed) return emptyList()
-        return when (keyCheck.check(endpoint(S3EndpointType.of(now(values, ENDPOINT_TYPE)), now(values, REGION)), bucket, accessKey, secretKey)) {
+        return when (keyCheck.check(endpoint(S3EndpointType.of(values[ENDPOINT_TYPE]), values[REGION]), bucket, accessKey, secretKey)) {
             S3KeyStatus.VALID -> emptyList()
             S3KeyStatus.KEYS_REFUSED -> listOf(ErrorMessage(StorageTexts.KEYS_REFUSED))
             S3KeyStatus.NO_BUCKET -> listOf(ErrorMessage(StorageTexts.NO_BUCKET))
@@ -74,15 +76,13 @@ class S3StorageManager(
         }
     }
 
-    // the value to set, else the stored one
-    private fun <T : Any> now(
-        values: List<SettingValue<*>>,
-        setting: SettingDefinition<T>,
-    ): T = values.valueOf(setting) ?: stored(setting)
+    // whether the change gives the setting another value
+    private fun <T : Any> ChangedValues.changed(setting: SettingDefinition<T>) = new(setting)?.let { it != stored(setting) } == true
 
     // the name of a bucket; none is the default, the storage is not turned on with it
     private class BucketSetting :
         TextSetting(
+            SCOPE,
             SettingName("bucket"),
             StorageTexts.BUCKET_LABEL,
             StorageTexts.BUCKET_DESCRIPTION,
@@ -94,12 +94,15 @@ class S3StorageManager(
     }
 
     companion object {
+        val SCOPE = SettingScope("storage")
+
         // the names S3 takes for a bucket, which need no encoding in the path of a request
         private val BUCKET_NAME = Regex("[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
 
         // off until an admin turns it on, nothing is sent to the provider before
         val ENABLED =
             BooleanSetting(
+                SCOPE,
                 SettingName("enabled"),
                 StorageTexts.ENABLED_LABEL,
                 StorageTexts.ENABLED_DESCRIPTION,
@@ -108,6 +111,7 @@ class S3StorageManager(
 
         val ENDPOINT_TYPE =
             ChoiceSetting(
+                SCOPE,
                 SettingName("endpoint_type"),
                 StorageTexts.ENDPOINT_TYPE_LABEL,
                 StorageTexts.ENDPOINT_TYPE_DESCRIPTION,
@@ -118,6 +122,7 @@ class S3StorageManager(
         // the regions of Hetzner, the only type; a second type brings a choice of its own regions
         val REGION =
             ChoiceSetting(
+                SCOPE,
                 SettingName("region"),
                 StorageTexts.REGION_LABEL,
                 StorageTexts.REGION_DESCRIPTION,
@@ -129,6 +134,7 @@ class S3StorageManager(
 
         val ACCESS_KEY =
             TextSetting(
+                SCOPE,
                 SettingName("access_key"),
                 StorageTexts.ACCESS_KEY_LABEL,
                 StorageTexts.ACCESS_KEY_DESCRIPTION,
@@ -138,6 +144,7 @@ class S3StorageManager(
         // the api never answers a character of it
         val SECRET_KEY =
             TextSetting(
+                SCOPE,
                 SettingName("secret_key"),
                 StorageTexts.SECRET_KEY_LABEL,
                 StorageTexts.SECRET_KEY_DESCRIPTION,
@@ -148,9 +155,9 @@ class S3StorageManager(
         // a change of one of these is checked at the provider
         private val CHECKED: List<SettingDefinition<*>> = listOf(ENDPOINT_TYPE, REGION, BUCKET, ACCESS_KEY, SECRET_KEY)
 
-        val SCOPE =
+        val GROUP =
             SettingsGroup(
-                SettingScope("storage"),
+                SCOPE,
                 StorageTexts.SCOPE_LABEL,
                 StorageTexts.SCOPE_DESCRIPTION,
                 listOf(ENABLED, ENDPOINT_TYPE, REGION, BUCKET, ACCESS_KEY, SECRET_KEY),

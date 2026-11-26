@@ -8,16 +8,17 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 
 open class BooleanSetting(
+    scope: SettingScope,
     name: SettingName,
     label: TextKey,
     description: TextKey,
     default: Boolean,
     readOnly: Boolean = false,
-    requires: Requirement? = null,
+    requires: BooleanSetting? = null,
     level: SettingUser = SettingUser.INSTANCE,
     unavailable: () -> ErrorMessage? = { null },
     descriptionArgs: () -> Map<String, Any?> = { emptyMap() },
-) : SettingDefinition<Boolean>(name, label, description, default, readOnly, requires, level, unavailable, descriptionArgs) {
+) : SettingDefinition<Boolean>(scope, name, label, description, default, readOnly, requires, level, unavailable, descriptionArgs) {
     override val type = SettingType.BOOLEAN
 
     override val typeError get() = ErrorMessage(SettingsTexts.NOT_BOOLEAN, "label" to label)

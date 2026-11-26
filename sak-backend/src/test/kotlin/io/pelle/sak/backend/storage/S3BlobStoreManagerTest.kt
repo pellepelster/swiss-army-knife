@@ -36,8 +36,10 @@ class S3BlobStoreManagerTest {
     private var unknown = false
 
     // the storage has the bucket "the-bucket" and takes the secret keys that start with "good"
+    private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db"))) }
+
     private val manager by lazy {
-        S3StorageManager(SettingService(SakDatabase.open(tempDir.resolve("sak.db"))), "the-deployment") { endpoint, bucket, accessKey, secretKey ->
+        S3StorageManager(service, "the-deployment") { endpoint, bucket, accessKey, secretKey ->
             checked.add(Checked(endpoint.url, endpoint.region, bucket, accessKey, secretKey))
             when {
                 unknown -> S3KeyStatus.UNKNOWN
@@ -48,33 +50,36 @@ class S3BlobStoreManagerTest {
         }
     }
 
-    private fun on() = manager.get(S3StorageManager.ENABLED) == true
+    // the settings, with the group of the manager registered
+    private val settings: SettingService get() = manager.let { service }
+
+    private fun on() = settings.get(S3StorageManager.ENABLED) == true
 
     // the values of a request of the settings page, set when they are valid
     private fun save(vararg values: Pair<String, Any>): List<ErrorMessage> {
         val json = values.associate { (name, value) -> name to if (value is Boolean) JsonPrimitive(value) else JsonPrimitive(value.toString()) }
-        return when (val validation = manager.validate(json)) {
+        return when (val validation = settings.validate(S3StorageManager.GROUP, json)) {
             is Validation.Invalid -> validation.errors
             is Validation.Unavailable -> validation.errors
-            is Validation.Valid -> emptyList<ErrorMessage>().also { manager.set(validation.values, owner = "admin@example.org") }
+            is Validation.Valid -> emptyList<ErrorMessage>().also { settings.set(validation.values, owner = "admin@example.org") }
         }
     }
 
     @Test
     fun `is off until an admin turns it on with a bucket and keys the storage takes`() {
         on() shouldBe false
-        manager.get(S3StorageManager.BUCKET) shouldBe null
-        manager.effective().map { it.value } shouldBe listOf(false, "hetzner", "fsn1", "", "", "")
+        settings.get(S3StorageManager.BUCKET) shouldBe null
+        settings.effective(S3StorageManager.GROUP).map { it.value } shouldBe listOf(false, "hetzner", "fsn1", "", "", "")
 
         save("enabled" to true, "region" to "nbg1", "bucket" to "the-bucket", "access_key" to " the access key ", "secret_key" to "good secret") shouldBe emptyList()
 
         on() shouldBe true
         // asked once, at the host of the region, with the keys trimmed
         checked shouldBe listOf(Checked("https://nbg1.your-objectstorage.com", "nbg1", "the-bucket", "the access key", "good secret"))
-        manager.get(S3StorageManager.ENDPOINT_TYPE) shouldBe "hetzner"
-        manager.get(S3StorageManager.REGION) shouldBe "nbg1"
-        manager.get(S3StorageManager.BUCKET) shouldBe "the-bucket"
-        manager.get(S3StorageManager.SECRET_KEY) shouldBe "good secret"
+        settings.get(S3StorageManager.ENDPOINT_TYPE) shouldBe "hetzner"
+        settings.get(S3StorageManager.REGION) shouldBe "nbg1"
+        settings.get(S3StorageManager.BUCKET) shouldBe "the-bucket"
+        settings.get(S3StorageManager.SECRET_KEY) shouldBe "good secret"
     }
 
     @Test
@@ -88,19 +93,19 @@ class S3BlobStoreManagerTest {
 
         on() shouldBe false
         // nothing of a request that is not valid is stored, and the storage was not asked
-        manager.all().map { it.value } shouldBe listOf(false, "hetzner", "fsn1", "", "", "")
+        settings.all(S3StorageManager.GROUP).map { it.value } shouldBe listOf(false, "hetzner", "fsn1", "", "", "")
         checked shouldBe emptyList()
     }
 
     @Test
     fun `a bucket has the name of an S3 bucket`() {
         listOf("ab", "The-Bucket", "the_bucket", "-the-bucket", "the-bucket-", "the bucket", "the/bucket", "a".repeat(64)).forEach {
-            (manager.set(S3StorageManager.BUCKET, it) != null) shouldBe true
+            (settings.set(S3StorageManager.BUCKET, it) != null) shouldBe true
         }
-        manager.set(S3StorageManager.BUCKET, "The-Bucket") shouldBe ErrorMessage(StorageTexts.BUCKET_INVALID)
-        manager.set(S3StorageManager.BUCKET, "a".repeat(64)) shouldBe
+        settings.set(S3StorageManager.BUCKET, "The-Bucket") shouldBe ErrorMessage(StorageTexts.BUCKET_INVALID)
+        settings.set(S3StorageManager.BUCKET, "a".repeat(64)) shouldBe
             ErrorMessage(SettingsTexts.TOO_LONG, "label" to StorageTexts.BUCKET_LABEL, "max" to 63)
-        listOf("abc", "the-bucket", "the.bucket.1", "a".repeat(63), "").forEach { manager.set(S3StorageManager.BUCKET, it) shouldBe null }
+        listOf("abc", "the-bucket", "the.bucket.1", "a".repeat(63), "").forEach { settings.set(S3StorageManager.BUCKET, it) shouldBe null }
     }
 
     @Test
@@ -114,7 +119,7 @@ class S3BlobStoreManagerTest {
             listOf(ErrorMessage(StorageTexts.UNCHECKED))
 
         on() shouldBe false
-        manager.all().map { it.value } shouldBe listOf(false, "hetzner", "fsn1", "", "", "")
+        settings.all(S3StorageManager.GROUP).map { it.value } shouldBe listOf(false, "hetzner", "fsn1", "", "", "")
         checked.size shouldBe 3
     }
 
@@ -123,13 +128,13 @@ class S3BlobStoreManagerTest {
         save("bucket" to "the-bucket", "access_key" to "the access key", "secret_key" to "bad secret") shouldBe emptyList()
         checked shouldBe emptyList()
 
-        manager.set(S3StorageManager.ENABLED, true) shouldBe ErrorMessage(StorageTexts.KEYS_REFUSED)
+        settings.set(S3StorageManager.ENABLED, true) shouldBe ErrorMessage(StorageTexts.KEYS_REFUSED)
         on() shouldBe false
         checked.single().secretKey shouldBe "bad secret"
 
-        manager.set(S3StorageManager.SECRET_KEY, "good secret") shouldBe null
+        settings.set(S3StorageManager.SECRET_KEY, "good secret") shouldBe null
         checked.size shouldBe 1
-        manager.set(S3StorageManager.ENABLED, true) shouldBe null
+        settings.set(S3StorageManager.ENABLED, true) shouldBe null
         on() shouldBe true
         checked.size shouldBe 2
     }
@@ -150,9 +155,9 @@ class S3BlobStoreManagerTest {
         save("access_key" to "another access key") shouldBe emptyList()
         checked.size shouldBe 5
         // what was refused is not stored
-        manager.get(S3StorageManager.BUCKET) shouldBe "the-bucket"
-        manager.get(S3StorageManager.SECRET_KEY) shouldBe "good secret"
-        manager.get(S3StorageManager.ACCESS_KEY) shouldBe "another access key"
+        settings.get(S3StorageManager.BUCKET) shouldBe "the-bucket"
+        settings.get(S3StorageManager.SECRET_KEY) shouldBe "good secret"
+        settings.get(S3StorageManager.ACCESS_KEY) shouldBe "another access key"
 
         // a key does not go while it is turned on
         save("secret_key" to "") shouldBe listOf(ErrorMessage(StorageTexts.SECRET_KEY_MISSING))
@@ -166,8 +171,8 @@ class S3BlobStoreManagerTest {
         save("enabled" to false) shouldBe emptyList()
 
         on() shouldBe false
-        manager.get(S3StorageManager.BUCKET) shouldBe null
-        manager.all().map { it.value } shouldBe listOf(false, "hetzner", "fsn1", "the-bucket", "the access key", "good secret")
+        settings.get(S3StorageManager.BUCKET) shouldBe null
+        settings.all(S3StorageManager.GROUP).map { it.value } shouldBe listOf(false, "hetzner", "fsn1", "the-bucket", "the access key", "good secret")
         // turned off together with a change, the change is not checked
         save("enabled" to true) shouldBe emptyList()
         save("enabled" to false, "secret_key" to "bad secret") shouldBe emptyList()
@@ -209,9 +214,9 @@ class S3BlobStoreManagerTest {
     @Test
     fun `the secret key shows no character, the access key shows whole`() {
         save("access_key" to "the access key", "secret_key" to "good secret") shouldBe emptyList()
-        manager.all().single { it.setting === S3StorageManager.SECRET_KEY }.toApiJson() shouldBe JsonPrimitive("••••••••")
-        manager.all().single { it.setting === S3StorageManager.ACCESS_KEY }.toApiJson() shouldBe JsonPrimitive("the access key")
+        settings.all(S3StorageManager.GROUP).single { it.setting === S3StorageManager.SECRET_KEY }.toApiJson() shouldBe JsonPrimitive("••••••••")
+        settings.all(S3StorageManager.GROUP).single { it.setting === S3StorageManager.ACCESS_KEY }.toApiJson() shouldBe JsonPrimitive("the access key")
         SettingValue(S3StorageManager.SECRET_KEY, "good secret").toString() shouldNotContain "good"
-        manager.validate(mapOf("secret_key" to JsonPrimitive("••••••••"))).shouldBeInstanceOf<Validation.Valid>().values shouldBe emptyList()
+        settings.validate(S3StorageManager.GROUP, mapOf("secret_key" to JsonPrimitive("••••••••"))).shouldBeInstanceOf<Validation.Valid>().values shouldBe emptyList()
     }
 }

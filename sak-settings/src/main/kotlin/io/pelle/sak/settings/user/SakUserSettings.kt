@@ -15,8 +15,9 @@ import io.pelle.sak.api.respondErrors
 import io.pelle.sak.auth.owner
 import io.pelle.sak.settings.model.SettingDefinition
 import io.pelle.sak.settings.model.SettingValue
-import io.pelle.sak.settings.SettingsRegistry
-import io.pelle.sak.settings.SettingsService
+import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.SettingsUpdateResult
 import io.pelle.sak.settings.model.SettingsRequest
 import io.pelle.sak.settings.response
@@ -32,10 +33,10 @@ private const val USER_SETTINGS_TAG = "user settings"
 
 // a setting of the user with its value, whether it counts now and why not
 private fun SettingValue<*>.response(
-    service: SettingsService,
+    settings: SettingService,
     language: Language,
 ): UserSettingResponse {
-    val unavailable = service.unavailable(setting)
+    val unavailable = settings.unavailable(setting)
     return UserSettingResponse(
         setting.name.value,
         setting.label.render(language),
@@ -50,20 +51,21 @@ private fun SettingValue<*>.response(
 
 private fun <T : Any> SettingDefinition<T>.defaultJson() = toJson(default)
 
-// the settings of the user in the scope of the service
-private fun SettingsService.response(
+// the settings of the user in the group
+private fun SettingService.response(
+    group: SettingsGroup,
     user: String,
     language: Language,
-) = UserSettingScopeResponse(scope.name.value, scope.label.render(language), all(user).map { it.response(this, language) })
+) = UserSettingScopeResponse(group.name.value, group.label.render(language), all(group, user).map { it.response(this, language) })
 
 // the settings of the user signed in, meant to be mounted behind the authentication for every user;
 // the user is the one of the session, never one of the request, so a user reaches only their own
 @OptIn(ExperimentalKtorApi::class)
-fun Route.userSettings(registry: SettingsRegistry) {
+fun Route.userSettings(settings: SettingService) {
     get {
         val user = call.owner
         val language = call.language()
-        val scopes = withContext(Dispatchers.IO) { registry.userServices.map { it.response(user, language) } }
+        val scopes = withContext(Dispatchers.IO) { settings.groups(SettingUser.USER).map { settings.response(it, user, language) } }
         call.respond(UserSettingsResponse(scopes))
     }.describe {
         tag(USER_SETTINGS_TAG)
@@ -84,10 +86,10 @@ fun Route.userSettings(registry: SettingsRegistry) {
         val request = call.receive<SettingsRequest>()
         val scope = call.parameters["scope"].orEmpty()
         val user = call.owner
-        when (val result = withContext(Dispatchers.IO) { registry.updateOfUser(user, scope, request.settings) }) {
+        val group = settings.group(scope, SettingUser.USER)
+        when (val result = withContext(Dispatchers.IO) { group?.let { settings.update(it, request.settings, owner = user, user = user) } ?: SettingsUpdateResult.NotFound }) {
             is SettingsUpdateResult.Updated -> {
-                val service = registry.userServices.first { it.scope.name.value == scope }
-                call.respond(withContext(Dispatchers.IO) { service.response(user, call.language()) })
+                call.respond(withContext(Dispatchers.IO) { settings.response(group!!, user, call.language()) })
             }
             is SettingsUpdateResult.Invalid -> call.respondErrors(result.errors)
             is SettingsUpdateResult.Unavailable -> call.respondErrors(result.errors, status = HttpStatusCode.Conflict)

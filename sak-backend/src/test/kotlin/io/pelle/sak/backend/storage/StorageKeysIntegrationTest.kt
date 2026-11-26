@@ -38,15 +38,20 @@ class StorageKeysIntegrationTest {
     // how often Hetzner was asked
     private var asked = 0
 
+    private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db"))) }
+
     private val manager by lazy {
         val check = HeadBucketKeyCheck()
-        S3StorageManager(SettingService(SakDatabase.open(tempDir.resolve("sak.db"))), "saktest") { endpoint, bucket, accessKey, secretKey ->
+        S3StorageManager(service, "saktest") { endpoint, bucket, accessKey, secretKey ->
             asked++
             check.check(endpoint, bucket, accessKey, secretKey)
         }
     }
 
-    private fun on() = manager.get(S3StorageManager.ENABLED) == true
+    // the settings, with the group of the manager registered
+    private val settings: SettingService get() = manager.let { service }
+
+    private fun on() = settings.get(S3StorageManager.ENABLED) == true
 
     // the values of a request of the settings page, set when they are valid
     private fun save(
@@ -65,10 +70,10 @@ class StorageKeysIntegrationTest {
                 "access_key" to JsonPrimitive(accessKey),
                 "secret_key" to JsonPrimitive(secretKey),
             )
-        return when (val validation = manager.validate(json)) {
+        return when (val validation = settings.validate(S3StorageManager.GROUP, json)) {
             is Validation.Invalid -> validation.errors
             is Validation.Unavailable -> validation.errors
-            is Validation.Valid -> emptyList<ErrorMessage>().also { manager.set(validation.values, owner = "admin@example.org") }
+            is Validation.Valid -> emptyList<ErrorMessage>().also { settings.set(validation.values, owner = "admin@example.org") }
         }
     }
 
@@ -78,8 +83,8 @@ class StorageKeysIntegrationTest {
 
         on() shouldBe true
         asked shouldBe 1
-        manager.all().single { it.setting === S3StorageManager.SECRET_KEY }.toApiJson() shouldBe JsonPrimitive("••••••••")
-        (manager.get(S3StorageManager.BUCKET) == bucket) shouldBe true
+        settings.all(S3StorageManager.GROUP).single { it.setting === S3StorageManager.SECRET_KEY }.toApiJson() shouldBe JsonPrimitive("••••••••")
+        (settings.get(S3StorageManager.BUCKET) == bucket) shouldBe true
     }
 
     @Test

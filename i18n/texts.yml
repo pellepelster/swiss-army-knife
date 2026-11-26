@@ -233,6 +233,12 @@ backend:
     not_set_up:
       en: "No AI is set up for this SAK instance."
       de: "Für diese SAK-Instanz ist keine KI eingerichtet."
+  system:
+    signing_key:
+      label: { en: "Signing key", de: "Signaturschlüssel" }
+      description:
+        en: "The key pair that signs the login and session tokens, made once by the backend."
+        de: "Das Schlüsselpaar, das die Login- und Sitzungstokens signiert, einmal vom Backend erzeugt."
   settings:
     not_boolean: { en: "\"%{label}\" must be true or false.", de: "\"%{label}\" muss wahr oder falsch sein." }
     not_text: { en: "\"%{label}\" must be a text.", de: "\"%{label}\" muss ein Text sein." }

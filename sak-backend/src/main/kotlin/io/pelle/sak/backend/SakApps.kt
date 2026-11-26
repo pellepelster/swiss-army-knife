@@ -273,11 +273,11 @@ fun Application.apps(
                         }
                         route(ApiPath.SETTINGS) {
                             requireRole(Role.ADMIN)
-                            settingsRoutes(settingsRegistry)
+                            settingsRoutes(settings)
                         }
                         route(ApiPath.USER_SETTINGS) {
                             requireRole(Role.ADMIN, Role.USER)
-                            userSettings(settingsRegistry)
+                            userSettings(settings)
                         }
                         route(ApiPath.HEALTH) {
                             requireRole(Role.ADMIN)

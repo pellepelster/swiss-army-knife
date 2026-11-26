@@ -1,0 +1,4 @@
+# the texts of the catalog system in en, generated from i18n/texts.yml by sak-i18n (mise run i18n:generate), do not edit
+signing_key:
+  label: "Signing key"
+  description: "The key pair that signs the login and session tokens, made once by the backend."

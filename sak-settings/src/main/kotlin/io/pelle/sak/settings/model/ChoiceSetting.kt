@@ -8,17 +8,18 @@ import kotlinx.serialization.json.JsonPrimitive
 
 // one of a fixed list of values, a dropdown on the settings page
 open class ChoiceSetting(
+    scope: SettingScope,
     name: SettingName,
     label: TextKey,
     description: TextKey,
     val choices: List<SettingChoice>,
     default: String,
     readOnly: Boolean = false,
-    requires: Requirement? = null,
+    requires: BooleanSetting? = null,
     level: SettingUser = SettingUser.INSTANCE,
     unavailable: () -> ErrorMessage? = { null },
     descriptionArgs: () -> Map<String, Any?> = { emptyMap() },
-) : SettingDefinition<String>(name, label, description, default, readOnly, requires, level, unavailable, descriptionArgs) {
+) : SettingDefinition<String>(scope, name, label, description, default, readOnly, requires, level, unavailable, descriptionArgs) {
     init {
         require(choices.isNotEmpty()) { "the setting $name has no choices" }
         require(choices.map { it.value }.toSet().size == choices.size) { "the choices of $name have the same value twice" }

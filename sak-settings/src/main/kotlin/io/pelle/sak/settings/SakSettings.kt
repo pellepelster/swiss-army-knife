@@ -48,7 +48,7 @@ private fun <T : Any> SettingDefinition<T>.response(language: Language) =
         (this as? TextSetting)?.mask,
         (this as? ChoiceSetting)?.choices?.map { SettingChoiceResponse(it.value, it.label.render(language)) },
         readOnly,
-        requires?.let { SettingRequirementResponse(it.scope.name.value, it.setting.name.value) },
+        requires?.let { SettingRequirementResponse(it.scope.value, it.name.value) },
     )
 
 internal fun SettingType.response() =
@@ -71,10 +71,10 @@ fun SettingsGroup.response(language: Language) =
 // the scopes of settings and the settings of each, meant to be mounted behind the authentication
 // and the admin role; the values are read and set one scope at a time
 @OptIn(ExperimentalKtorApi::class)
-fun Route.settings(registry: SettingsRegistry) {
+fun Route.settings(settings: SettingService) {
     get {
         val page = call.pageRequest() ?: return@get
-        call.respond(page.of(page.of(registry.instanceServices.map { it.scope.response(call.language()) })))
+        call.respond(page.of(page.of(settings.groups(SettingUser.INSTANCE).map { it.response(call.language()) })))
     }.describe {
         tag(SETTINGS_TAG)
         summary = "The scopes of settings"
@@ -91,7 +91,8 @@ fun Route.settings(registry: SettingsRegistry) {
 
     get("/{scope}") {
         val effective = call.request.queryParameters["effective"] == "true"
-        when (val values = withContext(Dispatchers.IO) { registry.values(call.parameters["scope"].orEmpty(), effective) }) {
+        val group = settings.group(call.parameters["scope"].orEmpty(), SettingUser.INSTANCE)
+        when (val values = withContext(Dispatchers.IO) { group?.let { (if (effective) settings.effective(it) else settings.all(it)).json() } }) {
             null -> call.respond(HttpStatusCode.NotFound)
             else -> call.respond(SettingsResponse(values))
         }
@@ -119,7 +120,8 @@ fun Route.settings(registry: SettingsRegistry) {
 
     put("/{scope}") {
         val request = call.receive<SettingsRequest>()
-        when (val result = withContext(Dispatchers.IO) { registry.update(call.parameters["scope"].orEmpty(), request.settings, call.owner) }) {
+        val group = settings.group(call.parameters["scope"].orEmpty(), SettingUser.INSTANCE)
+        when (val result = withContext(Dispatchers.IO) { group?.let { settings.update(it, request.settings, call.owner) } ?: SettingsUpdateResult.NotFound }) {
             is SettingsUpdateResult.Updated -> call.respond(SettingsResponse(result.values.json()))
             is SettingsUpdateResult.Invalid -> call.respondErrors(result.errors)
             is SettingsUpdateResult.Unavailable -> call.respondErrors(result.errors, status = HttpStatusCode.Conflict)

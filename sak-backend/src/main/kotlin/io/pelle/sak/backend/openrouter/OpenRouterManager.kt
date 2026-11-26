@@ -6,11 +6,9 @@ import io.pelle.sak.settings.ReadOnlyValues
 import io.pelle.sak.settings.model.SettingName
 import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.ChangedValues
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.model.SettingValue
-import io.pelle.sak.settings.StoredSettingsService
 import io.pelle.sak.settings.model.TextSetting
-import io.pelle.sak.settings.model.valueOf
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.openrouter.ApiKeyCheck
 import io.pelle.sak.openrouter.ApiKeyStatus
@@ -28,15 +26,19 @@ import io.pelle.sak.openrouter.TextRecognizer
 // of recipes: its settings and the one place its clients are made
 class OpenRouterManager(
     private val config: SakConfig.OpenRouterConfig,
-    settings: SettingService,
+    private val settings: SettingService,
     // the one http client of every request to openrouter (EXT-1)
     private val httpClient: HttpClient = openRouterHttpClient(),
     private val keyCheck: ApiKeyCheck = OpenRouterApiKeyCheck(config.url, httpClient),
-) : StoredSettingsService(
-        SCOPE,
-        settings,
-        ReadOnlyValues().with(VISION_MODEL) { config.model }.with(SPEECH_MODEL) { config.speechModel },
-    ) {
+) {
+    init {
+        settings.register(
+            GROUP,
+            { check(it) },
+            ReadOnlyValues().with(VISION_MODEL) { config.model }.with(SPEECH_MODEL) { config.speechModel },
+        )
+    }
+
     private class Clients(
         val apiKey: String,
         val recognizer: TextRecognizer,
@@ -62,12 +64,12 @@ class OpenRouterManager(
 
     // turned on it needs an api key. A new key, or the stored one when it is turned on, is checked at
     // openrouter only while it is on: nothing goes to openrouter before
-    override fun check(values: List<SettingValue<*>>): List<ErrorMessage> {
-        val enabled = values.valueOf(ENABLED) ?: stored(ENABLED)
-        val newKey = values.valueOf(API_KEY)
-        val apiKey = (newKey ?: stored(API_KEY)).trim()
+    private fun check(values: ChangedValues): List<ErrorMessage> {
+        val enabled = values[ENABLED]
+        val newKey = values.new(API_KEY)
+        val apiKey = values[API_KEY].trim()
         if (enabled && apiKey.isEmpty()) return listOf(ErrorMessage(OpenRouterTexts.KEY_MISSING))
-        val changed = (newKey != null && newKey != stored(API_KEY)) || (enabled && !stored(ENABLED))
+        val changed = (newKey != null && newKey != values.stored(API_KEY)) || (enabled && !values.stored(ENABLED))
         if (!enabled || !changed) return emptyList()
         return when (keyCheck.check(apiKey)) {
             ApiKeyStatus.VALID -> emptyList()
@@ -78,7 +80,7 @@ class OpenRouterManager(
 
     private fun clients(): Clients? {
         // null while turned off
-        val apiKey = get(API_KEY)?.trim()?.ifEmpty { null } ?: return null
+        val apiKey = settings.get(API_KEY)?.trim()?.ifEmpty { null } ?: return null
         clients?.takeIf { it.apiKey == apiKey }?.let { return it }
         return Clients(
             apiKey,
@@ -89,9 +91,12 @@ class OpenRouterManager(
     }
 
     companion object {
+        val SCOPE = SettingScope("ai")
+
         // off until an admin turns it on, nothing is sent to openrouter before
         val ENABLED =
             BooleanSetting(
+                SCOPE,
                 SettingName("enabled"),
                 OpenRouterTexts.ENABLED_LABEL,
                 OpenRouterTexts.ENABLED_DESCRIPTION,
@@ -100,6 +105,7 @@ class OpenRouterManager(
 
         val API_KEY =
             TextSetting(
+                SCOPE,
                 SettingName("api_key"),
                 OpenRouterTexts.API_KEY_LABEL,
                 OpenRouterTexts.API_KEY_DESCRIPTION,
@@ -109,6 +115,7 @@ class OpenRouterManager(
 
         val VISION_MODEL =
             TextSetting(
+                SCOPE,
                 SettingName("vision_model"),
                 OpenRouterTexts.VISION_MODEL_LABEL,
                 OpenRouterTexts.VISION_MODEL_DESCRIPTION,
@@ -118,6 +125,7 @@ class OpenRouterManager(
 
         val SPEECH_MODEL =
             TextSetting(
+                SCOPE,
                 SettingName("speech_model"),
                 OpenRouterTexts.SPEECH_MODEL_LABEL,
                 OpenRouterTexts.SPEECH_MODEL_DESCRIPTION,
@@ -125,9 +133,9 @@ class OpenRouterManager(
                 readOnly = true,
             )
 
-        val SCOPE =
+        val GROUP =
             SettingsGroup(
-                SettingScope("ai"),
+                SCOPE,
                 OpenRouterTexts.SCOPE_LABEL,
                 OpenRouterTexts.SCOPE_DESCRIPTION,
                 listOf(ENABLED, API_KEY, VISION_MODEL, SPEECH_MODEL),

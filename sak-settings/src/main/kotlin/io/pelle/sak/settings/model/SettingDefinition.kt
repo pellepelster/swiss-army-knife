@@ -7,19 +7,22 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 
 // a setting of a scope with values of type T; typed, so set(OpenRouterManager.ENABLED, "yes") does
-// not compile
+// not compile. It knows its scope, so SettingService is asked with the definition alone
 sealed class SettingDefinition<T : Any>(
+    // the scope it is stored in, the one of its group (SettingsGroup)
+    val scope: SettingScope,
     // its key in the api and the name it is stored under in its scope
     val name: SettingName,
     val label: TextKey,
     val description: TextKey,
     val default: T,
     // a value the code gives, e.g. from the configuration, never stored and never changed through
-    // the api (ReadOnlyValues)
+    // the api (ReadOnlyValues, given when its group is registered)
     val readOnly: Boolean = false,
-    // the setting that must be on for this one to count, also of another scope; while it is off,
-    // this one is off to the code and can only go back to its default, its stored value stays
-    val requires: Requirement? = null,
+    // the boolean setting of the instance that must be on for this one to count, also of another
+    // scope, e.g. the AI of the deployment; while it is off, this one is off to the code and can only
+    // go back to its default, its stored value stays
+    val requires: BooleanSetting? = null,
     // whose value it is: one of the instance, set by the admins, or one of each user, set by them
     // (SHARED-4)
     val level: SettingUser = SettingUser.INSTANCE,
@@ -31,6 +34,8 @@ sealed class SettingDefinition<T : Any>(
 ) {
     init {
         require(level == SettingUser.INSTANCE || !readOnly) { "the setting $name of a user is read-only" }
+        require(requires?.readOnly != true) { "the setting $name requires a read-only setting" }
+        require(requires?.level != SettingUser.USER) { "the setting $name requires a setting of a user" }
     }
 
     abstract val type: SettingType

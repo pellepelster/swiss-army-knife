@@ -16,6 +16,7 @@ data class SettingsGroup(
 ) {
     init {
         require(settings.map { it.name }.toSet().size == settings.size) { "the settings of the scope $name have the same name twice" }
+        settings.forEach { require(it.scope == name) { "the setting ${it.name} of the scope ${it.scope} is not one of the scope $name" } }
         require(enabledBy == null || settings.any { it === enabledBy }) { "the setting turning the scope $name on is not one of its settings" }
         require(enabledBy?.readOnly != true) { "the setting turning the scope $name on is read-only" }
         require(enabledBy == null || enabledBy.level == SettingUser.INSTANCE) { "the setting turning the scope $name on is one of a user" }

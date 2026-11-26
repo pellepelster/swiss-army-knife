@@ -65,7 +65,6 @@ import java.nio.file.Path
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
 import io.pelle.sak.model.testing.Media
-import io.pelle.sak.settings.SystemSettings
 import java.security.KeyPairGenerator
 import java.security.PrivateKey
 import java.security.SecureRandom
@@ -137,7 +136,11 @@ class SakAppsTest {
     }
 
     // the key the server signs the tokens with, kept in its settings
-    private fun signingKey(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { testSettings(it).get(BackendSettings.AUTH_SIGNING_KEY) }
+    // the signing key the server made, null while it made none
+    private fun signingKey(config: SakConfig) =
+        SettingRepository(SakDatabase.open(databaseFile(config)))
+            .byNameAndScope(BackendSettings.AUTH_SIGNING_KEY.name.value, BackendSettings.AUTH_SIGNING_KEY.scope.value)
+            ?.value
 
     // the buckets of the server's database
     private fun buckets(config: SakConfig) = SakDatabase.open(databaseFile(config)).let { S3BucketService(it) }
@@ -1683,7 +1686,7 @@ class SakAppsTest {
     fun `an unreadable signing key leaves the apps out but serves the s3 api`() {
         val config = config()
         Files.createDirectories(config.dataDir)
-        SakDatabase.open(databaseFile(config)).let { testSettings(it).put(BackendSettings.AUTH_SIGNING_KEY, SystemSettings.SCOPE, "not a key", owner = "admin@example.org") }
+        SakDatabase.open(databaseFile(config)).let { testSettings(it).set(BackendSettings.AUTH_SIGNING_KEY, "not a key", owner = "admin@example.org") shouldBe null }
 
         withServer(config) { port ->
             get(port, "/").statusCode() shouldBe 404
@@ -2158,7 +2161,7 @@ class SakAppsTest {
         }
         buckets(single).byName("by-mail")!!.owner shouldBe "admin@example.org"
         buckets(single).byName("by-password")!!.owner shouldBe ADMIN_USERNAME
-        SettingRepository(SakDatabase.open(databaseFile(single))).byNameAndScope(BackendSettings.AUTH_SIGNING_KEY.value, SystemSettings.SCOPE.value)!!.owner shouldBe
+        SettingRepository(SakDatabase.open(databaseFile(single))).byNameAndScope(BackendSettings.AUTH_SIGNING_KEY.name.value, BackendSettings.AUTH_SIGNING_KEY.scope.value)!!.owner shouldBe
             SYSTEM_OWNER
     }
 
