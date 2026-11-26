@@ -13,7 +13,7 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.ingress.CaddyException
 import io.pelle.sak.ingress.CaddyManager
 import io.pelle.sak.ingress.caddyConfig
-import io.pelle.sak.ingress.model.CaddyConfig
+import io.pelle.sak.ingress.model.internal.CaddyConfig
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
 import io.pelle.sak.s3.storage.S3BucketPathResolver
 import io.pelle.sak.api.storage.LocalStorage

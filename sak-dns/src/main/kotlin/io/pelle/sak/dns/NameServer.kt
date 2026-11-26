@@ -1,6 +1,6 @@
 package io.pelle.sak.dns
 
-import io.pelle.sak.dns.model.AddressFamily
+import io.pelle.sak.dns.model.internal.AddressFamily
 import org.xbill.DNS.AAAARecord
 import org.xbill.DNS.ARecord
 import org.xbill.DNS.DClass

@@ -24,10 +24,10 @@ import java.net.URLDecoder
 import java.time.Instant
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
-import io.pelle.sak.logs.model.SiteMetricsResponse
-import io.pelle.sak.logs.model.StatusClassSeriesResponse
-import io.pelle.sak.logs.model.StatusCodeSeriesResponse
-import io.pelle.sak.logs.model.UserAgentSeriesResponse
+import io.pelle.sak.logs.model.api.SiteMetricsResponse
+import io.pelle.sak.logs.model.api.StatusClassSeriesResponse
+import io.pelle.sak.logs.model.api.StatusCodeSeriesResponse
+import io.pelle.sak.logs.model.api.UserAgentSeriesResponse
 
 class SiteMetricsServiceTest {
     // answers stats_query_range like victorialogs, by whether the query groups by user agent

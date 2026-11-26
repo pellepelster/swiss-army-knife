@@ -1,7 +1,7 @@
 package io.pelle.sak.settings
 
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.settings.model.SettingValue
+import io.pelle.sak.settings.model.internal.SettingValue
 
 sealed interface SettingsUpdateResult {
     // every setting of the level of the group, as after the update

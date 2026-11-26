@@ -1,7 +1,7 @@
 package io.pelle.sak.settings
 
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.settings.model.SettingValue
+import io.pelle.sak.settings.model.internal.SettingValue
 
 // the values of a request checked against the definitions of a group
 sealed interface Validation {

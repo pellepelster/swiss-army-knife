@@ -1,6 +1,6 @@
 package io.pelle.sak.openrouter
 
-import io.pelle.sak.api.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.internal.BlobContent
 
 // reads the text in an image, e.g. a vision model
 interface TextRecognizer {

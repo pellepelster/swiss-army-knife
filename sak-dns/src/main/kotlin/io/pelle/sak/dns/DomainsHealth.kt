@@ -1,9 +1,9 @@
 package io.pelle.sak.dns
 
 import io.pelle.sak.core.logCause
-import io.pelle.sak.dns.model.DnsAnswer
-import io.pelle.sak.dns.model.DnsState
-import io.pelle.sak.dns.model.DomainDnsResult
+import io.pelle.sak.dns.model.internal.DnsAnswer
+import io.pelle.sak.dns.model.internal.DnsState
+import io.pelle.sak.dns.model.internal.DomainDnsResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.core.Health
 import io.pelle.sak.core.HealthDetail

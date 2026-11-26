@@ -9,7 +9,7 @@ import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.model.SettingValue
+import io.pelle.sak.settings.model.internal.SettingValue
 import io.pelle.sak.settings.SettingsTexts
 import io.pelle.sak.settings.Validation
 import io.pelle.sak.model.SakDatabase

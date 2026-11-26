@@ -5,7 +5,7 @@ import io.pelle.sak.backend.leftovers
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.api.storage.BlobStore
 import io.pelle.sak.api.storage.StagedBlob
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import io.pelle.sak.storage.s3.S3Bucket
 import io.pelle.sak.storage.s3.s3BlobStore
 import java.io.InputStream

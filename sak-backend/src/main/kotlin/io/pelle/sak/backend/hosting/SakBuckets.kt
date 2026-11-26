@@ -5,7 +5,7 @@ import io.pelle.sak.core.Text
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
-import io.pelle.sak.api.model.PageResponse
+import io.pelle.sak.api.model.api.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
@@ -24,11 +24,11 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.backend.hosting.model.BucketResponse
-import io.pelle.sak.backend.hosting.model.BucketSecretResponse
-import io.pelle.sak.backend.hosting.model.BucketStatisticsResponse
-import io.pelle.sak.backend.hosting.model.CreateBucketRequest
-import io.pelle.sak.backend.hosting.model.UpdateDomainsRequest
+import io.pelle.sak.backend.hosting.model.api.BucketResponse
+import io.pelle.sak.backend.hosting.model.api.BucketSecretResponse
+import io.pelle.sak.backend.hosting.model.api.BucketStatisticsResponse
+import io.pelle.sak.backend.hosting.model.api.CreateBucketRequest
+import io.pelle.sak.backend.hosting.model.api.UpdateDomainsRequest
 import io.pelle.sak.model.hosting.S3Bucket
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async

@@ -9,10 +9,10 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.backend.deployment.model.DeploymentResponse
-import io.pelle.sak.backend.deployment.model.SmtpConfigResponse
-import io.pelle.sak.backend.info.model.DnsModeResponse
-import io.pelle.sak.backend.info.model.UserModeResponse
+import io.pelle.sak.backend.deployment.model.api.DeploymentResponse
+import io.pelle.sak.backend.deployment.model.api.SmtpConfigResponse
+import io.pelle.sak.backend.info.model.api.DnsModeResponse
+import io.pelle.sak.backend.info.model.api.UserModeResponse
 import io.pelle.sak.backend.users.UserService
 import io.pelle.sak.config.SakConfig
 

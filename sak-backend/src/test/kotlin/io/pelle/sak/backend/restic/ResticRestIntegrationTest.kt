@@ -7,7 +7,7 @@ import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.api.s3
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain

@@ -29,8 +29,8 @@ import io.ktor.server.application.hooks.CallFailed
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.PayloadTooLargeException
 import io.ktor.server.response.respond
-import io.pelle.sak.api.model.ApiErrorMessage
-import io.pelle.sak.api.model.ApiErrorResponse
+import io.pelle.sak.api.model.api.ApiErrorMessage
+import io.pelle.sak.api.model.api.ApiErrorResponse
 import kotlinx.serialization.json.Json
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 

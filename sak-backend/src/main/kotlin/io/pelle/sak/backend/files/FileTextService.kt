@@ -4,7 +4,7 @@ import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.openrouter.SpeechTranscriber
 import io.pelle.sak.openrouter.TextRecognitionException
 import io.pelle.sak.openrouter.TextRecognizer
-import io.pelle.sak.api.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.internal.BlobContent
 import java.io.IOException
 
 sealed interface FileTextDiscoverResult {

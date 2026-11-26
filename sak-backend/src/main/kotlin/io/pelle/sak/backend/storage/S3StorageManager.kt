@@ -9,16 +9,16 @@ import io.pelle.sak.storage.s3.HeadBucketKeyCheck
 import io.pelle.sak.storage.s3.S3KeyStatus
 import io.pelle.sak.storage.s3.StorageTexts
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.settings.model.BooleanSetting
-import io.pelle.sak.settings.model.ChoiceSetting
-import io.pelle.sak.settings.model.SettingChoice
-import io.pelle.sak.settings.model.SettingDefinition
-import io.pelle.sak.settings.model.SettingName
-import io.pelle.sak.settings.model.SettingsGroup
-import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.model.internal.BooleanSetting
+import io.pelle.sak.settings.model.internal.ChoiceSetting
+import io.pelle.sak.settings.model.internal.SettingChoice
+import io.pelle.sak.settings.model.internal.SettingDefinition
+import io.pelle.sak.settings.model.internal.SettingName
+import io.pelle.sak.settings.model.internal.SettingsGroup
+import io.pelle.sak.settings.model.internal.SettingScope
 import io.pelle.sak.settings.ChangedValues
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.model.TextSetting
+import io.pelle.sak.settings.model.internal.TextSetting
 
 // the S3 storage of the deployment, a bucket at a provider (Hetzner Object Storage): its settings
 // and the one place the provider is asked and its client is made (EXT-1). The repositories of restic

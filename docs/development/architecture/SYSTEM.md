@@ -99,10 +99,9 @@ server, the **backend** serves the apps, their api and an S3 api; **caddy** is i
   class nested in them (e.g. `PageResponse`). The one exception is `ApiErrorMessage`, an error of an `ApiErrorResponse`.
 - `API-6` **Missing entities.** A 404 is only for the resource of the path. An entity the request refers to that is
   not there, e.g. the list of a new item, a photo of a note or the bucket of a redirect, is a 422 with its message.
-- `API-7` **Where the code of the api is.** The routes of an app are in `io.pelle.sak.backend.<app>`, its request and
-  response classes in `io.pelle.sak.backend.<app>.model`, one class in each file, the file named like the class. The
-  other modules that answer on `/api` (`sak-api`, `sak-auth`, `sak-logs`) keep theirs the same way in
-  `io.pelle.sak.<module>.model`.
+- `API-7` **Where the model is.** Request and response classes are in `io.pelle.sak.<component>.model.api`, the
+  classes used internally in `io.pelle.sak.<component>.model.internal`; one class in each file, the file named like the
+  class.
 - `API-8` **Verbs and answers.** A create is a `POST` and answers 201 and the new thing. A change is a `PUT`, or a
   `POST` for an action without values (e.g. to check an item), and answers 200 and the thing as it is now. A delete
   is a `DELETE` and answers 204 without a body. A part of a thing has the same name in every path of it (e.g.

@@ -2,7 +2,7 @@ package io.pelle.sak.s3.storage
 
 import java.util.Base64
 import java.nio.file.Path
-import io.pelle.sak.api.storage.model.BlobUsage
+import io.pelle.sak.api.storage.model.internal.BlobUsage
 import java.io.InputStream
 import java.time.Instant
 

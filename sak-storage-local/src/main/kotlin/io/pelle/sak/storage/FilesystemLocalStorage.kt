@@ -2,13 +2,13 @@ package io.pelle.sak.storage
 
 import io.pelle.sak.api.storage.LocalStorage
 import io.pelle.sak.api.storage.StagedWrite
-import io.pelle.sak.api.storage.model.BlobPathConflictException
-import io.pelle.sak.api.storage.model.BlobChangedException
-import io.pelle.sak.api.storage.model.BlobInfo
+import io.pelle.sak.api.storage.model.internal.BlobPathConflictException
+import io.pelle.sak.api.storage.model.internal.BlobChangedException
+import io.pelle.sak.api.storage.model.internal.BlobInfo
 import io.pelle.sak.api.storage.KeyOrderEntry
 import io.pelle.sak.api.storage.Walk
-import io.pelle.sak.api.storage.model.BlobListEntry
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobListEntry
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream

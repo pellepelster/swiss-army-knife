@@ -7,8 +7,8 @@ import io.pelle.sak.api.storage.RemotePage
 import io.pelle.sak.api.storage.RemoteRange
 import io.pelle.sak.api.storage.RemoteStorage
 import io.pelle.sak.api.storage.RemoteUpload
-import io.pelle.sak.api.storage.model.BlobListEntry
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobListEntry
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import java.io.IOException
 import java.time.Instant
 import java.util.concurrent.AbstractExecutorService

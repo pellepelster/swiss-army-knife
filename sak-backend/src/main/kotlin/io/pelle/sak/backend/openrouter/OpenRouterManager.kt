@@ -1,14 +1,14 @@
 package io.pelle.sak.backend.openrouter
 
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.settings.model.BooleanSetting
+import io.pelle.sak.settings.model.internal.BooleanSetting
 import io.pelle.sak.settings.ReadOnlyValues
-import io.pelle.sak.settings.model.SettingName
-import io.pelle.sak.settings.model.SettingsGroup
-import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.model.internal.SettingName
+import io.pelle.sak.settings.model.internal.SettingsGroup
+import io.pelle.sak.settings.model.internal.SettingScope
 import io.pelle.sak.settings.ChangedValues
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.model.TextSetting
+import io.pelle.sak.settings.model.internal.TextSetting
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.openrouter.ApiKeyCheck
 import io.pelle.sak.openrouter.ApiKeyStatus

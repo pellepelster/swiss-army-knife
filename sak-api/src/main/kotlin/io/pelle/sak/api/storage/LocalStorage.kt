@@ -1,12 +1,12 @@
 package io.pelle.sak.api.storage
 
-import io.pelle.sak.api.storage.model.BlobPathConflictException
-import io.pelle.sak.api.storage.model.BlobChangedException
-import io.pelle.sak.api.storage.model.BlobContent
-import io.pelle.sak.api.storage.model.BlobInfo
-import io.pelle.sak.api.storage.model.BlobListEntry
-import io.pelle.sak.api.storage.model.BlobPath
-import io.pelle.sak.api.storage.model.BlobUsage
+import io.pelle.sak.api.storage.model.internal.BlobPathConflictException
+import io.pelle.sak.api.storage.model.internal.BlobChangedException
+import io.pelle.sak.api.storage.model.internal.BlobContent
+import io.pelle.sak.api.storage.model.internal.BlobInfo
+import io.pelle.sak.api.storage.model.internal.BlobListEntry
+import io.pelle.sak.api.storage.model.internal.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobUsage
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.NoSuchFileException

@@ -1,6 +1,6 @@
 package io.pelle.sak.s3.storage
 
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPath
 
 // whether the name can be one of a bucket: 3 to 63 lower case letters, digits and hyphens, starting and
 // ending with a letter or digit. A valid s3 bucket name without dots, so it is also a label of a domain,

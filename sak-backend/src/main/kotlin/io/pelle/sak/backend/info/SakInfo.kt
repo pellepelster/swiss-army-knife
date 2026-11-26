@@ -1,15 +1,15 @@
 package io.pelle.sak.backend.info
 
 import io.ktor.http.HttpStatusCode
-import io.pelle.sak.backend.info.model.DnsModeResponse
-import io.pelle.sak.backend.info.model.UserModeResponse
+import io.pelle.sak.backend.info.model.api.DnsModeResponse
+import io.pelle.sak.backend.info.model.api.UserModeResponse
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.backend.info.model.InfoResponse
+import io.pelle.sak.backend.info.model.api.InfoResponse
 import io.pelle.sak.config.DnsMode
 
 private const val INFO_TAG = "info"

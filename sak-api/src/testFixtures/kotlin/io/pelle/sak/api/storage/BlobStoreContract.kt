@@ -3,8 +3,8 @@ package io.pelle.sak.api.storage
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.api.storage.model.BlobPath
-import io.pelle.sak.api.storage.model.EntityTooLargeException
+import io.pelle.sak.api.storage.model.internal.BlobPath
+import io.pelle.sak.api.storage.model.internal.EntityTooLargeException
 import org.junit.jupiter.api.Test
 import java.security.MessageDigest
 import java.time.Instant

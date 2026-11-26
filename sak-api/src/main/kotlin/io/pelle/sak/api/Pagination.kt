@@ -4,8 +4,8 @@ import io.pelle.sak.core.Text
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.application.ApplicationCall
-import io.pelle.sak.api.model.PageResponse
-import io.pelle.sak.api.model.PaginationResponse
+import io.pelle.sak.api.model.api.PageResponse
+import io.pelle.sak.api.model.api.PaginationResponse
 
 const val DEFAULT_LIMIT = 50
 

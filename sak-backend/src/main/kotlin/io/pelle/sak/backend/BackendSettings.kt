@@ -1,8 +1,8 @@
 package io.pelle.sak.backend
 
 import io.pelle.sak.settings.SystemSettings
-import io.pelle.sak.settings.model.SettingName
-import io.pelle.sak.settings.model.TextSetting
+import io.pelle.sak.settings.model.internal.SettingName
+import io.pelle.sak.settings.model.internal.TextSetting
 
 // the settings the backend keeps for itself in the scope of the system (SystemSettings.SCOPE), in no
 // group, so no api serves them

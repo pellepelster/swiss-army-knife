@@ -4,8 +4,8 @@ import io.pelle.sak.backend.respondDeleted
 import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.core.Text
 import io.pelle.sak.api.apiTime
-import io.pelle.sak.backend.labels.model.LabelResponse
-import io.pelle.sak.backend.labels.model.LabelRequest
+import io.pelle.sak.backend.labels.model.api.LabelResponse
+import io.pelle.sak.backend.labels.model.api.LabelRequest
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.auth.owner
 import io.ktor.openapi.Parameters
@@ -19,7 +19,7 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.utils.io.ExperimentalKtorApi
-import io.pelle.sak.api.model.PageResponse
+import io.pelle.sak.api.model.api.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.idParameter
 import io.pelle.sak.api.pageRequest

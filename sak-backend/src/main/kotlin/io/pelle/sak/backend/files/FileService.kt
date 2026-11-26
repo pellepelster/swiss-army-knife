@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.files
 
-import io.pelle.sak.api.storage.model.InsufficientStorageException
+import io.pelle.sak.api.storage.model.internal.InsufficientStorageException
 import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.backend.isFree
@@ -13,8 +13,8 @@ import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.model.files.FileRepository
 import io.pelle.sak.model.files.StoredFile
 import io.pelle.sak.api.storage.LocalStorage
-import io.pelle.sak.api.storage.model.BlobContent
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobContent
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import io.pelle.sak.storage.FilesystemLocalStorage
 import java.awt.image.BufferedImage
 import java.io.BufferedInputStream

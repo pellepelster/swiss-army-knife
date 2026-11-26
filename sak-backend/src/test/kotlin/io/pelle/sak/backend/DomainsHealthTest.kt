@@ -1,7 +1,7 @@
 package io.pelle.sak.backend
 
 import io.pelle.sak.core.Language
-import io.pelle.sak.dns.model.AddressFamily
+import io.pelle.sak.dns.model.internal.AddressFamily
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.core.HealthState
 import io.pelle.sak.backend.hosting.HostingHealth

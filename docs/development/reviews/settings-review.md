@@ -32,13 +32,6 @@ fixed findings are in the history of git.
 
 ## Could fix
 
-### `SET-3` `model` holds the domain and the api bodies
-
-`io.pelle.sak.settings.model` has the definitions (`SettingDefinition`, `BooleanSetting`, `SettingsGroup`,
-`SettingValue`, …) next to the bodies of the api (`SettingResponse`, `SettingsRequest`, `SettingTypeResponse`, …),
-while the bodies of the user settings are in `user/model`. Everywhere else in the backend `model` is the bodies of the
-api. The definitions in a package of their own (e.g. `io.pelle.sak.settings.definition`) would keep the two apart.
-
 ### `SET-4` The routes are tested only through the backend
 
 `SakSettings.kt` and `user/SakUserSettings.kt` (404 for a group of the other level, 400 and 409, the masked values in

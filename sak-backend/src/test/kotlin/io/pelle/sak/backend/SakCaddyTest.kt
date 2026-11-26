@@ -9,7 +9,7 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.pelle.sak.config.DnsMode
 import io.pelle.sak.config.SakConfig
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import io.pelle.sak.ingress.CaddyJson
 import io.pelle.sak.ingress.CaddyManager
 import kotlinx.serialization.json.Json

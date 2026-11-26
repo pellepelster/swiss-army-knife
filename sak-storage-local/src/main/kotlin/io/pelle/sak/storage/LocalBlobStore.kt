@@ -4,9 +4,9 @@ import io.pelle.sak.api.storage.BlobStore
 import io.pelle.sak.api.storage.CheckedContent
 import io.pelle.sak.api.storage.LocalStorage
 import io.pelle.sak.api.storage.StagedBlob
-import io.pelle.sak.api.storage.model.BlobChangedException
-import io.pelle.sak.api.storage.model.BlobListEntry
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobChangedException
+import io.pelle.sak.api.storage.model.internal.BlobListEntry
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import java.io.InputStream
 import java.time.Instant
 

@@ -3,7 +3,7 @@ package io.pelle.sak.storage
 import io.pelle.sak.api.storage.BlobStore
 import io.pelle.sak.api.storage.BlobStoreContract
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files

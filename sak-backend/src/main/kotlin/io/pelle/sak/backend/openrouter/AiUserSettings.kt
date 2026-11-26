@@ -2,10 +2,10 @@ package io.pelle.sak.backend.openrouter
 
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.core.TextKey
-import io.pelle.sak.settings.model.BooleanSetting
-import io.pelle.sak.settings.model.SettingLevel
-import io.pelle.sak.settings.model.SettingName
-import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.model.internal.BooleanSetting
+import io.pelle.sak.settings.model.internal.SettingLevel
+import io.pelle.sak.settings.model.internal.SettingName
+import io.pelle.sak.settings.model.internal.SettingScope
 
 // the AI of an app, which each user turns on for themselves once (PRIVACY-2), off until they do; it
 // counts only while the AI is set up (OpenRouterManager.configured)

@@ -1,11 +1,11 @@
 package io.pelle.sak.storage
 
-import io.pelle.sak.api.storage.model.BlobPathConflictException
-import io.pelle.sak.api.storage.model.BlobChangedException
+import io.pelle.sak.api.storage.model.internal.BlobPathConflictException
+import io.pelle.sak.api.storage.model.internal.BlobChangedException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.api.storage.model.BlobPath
-import io.pelle.sak.api.storage.model.BlobUsage
+import io.pelle.sak.api.storage.model.internal.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobUsage
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.ByteArrayInputStream

@@ -25,13 +25,13 @@ import io.ktor.server.testing.testApplication
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Test
-import io.pelle.sak.api.model.ApiErrorMessage
-import io.pelle.sak.api.model.ApiErrorResponse
+import io.pelle.sak.api.model.api.ApiErrorMessage
+import io.pelle.sak.api.model.api.ApiErrorResponse
 import io.pelle.sak.core.testing.catalogProblems
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
-import io.pelle.sak.api.model.PageResponse
-import io.pelle.sak.api.model.PaginationResponse
+import io.pelle.sak.api.model.api.PageResponse
+import io.pelle.sak.api.model.api.PaginationResponse
 import io.kotest.matchers.string.shouldNotContain
 
 class ApiTest {

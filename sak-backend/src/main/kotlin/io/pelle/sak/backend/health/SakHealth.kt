@@ -12,9 +12,9 @@ import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.core.Health
 import io.pelle.sak.core.HealthState
 import io.pelle.sak.core.HealthStatus
-import io.pelle.sak.backend.health.model.HealthDetailResponse
-import io.pelle.sak.backend.health.model.HealthStateResponse
-import io.pelle.sak.backend.health.model.HealthStatusResponse
+import io.pelle.sak.backend.health.model.api.HealthDetailResponse
+import io.pelle.sak.backend.health.model.api.HealthStateResponse
+import io.pelle.sak.backend.health.model.api.HealthStatusResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

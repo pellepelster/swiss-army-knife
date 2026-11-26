@@ -1,7 +1,7 @@
 package io.pelle.sak.api.storage
 
-import io.pelle.sak.api.storage.model.BlobListEntry
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobListEntry
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.time.Instant

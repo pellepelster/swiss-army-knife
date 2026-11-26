@@ -6,9 +6,9 @@ import io.pelle.sak.storage.WriteGuard
 import io.pelle.sak.api.storage.KeyOrderEntry
 import io.pelle.sak.api.storage.LocalStorage
 import io.pelle.sak.api.storage.Walk
-import io.pelle.sak.api.storage.model.BlobPath
-import io.pelle.sak.api.storage.model.BlobPathConflictException
-import io.pelle.sak.api.storage.model.BlobUsage
+import io.pelle.sak.api.storage.model.internal.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPathConflictException
+import io.pelle.sak.api.storage.model.internal.BlobUsage
 import java.io.InputStream
 import java.io.SequenceInputStream
 import java.nio.file.Path

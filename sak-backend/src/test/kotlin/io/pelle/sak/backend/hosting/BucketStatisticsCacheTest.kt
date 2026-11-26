@@ -4,7 +4,7 @@ import io.pelle.sak.storage.WriteGuard
 import com.github.benmanes.caffeine.cache.Ticker
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.s3.storage.LocalStorageS3Backend
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import io.pelle.sak.storage.FilesystemLocalStorage
 import io.pelle.sak.s3.storage.ObjectMetadata
 import io.pelle.sak.s3.storage.PartRef

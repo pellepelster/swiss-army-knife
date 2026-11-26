@@ -25,8 +25,8 @@ import io.pelle.sak.core.RateLimiter
 import io.pelle.sak.auth.owner
 import io.pelle.sak.api.API_PATH_PREFIX
 import io.pelle.sak.api.API_VERSION
-import io.pelle.sak.backend.files.model.DiscoverTextResponse
-import io.pelle.sak.backend.files.model.FileResponse
+import io.pelle.sak.backend.files.model.api.DiscoverTextResponse
+import io.pelle.sak.backend.files.model.api.FileResponse
 import io.pelle.sak.api.idParameter
 import io.pelle.sak.model.files.StoredFile
 import kotlinx.coroutines.Dispatchers

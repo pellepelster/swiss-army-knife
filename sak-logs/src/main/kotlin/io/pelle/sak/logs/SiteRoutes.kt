@@ -4,7 +4,7 @@ import io.pelle.sak.core.logCause
 import io.pelle.sak.api.language
 import io.pelle.sak.api.Page
 import io.pelle.sak.api.apiTime
-import io.pelle.sak.api.model.PageResponse
+import io.pelle.sak.api.model.api.PageResponse
 import io.pelle.sak.api.errors
 import io.pelle.sak.api.pageRequest
 import io.pelle.sak.api.pagination
@@ -21,14 +21,14 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import io.pelle.sak.logs.model.SiteMetricsResponse
-import io.pelle.sak.logs.model.LogEntryResponse
-import io.pelle.sak.logs.model.MetricsRangeResponse
-import io.pelle.sak.logs.model.AccessLogsResponse
-import io.pelle.sak.logs.model.SiteResponse
-import io.pelle.sak.logs.model.StatusClassSeriesResponse
-import io.pelle.sak.logs.model.StatusCodeSeriesResponse
-import io.pelle.sak.logs.model.UserAgentSeriesResponse
+import io.pelle.sak.logs.model.api.SiteMetricsResponse
+import io.pelle.sak.logs.model.api.LogEntryResponse
+import io.pelle.sak.logs.model.api.MetricsRangeResponse
+import io.pelle.sak.logs.model.api.AccessLogsResponse
+import io.pelle.sak.logs.model.api.SiteResponse
+import io.pelle.sak.logs.model.api.StatusClassSeriesResponse
+import io.pelle.sak.logs.model.api.StatusCodeSeriesResponse
+import io.pelle.sak.logs.model.api.UserAgentSeriesResponse
 
 private val logger = KotlinLogging.logger {}
 

@@ -12,7 +12,7 @@ import io.ktor.server.routing.get
 import io.pelle.sak.api.installApi
 import io.pelle.sak.api.API_PATH_PREFIX
 import io.pelle.sak.api.API_VERSION
-import io.pelle.sak.backend.info.model.WellKnownResponse
+import io.pelle.sak.backend.info.model.api.WellKnownResponse
 import io.pelle.sak.config.SakConfig
 
 // the path at the SAK address that tells where its api is (SERVER-6, RFC 8615)

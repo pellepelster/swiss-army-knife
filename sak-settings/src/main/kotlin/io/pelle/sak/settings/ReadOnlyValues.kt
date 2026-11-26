@@ -1,6 +1,6 @@
 package io.pelle.sak.settings
 
-import io.pelle.sak.settings.model.SettingDefinition
+import io.pelle.sak.settings.model.internal.SettingDefinition
 
 // the values of the read-only settings of a group, each asked for on every read, e.g. from the
 // configuration; given when the group is registered (SettingService.register)

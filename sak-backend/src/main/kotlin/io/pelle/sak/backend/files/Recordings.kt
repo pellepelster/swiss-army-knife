@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.files
 
-import io.pelle.sak.api.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.internal.BlobContent
 import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.geom.RoundRectangle2D

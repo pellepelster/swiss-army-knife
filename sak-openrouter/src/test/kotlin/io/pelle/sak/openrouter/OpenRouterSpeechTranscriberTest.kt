@@ -9,7 +9,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
-import io.pelle.sak.api.storage.model.BlobContent
+import io.pelle.sak.api.storage.model.internal.BlobContent
 import java.net.InetSocketAddress
 import java.time.Duration
 import java.util.Base64

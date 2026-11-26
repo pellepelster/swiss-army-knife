@@ -2,8 +2,8 @@ package io.pelle.sak.backend.grocery
 
 import io.pelle.sak.backend.openrouter.OpenRouterManager
 import io.pelle.sak.backend.openrouter.aiUserSetting
-import io.pelle.sak.settings.model.SettingsGroup
-import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.model.internal.SettingsGroup
+import io.pelle.sak.settings.model.internal.SettingScope
 import io.pelle.sak.settings.SettingService
 
 // the settings each user sets for the grocery lists: whether they may send a photo of the user to the

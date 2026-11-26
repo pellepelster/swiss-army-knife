@@ -2,7 +2,7 @@ package io.pelle.sak.backend
 
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.api.storage.LocalStorage
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPath
 
 // where the data of a row is in the storage of its kind: below its resource id, never below a name, an
 // id of the database or the content (MODEL-8). The files, the buckets and the repositories of restic

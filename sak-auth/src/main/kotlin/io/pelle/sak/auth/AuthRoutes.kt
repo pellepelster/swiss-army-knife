@@ -42,16 +42,16 @@ import java.net.InetAddress
 import java.net.UnknownHostException
 import java.time.Duration
 import java.time.Instant
-import io.pelle.sak.auth.model.ConnectExchangeRequest
-import io.pelle.sak.auth.model.ConnectRequest
-import io.pelle.sak.auth.model.ConnectResponse
-import io.pelle.sak.auth.model.ConnectStatusResponse
-import io.pelle.sak.auth.model.ExchangeRequest
-import io.pelle.sak.auth.model.ExchangeResponse
-import io.pelle.sak.auth.model.LoginClientRequest
-import io.pelle.sak.auth.model.LoginRequest
-import io.pelle.sak.auth.model.PasswordLoginRequest
-import io.pelle.sak.auth.model.WhoAmIResponse
+import io.pelle.sak.auth.model.api.ConnectExchangeRequest
+import io.pelle.sak.auth.model.api.ConnectRequest
+import io.pelle.sak.auth.model.api.ConnectResponse
+import io.pelle.sak.auth.model.api.ConnectStatusResponse
+import io.pelle.sak.auth.model.api.ExchangeRequest
+import io.pelle.sak.auth.model.api.ExchangeResponse
+import io.pelle.sak.auth.model.api.LoginClientRequest
+import io.pelle.sak.auth.model.api.LoginRequest
+import io.pelle.sak.auth.model.api.PasswordLoginRequest
+import io.pelle.sak.auth.model.api.WhoAmIResponse
 import io.pelle.sak.core.logAddress
 
 // where the backend mounts the routes of the login below the base of the api

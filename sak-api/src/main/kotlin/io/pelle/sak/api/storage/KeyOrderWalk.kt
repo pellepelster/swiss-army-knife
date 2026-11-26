@@ -1,6 +1,6 @@
 package io.pelle.sak.api.storage
 
-import io.pelle.sak.api.storage.model.BlobListEntry
+import io.pelle.sak.api.storage.model.internal.BlobListEntry
 
 // what a walk in the order of the keys meets: a blob, or a directory before the blobs below it. The
 // path is relative to the root of the walk; the key of a directory is its path and a slash

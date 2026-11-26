@@ -1,7 +1,7 @@
 package io.pelle.sak.settings
 
 import io.pelle.sak.api.ErrorMessage
-import io.pelle.sak.settings.model.SettingDefinition
+import io.pelle.sak.settings.model.internal.SettingDefinition
 
 // what is wrong with values of the instance of a group that are each valid, e.g. together or for a
 // service outside, such as an api key the provider refuses; given when the group is registered

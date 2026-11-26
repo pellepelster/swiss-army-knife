@@ -5,7 +5,7 @@ import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.storage.KeyOrderEntry
 import io.pelle.sak.api.storage.LocalStorage
 import io.pelle.sak.api.storage.Walk
-import io.pelle.sak.api.storage.model.BlobPath
+import io.pelle.sak.api.storage.model.internal.BlobPath
 import io.pelle.sak.storage.FilesystemLocalStorage
 import io.pelle.sak.storage.WriteGuard
 import org.junit.jupiter.api.Test

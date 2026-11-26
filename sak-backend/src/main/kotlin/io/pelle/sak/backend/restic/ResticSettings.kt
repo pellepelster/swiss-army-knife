@@ -1,9 +1,9 @@
 package io.pelle.sak.backend.restic
 
-import io.pelle.sak.settings.model.BooleanSetting
-import io.pelle.sak.settings.model.SettingName
-import io.pelle.sak.settings.model.SettingsGroup
-import io.pelle.sak.settings.model.SettingScope
+import io.pelle.sak.settings.model.internal.BooleanSetting
+import io.pelle.sak.settings.model.internal.SettingName
+import io.pelle.sak.settings.model.internal.SettingsGroup
+import io.pelle.sak.settings.model.internal.SettingScope
 import io.pelle.sak.settings.SettingService
 import io.pelle.sak.backend.storage.S3StorageManager
 

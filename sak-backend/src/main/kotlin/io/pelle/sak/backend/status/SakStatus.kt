@@ -8,14 +8,14 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import io.pelle.sak.api.apiTime
-import io.pelle.sak.backend.health.model.HealthStateResponse
+import io.pelle.sak.backend.health.model.api.HealthStateResponse
 import io.pelle.sak.backend.health.overall
 import io.pelle.sak.backend.health.runChecks
 import io.pelle.sak.core.Health
-import io.pelle.sak.backend.status.model.StatusResponse
-import io.pelle.sak.backend.status.model.StorageOverviewResponse
-import io.pelle.sak.backend.status.model.StorageTotalResponse
-import io.pelle.sak.backend.status.model.StorageUsageResponse
+import io.pelle.sak.backend.status.model.api.StatusResponse
+import io.pelle.sak.backend.status.model.api.StorageOverviewResponse
+import io.pelle.sak.backend.status.model.api.StorageTotalResponse
+import io.pelle.sak.backend.status.model.api.StorageUsageResponse
 import io.pelle.sak.backend.storage.StorageUsageService
 
 private const val STATUS_TAG = "status"

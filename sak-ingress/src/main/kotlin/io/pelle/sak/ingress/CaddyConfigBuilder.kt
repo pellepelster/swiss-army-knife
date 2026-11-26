@@ -1,26 +1,26 @@
 package io.pelle.sak.ingress
 
-import io.pelle.sak.ingress.model.CaddyApps
-import io.pelle.sak.ingress.model.CaddyConfig
-import io.pelle.sak.ingress.model.CaddyFileServer
-import io.pelle.sak.ingress.model.CaddyHandler
-import io.pelle.sak.ingress.model.CaddyHeaderOps
-import io.pelle.sak.ingress.model.CaddyHeaders
-import io.pelle.sak.ingress.model.CaddyHttpApp
-import io.pelle.sak.ingress.model.CaddyIssuer
-import io.pelle.sak.ingress.model.CaddyLogAppend
-import io.pelle.sak.ingress.model.CaddyMatch
-import io.pelle.sak.ingress.model.CaddyRequestBody
-import io.pelle.sak.ingress.model.CaddyReverseProxy
-import io.pelle.sak.ingress.model.CaddyRewrite
-import io.pelle.sak.ingress.model.CaddyRoute
-import io.pelle.sak.ingress.model.CaddyServer
-import io.pelle.sak.ingress.model.CaddyServerLogs
-import io.pelle.sak.ingress.model.CaddyStaticResponse
-import io.pelle.sak.ingress.model.CaddyTlsApp
-import io.pelle.sak.ingress.model.CaddyTlsAutomation
-import io.pelle.sak.ingress.model.CaddyTlsPolicy
-import io.pelle.sak.ingress.model.CaddyUpstream
+import io.pelle.sak.ingress.model.internal.CaddyApps
+import io.pelle.sak.ingress.model.internal.CaddyConfig
+import io.pelle.sak.ingress.model.internal.CaddyFileServer
+import io.pelle.sak.ingress.model.internal.CaddyHandler
+import io.pelle.sak.ingress.model.internal.CaddyHeaderOps
+import io.pelle.sak.ingress.model.internal.CaddyHeaders
+import io.pelle.sak.ingress.model.internal.CaddyHttpApp
+import io.pelle.sak.ingress.model.internal.CaddyIssuer
+import io.pelle.sak.ingress.model.internal.CaddyLogAppend
+import io.pelle.sak.ingress.model.internal.CaddyMatch
+import io.pelle.sak.ingress.model.internal.CaddyRequestBody
+import io.pelle.sak.ingress.model.internal.CaddyReverseProxy
+import io.pelle.sak.ingress.model.internal.CaddyRewrite
+import io.pelle.sak.ingress.model.internal.CaddyRoute
+import io.pelle.sak.ingress.model.internal.CaddyServer
+import io.pelle.sak.ingress.model.internal.CaddyServerLogs
+import io.pelle.sak.ingress.model.internal.CaddyStaticResponse
+import io.pelle.sak.ingress.model.internal.CaddyTlsApp
+import io.pelle.sak.ingress.model.internal.CaddyTlsAutomation
+import io.pelle.sak.ingress.model.internal.CaddyTlsPolicy
+import io.pelle.sak.ingress.model.internal.CaddyUpstream
 
 fun caddyConfig(block: CaddyConfigBuilder.() -> Unit): CaddyConfig = CaddyConfigBuilder().apply(block).build()
 
