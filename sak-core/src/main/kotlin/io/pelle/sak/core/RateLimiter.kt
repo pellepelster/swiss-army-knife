@@ -1,11 +1,15 @@
 package io.pelle.sak.core
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 
-// at most maxEvents per key in a sliding window. A new key beyond maxKeys is refused, so many
-// clients can not fill the heap. Old events go when their key is asked again, and with a sweep of
+private val logger = KotlinLogging.logger {}
+
+// at most maxEvents per key in a sliding window. At most maxKeys are kept, so many clients can not
+// fill the heap: beyond them the key used longest ago goes, its count with it, and a new key is never
+// refused for being new (SEC-41). Old events go when their key is asked again, and with a sweep of
 // all keys at most once a minute
 class RateLimiter(
     private val maxEvents: Int,
@@ -13,9 +17,13 @@ class RateLimiter(
     private val clock: Clock = Clock.systemUTC(),
     private val maxKeys: Int = DEFAULT_MAX_KEYS,
 ) {
-    // the times of the events of each key, the oldest first
-    private val events = HashMap<String, ArrayDeque<Instant>>()
+    // the times of the events of each key, the oldest first; the keys in the order they were used
+    // last, the one used longest ago first
+    private val events = LinkedHashMap<String, ArrayDeque<Instant>>(16, 0.75f, true)
     private var swept: Instant? = null
+
+    // when a key was dropped for a new one last told in the log
+    private var warned: Instant? = null
 
     @Synchronized
     fun tryAcquire(key: String): Boolean {
@@ -29,7 +37,7 @@ class RateLimiter(
             events[key]?.also { dropBefore(it, since) }
                 ?: run {
                     if (events.size >= maxKeys) sweep(since)
-                    if (events.size >= maxKeys) return false
+                    if (events.size >= maxKeys) evict(now)
                     ArrayDeque<Instant>().also { events[key] = it }
                 }
         if (timestamps.size >= maxEvents) {
@@ -60,6 +68,16 @@ class RateLimiter(
     // the number of keys kept, for the tests
     @Synchronized
     internal fun keys(): Int = events.size
+
+    // the key used longest ago goes for a new one; told in the log at most once a minute, without
+    // the keys, which are addresses
+    private fun evict(now: Instant) {
+        events.remove(events.keys.first())
+        if (warned?.let { Duration.between(it, now) >= SWEEP_EVERY } != false) {
+            warned = now
+            logger.warn { "a rate limit holds its most $maxKeys clients, the one asked longest ago is forgotten for a new one: many networks are asking" }
+        }
+    }
 
     private fun sweep(since: Instant) {
         events.values.forEach { dropBefore(it, since) }

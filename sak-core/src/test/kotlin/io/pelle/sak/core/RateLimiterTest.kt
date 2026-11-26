@@ -6,16 +6,25 @@ import org.junit.jupiter.api.Test
 import java.time.Duration
 
 class RateLimiterTest {
-    // many clients do not fill the heap, a new one beyond the most keys is refused
+    // many clients do not fill the heap, and a new one is never refused for being new (SEC-41): beyond
+    // the most keys the one used longest ago goes, the counts of the others stay
     @Test
-    fun `keeps at most max keys and refuses a new one beyond them until old ones passed the window`() {
+    fun `keeps at most max keys, a new one beyond them takes the place of the one used longest ago`() {
         val clock = MutableClock()
-        val limiter = RateLimiter(5, Duration.ofHours(1), clock, maxKeys = 3)
+        val limiter = RateLimiter(2, Duration.ofHours(1), clock, maxKeys = 3)
 
         (1..3).forEach { limiter.tryAcquire("client $it") shouldBe true }
-        limiter.tryAcquire("client 4") shouldBe false
-        // a client it knows goes on
+        // client 1 used again: client 2 is the one used longest ago
         limiter.tryAcquire("client 1") shouldBe true
+        limiter.tryAcquire("client 4") shouldBe true
+        limiter.keys() shouldBe 3
+        // client 1 kept its count, its limit of 2 is reached; client 2 was forgotten, it starts again
+        limiter.tryAcquire("client 1") shouldBe false
+        limiter.tryAcquire("client 2") shouldBe true
+        limiter.keys() shouldBe 3
+
+        // many new ones, the most keys stay
+        (5..100).forEach { limiter.tryAcquire("client $it") shouldBe true }
         limiter.keys() shouldBe 3
 
         clock.advance(Duration.ofHours(2))

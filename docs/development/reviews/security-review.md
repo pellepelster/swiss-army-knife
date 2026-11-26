@@ -111,15 +111,6 @@ Nothing at the moment.
 
 ## Could fix
 
-### `SEC-41` Once the limiter knows 10,000 clients it refuses every new one
-
-`RateLimiter.tryAcquire` refuses a new key when it already holds `DEFAULT_MAX_KEYS` (10,000) after a sweep of the
-window (`sak-core`, `RateLimiter.kt`). A key is an IPv6 /64: one request from each of 10,000 /64 of a /48, which is
-cheap to have, and for an hour every client not seen before gets a 429 at the link, the password and the exchange of
-a connect token. The limiter of restic ignores a refusal of a key it does not know, so it is not hit.
-
-Fix: drop the oldest key instead of refusing the new one, or group IPv6 by /48 once there are many keys.
-
 ### `SEC-42` A signed request is an admin for every method, not only to read
 
 The comment of `ApiSignature` says "sakadmin only reads", but a valid signature gives an admin that never expires
