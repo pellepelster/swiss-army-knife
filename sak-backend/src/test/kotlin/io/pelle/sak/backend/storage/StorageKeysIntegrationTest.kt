@@ -6,6 +6,7 @@ import io.kotest.matchers.collections.shouldBeIn
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.settings.Validation
 import io.pelle.sak.model.SakDatabase
 import kotlinx.serialization.json.JsonPrimitive
@@ -38,14 +39,17 @@ class StorageKeysIntegrationTest {
     // how often Hetzner was asked
     private var asked = 0
 
-    private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db"))) }
+    // the groups the test registers
+    private val registry = SettingsRegistry()
+
+    private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db")), registry) }
 
     private val manager by lazy {
         val check = HeadBucketKeyCheck()
         S3StorageManager(service, "saktest") { endpoint, bucket, accessKey, secretKey ->
             asked++
             check.check(endpoint, bucket, accessKey, secretKey)
-        }.also { service.register(it.registration) }
+        }.also { registry.register(it.registration) }
     }
 
     // the settings, with the group of the manager registered

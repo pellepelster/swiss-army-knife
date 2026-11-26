@@ -16,6 +16,7 @@ import io.pelle.sak.auth.owner
 import io.pelle.sak.settings.model.internal.SettingDefinition
 import io.pelle.sak.settings.model.internal.SettingValue
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.settings.model.internal.SettingLevel
 import io.pelle.sak.settings.model.internal.SettingsGroup
 import io.pelle.sak.settings.SettingsUpdateResult
@@ -61,11 +62,14 @@ private fun SettingService.response(
 // the settings of the user signed in, meant to be mounted behind the authentication for every user;
 // the user is the one of the session, never one of the request, so a user reaches only their own
 @OptIn(ExperimentalKtorApi::class)
-fun Route.userSettings(settings: SettingService) {
+fun Route.userSettings(
+    settings: SettingService,
+    registry: SettingsRegistry,
+) {
     get {
         val user = call.owner
         val language = call.language()
-        val scopes = withContext(Dispatchers.IO) { settings.groups(SettingLevel.USER).map { settings.response(it, user, language) } }
+        val scopes = withContext(Dispatchers.IO) { registry.groups(SettingLevel.USER).map { settings.response(it, user, language) } }
         call.respond(UserSettingsResponse(scopes))
     }.describe {
         tag(USER_SETTINGS_TAG)
@@ -86,7 +90,7 @@ fun Route.userSettings(settings: SettingService) {
         val request = call.receive<SettingsRequest>()
         val scope = call.parameters["scope"].orEmpty()
         val user = call.owner
-        val group = settings.group(scope, SettingLevel.USER)
+        val group = registry.group(scope, SettingLevel.USER)
         when (val result = withContext(Dispatchers.IO) { group?.let { settings.update(it, request.settings, owner = user, user = user) } ?: SettingsUpdateResult.NotFound }) {
             is SettingsUpdateResult.Updated -> {
                 call.respond(withContext(Dispatchers.IO) { settings.response(group!!, user, call.language()) })

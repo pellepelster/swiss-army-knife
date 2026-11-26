@@ -5,6 +5,7 @@ import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldNotContain
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.settings.model.internal.SettingValue
 import io.pelle.sak.config.SakConfig
 import io.pelle.sak.model.SakDatabase
@@ -23,7 +24,10 @@ class OpenRouterManagerTest {
 
     private var unknown = false
 
-    private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db"))) }
+    // the groups the test registers
+    private val registry = SettingsRegistry()
+
+    private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db")), registry) }
 
     private val manager by lazy {
         OpenRouterManager(SakConfig.OpenRouterConfig(), service) { key ->
@@ -33,7 +37,7 @@ class OpenRouterManagerTest {
                 key.startsWith("good") -> ApiKeyStatus.VALID
                 else -> ApiKeyStatus.INVALID
             }
-        }.also { service.register(it.registration) }
+        }.also { registry.register(it.registration) }
     }
 
     // the settings, with the group of the manager registered

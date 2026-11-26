@@ -32,12 +32,6 @@ fixed findings are in the history of git.
 
 ## Could fix
 
-### `SET-7` `SettingService` does three jobs
-
-It reads and writes values, keeps the registry of the groups, and handles the requests of the api (`validate`,
-`update`, the views by level, `json`): 275 lines. The request side as a class of its own next to the routes would
-leave `SettingService` with the values and the groups.
-
 ### `SET-8` The check of a group never sees the values of the users
 
 `checkOf` runs only for the instance (`user == null` in `set` and `validate`). A group with settings of the users and a

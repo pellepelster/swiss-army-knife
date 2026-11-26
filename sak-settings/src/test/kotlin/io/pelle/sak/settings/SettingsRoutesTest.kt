@@ -86,13 +86,15 @@ class SettingsRoutesTest {
         )
     private val appGroup = SettingsGroup(app, t("Other"), null, listOf(ai))
 
-    private val settings by lazy {
-        SettingService(SakDatabase.open(tempDir.resolve("sak.db"))).also {
+    private val registry by lazy {
+        SettingsRegistry().also {
             it.register(SettingsRegistration(BASE_GROUP))
             it.register(SettingsRegistration(DEPENDENT_GROUP))
             it.register(SettingsRegistration(appGroup))
         }
     }
+
+    private val settings by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db")), registry) }
 
     private fun routes(block: suspend ApplicationTestBuilder.() -> Unit) =
         testApplication {
@@ -111,11 +113,11 @@ class SettingsRoutesTest {
                     authenticate(SESSION_AUTH) {
                         route("/settings") {
                             requireRole(Role.ADMIN)
-                            settings(this@SettingsRoutesTest.settings)
+                            settings(this@SettingsRoutesTest.settings, this@SettingsRoutesTest.registry)
                         }
                         route("/user/settings") {
                             requireRole(Role.ADMIN, Role.USER)
-                            userSettings(this@SettingsRoutesTest.settings)
+                            userSettings(this@SettingsRoutesTest.settings, this@SettingsRoutesTest.registry)
                         }
                     }
                 }

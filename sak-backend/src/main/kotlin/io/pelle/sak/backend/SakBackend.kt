@@ -30,6 +30,7 @@ import io.pelle.sak.config.SakConfig
 import io.pelle.sak.config.SakConfigLoader
 import io.pelle.sak.model.SakDatabase
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.backend.notes.NotesUserSettings
 import io.pelle.sak.backend.openrouter.OpenRouterManager
 import io.pelle.sak.backend.storage.S3StorageManager
@@ -101,6 +102,8 @@ fun Application.module() {
 // that are no service (the roles, the manager of the access logs, the storage of the buckets, the jobs)
 class SakServices(
     val settings: SettingService,
+    // the groups of the settings the api serves
+    val settingsRegistry: SettingsRegistry,
     val bucketService: S3BucketService,
     val redirectService: RedirectService,
     val labelService: LabelService,
@@ -165,7 +168,8 @@ fun Application.sak(config: SakConfig): SakServices {
     val database = SakDatabase.open(databaseFile(config))
     // the settings, the signing key of the login among them, plain in the database until the
     // whole database is encrypted
-    val settings = SettingService(database)
+    val settingsRegistry = SettingsRegistry()
+    val settings = SettingService(database, settingsRegistry)
     val openRouter = OpenRouterManager(config.openrouter, settings)
     // the AI of an app, turned on by each user for themselves
     val notesUserSettings = NotesUserSettings(openRouter, settings)
@@ -180,7 +184,7 @@ fun Application.sak(config: SakConfig): SakServices {
         groceryUserSettings.registration,
         s3Storage.registration,
         resticSettings.registration,
-    ).forEach(settings::register)
+    ).forEach(settingsRegistry::register)
     // a bucket is not served at a redirected domain and the other way round
     val domains = DomainRegistry(reservedDomains(config))
     // everything the backend does on its own runs here and ends with it
@@ -256,6 +260,7 @@ fun Application.sak(config: SakConfig): SakServices {
     val services =
         SakServices(
             settings = settings,
+            settingsRegistry = settingsRegistry,
             bucketService = bucketService,
             redirectService = redirectService,
             labelService = labelService,

@@ -3,6 +3,7 @@ package io.pelle.sak.backend.restic
 import io.kotest.matchers.shouldBe
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.settings.SettingsTexts
 import io.pelle.sak.storage.s3.S3KeyStatus
 import io.pelle.sak.backend.storage.S3StorageManager
@@ -16,14 +17,17 @@ class ResticSettingsTest {
     @TempDir
     lateinit var tempDir: Path
 
-    private val database by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db"))) }
+    // the groups the test registers
+    private val registry = SettingsRegistry()
+
+    private val database by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db")), registry) }
 
     // an S3 storage that takes every bucket and key, registered before the backups that require it
     private val storage by lazy {
-        S3StorageManager(database, "the-deployment") { _, _, _, _ -> S3KeyStatus.VALID }.also { database.register(it.registration) }
+        S3StorageManager(database, "the-deployment") { _, _, _, _ -> S3KeyStatus.VALID }.also { registry.register(it.registration) }
     }
 
-    private val service by lazy { storage.let { ResticSettings(database).also { database.register(it.registration) } } }
+    private val service by lazy { storage.let { ResticSettings(database).also { registry.register(it.registration) } } }
 
     // the settings with both groups registered
     private val settings: SettingService get() = service.let { database }
@@ -67,6 +71,6 @@ class ResticSettingsTest {
 
     @Test
     fun `the settings are served with those of the S3 storage they need`() {
-        settings.groups.map { it.name.value } shouldBe listOf("storage", "restic")
+        settings.let { registry.groups.map { it.name.value } } shouldBe listOf("storage", "restic")
     }
 }

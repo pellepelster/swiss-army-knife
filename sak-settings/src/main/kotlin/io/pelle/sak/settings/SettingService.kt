@@ -25,53 +25,18 @@ object SystemSettings {
 // every setting, of the instance and of each user (SHARED-4), the only way to them: asked with its
 // definition, which knows its scope. `user` is null for the settings of the instance
 // (SettingLevel.INSTANCE) and the user for theirs (SettingLevel.USER); a user reaches only their own.
-// The groups the settings api serves are registered here, with what their check and the values of
-// their read-only settings. The values are handed out as they are, a consumer of a secret masks it;
+// The groups, their switches, checks and read-only values are the registry's (SettingsRegistry). The values are handed out as they are, a consumer of a secret masks it;
 // they are plain in the table, the whole database is to be encrypted
 class SettingService(
     private val repository: SettingRepository,
+    // the groups, their switches, checks and read-only values; filled while the backend starts
+    private val registry: SettingsRegistry = SettingsRegistry(),
 ) {
     constructor(
         database: SakDatabase,
+        registry: SettingsRegistry = SettingsRegistry(),
         clock: Clock = Clock.systemUTC(),
-    ) : this(SettingRepository(database, clock))
-
-    private class Registration(
-        val group: SettingsGroup,
-        val check: SettingsCheck,
-        val readOnly: ReadOnlyValues,
-    )
-
-    // by scope, in the order of registration, the order of the settings page
-    private val registered = linkedMapOf<SettingScope, Registration>()
-
-    // a group the settings api serves, in the order of the settings page; what it requires is registered
-    // before, so requirements never go round in a circle
-    fun register(registration: SettingsRegistration) {
-        val (group, check, readOnly) = registration
-        require(group.name !in registered) { "the group ${group.name} is registered twice" }
-        group.settings.filter { it.readOnly }.forEach {
-            require(readOnly.has(it)) { "the read-only setting ${it.name} of the group ${group.name} has no value" }
-        }
-        group.settings.mapNotNull { it.requires }.forEach { required ->
-            require(registered[required.scope]?.group?.settings?.any { it === required } == true) {
-                "the setting ${required.scope}.${required.name} a setting of ${group.name} requires is not registered"
-            }
-        }
-        registered[group.name] = Registration(group, check, readOnly)
-    }
-
-    // every group the api serves
-    val groups: List<SettingsGroup> get() = registered.values.map { it.group }
-
-    // the groups with settings of the level: of the instance for the admins, of the users for each user
-    fun groups(level: SettingLevel): List<SettingsGroup> = groups.filter { it.of(level).isNotEmpty() }
-
-    // the group of the name with settings of the level, null when there is none
-    fun group(
-        name: String,
-        level: SettingLevel,
-    ): SettingsGroup? = groups(level).firstOrNull { it.name.value == name }
+    ) : this(SettingRepository(database, clock), registry)
 
     // the value that counts, the default while none is stored; null while it does not count: its group
     // is turned off (SettingsGroup.enabledBy), except for the setting that turns it on, a setting it
@@ -81,7 +46,7 @@ class SettingService(
         user: String? = null,
     ): T? {
         requireLevel(setting, user)
-        val switch = registered[setting.scope]?.group?.enabledBy
+        val switch = registry.registrationOf(setting.scope)?.group?.enabledBy
         if (setting.level == SettingLevel.INSTANCE && switch != null && setting !== switch && !stored(switch)) return null
         if (unavailable(setting) != null) return null
         return stored(setting, user)
@@ -111,7 +76,7 @@ class SettingService(
         val required = setting.requires
         if (required != null && get(required) != true) {
             val group =
-                checkNotNull(registered[required.scope]?.group) {
+                checkNotNull(registry.registrationOf(required.scope)?.group) {
                     "the setting ${setting.scope}.${setting.name} requires ${required.scope}.${required.name}, whose group is not registered"
                 }
             return ErrorMessage(SettingsTexts.REQUIRES, "label" to setting.label, "required" to required.label, "scope" to group.label)
@@ -243,7 +208,7 @@ class SettingService(
         scope: SettingScope,
         values: List<SettingValue<*>>,
     ): List<ErrorMessage> {
-        val registration = registered[scope] ?: return emptyList()
+        val registration = registry.registrationOf(scope) ?: return emptyList()
         return registration.check.check(
             object : ChangedValues {
                 override fun <T : Any> new(setting: SettingDefinition<T>): T? = values.valueOf(setting)
@@ -254,7 +219,7 @@ class SettingService(
     }
 
     private fun readOnlyOf(setting: SettingDefinition<*>) =
-        registered[setting.scope]?.readOnly ?: error("the read-only setting ${setting.name} has no registered group")
+        registry.registrationOf(setting.scope)?.readOnly ?: error("the read-only setting ${setting.name} has no registered group")
 
     private fun <T : Any> SettingDefinition<T>.currentJson(user: String?): JsonPrimitive = toApiJson(stored(this, user))
 
@@ -271,6 +236,3 @@ class SettingService(
         user: String?,
     ) = require(setting.level == levelOf(user)) { "the setting ${setting.scope}.${setting.name} is not one of the level ${levelOf(user)}" }
 }
-
-// the values as the api answers them, by the names of their settings
-fun List<SettingValue<*>>.json(): Map<String, JsonPrimitive> = associate { it.setting.name.value to it.toApiJson() }

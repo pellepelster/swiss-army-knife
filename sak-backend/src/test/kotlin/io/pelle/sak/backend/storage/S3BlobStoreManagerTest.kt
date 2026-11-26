@@ -9,6 +9,7 @@ import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.settings.SettingService
+import io.pelle.sak.settings.SettingsRegistry
 import io.pelle.sak.settings.model.internal.SettingValue
 import io.pelle.sak.settings.SettingsTexts
 import io.pelle.sak.settings.Validation
@@ -36,7 +37,10 @@ class S3BlobStoreManagerTest {
     private var unknown = false
 
     // the storage has the bucket "the-bucket" and takes the secret keys that start with "good"
-    private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db"))) }
+    // the groups the test registers
+    private val registry = SettingsRegistry()
+
+    private val service by lazy { SettingService(SakDatabase.open(tempDir.resolve("sak.db")), registry) }
 
     private val manager by lazy {
         S3StorageManager(service, "the-deployment") { endpoint, bucket, accessKey, secretKey ->
@@ -47,7 +51,7 @@ class S3BlobStoreManagerTest {
                 bucket != "the-bucket" -> S3KeyStatus.NO_BUCKET
                 else -> S3KeyStatus.VALID
             }
-        }.also { service.register(it.registration) }
+        }.also { registry.register(it.registration) }
     }
 
     // the settings, with the group of the manager registered

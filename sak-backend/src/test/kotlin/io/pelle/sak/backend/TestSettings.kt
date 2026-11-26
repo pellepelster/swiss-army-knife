@@ -8,4 +8,4 @@ import java.time.Clock
 fun testSettings(
     database: SakDatabase,
     clock: Clock = Clock.systemUTC(),
-) = SettingService(database, clock)
+) = SettingService(database, clock = clock)

@@ -34,8 +34,13 @@ import io.pelle.sak.settings.model.api.SettingsResponse
 import io.pelle.sak.settings.model.internal.TextSetting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonPrimitive
+import io.pelle.sak.settings.model.internal.SettingValue
 
 private const val SETTINGS_TAG = "settings"
+
+// the values as the api answers them, by the names of their settings, masked
+internal fun List<SettingValue<*>>.json(): Map<String, JsonPrimitive> = associate { it.setting.name.value to it.toApiJson() }
 
 private fun <T : Any> SettingDefinition<T>.response(language: Language) =
     SettingResponse(
@@ -71,10 +76,13 @@ fun SettingsGroup.response(language: Language) =
 // the scopes of settings and the settings of each, meant to be mounted behind the authentication
 // and the admin role; the values are read and set one scope at a time
 @OptIn(ExperimentalKtorApi::class)
-fun Route.settings(settings: SettingService) {
+fun Route.settings(
+    settings: SettingService,
+    registry: SettingsRegistry,
+) {
     get {
         val page = call.pageRequest() ?: return@get
-        call.respond(page.of(page.of(settings.groups(SettingLevel.INSTANCE).map { it.response(call.language()) })))
+        call.respond(page.of(page.of(registry.groups(SettingLevel.INSTANCE).map { it.response(call.language()) })))
     }.describe {
         tag(SETTINGS_TAG)
         summary = "The scopes of settings"
@@ -91,7 +99,7 @@ fun Route.settings(settings: SettingService) {
 
     get("/{scope}") {
         val effective = call.request.queryParameters["effective"] == "true"
-        val group = settings.group(call.parameters["scope"].orEmpty(), SettingLevel.INSTANCE)
+        val group = registry.group(call.parameters["scope"].orEmpty(), SettingLevel.INSTANCE)
         when (val values = withContext(Dispatchers.IO) { group?.let { (if (effective) settings.effective(it) else settings.all(it)).json() } }) {
             null -> call.respond(HttpStatusCode.NotFound)
             else -> call.respond(SettingsResponse(values))
@@ -120,7 +128,7 @@ fun Route.settings(settings: SettingService) {
 
     put("/{scope}") {
         val request = call.receive<SettingsRequest>()
-        val group = settings.group(call.parameters["scope"].orEmpty(), SettingLevel.INSTANCE)
+        val group = registry.group(call.parameters["scope"].orEmpty(), SettingLevel.INSTANCE)
         when (val result = withContext(Dispatchers.IO) { group?.let { settings.update(it, request.settings, call.owner) } ?: SettingsUpdateResult.NotFound }) {
             is SettingsUpdateResult.Updated -> call.respond(SettingsResponse(result.values.json()))
             is SettingsUpdateResult.Invalid -> call.respondErrors(result.errors)
