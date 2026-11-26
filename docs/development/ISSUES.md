@@ -209,21 +209,6 @@ Fix: write the few XML messages of the S3 api with kotlinx or by hand, and drop 
 From the review of the memory of the backend (`docs/development/reviews/memory-review.md`), reviewed again at commit
 db41d795; the review is removed, its findings are these issues.
 
-## `#153` (`MR-5`) An S3 listing walks its whole directory for each page
-
-**Created:** 2026-11-13. **Labels:** enhancement, area: backend, review, severity: low.
-
-`BinaryStorageS3Backend.listObjects` gets the full list below the directory of the prefix (the bucket without a
-prefix) from `FilesystemBinaryStorage.list` (a `BlobListEntry` with its segments for each object), sorts it, and then
-takes at most `maxKeys` (1000). A bucket with 100,000 objects makes approximately 30 MB of objects for each page, and
-listing all pages walks the bucket 100 times. A static site seldom has this many objects, so the risk is small.
-
-Fix: walk the directories lazily in the order of the keys and stop after `maxKeys`; start at `startAfter`. Sort the
-names of a directory as `name + "/"`, else `a/b` comes before `a-b` (`-` is before `/`), which is not the order of S3.
-
-From the review of the memory of the backend (`docs/development/reviews/memory-review.md`), reviewed again at commit
-db41d795; the review is removed, its findings are these issues.
-
 ## `#155` (`SEC-22`) What is used once is forgotten with a restart
 
 **Created:** 2026-11-13. **Labels:** enhancement, area: backend, review, severity: low, security.
@@ -242,3 +227,55 @@ A deploy restarts the backend; so does a crash, e.g. of an `OutOfMemoryError`. T
 Fix: the used ids in a small table with their end; or an entry in `ACCEPTED-RISKS`.
 
 From the security review (`docs/development/reviews/security-review.md`, `SEC-22`), at commit f66cdf35.
+
+## `#156` (`SET-11`) A change of the settings is checked, then written, not at once
+
+**Created:** 2026-11-26. **Labels:** enhancement, area: backend, review, severity: low.
+
+`SettingService.update` validates the values of a group, its check asks the provider (OpenRouter for the api key,
+Hetzner for the bucket and the keys of the S3 storage), and only then writes them. Two admins changing the same group
+at the same time can both pass the check; the write that comes later wins, and the values of the group may then be a
+mix the check never saw. With one admin page open at a time this is not seen.
+
+Fix: one change of a group at a time, e.g. a lock for each group around `validate` and `set`, or a check of the stored
+values again in the transaction that writes them.
+
+From the review of the settings (`SET-11`), at commit c412815a; the review is removed, its open findings are these
+issues.
+
+## `#157` (`SET-12`) A masked text no longer than its mask shows in full
+
+**Created:** 2026-11-26. **Labels:** enhancement, area: backend, review, severity: low, security.
+
+`TextSetting.toApiJson` shows the first `mask` characters of a value and a fixed mask; a value of at most `mask`
+characters is answered as it is. The api key of OpenRouter has `mask = 4`, so a key of four characters or less would
+show in full on the settings page. The keys of OpenRouter and Hetzner are far longer, so it is not seen.
+
+Fix: mask a value that is not longer than its mask completely, e.g. only the mask.
+
+From the review of the settings (`SET-12`), at commit c412815a.
+
+## `#158` (`SET-13`) The registry of the settings is not synchronized
+
+**Created:** 2026-11-26. **Labels:** enhancement, area: backend, review, severity: low.
+
+`SettingsRegistry` keeps its groups in a `LinkedHashMap` that is not synchronized. Every group is registered while the
+backend starts (`SakBackend`), before the first request, and only read afterwards, so this is safe today. A group
+registered later, e.g. by a part that starts on its own, could be read half written.
+
+Fix: refuse a registration once the first group is read, or a map that is safe for threads.
+
+From the review of the settings (`SET-13`), at commit c412815a.
+
+## `#159` A key below an object of the S3 api is not always refused as a conflict
+
+**Created:** 2026-11-26. **Labels:** bug, area: backend, severity: low.
+
+An object `ab` and an object `ab/ab` can not both be in a bucket kept as files: the first is a file where the second
+needs a directory. `LocalStorageS3Backend.putObject` refuses a key that conflicts with one put before
+(`KeyConflictException`, a 409 of the S3 api) in some cases only; in others the storage on disk throws a
+`FileSystemException`, which the S3 api answers as an unexpected error. The test of the lazy listing
+(`LocalStorageS3BackendListingTest`, `fill`) catches both, so it found the case but does not test it.
+
+Fix: tell every conflict of a key with an object on its way or below it apart before writing, and answer it as
+`KeyConflictException`; a test with `ab` then `ab/ab`, and `ab/ab` then `ab`.

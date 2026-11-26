@@ -86,6 +86,27 @@ class SakDatabaseTest {
     }
 
     @Test
+    fun `a journal file that comes and goes while the room is counted ends no count`() {
+        val database = SakDatabase.open(file)
+        // the shared memory of sqlite created and deleted all the time, as its checkpoints do
+        val shared = file.resolveSibling("sak.db-shm")
+        val running = java.util.concurrent.atomic.AtomicBoolean(true)
+        val churn =
+            Thread {
+                while (running.get()) {
+                    runCatching { Files.write(shared, ByteArray(32)) }
+                    runCatching { Files.deleteIfExists(shared) }
+                }
+            }.apply { start() }
+        try {
+            repeat(5_000) { (database.storageUsage().bytes > 0) shouldBe true }
+        } finally {
+            running.set(false)
+            churn.join()
+        }
+    }
+
+    @Test
     fun `keeps the data when opened again, the migrations only run once`() {
         insert(SakDatabase.open(file), "bucket1")
 

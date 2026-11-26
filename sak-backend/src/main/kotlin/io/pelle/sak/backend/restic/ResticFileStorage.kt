@@ -1,6 +1,6 @@
 package io.pelle.sak.backend.restic
 
-import io.pelle.sak.api.storage.StorageUsageReporter
+import io.pelle.sak.core.storage.StorageUsageReporter
 import io.pelle.sak.model.ResourceId
 import java.io.InputStream
 import java.time.Instant

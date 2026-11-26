@@ -2,7 +2,7 @@ package io.pelle.sak.backend.restic
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.pelle.sak.core.logCause
-import io.pelle.sak.api.storage.StorageUsageReporter
+import io.pelle.sak.core.storage.StorageUsageReporter
 import io.pelle.sak.model.ResourceId
 import io.pelle.sak.storage.LocalBlobStore
 import io.pelle.sak.api.storage.LocalStorage

@@ -1,13 +1,14 @@
 package io.pelle.sak.model
 
-import io.pelle.sak.api.storage.StorageUsage
-import io.pelle.sak.api.storage.StorageUsageReporter
+import io.pelle.sak.core.storage.StorageUsage
+import io.pelle.sak.core.storage.StorageUsageReporter
 import org.jooq.DSLContext
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
 import org.sqlite.SQLiteConfig
 import org.sqlite.SQLiteDataSource
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 import java.time.Instant
@@ -28,8 +29,17 @@ class SakDatabase private constructor(
     // its file and the files of its journal (-wal, -shm), as far as they are there: the room they take,
     // freed pages and soft deleted rows included
     override fun storageUsage(): StorageUsage {
-        val files = listOf(file, file.resolveSibling("${file.fileName}-wal"), file.resolveSibling("${file.fileName}-shm")).filter { Files.isRegularFile(it) }
-        return StorageUsage(files.sumOf { Files.size(it) }, files.size.toLong(), Instant.now())
+        // the journal and the shared memory of sqlite come and go with its checkpoints: one gone between
+        // seeing it and reading its size counts nothing, it does not end the count
+        val sizes =
+            listOf(file, file.resolveSibling("${file.fileName}-wal"), file.resolveSibling("${file.fileName}-shm")).mapNotNull { path ->
+                try {
+                    if (Files.isRegularFile(path)) Files.size(path) else null
+                } catch (_: NoSuchFileException) {
+                    null
+                }
+            }
+        return StorageUsage(sizes.sum(), sizes.size.toLong(), Instant.now())
     }
 
     companion object {

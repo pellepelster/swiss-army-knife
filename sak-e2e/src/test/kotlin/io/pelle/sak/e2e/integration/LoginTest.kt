@@ -86,7 +86,7 @@ class LoginTest {
             val page = context.newPage()
             step("opening the used link again, it is refused", multi)
             page.navigate(link)
-            assertThat(page.heading("Sign in failed")).isVisible()
+            assertThat(page.heading("Sign-in failed")).isVisible()
         }
     }
 

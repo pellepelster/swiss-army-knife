@@ -1,5 +1,8 @@
 package io.pelle.sak.api.storage
 
+import io.pelle.sak.core.storage.StorageUsage
+import io.pelle.sak.core.storage.StorageUsageReporter
+
 import io.pelle.sak.api.storage.model.internal.BlobPathConflictException
 import io.pelle.sak.api.storage.model.internal.BlobChangedException
 import io.pelle.sak.api.storage.model.internal.BlobContent

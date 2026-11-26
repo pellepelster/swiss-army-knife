@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
-class S3BlobStoreManagerTest {
+class S3StorageManagerTest {
     @TempDir
     lateinit var tempDir: Path
 

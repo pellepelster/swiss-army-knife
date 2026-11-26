@@ -1,4 +1,4 @@
-package io.pelle.sak.api.storage
+package io.pelle.sak.core.storage
 
 import java.time.Instant
 
@@ -9,9 +9,3 @@ data class StorageUsage(
     val items: Long,
     val computedAt: Instant,
 )
-
-// what keeps data and tells how much
-fun interface StorageUsageReporter {
-    // counted live, on each call
-    fun storageUsage(): StorageUsage
-}

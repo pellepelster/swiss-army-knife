@@ -1,8 +1,8 @@
 package io.pelle.sak.backend.storage
 
 import io.kotest.matchers.shouldBe
-import io.pelle.sak.api.storage.StorageUsage
-import io.pelle.sak.api.storage.StorageUsageReporter
+import io.pelle.sak.core.storage.StorageUsage
+import io.pelle.sak.core.storage.StorageUsageReporter
 import io.pelle.sak.backend.BackgroundJobs
 import org.junit.jupiter.api.Test
 import java.time.Duration
