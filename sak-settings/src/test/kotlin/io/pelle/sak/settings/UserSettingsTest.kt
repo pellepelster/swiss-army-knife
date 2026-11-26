@@ -9,7 +9,7 @@ import io.pelle.sak.model.settings.SettingRepository
 import io.pelle.sak.settings.model.BooleanSetting
 import io.pelle.sak.settings.model.SettingName
 import io.pelle.sak.settings.model.SettingScope
-import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingLevel
 import io.pelle.sak.settings.model.SettingValue
 import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.model.TextSetting
@@ -23,7 +23,7 @@ private const val BERT = "bert@example.org"
 
 private val APP = SettingScope("app")
 
-// the settings of each user (SettingUser.USER) next to those of the instance, in one group (SHARED-4)
+// the settings of each user (SettingLevel.USER) next to those of the instance, in one group (SHARED-4)
 class UserSettingsTest {
     @TempDir
     lateinit var tempDir: Path
@@ -40,10 +40,10 @@ class UserSettingsTest {
             t("A flag"),
             t("Says hello."),
             default = false,
-            level = SettingUser.USER,
+            level = SettingLevel.USER,
             unavailable = { if (setUp) null else ErrorMessage(t("Required.")) },
         )
-    private val text = TextSetting(APP, SettingName("text"), t("A text"), t("Says something."), default = "hello", maxLength = 5, level = SettingUser.USER)
+    private val text = TextSetting(APP, SettingName("text"), t("A text"), t("Says something."), default = "hello", maxLength = 5, level = SettingLevel.USER)
 
     // the instance has a setting of its own in the same group
     private val greeting = TextSetting(APP, SettingName("greeting"), t("A greeting"), t("Says hello."), default = "hi")
@@ -114,7 +114,7 @@ class UserSettingsTest {
     @Test
     fun `a setting of a user is neither read-only nor required`() {
         shouldThrow<IllegalArgumentException> {
-            TextSetting(APP, SettingName("fixed"), t("Fixed"), t("Given by the code."), default = "", readOnly = true, level = SettingUser.USER)
+            TextSetting(APP, SettingName("fixed"), t("Fixed"), t("Given by the code."), default = "", readOnly = true, level = SettingLevel.USER)
         }
         shouldThrow<IllegalArgumentException> {
             BooleanSetting(APP, SettingName("needs"), t("Needs"), t("Needs the flag."), default = false, requires = flag)

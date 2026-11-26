@@ -22,7 +22,7 @@ import io.pelle.sak.core.render
 import io.pelle.sak.settings.model.ChoiceSetting
 import io.pelle.sak.settings.model.SettingChoiceResponse
 import io.pelle.sak.settings.model.SettingDefinition
-import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingLevel
 import io.pelle.sak.settings.model.SettingRequirementResponse
 import io.pelle.sak.settings.model.SettingResponse
 import io.pelle.sak.settings.model.SettingScopeResponse
@@ -64,7 +64,7 @@ fun SettingsGroup.response(language: Language) =
         name.value,
         label.render(language),
         description?.render(language).orEmpty(),
-        of(SettingUser.INSTANCE).map { it.response(language) },
+        of(SettingLevel.INSTANCE).map { it.response(language) },
         enabledBy?.name?.value,
     )
 
@@ -74,7 +74,7 @@ fun SettingsGroup.response(language: Language) =
 fun Route.settings(settings: SettingService) {
     get {
         val page = call.pageRequest() ?: return@get
-        call.respond(page.of(page.of(settings.groups(SettingUser.INSTANCE).map { it.response(call.language()) })))
+        call.respond(page.of(page.of(settings.groups(SettingLevel.INSTANCE).map { it.response(call.language()) })))
     }.describe {
         tag(SETTINGS_TAG)
         summary = "The scopes of settings"
@@ -91,7 +91,7 @@ fun Route.settings(settings: SettingService) {
 
     get("/{scope}") {
         val effective = call.request.queryParameters["effective"] == "true"
-        val group = settings.group(call.parameters["scope"].orEmpty(), SettingUser.INSTANCE)
+        val group = settings.group(call.parameters["scope"].orEmpty(), SettingLevel.INSTANCE)
         when (val values = withContext(Dispatchers.IO) { group?.let { (if (effective) settings.effective(it) else settings.all(it)).json() } }) {
             null -> call.respond(HttpStatusCode.NotFound)
             else -> call.respond(SettingsResponse(values))
@@ -120,7 +120,7 @@ fun Route.settings(settings: SettingService) {
 
     put("/{scope}") {
         val request = call.receive<SettingsRequest>()
-        val group = settings.group(call.parameters["scope"].orEmpty(), SettingUser.INSTANCE)
+        val group = settings.group(call.parameters["scope"].orEmpty(), SettingLevel.INSTANCE)
         when (val result = withContext(Dispatchers.IO) { group?.let { settings.update(it, request.settings, call.owner) } ?: SettingsUpdateResult.NotFound }) {
             is SettingsUpdateResult.Updated -> call.respond(SettingsResponse(result.values.json()))
             is SettingsUpdateResult.Invalid -> call.respondErrors(result.errors)

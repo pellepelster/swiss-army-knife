@@ -25,7 +25,7 @@ sealed class SettingDefinition<T : Any>(
     val requires: BooleanSetting? = null,
     // whose value it is: one of the instance, set by the admins, or one of each user, set by them
     // (SHARED-4)
-    val level: SettingUser = SettingUser.INSTANCE,
+    val level: SettingLevel = SettingLevel.INSTANCE,
     // why it does not count now beside its requirement, e.g. no AI set up; null while it counts. It
     // is off to the code then and can only go back to its default
     val unavailable: () -> ErrorMessage? = { null },
@@ -33,9 +33,9 @@ sealed class SettingDefinition<T : Any>(
     private val descriptionArgs: () -> Map<String, Any?> = { emptyMap() },
 ) {
     init {
-        require(level == SettingUser.INSTANCE || !readOnly) { "the setting $name of a user is read-only" }
+        require(level == SettingLevel.INSTANCE || !readOnly) { "the setting $name of a user is read-only" }
         require(requires?.readOnly != true) { "the setting $name requires a read-only setting" }
-        require(requires?.level != SettingUser.USER) { "the setting $name requires a setting of a user" }
+        require(requires?.level != SettingLevel.USER) { "the setting $name requires a setting of a user" }
     }
 
     abstract val type: SettingType

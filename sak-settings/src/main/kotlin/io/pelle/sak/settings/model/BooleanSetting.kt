@@ -15,7 +15,7 @@ open class BooleanSetting(
     default: Boolean,
     readOnly: Boolean = false,
     requires: BooleanSetting? = null,
-    level: SettingUser = SettingUser.INSTANCE,
+    level: SettingLevel = SettingLevel.INSTANCE,
     unavailable: () -> ErrorMessage? = { null },
     descriptionArgs: () -> Map<String, Any?> = { emptyMap() },
 ) : SettingDefinition<Boolean>(scope, name, label, description, default, readOnly, requires, level, unavailable, descriptionArgs) {

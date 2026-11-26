@@ -39,17 +39,17 @@ class SettingRepositoryTest {
 
     @Test
     fun `a setting of a user is apart from the one of the instance and from the ones of the other users`() {
-        repository.insert("ai", "notes", "true", owner = OWNER)!!.user shouldBe null
+        repository.insert("ai", "notes", "true", owner = OWNER)!!.level shouldBe null
         repository.replace("notes", mapOf("ai" to "false"), owner = "anna@example.org", user = "anna@example.org")
         repository.replace("notes", mapOf("ai" to "true"), owner = "bert@example.org", user = "bert@example.org")
 
         repository.byNameAndScope("ai", "notes")!!.let {
             it.value shouldBe "true"
-            it.user shouldBe null
+            it.level shouldBe null
         }
         repository.byNameAndScope("ai", "notes", "anna@example.org")!!.let {
             it.value shouldBe "false"
-            it.user shouldBe "anna@example.org"
+            it.level shouldBe "anna@example.org"
             it.owner shouldBe "anna@example.org"
         }
         repository.byNameAndScope("ai", "notes", "carl@example.org") shouldBe null

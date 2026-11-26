@@ -7,7 +7,7 @@ import io.pelle.sak.model.settings.SettingRepository
 import io.pelle.sak.settings.model.BooleanSetting
 import io.pelle.sak.settings.model.SettingDefinition
 import io.pelle.sak.settings.model.SettingScope
-import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingLevel
 import io.pelle.sak.settings.model.SettingValue
 import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.model.TextSetting
@@ -24,7 +24,7 @@ object SystemSettings {
 
 // every setting, of the instance and of each user (SHARED-4), the only way to them: asked with its
 // definition, which knows its scope. `user` is null for the settings of the instance
-// (SettingUser.INSTANCE) and the user for theirs (SettingUser.USER); a user reaches only their own.
+// (SettingLevel.INSTANCE) and the user for theirs (SettingLevel.USER); a user reaches only their own.
 // The groups the settings api serves are registered here, with what their check and the values of
 // their read-only settings. The values are handed out as they are, a consumer of a secret masks it;
 // they are plain in the table, the whole database is to be encrypted
@@ -68,12 +68,12 @@ class SettingService(
     val groups: List<SettingsGroup> get() = registered.values.map { it.group }
 
     // the groups with settings of the level: of the instance for the admins, of the users for each user
-    fun groups(level: SettingUser): List<SettingsGroup> = groups.filter { it.of(level).isNotEmpty() }
+    fun groups(level: SettingLevel): List<SettingsGroup> = groups.filter { it.of(level).isNotEmpty() }
 
     // the group of the name with settings of the level, null when there is none
     fun group(
         name: String,
-        level: SettingUser,
+        level: SettingLevel,
     ): SettingsGroup? = groups(level).firstOrNull { it.name.value == name }
 
     // the value that counts, the default while none is stored; null while it does not count: its group
@@ -85,7 +85,7 @@ class SettingService(
     ): T? {
         requireLevel(setting, user)
         val switch = registered[setting.scope]?.group?.enabledBy
-        if (setting.level == SettingUser.INSTANCE && switch != null && setting !== switch && !stored(switch)) return null
+        if (setting.level == SettingLevel.INSTANCE && switch != null && setting !== switch && !stored(switch)) return null
         if (unavailable(setting) != null) return null
         return stored(setting, user)
     }
@@ -108,11 +108,15 @@ class SettingService(
     }
 
     // why the setting does not count now, null while it does: its requirement first, then what the
-    // setting says itself
+    // setting says itself. The group of a required setting is registered, it names the requirement
+    // (SET-1); also for a setting whose own group is not
     fun unavailable(setting: SettingDefinition<*>): ErrorMessage? {
         val required = setting.requires
         if (required != null && get(required) != true) {
-            val group = registered.getValue(required.scope).group
+            val group =
+                checkNotNull(registered[required.scope]?.group) {
+                    "the setting ${setting.scope}.${setting.name} requires ${required.scope}.${required.name}, whose group is not registered"
+                }
             return ErrorMessage(SettingsTexts.REQUIRES, "label" to setting.label, "required" to required.label, "scope" to group.label)
         }
         return setting.unavailable()
@@ -262,7 +266,7 @@ class SettingService(
     private fun readOnlyError(setting: SettingDefinition<*>) = if (setting.readOnly) ErrorMessage(SettingsTexts.READ_ONLY, "label" to setting.label) else null
 
     // the settings of the instance without a user, those of a user with one
-    private fun levelOf(user: String?) = if (user == null) SettingUser.INSTANCE else SettingUser.USER
+    private fun levelOf(user: String?) = if (user == null) SettingLevel.INSTANCE else SettingLevel.USER
 
     // a setting of the other level is a mistake in the code, never one of a request
     private fun requireLevel(

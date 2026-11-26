@@ -1,7 +1,8 @@
 package io.pelle.sak.settings.model
 
-// whose value a setting is (SHARED-4)
-enum class SettingUser {
+// the level of a setting, whose value it is (SHARED-4); the column level of the table settings is null
+// for the instance and the address of the user for a user
+enum class SettingLevel {
     // one value for the whole instance, set by the admins (/api/v1/settings)
     INSTANCE,
 

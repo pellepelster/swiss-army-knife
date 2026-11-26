@@ -19,12 +19,12 @@ data class SettingsGroup(
         settings.forEach { require(it.scope == name) { "the setting ${it.name} of the scope ${it.scope} is not one of the scope $name" } }
         require(enabledBy == null || settings.any { it === enabledBy }) { "the setting turning the scope $name on is not one of its settings" }
         require(enabledBy?.readOnly != true) { "the setting turning the scope $name on is read-only" }
-        require(enabledBy == null || enabledBy.level == SettingUser.INSTANCE) { "the setting turning the scope $name on is one of a user" }
-        require(description != null || settings.none { it.level == SettingUser.INSTANCE }) { "the scope $name of the admins has no description" }
+        require(enabledBy == null || enabledBy.level == SettingLevel.INSTANCE) { "the setting turning the scope $name on is one of a user" }
+        require(description != null || settings.none { it.level == SettingLevel.INSTANCE }) { "the scope $name of the admins has no description" }
     }
 
     fun setting(name: String) = settings.firstOrNull { it.name.value == name }
 
     // the settings of the level
-    fun of(level: SettingUser) = settings.filter { it.level == level }
+    fun of(level: SettingLevel) = settings.filter { it.level == level }
 }

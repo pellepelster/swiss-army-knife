@@ -3,7 +3,7 @@ package io.pelle.sak.backend.openrouter
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.core.TextKey
 import io.pelle.sak.settings.model.BooleanSetting
-import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingLevel
 import io.pelle.sak.settings.model.SettingName
 import io.pelle.sak.settings.model.SettingScope
 
@@ -21,6 +21,6 @@ fun OpenRouterManager.aiUserSetting(
         label,
         description,
         default = false,
-        level = SettingUser.USER,
+        level = SettingLevel.USER,
         unavailable = { if (configured()) null else ErrorMessage(OpenRouterTexts.NOT_SET_UP) },
     )

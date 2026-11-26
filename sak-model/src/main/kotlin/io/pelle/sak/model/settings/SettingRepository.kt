@@ -15,8 +15,8 @@ data class SettingRow(
     // the name of the scope of settings, e.g. 'system'
     val scope: String,
     val value: String,
-    // whose setting it is: null for the instance, else the user
-    val user: String?,
+    // its level, whose setting it is: null for the instance, else the address of the user
+    val level: String?,
     val createdAt: Instant,
     // who set it (MODEL-5)
     val owner: String,
@@ -69,7 +69,7 @@ class SettingRepository(
                 .set(SETTINGS.NAME, name)
                 .set(SETTINGS.SCOPE, scope)
                 .set(SETTINGS.VALUE, value)
-                .set(SETTINGS.USER, user)
+                .set(SETTINGS.LEVEL, user)
                 .set(SETTINGS.CREATED_AT, clock.instant())
                 .set(SETTINGS.OWNER, owner)
                 .returning()
@@ -101,7 +101,7 @@ class SettingRepository(
                     .set(SETTINGS.NAME, name)
                     .set(SETTINGS.SCOPE, scope)
                     .set(SETTINGS.VALUE, value)
-                    .set(SETTINGS.USER, user)
+                    .set(SETTINGS.LEVEL, user)
                     .set(SETTINGS.CREATED_AT, now)
                     .set(SETTINGS.OWNER, owner)
                     .execute()
@@ -124,7 +124,7 @@ class SettingRepository(
             ?.toRow()
 
     // the rows of the instance, or of the user
-    private fun whose(user: String?) = if (user == null) SETTINGS.USER.isNull else SETTINGS.USER.eq(user)
+    private fun whose(user: String?) = if (user == null) SETTINGS.LEVEL.isNull else SETTINGS.LEVEL.eq(user)
 
     private fun SettingsRecord.toRow() =
         SettingRow(
@@ -132,7 +132,7 @@ class SettingRepository(
             name = name!!,
             scope = scope!!,
             value = value!!,
-            user = user,
+            level = level,
             createdAt = createdAt!!,
             owner = owner!!,
         )

@@ -16,7 +16,7 @@ import io.pelle.sak.auth.owner
 import io.pelle.sak.settings.model.SettingDefinition
 import io.pelle.sak.settings.model.SettingValue
 import io.pelle.sak.settings.SettingService
-import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingLevel
 import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.SettingsUpdateResult
 import io.pelle.sak.settings.model.SettingsRequest
@@ -65,7 +65,7 @@ fun Route.userSettings(settings: SettingService) {
     get {
         val user = call.owner
         val language = call.language()
-        val scopes = withContext(Dispatchers.IO) { settings.groups(SettingUser.USER).map { settings.response(it, user, language) } }
+        val scopes = withContext(Dispatchers.IO) { settings.groups(SettingLevel.USER).map { settings.response(it, user, language) } }
         call.respond(UserSettingsResponse(scopes))
     }.describe {
         tag(USER_SETTINGS_TAG)
@@ -86,7 +86,7 @@ fun Route.userSettings(settings: SettingService) {
         val request = call.receive<SettingsRequest>()
         val scope = call.parameters["scope"].orEmpty()
         val user = call.owner
-        val group = settings.group(scope, SettingUser.USER)
+        val group = settings.group(scope, SettingLevel.USER)
         when (val result = withContext(Dispatchers.IO) { group?.let { settings.update(it, request.settings, owner = user, user = user) } ?: SettingsUpdateResult.NotFound }) {
             is SettingsUpdateResult.Updated -> {
                 call.respond(withContext(Dispatchers.IO) { settings.response(group!!, user, call.language()) })

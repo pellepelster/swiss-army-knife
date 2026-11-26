@@ -8,7 +8,7 @@ import io.pelle.sak.settings.model.ChoiceSetting
 import io.pelle.sak.settings.model.SettingChoice
 import io.pelle.sak.settings.model.SettingName
 import io.pelle.sak.settings.model.SettingScope
-import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingLevel
 import io.pelle.sak.settings.model.SettingValue
 import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.model.TextSetting
@@ -84,11 +84,11 @@ class SettingDefinitionTest {
     @Test
     fun `a setting of a user is never read-only, nor requires a read-only one or one of a user`() {
         shouldThrow<IllegalArgumentException> {
-            BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, readOnly = true, level = SettingUser.USER)
+            BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, readOnly = true, level = SettingLevel.USER)
         }
         val fixed = BooleanSetting(TEST, SettingName("fixed"), t("Fixed"), t("Given by the code."), default = false, readOnly = true)
         shouldThrow<IllegalArgumentException> { TextSetting(TEST, SettingName("needs"), t("Needs"), t("Needs the flag."), default = "", requires = fixed) }
-        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingUser.USER)
+        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingLevel.USER)
         shouldThrow<IllegalArgumentException> { TextSetting(TEST, SettingName("needs"), t("Needs"), t("Needs the flag."), default = "", requires = mine) }
     }
 
@@ -100,14 +100,14 @@ class SettingDefinitionTest {
         val twice = TextSetting(TEST, SettingName("text"), t("A text"), t("Says something."), default = "")
         shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Test"), t("Settings to test with."), listOf(text, twice)) }
         shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Switched"), t("Turned on and off."), listOf(text), enabledBy = flag) }
-        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingUser.USER)
+        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingLevel.USER)
         shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Switched"), t("Turned on and off."), listOf(mine, text), enabledBy = mine) }
     }
 
     @Test
     fun `a group of the admins has a description, one of the users only needs none`() {
-        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingUser.USER)
-        SettingsGroup(TEST, t("Test"), null, listOf(mine)).of(SettingUser.USER) shouldBe listOf(mine)
+        val mine = BooleanSetting(TEST, SettingName("mine"), t("A flag"), t("Turns something on."), default = false, level = SettingLevel.USER)
+        SettingsGroup(TEST, t("Test"), null, listOf(mine)).of(SettingLevel.USER) shouldBe listOf(mine)
         shouldThrow<IllegalArgumentException> { SettingsGroup(TEST, t("Test"), null, listOf(mine, flag)) }
     }
 }

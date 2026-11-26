@@ -359,6 +359,34 @@ class SakDatabaseTest {
     }
 
     @Test
+    fun `the column user of the settings is named level, its values and its index stay`() {
+        Files.createDirectories(file.parent)
+        val at = "'2026-11-01 00:00:00.000'"
+        migrateSchema(dataSource(), target = "14")
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeUpdate("INSERT INTO settings (id, name, value, scope, owner, created_at) VALUES (1, 'enabled', 'true', 'ai', 'admin', $at)")
+                statement.executeUpdate("INSERT INTO settings (id, name, value, scope, owner, user, created_at) VALUES (2, 'ai', 'true', 'notes', 'anna', 'anna', $at)")
+            }
+        }
+
+        SakDatabase.open(file)
+
+        java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT id, level FROM settings ORDER BY id").use { rows ->
+                    buildList { while (rows.next()) add(rows.getInt(1) to rows.getString(2)) }
+                } shouldBe listOf(1 to null, 2 to "anna")
+                // still one live value for each scope, name and level
+                runCatching {
+                    statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, level, created_at) VALUES ('ai', 'false', 'notes', 'anna', 'anna', $at)")
+                }.isFailure shouldBe true
+                statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, level, created_at) VALUES ('ai', 'false', 'notes', 'bert', 'bert', $at)")
+            }
+        }
+    }
+
+    @Test
     fun `the settings of the instance stay, the AI switches of the admins for an app stay as deleted, users get their own`() {
         Files.createDirectories(file.parent)
         val at = "'2026-11-01 00:00:00.000'"
@@ -378,7 +406,7 @@ class SakDatabaseTest {
 
         java.sql.DriverManager.getConnection("jdbc:sqlite:$file").use { connection ->
             connection.createStatement().use { statement ->
-                statement.executeQuery("SELECT id, user, deleted_at FROM settings ORDER BY id").use { rows ->
+                statement.executeQuery("SELECT id, level, deleted_at FROM settings ORDER BY id").use { rows ->
                     buildList { while (rows.next()) add(Triple(rows.getInt(1), rows.getString(2), rows.getString(3))) }
                 }.let { rows ->
                     rows.map { it.first to it.second } shouldBe listOf(1 to null, 2 to null, 3 to null, 4 to null)
@@ -387,11 +415,11 @@ class SakDatabaseTest {
                     rows.last().third shouldBe "2026-11-01 00:00:00.000"
                 }
                 // each user has their own value of a setting, once, and so has the instance
-                statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, user, created_at) VALUES ('ai', 'true', 'notes', 'anna', 'anna', $at)")
-                statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, user, created_at) VALUES ('ai', 'true', 'notes', 'bert', 'bert', $at)")
+                statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, level, created_at) VALUES ('ai', 'true', 'notes', 'anna', 'anna', $at)")
+                statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, level, created_at) VALUES ('ai', 'true', 'notes', 'bert', 'bert', $at)")
                 statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, created_at) VALUES ('ai', 'true', 'notes', 'admin', $at)")
                 runCatching {
-                    statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, user, created_at) VALUES ('ai', 'false', 'notes', 'anna', 'anna', $at)")
+                    statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, level, created_at) VALUES ('ai', 'false', 'notes', 'anna', 'anna', $at)")
                 }.isFailure shouldBe true
                 runCatching {
                     statement.executeUpdate("INSERT INTO settings (name, value, scope, owner, created_at) VALUES ('ai', 'false', 'notes', 'admin', $at)")
@@ -414,7 +442,7 @@ class SakDatabaseTest {
 
         val database = SakDatabase.open(file)
 
-        versions() shouldBe listOf("10" to "BASELINE", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL")
+        versions() shouldBe listOf("10" to "BASELINE", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL", "15" to "SQL")
         io.pelle.sak.model.hosting.S3BucketRepository(database).byName("site")!!.resourceId shouldBe ResourceId("site00000000")
     }
 
@@ -424,7 +452,7 @@ class SakDatabaseTest {
 
         SakDatabase.open(file)
 
-        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL")
+        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL", "15" to "SQL")
     }
 
     @Test
@@ -441,7 +469,7 @@ class SakDatabaseTest {
     fun `a new database gets every migration`() {
         SakDatabase.open(file)
 
-        versions() shouldBe (1..14).map { it.toString() to "SQL" }
+        versions() shouldBe (1..15).map { it.toString() to "SQL" }
     }
 
     private companion object {

@@ -11,7 +11,7 @@ import io.pelle.sak.settings.model.ChoiceSetting
 import io.pelle.sak.settings.model.SettingChoice
 import io.pelle.sak.settings.model.SettingName
 import io.pelle.sak.settings.model.SettingScope
-import io.pelle.sak.settings.model.SettingUser
+import io.pelle.sak.settings.model.SettingLevel
 import io.pelle.sak.settings.model.SettingValue
 import io.pelle.sak.settings.model.SettingsGroup
 import io.pelle.sak.settings.model.TextSetting
@@ -30,7 +30,7 @@ private val GREETING = TextSetting(TEST, SettingName("greeting"), t("A greeting"
 
 private val GROUP = SettingsGroup(TEST, t("Test"), t("Settings to test with."), listOf(FLAG, GREETING))
 
-// the settings of the instance (SettingUser.INSTANCE), asked with their definitions; the groups the
+// the settings of the instance (SettingLevel.INSTANCE), asked with their definitions; the groups the
 // api serves registered with their checks and read-only values
 class SettingServiceTest {
     @TempDir
@@ -67,6 +67,22 @@ class SettingServiceTest {
         settings.get(loose) shouldBe ""
         settings.set(loose, "set") shouldBe null
         settings.get(loose) shouldBe "set"
+    }
+
+    @Test
+    fun `a setting that requires one of a group not registered says so, read on its own or in its group (SET-1)`() {
+        val baseScope = SettingScope("base")
+        val switch = BooleanSetting(baseScope, SettingName("enabled"), t("On"), t("Turns the base on."), default = false)
+        val needs = BooleanSetting(SettingScope("loose"), SettingName("needs"), t("Needs"), t("Needs the base."), default = false, requires = switch)
+
+        val error = shouldThrow<IllegalStateException> { settings.get(needs) }
+        error.message shouldBe "the setting loose.needs requires base.enabled, whose group is not registered"
+        shouldThrow<IllegalStateException> { settings.set(needs, true) }
+        // registered, the requirement counts as for every other setting
+        settings.register(SettingsGroup(baseScope, t("Base"), t("Required."), listOf(switch)))
+        settings.get(needs) shouldBe null
+        settings.set(switch, true)
+        settings.get(needs) shouldBe false
     }
 
     @Test
@@ -270,15 +286,15 @@ class SettingServiceTest {
     @Test
     fun `the groups are served in the order they are registered, by their level`() {
         val users = SettingScope("users")
-        val text = TextSetting(users, SettingName("text"), t("A text"), t("Says something."), default = "", level = SettingUser.USER)
+        val text = TextSetting(users, SettingName("text"), t("A text"), t("Says something."), default = "", level = SettingLevel.USER)
         settings.register(SettingsGroup(users, t("Other"), null, listOf(text)))
 
         settings.groups.map { it.name } shouldBe listOf(TEST, users)
-        settings.groups(SettingUser.INSTANCE).map { it.name } shouldBe listOf(TEST)
-        settings.groups(SettingUser.USER).map { it.name } shouldBe listOf(users)
-        settings.group("test", SettingUser.INSTANCE) shouldBe GROUP
-        settings.group("test", SettingUser.USER) shouldBe null
-        settings.group("users", SettingUser.INSTANCE) shouldBe null
+        settings.groups(SettingLevel.INSTANCE).map { it.name } shouldBe listOf(TEST)
+        settings.groups(SettingLevel.USER).map { it.name } shouldBe listOf(users)
+        settings.group("test", SettingLevel.INSTANCE) shouldBe GROUP
+        settings.group("test", SettingLevel.USER) shouldBe null
+        settings.group("users", SettingLevel.INSTANCE) shouldBe null
     }
 
     @Test
