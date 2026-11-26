@@ -38,11 +38,24 @@ pub(crate) struct Restic<'a> {
     pub password: &'a str,
 }
 
+/// the variables the command line takes a session from (`cli`); no program sakbackup starts gets
+/// them, restic and what it starts need no session of SAK (SEC-44)
+pub const ADDRESS_VARIABLE: &str = "SAK_BACKUP_ADDRESS";
+pub const SESSION_VARIABLE: &str = "SAK_BACKUP_SESSION_TOKEN";
+
+/// a program without the session of the command line in its environment (SEC-44)
+pub fn without_session(mut command: Command) -> Command {
+    command
+        .env_remove(ADDRESS_VARIABLE)
+        .env_remove(SESSION_VARIABLE);
+    command
+}
+
 impl Restic<'_> {
     /// restic with the repository and the password in its environment, and none of the other ways
-    /// to give them, which would win over them
+    /// to give them, which would win over them; without the session of the command line
     pub fn command(&self) -> Command {
-        let mut command = Command::new(self.program);
+        let mut command = without_session(Command::new(self.program));
         for variable in [
             "RESTIC_REPOSITORY_FILE",
             "RESTIC_PASSWORD_FILE",
@@ -363,6 +376,27 @@ fn private_file(kind: &str, lines: &[String]) -> std::io::Result<FilesFrom> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn restic_gets_no_session_of_the_command_line() {
+        let restic = Restic {
+            program: Path::new("restic"),
+            repository: "rest:https://7:t@api.example.org/restic/7/",
+            password: "t",
+        };
+        let command = restic.command();
+        let removed: Vec<_> = command
+            .get_envs()
+            .filter(|(_, value)| value.is_none())
+            .map(|(name, _)| name.to_string_lossy().into_owned())
+            .collect();
+        for variable in [ADDRESS_VARIABLE, SESSION_VARIABLE] {
+            assert!(
+                removed.iter().any(|name| name == variable),
+                "{variable} is passed on"
+            );
+        }
+    }
 
     #[test]
     fn the_repository_is_below_the_origin_of_the_api_with_the_token_as_its_password() {

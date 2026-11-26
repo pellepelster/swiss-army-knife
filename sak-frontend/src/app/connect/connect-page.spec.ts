@@ -126,6 +126,8 @@ describe('ConnectPage', () => {
       'Whoever scans this code signs in as you. Show it only to your own phone.',
     );
     expect(text('countdown')).toBe('Valid for 2:00');
+    // whom it connects, and where (SEC-45)
+    expect(text('connects-as')).toBe(`Connects as connect@example.org to ${location.host}.`);
     harness.fixture.destroy();
   });
 

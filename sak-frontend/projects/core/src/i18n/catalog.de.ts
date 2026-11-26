@@ -180,6 +180,7 @@ export const TEXTS = {
     instructions: 'Öffne Notizen, Einkaufslisten oder Aufgaben auf deinem Handy, tippe auf „QR-Code scannen“ und richte die Kamera auf diesen Code.',
     warning: 'Wer diesen Code scannt, ist als du angemeldet. Zeige ihn nur deinem eigenen Handy.',
     code: 'QR-Code zum Verbinden einer App',
+    as: 'Verbindet als %{email} mit %{instance}.',
     valid_for: 'Noch %{time} gültig',
     expired: 'Der Code ist abgelaufen.',
     connected: 'Verbunden',

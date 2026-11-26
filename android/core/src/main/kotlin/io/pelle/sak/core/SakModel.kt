@@ -220,6 +220,11 @@ abstract class SakModel<A : SakApi>(
                 when {
                     stored.apiUrl == null -> state.value = Screen.Deployment()
                     signedIn(stored) -> startApp(stored)
+                    // an expired session counts for nothing and is not kept (SEC-46)
+                    stored.token != null -> {
+                        store.update { it.withoutSession() }
+                        showSignIn(store.load())
+                    }
                     else -> showSignIn(stored)
                 }
             }

@@ -52,7 +52,7 @@ fn version(program: &Path) -> Result<String, String> {
         )
         .to_string()
     };
-    let output = Command::new(program)
+    let output = crate::core::restic::without_session(Command::new(program))
         .arg("version")
         .stdin(Stdio::null())
         .output()

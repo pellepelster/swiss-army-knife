@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -68,6 +69,10 @@ type Watch = 'tick' | 'used' | 'unused' | 'gone';
     }
 
     <p>{{ 'connect.instructions' | t }}</p>
+    <!-- whom the code connects, and where (SEC-45) -->
+    <p class="fw-semibold text-break" data-testid="connects-as">
+      {{ 'connect.as' | t: { email: signedInAs, instance: instance } }}
+    </p>
     <p class="alert alert-warning" data-testid="warning">
       <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i
       >{{ 'connect.warning' | t }}
@@ -105,6 +110,9 @@ type Watch = 'tick' | 'used' | 'unused' | 'gone';
 export class ConnectPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(AuthService);
+  // the address the code signs in as and the SAK instance, as the page names them (SEC-45)
+  protected readonly signedInAs = this.auth.signedInAs() ?? '';
+  protected readonly instance = inject(DOCUMENT).location.host;
 
   protected readonly state = signal<State>({ kind: 'loading' });
   private readonly now = signal(Date.now());

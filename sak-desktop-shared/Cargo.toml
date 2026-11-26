@@ -26,6 +26,10 @@ getrandom = "0.4.3"
 base64 = "0.23.1"
 sha2 = "0.11.0"
 tokio = { version = "1", features = ["rt", "sync", "time"] }
+# the session token wiped when it goes, the state and the secret of a sign-in compared in constant
+# time (SEC-36); both are in the lockfiles of the apps already
+zeroize = "1.8"
+subtle = "2.6"
 url = "2.5.8"
 # the update of an app (update.rs): the versions of the releases, the zip of a release, the app
 # replaced by the binary of the zip

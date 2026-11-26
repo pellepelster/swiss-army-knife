@@ -445,6 +445,7 @@ web:
       en: "Whoever scans this code signs in as you. Show it only to your own phone."
       de: "Wer diesen Code scannt, ist als du angemeldet. Zeige ihn nur deinem eigenen Handy."
     code: { en: "QR code to connect an app", de: "QR-Code zum Verbinden einer App" }
+    as: { en: "Connects as %{email} to %{instance}.", de: "Verbindet als %{email} mit %{instance}." }
     valid_for: { en: "Valid for %{time}", de: "Noch %{time} gültig" }
     expired: { en: "The code expired.", de: "Der Code ist abgelaufen." }
     connected: { en: "Connected", de: "Verbunden" }

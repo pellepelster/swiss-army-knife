@@ -182,6 +182,7 @@ export const TEXTS = {
     instructions: 'Open Notes, Grocery or Todo on your phone, tap “Scan QR code” and point the camera at this code.',
     warning: 'Whoever scans this code signs in as you. Show it only to your own phone.',
     code: 'QR code to connect an app',
+    as: 'Connects as %{email} to %{instance}.',
     valid_for: 'Valid for %{time}',
     expired: 'The code expired.',
     connected: 'Connected',

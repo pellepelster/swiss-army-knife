@@ -13,7 +13,7 @@ weight: 8
 `SEC-38`) are in the history of git.
 
 **Reviewed again:** 2026-11-26 at commit 14ed06ab, the login, the authorization of the apps, the tokens and their
-lifetimes, on the server and in the clients: `SEC-36` and `SEC-22` (`#155`) are still as written, `SEC-3`
+lifetimes, on the server and in the clients: `SEC-22` (`#155`) is still as written, `SEC-3`
 is accepted in ACCEPTED-RISKS until the login has a password of its own;
 new are `SEC-40` to `SEC-46`. Fixed since: `SEC-39` (a user added again had their old sessions and tokens back) and
 `SEC-7` (a login link signed in any browser over the session there; it now asks when this browser did not ask for
@@ -138,21 +138,6 @@ server only the user mode and the mail server.
 
 - `SEC-26` The host filters nothing that comes in: the table of nftables has rules for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
-- `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
-  keychain, not wiped when it goes (as `SEC-24` for sakadmin); the state of a callback and the secret of the start page
-  off linux are compared with `!=` and `==`, not in constant time (128 bits, on the loopback: no practical way to
-  measure them).
-- `SEC-43` A sign out in one tab of the web app leaves the others signed in: the session is read from
-  `localStorage` once (`AuthService`) and no page listens to the `storage` event, so another tab keeps the token, its
-  calls and its change streams until a 401.
-- `SEC-44` sakbackup hands its session to restic: `Restic::command` removes the `RESTIC_*_FILE` and `…_COMMAND`
-  variables but not `SAK_BACKUP_SESSION_TOKEN` (and the address), which the command line reads; restic and what it
-  starts (a password command, rclone) inherit a session of 30 days they do not need.
-- `SEC-45` The pages `/connect-app` and `/connect-desktop` say "as you" and do not name the address signed in nor
-  the SAK instance; an admin signed in as somebody else hands an app or sakbackup that session, and their backups or
-  notes go there.
-- `SEC-46` An expired session stays where it is kept: the web app returns no token for it but leaves it in
-  `localStorage`, Android shows the sign-in without deleting it. It counts for nothing, the server checks `exp`.
 - `SEC-29` A user has no quota in the file storage and its files have no delete (`DM-6` of
   [the review of the data model](data-model-review.md)): a user fills the data volume in steps of 10 MiB. The change
   streams (`…/changes`) have no largest number for a user and stay open when the session ends.

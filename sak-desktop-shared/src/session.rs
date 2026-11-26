@@ -15,6 +15,7 @@ use std::time::{Duration, Instant};
 use url::{Host, Url};
 
 use crate::secrets::{NoSecrets, SecretStore};
+use zeroize::Zeroizing;
 
 /// how long a sign-in waits for the browser: long enough for a login link by e-mail
 pub const LOGIN_TIMEOUT: Duration = Duration::from_secs(15 * 60);
@@ -199,7 +200,8 @@ struct Session {
     address: Address,
     /// the api the address names (SERVER-6), with a trailing slash
     api: Url,
-    token: String,
+    /// wiped when the session goes (SEC-36)
+    token: Zeroizing<String>,
     user: User,
 }
 
@@ -286,7 +288,10 @@ impl SessionManager {
         if api.as_str() != known {
             return Err(RestoreError::Changed);
         }
-        match self.take_up(address.clone(), api, token).await {
+        match self
+            .take_up(address.clone(), api, Zeroizing::new(token))
+            .await
+        {
             Err(RestoreError::Expired) => {
                 self.forget(&address).await;
                 Err(RestoreError::Expired)
@@ -302,7 +307,7 @@ impl SessionManager {
             .api(&address)
             .await
             .map_err(|_| RestoreError::Unreachable)?;
-        self.take_up(address, api, token).await
+        self.take_up(address, api, Zeroizing::new(token)).await
     }
 
     /// the session of `token` once `who-am-i` of `api` takes it
@@ -310,7 +315,7 @@ impl SessionManager {
         &self,
         address: Address,
         api: Url,
-        token: String,
+        token: Zeroizing<String>,
     ) -> Result<User, RestoreError> {
         let response = self
             .client
@@ -318,7 +323,7 @@ impl SessionManager {
                 api.join("auth/who-am-i")
                     .map_err(|_| RestoreError::Unreachable)?,
             )
-            .bearer_auth(&token)
+            .bearer_auth(token.as_str())
             .send()
             .await
             .map_err(unreachable)?;
@@ -459,7 +464,7 @@ impl SessionManager {
         // a cancel or a sign-out while the token is exchanged and the user asked for ends it too: no
         // session and nothing in the keychain appear after it (DA-43)
         let cancelled = || cancel.load(Ordering::SeqCst);
-        let session_token = self.exchange(&api, &token, &verifier).await?;
+        let session_token = Zeroizing::new(self.exchange(&api, &token, &verifier).await?);
         if cancelled() {
             return Err(LoginError::Cancelled);
         }
@@ -543,7 +548,7 @@ impl SessionManager {
         Some(
             self.client
                 .request(method, session.api.join(path).ok()?)
-                .bearer_auth(&session.token),
+                .bearer_auth(session.token.as_str()),
         )
     }
 
@@ -699,7 +704,7 @@ fn callback(method: &tiny_http::Method, path: &str, start: &str, state: &str) ->
     let Ok(url) = Url::parse(&format!("http://127.0.0.1{path}")) else {
         return Callback::Other;
     };
-    if *method == tiny_http::Method::Get && url.path() == start && url.query().is_none() {
+    if *method == tiny_http::Method::Get && same(url.path(), start) && url.query().is_none() {
         return Callback::Start;
     }
     if *method != tiny_http::Method::Get || url.path() != "/callback" {
@@ -710,7 +715,8 @@ fn callback(method: &tiny_http::Method, path: &str, start: &str, state: &str) ->
             .find(|(key, _)| key == name)
             .map(|(_, value)| value.to_string())
     };
-    if param("state").as_deref() != Some(state) {
+    // in constant time (SEC-36)
+    if !param("state").is_some_and(|given| same(&given, state)) {
         return Callback::Other;
     }
     match (param("token"), param("error")) {
@@ -906,6 +912,12 @@ fn escape(text: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+/// whether two secrets are the same, in constant time for texts of the same length (SEC-36)
+fn same(given: &str, expected: &str) -> bool {
+    use subtle::ConstantTimeEq;
+    given.as_bytes().ct_eq(expected.as_bytes()).into()
 }
 
 #[cfg(test)]
@@ -1432,6 +1444,16 @@ mod tests {
             pkce_challenge(&"a".repeat(43)),
             "ZtNPunH49FD35FWYhT5Tv8I7vRKQJ8uxMaL0_9eHjNA"
         );
+    }
+
+    #[test]
+    fn secrets_are_the_same_only_when_equal_whatever_their_length() {
+        assert!(same("a-state-of-22-chars-xx", "a-state-of-22-chars-xx"));
+        assert!(!same("a-state-of-22-chars-xy", "a-state-of-22-chars-xx"));
+        // a prefix or a longer one is not the state
+        assert!(!same("a-state", "a-state-of-22-chars-xx"));
+        assert!(!same("a-state-of-22-chars-xxx", "a-state-of-22-chars-xx"));
+        assert!(!same("", "s"));
     }
 
     #[test]

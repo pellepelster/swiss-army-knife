@@ -730,6 +730,9 @@ class SakModelTest {
                 advanceUntilIdle()
                 assertTrue(it.screen.value is Screen.SignIn)
             }
+            // and not kept, the deployment stays (SEC-46)
+            assertNull(expired.load().token)
+            assertEquals(URL, expired.load().apiUrl)
 
             val store = signedIn()
             val model = model(store).also { it.start() }

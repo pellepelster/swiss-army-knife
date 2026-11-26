@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -73,6 +74,10 @@ type State =
             </p>
           } @else {
             <p>{{ 'connect_desktop.question' | t }}</p>
+            <!-- whom the code connects, and where (SEC-45) -->
+            <p class="fw-semibold text-break" data-testid="connects-as">
+              {{ 'connect.as' | t: { email: signedInAs, instance: instance } }}
+            </p>
             <p class="alert alert-warning" data-testid="warning">
               <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i
               >{{ 'connect_desktop.warning' | t }}
@@ -115,6 +120,9 @@ type State =
 export class ConnectDesktopPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly auth = inject(AuthService);
+  // the address the code signs in as and the SAK instance, as the page names them (SEC-45)
+  protected readonly signedInAs = this.auth.signedInAs() ?? '';
+  protected readonly instance = inject(DOCUMENT).location.host;
   private readonly leave = inject(LEAVE_PAGE);
   private readonly request = desktopRequest(inject(ActivatedRoute).snapshot.queryParamMap);
 

@@ -72,6 +72,20 @@ export class AuthService {
 
   private readonly session = signal<Session | null>(loadSession());
 
+  // another tab signed out, or signed in as another address: this one follows (SEC-43). A new token
+  // of the same address is taken quietly
+  constructor() {
+    inject(DOCUMENT).defaultView?.addEventListener('storage', (event: StorageEvent) => {
+      if (event.key !== SESSION_STORAGE_KEY && event.key !== null) return;
+      const before = this.session();
+      const now = loadSession();
+      this.session.set(now);
+      if (before === null) return;
+      if (now === null) this.leavePage('/login');
+      else if (now.email !== before.email) this.leavePage(this.router.url);
+    });
+  }
+
   // null when signed out or the session expired
   token(): string | null {
     const session = this.session();
@@ -228,6 +242,11 @@ function loadSession(): Session | null {
       typeof session.expiresAt === 'string' &&
       !Number.isNaN(Date.parse(session.expiresAt))
     ) {
+      // an expired one counts for nothing and is not kept (SEC-46)
+      if (Date.parse(session.expiresAt) <= Date.now()) {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+        return null;
+      }
       // a session without roles has a token the backend rejects anyway
       const roles = Array.isArray(session.roles)
         ? session.roles.filter((role) => typeof role === 'string')

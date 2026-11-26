@@ -90,6 +90,8 @@ describe('ConnectDesktopPage', () => {
     http.expectNone('/api/v1/auth/connect');
     expect(text('warning')).toContain('Connect it only if you just started the sign-in');
     expect(text('code')).toBe('DCF-ACE');
+    // whom it connects, and where (SEC-45)
+    expect(text('connects-as')).toBe(`Connects as desktop@example.org to ${location.host}.`);
 
     button('Connect').click();
     const request = http.expectOne('/api/v1/auth/connect');

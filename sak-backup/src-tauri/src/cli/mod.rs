@@ -22,8 +22,7 @@ use std::path::PathBuf;
 /// the identifier of the app, its config directory and its entry in the keychain (tauri.conf.json)
 use crate::core::IDENTIFIER;
 
-pub const ADDRESS_VARIABLE: &str = "SAK_BACKUP_ADDRESS";
-pub const SESSION_VARIABLE: &str = "SAK_BACKUP_SESSION_TOKEN";
+pub use crate::core::restic::{ADDRESS_VARIABLE, SESSION_VARIABLE};
 
 /// The backups of a SAK instance with restic. Without a command, the window opens.
 #[derive(Parser)]
