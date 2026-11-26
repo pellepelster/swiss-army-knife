@@ -13,6 +13,7 @@ use rust_i18n::t;
 use serde::Deserialize;
 use tauri::State;
 use tauri::ipc::Channel;
+use zeroize::Zeroizing;
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -29,7 +30,8 @@ pub enum Action {
 pub struct MaintenanceRequest {
     action: Action,
     name: String,
-    password: String,
+    // wiped when the command ends (SEC-24)
+    password: Zeroizing<String>,
 }
 
 #[tauri::command]

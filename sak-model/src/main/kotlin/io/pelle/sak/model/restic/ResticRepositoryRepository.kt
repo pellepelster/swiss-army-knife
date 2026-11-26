@@ -86,6 +86,31 @@ class ResticRepositoryRepository(
             .where(RESTIC_REPOSITORIES.ID.eq(id), RESTIC_REPOSITORIES.OWNER.eq(owner), RESTIC_REPOSITORIES.DELETED_AT.isNull)
             .fetchOne(RESTIC_REPOSITORIES.TOKEN)
 
+    // a new token for each live repository of the owner, made by `token`: the old ones are refused from
+    // then on (SEC-39); how many were renewed
+    fun renewTokens(
+        owner: String,
+        token: () -> String,
+    ): Int =
+        database.dsl.transactionResult { configuration ->
+            val dsl = DSL.using(configuration)
+            val ids =
+                dsl
+                    .select(RESTIC_REPOSITORIES.ID)
+                    .from(RESTIC_REPOSITORIES)
+                    .where(RESTIC_REPOSITORIES.OWNER.eq(owner), RESTIC_REPOSITORIES.DELETED_AT.isNull)
+                    .fetch(RESTIC_REPOSITORIES.ID)
+            val now = clock.instant()
+            ids.sumOf { id ->
+                dsl
+                    .update(RESTIC_REPOSITORIES)
+                    .set(RESTIC_REPOSITORIES.TOKEN, token())
+                    .set(RESTIC_REPOSITORIES.UPDATED_AT, now)
+                    .where(RESTIC_REPOSITORIES.ID.eq(id))
+                    .execute()
+            }
+        }
+
     // the token and the resource id of a live repository, whoever owns it: what its REST backend checks a
     // login against
     fun loginOf(id: Int): ResticLogin? =

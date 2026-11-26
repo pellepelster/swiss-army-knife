@@ -88,11 +88,11 @@ is in [SYSTEM.md](architecture/SYSTEM.md).
   moment, the note is saved without it; if the note is deleted, the label stays without a note. Accepted: it takes
   two devices within milliseconds, and the user sees and fixes it at once.
 
-- **A session ends only when its token expires.** Signing out forgets the token on the device; the backend keeps no
-  session list, so a copied token stays valid for the session TTL, and a copied session can get itself a new one of the
-  full time through a connect token (`SECURITY-3`), without an end. Accepted until a session has a largest age from the
-  login of the user: the token stays on the device (encrypted with the keystore on Android) and travels only over https;
-  revoking would be the first session state in the backend. Revisit when shared devices make theft likely.
+- **A copied session works until its user signs out everywhere.** Signing out forgets the token on the device only,
+  the backend keeps no list of sessions: a copied token works until it expires, its user signs out everywhere or an
+  admin signs them out (`SECURITY-5`), at most 180 days from the sign-in it comes from (`SECURITY-3`). Accepted: the
+  token stays on the device (encrypted with the keystore on Android) and travels only over https; signing out one
+  device of many would need a list of the sessions, the first session state of the backend.
 
 - **An action waiting for its undo is lost when Android ends the app.** A grocery check or a todo purge waits for
   its undo in memory (`UX-4.2`). Accepted: at most one tap is lost, and the list shows it on the next start.

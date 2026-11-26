@@ -12,6 +12,14 @@ weight: 8
 **Checked again:** 2026-11-23, every finding listed is still open; the fixed ones (since the last check `SEC-8` and
 `SEC-38`) are in the history of git.
 
+**Reviewed again:** 2026-11-26 at commit 14ed06ab, the login, the authorization of the apps, the tokens and their
+lifetimes, on the server and in the clients: `SEC-36` and `SEC-22` (`#155`) are still as written, `SEC-3`
+is accepted in ACCEPTED-RISKS until the login has a password of its own;
+new are `SEC-40` to `SEC-46`. Fixed since: `SEC-39` (a user added again had their old sessions and tokens back) and
+`SEC-7` (a login link signed in any browser over the session there; it now asks when this browser did not ask for
+it or another address is signed in), `SEC-4` (a copied session renewed itself without an end): a session lasts at most 180 days from its sign-in with a
+link or the password, and a user signs out everywhere. The code was read, nothing ran against a deployment.
+
 Scope: the whole application. The login and the sessions (`sak-auth`, `sak-api`), the routes and the data of the backend
 (`sak-backend`, `sak-model`, `sak-openrouter`, `sak-logs`), the static hosting with the S3 api, the storage and the
 ingress (`sak-s3`, `sak-storage-local`, `sak-ingress`, `sak-dns`), the web app (`sak-frontend`), the Android apps
@@ -77,52 +85,51 @@ person in a browser. Nothing found gives a session to somebody who is not on the
   the ingress to bind 80 and 443; the backend, victorialogs and the admin api of caddy listen on loopback; the firewall
   of the cloud opens 22, 443 and icmp.
 
+## The tokens and their lifetimes
+
+Every JWT is ES256 with one key the server makes and keeps in its settings (`SigningKey`, `TokenService`); the
+verifier pins the algorithm and checks the issuer (the address of the web app), the use of the token, `exp`, `nbf`
+and `iat` (without leeway, the default of java-jwt). No token has a `kid` and no route replaces the key; a sign out
+everywhere ends the sessions of one user without it.
+
+| Token | Made of | Lifetime | Used once | Kept | Ends early |
+|---|---|---|---|---|---|
+| Login link | JWT: the address, a random id, the redirect, the hash of a nonce (the apps) | 15 minutes | yes, the used ids in memory (`SEC-22`) | nowhere | sign out everywhere |
+| Session | JWT: the address, the roles, how the user signed in; no id | 30 days, at most 180 days from the sign-in (`auth_time`, handed on through every connect) | no | on the device | sign out everywhere (`sign_outs`), the address loses its roles, is deleted or added again |
+| Connect (QR code, desktop with pkce) | JWT: a random id, the challenge of pkce, the `auth_time` of its session | 2 minutes | yes, in memory; a wrong verifier does not use it up | nowhere | sign out everywhere |
+| Repository of restic | 32 random bytes | none | no | plain in the database (accepted) | when the repository goes or its owner loses the roles; a new one when the owner is deleted |
+| Signed request of sakadmin | Ed25519 over method, host, path, query, time, nonce | ±120 seconds | yes, the nonces in memory (`SEC-22`) | nowhere | no |
+
+The limits, all in memory: a login link 5 an hour per address and client, 20 per client, 60 in all; the password 10
+an hour per client and 60 in all; the exchange of a connect token 30 an hour per client; 10 QR codes an hour per user;
+30 wrong tokens of a repository of restic an hour per repository and client. A client is an IPv4 address or an IPv6
+/64, from the last `X-Forwarded-For` that caddy sets.
+
 ## Should fix
 
-### `SEC-3` The password of the deployment is typed into the web login
-
-`SECURITY-1` says the backend has only the hash of the admin password. At rest that is so; but the password that is
-checked is the password of the deployment itself (`keys.rs`, `admin_password_hash`), and the web app and the Android
-apps send it to `POST /api/v1/auth/login/password`. Whoever runs code in the backend or in caddy, or gets the admin
-to type it into a page that is not SAK, reads it with the next login. From the name and the password
-follow the ssh client key (root on the server, port 22 is open), the api key, the key of every backup, old ones
-included, and the key of the local settings. The purposes of the keys do not help, what they are all derived from is
-handed over. Accepted in [ACCEPTED-RISKS.md](../ACCEPTED-RISKS.md) until it is fixed; the backup says the server
-never has the key that decrypts a backup.
-
-Fix: a password for the login of its own, derived by sakadmin with a purpose (`admin-login`) and shown by it, so the
-password of the deployment never leaves the machine of the admin; or a login where the server never sees the
-password (OPAQUE). Until then `SECURITY-1` says it (the rule changes only with the consent of the user).
-
-### `SEC-4` A copied session renews itself without an end
-
-A copied token stays valid for the time of a session. With the QR code it is longer, which ACCEPTED-RISKS accepts
-until it is fixed:
-`POST /api/v1/auth/connect` with the copied session gives a connect token, `POST /api/v1/auth/login/connect` a new
-session of the full 30 days, of the same user, and so on, 10 an hour. The only checks are that it is no signed
-request and `codesPerUser`. The page that tells when an app used a code is the page that asked for it, so the user
-sees nothing. A user an admin deletes is refused; for an admin nothing ends it but a new signing key in the
-database, which no route and no page does.
-
-Fix: a claim with the time of the login the user made (carried through every connect), and no session past a
-largest age from it; or one time for each user, "sessions from before are not valid", checked against `iat`, which
-also gives a sign out everywhere without a list of sessions.
-
-To decide: the largest age of a session (proposed: 90 days from the login the user made, carried through every
-connect), whether the sign out everywhere comes with it, and the change of `SECURITY-3` and of ACCEPTED-RISKS (a rule
-changes only with the consent of the user).
-
-### `SEC-7` A login link signs in whatever browser opens it, over a session that is there
-
-The same attacker. The web app sends no nonce with `requestLogin`, and `Signin.ngOnInit` exchanges the token of
-`/signin?token=…` at once: no check that this browser asked, no question when another user is signed in. A link the
-attacker sends to the admin replaces the session of the admin with the one of the attacker and goes to a page of the
-attacker's choice inside the app.
-
-Fix: the web app sends a nonce too and keeps it with the request, at the cost that a link opens only in the browser
-that asked; or the page asks ("sign in as …?") when this browser did not ask or another address is signed in.
+Nothing at the moment.
 
 ## Could fix
+
+### `SEC-41` Once the limiter knows 10,000 clients it refuses every new one
+
+`RateLimiter.tryAcquire` refuses a new key when it already holds `DEFAULT_MAX_KEYS` (10,000) after a sweep of the
+window (`sak-core`, `RateLimiter.kt`). A key is an IPv6 /64: one request from each of 10,000 /64 of a /48, which is
+cheap to have, and for an hour every client not seen before gets a 429 at the link, the password and the exchange of
+a connect token. The limiter of restic ignores a refusal of a key it does not know, so it is not hit.
+
+Fix: drop the oldest key instead of refusing the new one, or group IPv6 by /48 once there are many keys.
+
+### `SEC-42` A signed request is an admin for every method, not only to read
+
+The comment of `ApiSignature` says "sakadmin only reads", but a valid signature gives an admin that never expires
+(`setOf(Role.ADMIN)`) to every route, and only a body is refused: `DELETE /api/v1/users/{id}`, a redirect or a
+repository of restic can be deleted with one. Whoever relays a fresh signed request (accepted in ACCEPTED-RISKS) gets
+only what sakadmin asked for; but the key is the strongest credential of the deployment and nothing of sakadmin needs
+more than `GET`. The check for a body rests on `Content-Length` and `Transfer-Encoding`; that caddy hands every body
+on with one of them was not checked.
+
+Fix: a signed request for `GET` and `HEAD` only, a route that needs more says so.
 
 ### `SEC-16` A deploy takes the root domain from the running server
 
@@ -136,40 +143,37 @@ only changes records asks nothing. Whether the removal of the old records counts
 Fix: the dns mode and the root domain from the labels, an answer of the server that differs is an error; from the
 server only the user mode and the mail server.
 
-### `SEC-17` The password of the mail server read from the server reaches the web view of sakadmin
-
-`deployment_settings` answers `DetectedSmtp` with its password to the page. Accepted in ACCEPTED-RISKS until it
-is fixed, with the passwords of the environment. The same things limit it: the policy of the web view, values written
-as text.
-
-Fix: answer `passwordSet` only, the password stays in `LoadedSettings`.
-
-### `SEC-20` What OpenRouter answers has no largest size
-
-No request sets `max_tokens`, the answer is read whole (`BodyHandlers.ofString()`), and `FileTextService` stores the
-text as it comes; sqlite does not hold the `varchar(100000)` of the column. An image that makes the model write a
-lot costs money, 30 times an hour for each user.
-
-Fix: `max_tokens`, a largest length of the stored text, the answer read through a largest size.
-
 ### Small items
 
-- `SEC-23` A streamed upload (`STREAMING-…`) is not bound to its signature: the signatures of the chunks and the
-  checksums of the trailer are not checked (the code says so), the signed headers allow any body for 15 minutes. It
-  takes the headers, which means breaking TLS.
-- `SEC-24` sakadmin wipes less than `Cargo.toml` says: `expand` returns a plain array, the age keys as strings and
-  the password in `DeploymentRequest` and in the JSON to the web view are not wiped. Memory of the process only.
 - `SEC-26` The host filters nothing that comes in: the table of nftables has rules for the metadata service only,
   the firewall of the cloud is the only one. Today only sshd and caddy listen on a public address.
 - `SEC-36` The session token of a desktop app is a plain `String` in the `SessionManager` and on its way to the
   keychain, not wiped when it goes (as `SEC-24` for sakadmin); the state of a callback and the secret of the start page
   off linux are compared with `!=` and `==`, not in constant time (128 bits, on the loopback: no practical way to
   measure them).
+- `SEC-43` A sign out in one tab of the web app leaves the others signed in: the session is read from
+  `localStorage` once (`AuthService`) and no page listens to the `storage` event, so another tab keeps the token, its
+  calls and its change streams until a 401.
+- `SEC-44` sakbackup hands its session to restic: `Restic::command` removes the `RESTIC_*_FILE` and `…_COMMAND`
+  variables but not `SAK_BACKUP_SESSION_TOKEN` (and the address), which the command line reads; restic and what it
+  starts (a password command, rclone) inherit a session of 30 days they do not need.
+- `SEC-45` The pages `/connect-app` and `/connect-desktop` say "as you" and do not name the address signed in nor
+  the SAK instance; an admin signed in as somebody else hands an app or sakbackup that session, and their backups or
+  notes go there.
+- `SEC-46` An expired session stays where it is kept: the web app returns no token for it but leaves it in
+  `localStorage`, Android shows the sign-in without deleting it. It counts for nothing, the server checks `exp`.
 - `SEC-29` A user has no quota in the file storage and its files have no delete (`DM-6` of
   [the review of the data model](data-model-review.md)): a user fills the data volume in steps of 10 MiB. The change
   streams (`…/changes`) have no largest number for a user and stay open when the session ends.
 
 ## Not checked
+
+- For the review of 2026-11-26: whether the browser keeps `/signin?token=…` and the callback of a desktop sign-in
+  (`127.0.0.1/callback?…&token=…`) in its history before the page replaces the address; a token of a link is used
+  once (but see `SEC-22`), one of a desktop is nothing without the verifier of pkce. That caddy overwrites an
+  `X-Forwarded-For` from outside and that the backend is reached only through caddy, which the client of every limit
+  rests on, is from the configuration and the documentation of caddy. The admin pages of the web app (`/users`,
+  `/settings`, `/hosting`) have no guard of the role, only the backend refuses; that is how it looks, not a hole.
 
 - Nothing ran against a deployment, a caddy, a victorialogs or a phone; what these do (the admin api, the
   `X-Forwarded-For` that caddy sets, the headers it leaves out of its logs) is from their documentation.

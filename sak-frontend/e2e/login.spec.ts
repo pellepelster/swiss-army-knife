@@ -65,6 +65,9 @@ test('a link can only be used once', async ({ browser, page, request }) => {
   const other = await browser.newContext({ baseURL: APPS_URL });
   const otherPage = await other.newPage();
   await otherPage.goto(link);
+  // this browser did not ask for the link: it asks first whom it signs in (SEC-7)
+  await expect(otherPage.getByRole('heading', { name: `Sign in as ${ADMIN}?` })).toBeVisible();
+  await otherPage.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(otherPage.getByRole('alert')).toContainText('invalid, expired or was already used');
   await expect(otherPage).toHaveURL('/signin');
   expect(await otherPage.evaluate(() => localStorage.getItem('sak.session'))).toBeNull();

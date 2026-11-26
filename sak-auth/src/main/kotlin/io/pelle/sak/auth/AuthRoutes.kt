@@ -5,6 +5,7 @@ import io.pelle.sak.api.clientAddress
 import io.pelle.sak.api.clientNetwork
 import io.pelle.sak.core.MailSender
 import io.pelle.sak.core.RateLimiter
+import io.pelle.sak.core.RememberedKeys
 import io.pelle.sak.core.logCause
 import io.pelle.sak.core.logClient
 import io.pelle.sak.api.respondStatusError
@@ -41,6 +42,7 @@ import kotlinx.coroutines.withContext
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.time.Instant
 import io.pelle.sak.auth.model.api.ConnectExchangeRequest
 import io.pelle.sak.auth.model.api.ConnectRequest
@@ -83,6 +85,9 @@ data class SessionPrincipal(
     val withPassword: Boolean = false,
     // who the data of the session belongs to (MODEL-5): the user itself, the admin for sakadmin
     val owner: String = email,
+    // when the user signed in with a link or the password, handed on to the codes the session makes
+    // (SEC-4); null for a signed request of sakadmin
+    val authTime: Instant? = null,
 )
 
 // the address of the signed in user, for routes behind authenticate(SESSION_AUTH)
@@ -100,10 +105,12 @@ data class LoginApp(
 )
 
 // a session keeps only the roles of its token the address still has: the configured roles are the
-// revocation list, a session left without any is rejected
+// revocation list, a session left without any is rejected. One issued before its address became
+// what it is now, e.g. a user deleted and added again, is rejected too (SEC-39)
 fun AuthenticationConfig.session(
     tokens: TokenService,
     rolesOf: (email: String) -> Set<Role>,
+    validFrom: (email: String) -> Instant? = { null },
 ) {
     jwt(SESSION_AUTH) {
         verifier(tokens.sessionVerifier)
@@ -111,9 +118,13 @@ fun AuthenticationConfig.session(
             val email = credential.subject
             val expiresAt = credential.expiresAt
             val tokenRoles = TokenService.roles(credential.payload.getClaim(TokenService.ROLES).asList(String::class.java))
-            val roles = email?.let { tokenRoles intersect rolesOf(it) }.orEmpty()
+            // no session past its largest age from the sign-in (SEC-4), none from before its user signed out
+            // everywhere or was added again (SEC-39)
+            val authTime = TokenService.authTimeOf(credential.payload)
+            val current = email != null && authTime != null && tokens.withinMaxAge(authTime) && issuedSince(credential.issuedAt?.toInstant(), validFrom(email))
+            val roles = email?.takeIf { current }?.let { tokenRoles intersect rolesOf(it) }.orEmpty()
             val withPassword = credential.payload.getClaim(TokenService.LOGIN_METHOD).asString() == TokenService.PASSWORD
-            if (email != null && expiresAt != null && roles.isNotEmpty()) SessionPrincipal(email, expiresAt.toInstant(), roles, withPassword) else null
+            if (email != null && expiresAt != null && roles.isNotEmpty()) SessionPrincipal(email, expiresAt.toInstant(), roles, withPassword, authTime = authTime) else null
         }
         // a 401 says how to authenticate, one bearer challenge for the session and a signed request alike
         challenge { _, _ ->
@@ -132,6 +143,8 @@ fun Route.login(
     // where the links lead
     app: LoginApp,
     rolesOf: (email: String) -> Set<Role>,
+    // from when the tokens of an address count, null for always (SEC-39)
+    validFrom: (email: String) -> Instant? = { null },
     // links per address and client, so nobody can use up the links of an address from elsewhere
     loginsPerAddress: RateLimiter = RateLimiter(5, Duration.ofHours(1)),
     loginsPerClient: RateLimiter = RateLimiter(20, Duration.ofHours(1)),
@@ -210,8 +223,8 @@ fun Route.login(
         val exchange = call.receive<ExchangeRequest>()
         val claims = tokens.exchangeLoginToken(exchange.token, exchange.nonce)
         // the roles are the address' ones now, an address without any can not use links sent before
-        val roles = claims?.let { rolesOf(it.email) }.orEmpty()
-        if (claims != null && roles.isEmpty()) logger.info { "rejected the login token of ${logAddress(claims.email)}: the address has no role" }
+        val roles = claims?.takeIf { issuedSince(it.issuedAt, validFrom(it.email)) }?.let { rolesOf(it.email) }.orEmpty()
+        if (claims != null && roles.isEmpty()) logger.info { "rejected the login token of ${logAddress(claims.email)}: the address has no role, or got it after the link" }
         if (claims == null || roles.isEmpty()) {
             call.respondErrors(AuthTexts.LINK_INVALID, status = HttpStatusCode.Unauthorized)
             return@post
@@ -249,7 +262,11 @@ const val ADMIN_USERNAME = "admin"
 
 // the admin password (the deployment password) for a session of the admin, the same user as by
 // e-mail. The argon2id check is slow on purpose, so the limits per client and altogether come
-// before any hashing; AdminPassword checks one at a time for its memory. A wrong one is a bare 401
+// before any hashing; AdminPassword checks one at a time for its memory. A wrong one is a bare 401.
+// Only wrong passwords count: an attempt is counted before the check, so attempts at once can not
+// pass together, and given back when it succeeds. A network the admin signed in from in the last 30
+// days passes the limit of all, so wrong passwords from elsewhere do not lock the admin out (SEC-40);
+// its own limit stays
 @OptIn(ExperimentalKtorApi::class)
 fun Route.passwordLogin(
     tokens: TokenService,
@@ -258,13 +275,22 @@ fun Route.passwordLogin(
     rolesOf: (email: String) -> Set<Role>,
     attemptsPerClient: RateLimiter = RateLimiter(10, Duration.ofHours(1)),
     attemptsPerHour: RateLimiter = RateLimiter(60, Duration.ofHours(1)),
+    // the networks the admin signed in from with the password (SEC-40)
+    signedInFrom: RememberedKeys = RememberedKeys(Duration.ofDays(30)),
     // told of every password login that issued a session
     onLogin: LoginListener = LoginListener { _, _ -> },
 ) {
     route("/password") {
         post {
             val request = call.receive<PasswordLoginRequest>()
-            if (!attemptsPerClient.tryAcquire(call.clientNetwork()) || !attemptsPerHour.tryAcquire(ALL_CLIENTS)) {
+            val client = call.clientNetwork()
+            val known = signedInFrom.contains(client)
+            if (!attemptsPerClient.tryAcquire(client)) {
+                call.respond(HttpStatusCode.TooManyRequests)
+                return@post
+            }
+            if (!known && !attemptsPerHour.tryAcquire(ALL_CLIENTS)) {
+                attemptsPerClient.release(client)
                 call.respond(HttpStatusCode.TooManyRequests)
                 return@post
             }
@@ -276,6 +302,10 @@ fun Route.passwordLogin(
                 call.respondErrors(AuthTexts.WRONG_PASSWORD, status = HttpStatusCode.Unauthorized)
                 return@post
             }
+            // a login that succeeded is no failure
+            attemptsPerClient.release(client)
+            if (!known) attemptsPerHour.release(ALL_CLIENTS)
+            signedInFrom.remember(client)
             val session = tokens.issueSessionToken(admin, roles, withPassword = true)
             onLogin.notifySignedIn(session.email, call.language())
             call.response.header(HttpHeaders.CacheControl, "no-store")
@@ -310,6 +340,8 @@ fun Route.passwordLogin(
 fun Route.connectExchange(
     tokens: TokenService,
     rolesOf: (email: String) -> Set<Role>,
+    // from when the tokens of an address count, null for always (SEC-4, SEC-39)
+    validFrom: (email: String) -> Instant? = { null },
     attemptsPerClient: RateLimiter = RateLimiter(30, Duration.ofHours(1)),
     // told of every exchange that issued a session
     onLogin: LoginListener = LoginListener { _, _ -> },
@@ -326,12 +358,13 @@ fun Route.connectExchange(
                 return@post
             }
             val claims = tokens.exchangeConnectToken(request.token, request.verifier)
-            val roles = claims?.let { rolesOf(it.email) }.orEmpty()
-            if (claims == null || roles.isEmpty()) {
+            val roles = claims?.takeIf { issuedSince(it.issuedAt, validFrom(it.email)) }?.let { rolesOf(it.email) }.orEmpty()
+            // the session of the code ends when the sign-in it comes from is too old (SEC-4)
+            val session = claims?.takeIf { roles.isNotEmpty() }?.let { tokens.renewSessionToken(it.email, roles, it.withPassword, it.authTime) }
+            if (claims == null || session == null) {
                 call.respondErrors(AuthTexts.CODE_INVALID, status = HttpStatusCode.Unauthorized)
                 return@post
             }
-            val session = tokens.issueSessionToken(claims.email, roles, withPassword = claims.withPassword)
             onLogin.notifySignedIn(session.email, call.language())
             logger.info { "connected an app as ${logAddress(session.email)}" }
             call.response.header(HttpHeaders.CacheControl, "no-store")
@@ -342,7 +375,8 @@ fun Route.connectExchange(
             description =
                 "The token of the QR code a signed in user shows to connect an app (POST $API_BASE_PATH$AUTH_PATH/connect), valid for " +
                 "${tokens.connectTokenTtl.toMinutes()} minutes and only once; the session token is valid for " +
-                "${tokens.sessionTokenTtl.toDays()} days. A token issued with a pkce challenge is exchanged only with its " +
+                "${tokens.sessionTokenTtl.toDays()} days, at most ${tokens.sessionMaxAge.toDays()} days from the sign-in with a link or the password " +
+                "the code comes from. A token issued with a pkce challenge is exchanged only with its " +
                 "verifier (43 to 128 characters of A-Z, a-z, 0-9, '-', '.', '_', '~'), one without only without. " +
                 "Only a few attempts an hour are answered."
             requestBody {
@@ -388,7 +422,7 @@ fun Route.connect(
                 call.respond(HttpStatusCode.TooManyRequests)
                 return@post
             }
-            val connect = tokens.issueConnectToken(principal.email, principal.withPassword, request.challenge)
+            val connect = tokens.issueConnectToken(principal.email, principal.withPassword, request.challenge, principal.authTime)
             call.response.header(HttpHeaders.CacheControl, "no-store")
             call.respond(ConnectResponse("${app.url.trimEnd('/')}/connect#token=${connect.token}", connect.id, connect.expiresAt.apiTime()))
         }.describe {
@@ -471,6 +505,33 @@ fun Route.whoAmI(nameOf: (email: String) -> String? = { null }) {
     }
 }
 
+// ends every session, link and code of the signed in user, this session too (SEC-4); behind
+// authenticate(SESSION_AUTH). A signed request of sakadmin has no session and gets 403
+@OptIn(ExperimentalKtorApi::class)
+fun Route.signOutEverywhere(signOut: (email: String) -> Unit) {
+    post("/sign-out-everywhere") {
+        val principal = call.principal<SessionPrincipal>()!!
+        if (principal.expiresAt == null) {
+            call.respond(HttpStatusCode.Forbidden)
+            return@post
+        }
+        withContext(Dispatchers.IO) { signOut(principal.email) }
+        logger.info { "signed ${logAddress(principal.email)} out everywhere" }
+        call.respond(HttpStatusCode.NoContent)
+    }.describe {
+        tag(AUTH_TAG)
+        summary = "Sign out everywhere"
+        description =
+            "Ends every session of the signed in user on every device, this one too, and every link and QR code not yet used. " +
+            "A new sign-in works at once."
+        responses {
+            HttpStatusCode.NoContent { description = "Every session of the user has ended" }
+            errors(HttpStatusCode.Unauthorized, "No valid session token")
+            errors(HttpStatusCode.Forbidden, "A signed request of sakadmin, which has no session")
+        }
+    }
+}
+
 // whether another link may be sent; logs when an allowed address asks in vain
 private fun mayHaveLink(
     email: String,
@@ -518,3 +579,10 @@ fun safeRedirect(redirect: String?): String {
     }
     return redirect
 }
+
+// whether a token issued at issuedAt counts for an address whose tokens count from validFrom; the
+// time of a token is in whole seconds, so one issued in the second the address was added counts
+internal fun issuedSince(
+    issuedAt: Instant?,
+    validFrom: Instant?,
+): Boolean = validFrom == null || (issuedAt != null && !issuedAt.isBefore(validFrom.truncatedTo(ChronoUnit.SECONDS)))

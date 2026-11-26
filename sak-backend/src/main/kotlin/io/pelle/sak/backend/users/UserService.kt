@@ -4,9 +4,12 @@ import io.pelle.sak.backend.DeleteResult
 import io.pelle.sak.auth.normalizeEmail
 import io.pelle.sak.api.ErrorMessage
 import io.pelle.sak.model.SakDatabase
+import io.pelle.sak.model.users.SignOutRepository
 import io.pelle.sak.model.users.User
 import io.pelle.sak.model.users.UserRepository
 import java.time.Clock
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 // a user as the list shows it: an added one with its id, or an admin of the configuration, which
 // has none and is not deleted here
@@ -35,9 +38,11 @@ sealed interface UserCreateResult {
 
 // who may sign in besides the admins of the configuration: the users an admin adds by address, with
 // an optional name. An added user has the role user (the apps of the lists); deleting one ends their
-// sessions with their next request, their data stays
+// sessions with their next request and renews the tokens of what they have (SEC-39), their data stays
 class UserService(
     private val repository: UserRepository,
+    // the sign outs everywhere, of the users and of the admins of the configuration (SEC-4)
+    private val signOuts: SignOutRepository,
     // the admins of the configuration, normalized; they are no rows and stay as they are
     private val admins: List<String> = emptyList(),
 ) {
@@ -45,7 +50,7 @@ class UserService(
         database: SakDatabase,
         admins: List<String> = emptyList(),
         clock: Clock = Clock.systemUTC(),
-    ) : this(UserRepository(database, clock), admins.map(::normalize).distinct())
+    ) : this(UserRepository(database, clock), SignOutRepository(database, clock), admins.map(::normalize).distinct())
 
     // the admins of the configuration first, then the added users by address
     fun all(): List<UserEntry> =
@@ -70,8 +75,55 @@ class UserService(
         return repository.insert(owner, address, named)?.let { UserCreateResult.Added(it) } ?: UserCreateResult.Exists
     }
 
-    // false when there is no such user
-    fun delete(id: Int): DeleteResult = DeleteResult.of(repository.delete(id) != null)
+    // told of the address of every user deleted, e.g. to renew the tokens of their repositories of restic
+    private val deletedListeners = mutableListOf<(email: String) -> Unit>()
+
+    fun whenDeleted(listener: (email: String) -> Unit) {
+        deletedListeners += listener
+    }
+
+    // by the owner, an admin; false when there is no such user. Also a sign out everywhere: a token
+    // knows its time in seconds only, so the time the user is added again alone would let one of the
+    // same second through (SEC-39)
+    fun delete(
+        owner: String,
+        id: Int,
+    ): DeleteResult {
+        val deleted = repository.delete(id) ?: return DeleteResult.of(false)
+        signOuts.insert(owner, deleted.email)
+        deletedListeners.forEach { it(deleted.email) }
+        return DeleteResult.of(true)
+    }
+
+    // from when the sessions, links and codes of an address count: those of an added user from when they
+    // were added, so a user deleted and added again has none of before (SEC-39), and of everyone from
+    // after the latest sign out everywhere (SEC-4); null for an address that is neither, which the
+    // roles refuse. A sign out counts from the next second on: a token knows its time in seconds only,
+    // so the one that signed out is refused too
+    fun validFrom(email: String): Instant? {
+        val address = normalize(email)
+        val added = if (address in admins) null else repository.byEmail(address)?.createdAt
+        val signedOut = signOuts.latest(address)?.truncatedTo(ChronoUnit.SECONDS)?.plusSeconds(1)
+        return listOfNotNull(added, signedOut).maxOrNull()
+    }
+
+    // ends every session, link and code of the address, by the owner: the user, or an admin (SEC-4)
+    fun signOutEverywhere(
+        owner: String,
+        email: String,
+    ) {
+        signOuts.insert(owner, normalize(email))
+    }
+
+    // signs the added user of the id out everywhere, by an admin; false when there is no such user
+    fun signOut(
+        owner: String,
+        id: Int,
+    ): Boolean {
+        val user = repository.all().firstOrNull { it.id == id } ?: return false
+        signOutEverywhere(owner, user.email)
+        return true
+    }
 
     // whether the address is an added user, the role user; asked on every request of a session
     fun isUser(email: String): Boolean = repository.byEmail(normalize(email)) != null

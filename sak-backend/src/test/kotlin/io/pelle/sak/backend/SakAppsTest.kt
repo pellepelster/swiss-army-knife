@@ -601,6 +601,35 @@ class SakAppsTest {
     }
 
     @Test
+    fun `a user signs out everywhere, an admin signs a user out, a new sign-in works at once (SEC-4)`() {
+        withServer { port ->
+            val admin = signIn(port)
+            post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
+            val anna = signIn(port, email = "anna@example.org", mails = 2)
+            val annaPhone = signIn(port, email = "anna@example.org", mails = 3)
+            post(port, "/api/v1/auth/sign-out-everywhere", "").statusCode() shouldBe 401
+
+            // every session of anna ends, this one too; those of the admin stay
+            post(port, "/api/v1/auth/sign-out-everywhere", "", anna).statusCode() shouldBe 204
+            get(port, "/api/v1/notes", anna).statusCode() shouldBe 401
+            get(port, "/api/v1/notes", annaPhone).statusCode() shouldBe 401
+            get(port, "/api/v1/users", admin).statusCode() shouldBe 200
+            // a token knows its second only: a sign-in counts from the next one
+            Thread.sleep(1_000)
+            val again = signIn(port, email = "anna@example.org", mails = 4)
+            get(port, "/api/v1/notes", again).statusCode() shouldBe 200
+
+            // an admin signs anna out, she stays a user; a user signs nobody else out
+            val annaId = get(port, "/api/v1/users", admin).json().getValue("items").jsonArray.map { it.jsonObject }.single { it.string("email") == "anna@example.org" }.string("id")
+            post(port, "/api/v1/users/$annaId/sign-out", "", again).statusCode() shouldBe 403
+            post(port, "/api/v1/users/$annaId/sign-out", "", admin).statusCode() shouldBe 204
+            post(port, "/api/v1/users/4711/sign-out", "", admin).statusCode() shouldBe 404
+            get(port, "/api/v1/notes", again).statusCode() shouldBe 401
+            get(port, "/api/v1/users", admin).json().getValue("items").jsonArray.map { it.jsonObject.string("email") } shouldContain "anna@example.org"
+        }
+    }
+
+    @Test
     fun `a photo of an item shows to everyone who sees the list, scaled as asked, and comes back on the next item of its name`() {
         withServer { port ->
             val admin = signIn(port)
@@ -842,7 +871,7 @@ class SakAppsTest {
     }
 
     @Test
-    fun `a removed user reaches no repository of restic, their files stay (BK-8)`() {
+    fun `a removed user reaches no repository of restic, their files stay (BK-8), added again only with new tokens (SEC-39)`() {
         withServer { port ->
             val admin = signIn(port)
             post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
@@ -858,6 +887,21 @@ class SakAppsTest {
             val annaId = get(port, "/api/v1/users", admin).json().getValue("items").jsonArray.map { it.jsonObject }.single { it.string("email") == "anna@example.org" }.string("id")
             delete(port, "/api/v1/users/$annaId", admin).statusCode() shouldBe 204
             config().statusCode() shouldBe 401
+
+            // added again, e.g. after their phone was stolen: nothing of before works (SEC-39), their data stays
+            post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
+            get(port, "/api/v1/restic/repositories", anna).statusCode() shouldBe 401
+            config().statusCode() shouldBe 401
+            // the delete signed her out from the next second on (SEC-4)
+            Thread.sleep(1_000)
+            val again = signIn(port, email = "anna@example.org", mails = 3)
+            val renewed = get(port, "/api/v1/restic/repositories/$repository/token", again).json().string("token")
+            (renewed != token) shouldBe true
+            val renewedLogin = "Basic " + java.util.Base64.getEncoder().encodeToString("$repository:$renewed".toByteArray())
+            request(port, "GET", "/restic/$repository/config", answer = HttpResponse.BodyHandlers.ofString(), authorization = renewedLogin).let {
+                it.statusCode() shouldBe 200
+                it.body() shouldBe "a config"
+            }
         }
     }
 
@@ -1596,6 +1640,7 @@ class SakAppsTest {
                     "/api/v1/auth/who-am-i",
                     "/api/v1/auth/connect",
                     "/api/v1/auth/connect/{id}",
+                    "/api/v1/auth/sign-out-everywhere",
                     "/api/v1/deployment",
                     "/api/v1/settings",
                     "/api/v1/settings/{scope}",
@@ -1617,6 +1662,7 @@ class SakAppsTest {
                     "/api/v1/grocery/changes",
                     "/api/v1/users",
                     "/api/v1/users/app-link",
+                    "/api/v1/users/{id}/sign-out",
                     "/api/v1/users/{id}",
                     "/api/v1/grocery/settings",
                     "/api/v1/user/settings",

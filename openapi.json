@@ -169,7 +169,7 @@
                     "auth"
                 ],
                 "summary": "Exchange the token of a QR code for a session token",
-                "description": "The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for 2 minutes and only once; the session token is valid for 30 days. A token issued with a pkce challenge is exchanged only with its verifier (43 to 128 characters of A-Z, a-z, 0-9, '-', '.', '_', '~'), one without only without. Only a few attempts an hour are answered.",
+                "description": "The token of the QR code a signed in user shows to connect an app (POST /api/v1/auth/connect), valid for 2 minutes and only once; the session token is valid for 30 days, at most 180 days from the sign-in with a link or the password the code comes from. A token issued with a pkce challenge is exchanged only with its verifier (43 to 128 characters of A-Z, a-z, 0-9, '-', '.', '_', '~'), one without only without. Only a few attempts an hour are answered.",
                 "requestBody": {
                     "content": {
                         "application/json": {
@@ -361,6 +361,48 @@
                     },
                     "404": {
                         "description": "The user has no such code, or it expired",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/sign-out-everywhere": {
+            "post": {
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Sign out everywhere",
+                "description": "Ends every session of the signed in user on every device, this one too, and every link and QR code not yet used. A new sign-in works at once.",
+                "responses": {
+                    "204": {
+                        "description": "Every session of the user has ended"
+                    },
+                    "401": {
+                        "description": "No valid session token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "A signed request of sakadmin, which has no session",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -5287,6 +5329,49 @@
                     },
                     "502": {
                         "description": "The mail server did not take the e-mail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "session": []
+                    },
+                    {
+                        "api-signature": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/{id}/sign-out": {
+            "post": {
+                "tags": [
+                    "users"
+                ],
+                "summary": "Sign a user out everywhere",
+                "description": "Ends every session of the user on every device and every link and QR code not yet used (SEC-4); the user stays and can sign in again.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "The id of the added user",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Every session of the user has ended"
+                    },
+                    "404": {
+                        "description": "No such added user; an admin of the configuration signs out everywhere themselves",
                         "content": {
                             "application/json": {
                                 "schema": {

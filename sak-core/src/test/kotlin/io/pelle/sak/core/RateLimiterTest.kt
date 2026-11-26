@@ -47,4 +47,19 @@ class RateLimiterTest {
         clientNetwork("::ffff:192.0.2.17") shouldBe "192.0.2.17"
         clientNetwork("not an address") shouldBe "not an address"
     }
+
+    @Test
+    fun `an event given back counts no more, of a key without events nothing happens (SEC-40)`() {
+        val limiter = RateLimiter(2, Duration.ofHours(1), MutableClock())
+        limiter.tryAcquire("a") shouldBe true
+        limiter.tryAcquire("a") shouldBe true
+        limiter.tryAcquire("a") shouldBe false
+        limiter.release("a")
+        limiter.tryAcquire("a") shouldBe true
+        limiter.release("b")
+        limiter.release("a")
+        limiter.release("a")
+        limiter.keys() shouldBe 0
+    }
 }
+

@@ -227,6 +227,8 @@ fun Application.sak(config: SakConfig): SakServices {
     val rolesOf = config.auth?.let { rolesOf(it, userService) }
     val resticStore = resticStore(config, s3Storage, resticSettings)
     val resticService = ResticRepositoryService(database, mayLogin = { owner -> rolesOf?.invoke(owner).orEmpty().isNotEmpty() }, store = resticStore)
+    // the repositories of a deleted user get new tokens, so none of before works when they are added again (SEC-39)
+    userService.whenDeleted { resticService.renewTokens(it) }
     val resticBackupPlanService = ResticBackupPlanService(database)
     val accessCallback = BucketKeysAccessCallback(bucketService)
     bucketService.start(jobs, storage)

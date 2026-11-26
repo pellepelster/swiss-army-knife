@@ -25,6 +25,11 @@ export class UsersService {
     return this.http.post<void>('/api/v1/users/app-link', { email });
   }
 
+  // every session of the user ends, the user stays (SEC-4)
+  signOut(id: number): Observable<void> {
+    return this.http.post<void>(`/api/v1/users/${id}/sign-out`, {});
+  }
+
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`/api/v1/users/${id}`);
   }

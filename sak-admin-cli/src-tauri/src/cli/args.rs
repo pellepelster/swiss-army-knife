@@ -1,6 +1,7 @@
 //! the arguments of the command line: the commands, their options and how a value is parsed
 
 use super::*;
+use zeroize::Zeroizing;
 
 /// the exit codes at the end of the help; a test makes sure they are those of `core::error`
 pub(super) const EXIT_CODES: &str = "Exit codes:
@@ -515,8 +516,8 @@ impl DeploymentArgs {
     ) -> DeploymentRequest {
         DeploymentRequest {
             name: self.name.clone(),
-            password,
-            password_repeat,
+            password: Zeroizing::new(password),
+            password_repeat: Zeroizing::new(password_repeat),
             location: self.location,
             dns_mode: self.dns_mode,
             root_domain: self.root_domain.clone(),

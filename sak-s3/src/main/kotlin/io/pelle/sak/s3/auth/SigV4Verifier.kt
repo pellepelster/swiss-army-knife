@@ -25,7 +25,11 @@ internal data class SigV4Request(
 internal sealed class SigV4Result {
     data class Authenticated(
         val accessKeyId: String,
-    ) : SigV4Result()
+    ) : SigV4Result() {
+        // what the chunks of a signed streamed upload are verified with (SEC-23), not part of equals
+        var signing: ChunkSigning? = null
+            internal set
+    }
 
     data class Rejected(
         val status: Int,
@@ -104,7 +108,9 @@ internal class SigV4Verifier(
             return SigV4Result.Rejected(403, "SignatureDoesNotMatch", "request signature does not match")
         }
 
-        return SigV4Result.Authenticated(parsed.accessKeyId)
+        return SigV4Result.Authenticated(parsed.accessKeyId).also {
+            it.signing = ChunkSigning(signingKey, amzDate, parsed.scope, signature)
+        }
     }
 
     private data class ParsedAuthorization(
@@ -217,6 +223,9 @@ internal class SigV4Verifier(
         private val AMZ_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
 
         private val WHITESPACE = Regex("\\s+")
+
+        // the streamed modes whose chunks are signed
+        const val SIGNED_STREAMING_PREFIX = "STREAMING-AWS4-HMAC-SHA256-PAYLOAD"
 
         val STREAMING_PAYLOAD_MODES =
             setOf(

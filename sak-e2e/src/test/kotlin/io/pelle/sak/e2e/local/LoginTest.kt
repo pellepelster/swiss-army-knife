@@ -99,11 +99,14 @@ class LoginTest {
     fun `a sign-in link works only once`() {
         val used = checkNotNull(link) { "the test before signs in with the link" }
         val failed = Page.GetByRoleOptions().setName("Sign-in failed")
+        // a link this browser did not ask for, or no longer asks for, asks first whom it signs in (SEC-7)
+        val signIn = Page.GetByRoleOptions().setName("Sign in").setExact(true)
 
         // used by the test before: neither another browser nor the same one signs in with it again
         val other = browser.newContext(Browser.NewContextOptions().setBaseURL(FRONTEND_URL))
         val again = other.newPage()
         again.navigate(used)
+        again.getByRole(AriaRole.BUTTON, signIn).click()
         assertThat(again.getByRole(AriaRole.HEADING, failed)).isVisible()
         assertThat(again.getByRole(AriaRole.ALERT)).containsText("invalid, expired or was already used")
         again.navigate("/")
@@ -111,6 +114,7 @@ class LoginTest {
         other.close()
 
         page.navigate(used)
+        page.getByRole(AriaRole.BUTTON, signIn).click()
         assertThat(page.getByRole(AriaRole.HEADING, failed)).isVisible()
         page.navigate("/")
         assertThat(page).hasURL(login)

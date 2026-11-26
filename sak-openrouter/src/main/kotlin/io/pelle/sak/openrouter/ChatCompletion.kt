@@ -17,6 +17,13 @@ import java.time.Duration
 // (EXT-1), it lives as long as the backend
 fun openRouterHttpClient(): HttpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build()
 
+// the most tokens a chat completion answers with (SEC-20): about 16,000 characters, more than the text
+// of a dense page; a model made to write on does not cost more than that
+const val MAX_COMPLETION_TOKENS = 4096
+
+// the largest answer of openrouter that is read (SEC-20), far more than MAX_COMPLETION_TOKENS make
+const val MAX_ANSWER_BYTES = 1024 * 1024
+
 // what openrouter's chat completions answered: how many choices, and the text of the first one, null
 // when it has none
 internal data class Completion(
@@ -46,14 +53,23 @@ internal fun postJson(
                     .header("Content-Type", "application/json")
                     .POST(base64Body(json, file))
                     .build(),
-                HttpResponse.BodyHandlers.ofString(),
+                HttpResponse.BodyHandlers.ofInputStream(),
             )
         } catch (e: IOException) {
             throw TextRecognitionException("openrouter is not reachable: ${e.message}", e)
         }
+    // at most MAX_ANSWER_BYTES, a larger answer is not read on
+    val text =
+        try {
+            response.body().use { it.readNBytes(MAX_ANSWER_BYTES + 1) }
+        } catch (e: IOException) {
+            throw TextRecognitionException("openrouter is not reachable: ${e.message}", e)
+        }.also {
+            if (it.size > MAX_ANSWER_BYTES) throw TextRecognitionException("openrouter answered more than $MAX_ANSWER_BYTES bytes")
+        }.toString(Charsets.UTF_8)
     val body =
         try {
-            Json.parseToJsonElement(response.body()) as? JsonObject
+            Json.parseToJsonElement(text) as? JsonObject
         } catch (e: IllegalArgumentException) {
             throw TextRecognitionException("openrouter answered ${response.statusCode()} without json", e)
         } ?: throw TextRecognitionException("openrouter answered ${response.statusCode()} without a json object")

@@ -87,13 +87,20 @@ fn master_key(name: &str, password: &str) -> Result<Zeroizing<[u8; 32]>, String>
     Ok(key)
 }
 
-/// `N` bytes of the master key for `purpose`
-fn expand<const N: usize>(name: &str, password: &str, purpose: &str) -> Result<[u8; N], String> {
+/// `N` bytes of the master key for `purpose`, wiped when they go (SEC-24)
+fn expand<const N: usize>(
+    name: &str,
+    password: &str,
+    purpose: &str,
+) -> Result<Zeroizing<[u8; N]>, String> {
     let master = master_key(name, password)?;
-    let mut out = [0u8; N];
+    let mut out = Zeroizing::new([0u8; N]);
     Hkdf::<Sha256>::from_prk(master.as_ref())
         .map_err(|e| e.to_string())?
-        .expand(format!("{VERSION}/{purpose}/{name}").as_bytes(), &mut out)
+        .expand(
+            format!("{VERSION}/{purpose}/{name}").as_bytes(),
+            out.as_mut(),
+        )
         .map_err(|e| e.to_string())?;
     Ok(out)
 }
@@ -120,7 +127,7 @@ impl DerivedKey {
 
 fn derive(name: &str, password: &str, purpose: &str, comment: &str) -> Result<DerivedKey, String> {
     Ok(DerivedKey {
-        key: SigningKey::from_bytes(&expand::<32>(name, password, purpose)?),
+        key: SigningKey::from_bytes(&*expand::<32>(name, password, purpose)?),
         comment: comment.to_string(),
     })
 }
@@ -144,7 +151,7 @@ pub fn derive_host_key(name: &str, password: &str) -> Result<DerivedKey, String>
 /// the label sak.pelle.io/password-hash on every resource of the deployment: 30 bytes of the
 /// master key as hex, short enough for one label value. sakadmin checks a password against it
 pub fn password_hash(name: &str, password: &str) -> Result<String, String> {
-    Ok(hex(&expand::<30>(name, password, "password-hash")?))
+    Ok(hex(&*expand::<30>(name, password, "password-hash")?))
 }
 
 /// the ed25519 key sakadmin signs its requests to the admin api with (`config::signed_text`). The
@@ -165,7 +172,7 @@ impl ApiKey {
 }
 
 pub fn api_key(name: &str, password: &str) -> Result<ApiKey, String> {
-    Ok(ApiKey(SigningKey::from_bytes(&expand::<32>(
+    Ok(ApiKey(SigningKey::from_bytes(&*expand::<32>(
         name, password, "api-key",
     )?)))
 }
@@ -189,11 +196,19 @@ impl BackupKey {
 /// the backup key of a deployment: 32 bytes of the master key as an age identity
 /// (`AGE-SECRET-KEY-1…`, bech32)
 pub fn backup_key(name: &str, password: &str) -> Result<BackupKey, String> {
-    use std::str::FromStr;
     let secret = expand::<32>(name, password, "backup")?;
+    age_identity(&secret)
+}
+
+/// the age identity of 32 secret bytes (`AGE-SECRET-KEY-1…`, bech32); the texts it is made of are
+/// wiped when they go (SEC-24), the identity wipes itself
+fn age_identity(secret: &[u8; 32]) -> Result<BackupKey, String> {
+    use std::str::FromStr;
     let hrp = bech32::Hrp::parse("age-secret-key-").map_err(|e| e.to_string())?;
-    let encoded = bech32::encode::<bech32::Bech32>(hrp, &secret).map_err(|e| e.to_string())?;
-    age::x25519::Identity::from_str(&encoded.to_uppercase())
+    let encoded =
+        Zeroizing::new(bech32::encode::<bech32::Bech32>(hrp, secret).map_err(|e| e.to_string())?);
+    let upper = Zeroizing::new(encoded.to_uppercase());
+    age::x25519::Identity::from_str(&upper)
         .map(BackupKey)
         .map_err(|e| e.to_string())
 }
@@ -201,13 +216,8 @@ pub fn backup_key(name: &str, password: &str) -> Result<BackupKey, String> {
 /// the key of the settings sakadmin keeps on this machine (`local`): a purpose of its own, so it
 /// opens no backup and a backup key opens no settings
 pub fn local_settings_key(name: &str, password: &str) -> Result<BackupKey, String> {
-    use std::str::FromStr;
     let secret = expand::<32>(name, password, "local-settings")?;
-    let hrp = bech32::Hrp::parse("age-secret-key-").map_err(|e| e.to_string())?;
-    let encoded = bech32::encode::<bech32::Bech32>(hrp, &secret).map_err(|e| e.to_string())?;
-    age::x25519::Identity::from_str(&encoded.to_uppercase())
-        .map(BackupKey)
-        .map_err(|e| e.to_string())
+    age_identity(&secret)
 }
 
 /// the hash the backend checks a password login against, argon2id as a phc string. The salt

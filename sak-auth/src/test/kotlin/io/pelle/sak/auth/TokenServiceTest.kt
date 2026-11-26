@@ -14,6 +14,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 import java.time.Clock
+import java.time.temporal.ChronoUnit
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -38,7 +39,7 @@ class TokenServiceTest {
     fun `a login token can be exchanged once`() {
         val token = tokens.issueLoginToken("admin@example.org", "/buckets")
 
-        tokens.exchangeLoginToken(token) shouldBe LoginClaims("admin@example.org", "/buckets")
+        tokens.exchangeLoginToken(token) shouldBe LoginClaims("admin@example.org", "/buckets", clock.instant().truncatedTo(ChronoUnit.SECONDS))
         tokens.exchangeLoginToken(token) shouldBe null
     }
 
@@ -51,7 +52,7 @@ class TokenServiceTest {
         try {
             val exchanges = (1..16).map { pool.submit<LoginClaims?> { start.await(); tokens.exchangeLoginToken(token) } }
             start.countDown()
-            exchanges.mapNotNull { it.get(5, TimeUnit.SECONDS) } shouldBe listOf(LoginClaims("admin@example.org", "/"))
+            exchanges.mapNotNull { it.get(5, TimeUnit.SECONDS) } shouldBe listOf(LoginClaims("admin@example.org", "/", clock.instant().truncatedTo(ChronoUnit.SECONDS)))
         } finally {
             pool.shutdownNow()
         }

@@ -423,7 +423,8 @@ fn the_arguments_of_the_commands() {
     assert_eq!(
         deployment
             .deployment(Intent::Deploy, ("p".into(), "q".into()), "")
-            .password_repeat,
+            .password_repeat
+            .as_str(),
         "q"
     );
 

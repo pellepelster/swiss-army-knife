@@ -61,6 +61,7 @@ class OpenRouterIngredientRecognizerTest {
         val (headers, body) = requests.single()
         headers["Authorization"] shouldBe "Bearer token"
         body.string("model") shouldBe "vendor/vision-model"
+        body.string("max_tokens") shouldBe MAX_COMPLETION_TOKENS.toString()
         body["provider"]!!.jsonObject.string("data_collection") shouldBe "deny"
         // a provider that does not take every parameter, e.g. temperature, is not left out
         body["provider"]!!.jsonObject.containsKey("require_parameters") shouldBe false

@@ -463,7 +463,7 @@ class SakDatabaseTest {
 
         val database = SakDatabase.open(file)
 
-        versions() shouldBe listOf("10" to "BASELINE", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL", "15" to "SQL")
+        versions() shouldBe listOf("10" to "BASELINE", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL", "15" to "SQL", "16" to "SQL")
         io.pelle.sak.model.hosting.S3BucketRepository(database).byName("site")!!.resourceId shouldBe ResourceId("site00000000")
     }
 
@@ -473,7 +473,7 @@ class SakDatabaseTest {
 
         SakDatabase.open(file)
 
-        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL", "15" to "SQL")
+        versions() shouldBe listOf("7" to "BASELINE", "8" to "SQL", "9" to "SQL", "10" to "SQL", "11" to "SQL", "12" to "SQL", "13" to "SQL", "14" to "SQL", "15" to "SQL", "16" to "SQL")
     }
 
     @Test
@@ -490,7 +490,7 @@ class SakDatabaseTest {
     fun `a new database gets every migration`() {
         SakDatabase.open(file)
 
-        versions() shouldBe (1..15).map { it.toString() to "SQL" }
+        versions() shouldBe (1..16).map { it.toString() to "SQL" }
     }
 
     private companion object {

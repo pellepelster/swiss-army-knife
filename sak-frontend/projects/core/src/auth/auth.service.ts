@@ -26,6 +26,12 @@ export type { DeploymentInfo, UserMode, WhoAmI } from '../api/models';
 
 export const SESSION_STORAGE_KEY = 'sak.session';
 
+// the address this browser asked a login link for, and when (SEC-7)
+export const LOGIN_REQUEST_KEY = 'sak.login.request';
+
+// as long as a login link lasts (DEFAULT_LOGIN_TOKEN_TTL of sak-auth)
+const LOGIN_LINK_MS = 15 * 60 * 1000;
+
 // loads the url as a new page, so nothing the app kept of the user before (stores, thumbnails)
 // shows to the next user of the tab
 export const LEAVE_PAGE = new InjectionToken<(url: string) => void>('LEAVE_PAGE', {
@@ -79,11 +85,43 @@ export class AuthService {
     return this.token() !== null;
   }
 
-  // answered the same way for every address, a link is only sent to allowed ones
+  // answered the same way for every address, a link is only sent to allowed ones. This browser
+  // remembers the address it asked for: its link signs in at once, any other asks first (SEC-7)
   requestLogin(email: string, redirect: string | null): Observable<void> {
     return this.http
       .post('/api/v1/auth/login/link', { email, redirect: safeRedirect(redirect) })
-      .pipe(map(() => undefined));
+      .pipe(
+        tap(() =>
+          writeStorage(
+            LOGIN_REQUEST_KEY,
+            JSON.stringify({ email: sameAddress(email), at: Date.now() }),
+          ),
+        ),
+        map(() => undefined),
+      );
+  }
+
+  // whether this browser asked for a link for the address within the time a link lasts (SEC-7)
+  askedFor(email: string): boolean {
+    try {
+      const asked = JSON.parse(readStorage(LOGIN_REQUEST_KEY) ?? 'null') as {
+        email?: unknown;
+        at?: unknown;
+      } | null;
+      return (
+        typeof asked?.email === 'string' &&
+        typeof asked.at === 'number' &&
+        sameAddress(asked.email) === sameAddress(email) &&
+        Date.now() - asked.at < LOGIN_LINK_MS
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  // the address signed in now, null without a session
+  signedInAs(): string | null {
+    return this.token() === null ? null : (this.session()?.email ?? null);
   }
 
   // the sign-in follows the user mode of the deployment (UX-7)
@@ -96,11 +134,12 @@ export class AuthService {
     return this.http.get<DeploymentInfo>('/api/v1/info');
   }
 
-  // trades the login token from the e-mailed link for a session, emits where to go next
+  // trades the login token from the e-mailed link for a session, emits where to go next; the
+  // request of this browser is used up
   signIn(loginToken: string): Observable<string> {
     return this.start(
       this.http.post<ExchangeResponse>('/api/v1/auth/login/exchange', { token: loginToken }),
-    );
+    ).pipe(tap(() => removeStorage(LOGIN_REQUEST_KEY)));
   }
 
   // the admin signs in with the admin password, emits where to go next
@@ -199,4 +238,48 @@ function loadSession(): Session | null {
     // unreadable or blocked storage is treated as signed out
   }
   return null;
+}
+
+// an address as the backend compares it
+function sameAddress(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+// the address a login token is for (its subject), null when it is no token; only shown, the
+// backend checks the token at the exchange, so a forged one signs nobody in (SEC-7)
+export function loginTokenEmail(token: string): string | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const subject = (JSON.parse(json) as { sub?: unknown }).sub;
+    return typeof subject === 'string' && subject.length > 0 ? subject : null;
+  } catch {
+    return null;
+  }
+}
+
+// localStorage can be missing or refuse, e.g. in a private window: the login works without it
+function readStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // the link then asks before it signs in
+  }
+}
+
+function removeStorage(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // nothing kept
+  }
 }

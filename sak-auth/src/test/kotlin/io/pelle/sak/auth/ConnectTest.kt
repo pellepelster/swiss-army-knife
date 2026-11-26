@@ -58,6 +58,9 @@ class ConnectTest {
 
     private val rolesOf = { email: String -> users[email].orEmpty() }
 
+    // from when the tokens of every address count, null for always (SEC-4)
+    private var validFrom: Instant? = null
+
     private val signedIn = mutableListOf<String>()
 
     private fun connectTest(
@@ -66,12 +69,12 @@ class ConnectTest {
         block: suspend ApplicationTestBuilder.() -> Unit,
     ) = testApplication {
         application {
-            install(Authentication) { session(tokens, rolesOf) }
+            install(Authentication) { session(tokens, rolesOf, validFrom = { validFrom }) }
             routing {
                 // as the backend does for all of its api
                 installApi()
                 route("/api/v1/auth") {
-                    route("/login") { connectExchange(tokens, rolesOf, attemptsPerClient, onLogin = { owner, _ -> signedIn += owner }) }
+                    route("/login") { connectExchange(tokens, rolesOf, validFrom = { validFrom }, attemptsPerClient = attemptsPerClient, onLogin = { owner, _ -> signedIn += owner }) }
                     authenticate(SESSION_AUTH) {
                         whoAmI()
                         connect(tokens, LoginApp(FRONTEND_URL, "sak.example.org"), codesPerUser)
@@ -219,5 +222,58 @@ class ConnectTest {
     @Test
     fun `the challenge is the base64url sha-256 of the verifier without padding (S256 of rfc 7636)`() {
         pkceChallenge("a".repeat(43)) shouldBe "ZtNPunH49FD35FWYhT5Tv8I7vRKQJ8uxMaL0_9eHjNA"
+    }
+
+    @Test
+    fun `a session renewed through codes ends 180 days after the sign-in it comes from (SEC-4)`() =
+        connectTest(codesPerUser = RateLimiter(100, Duration.ofHours(1))) {
+            val signedIn = clock.now
+            var session = session(USER)
+            // a code, then the session it gives, every 29 days: each keeps the time of the first sign-in
+            suspend fun renew() =
+                client.exchange(tokenOf(client.code(session).bodyAsText().json().string("link")))
+            repeat(6) {
+                clock.now = clock.now.plus(Duration.ofDays(29))
+                val answer = renew()
+                answer.status shouldBe HttpStatusCode.OK
+                val body = answer.bodyAsText().json()
+                session = body.string("sessionToken")
+                TokenService.authTimeOf(com.auth0.jwt.JWT.decode(session)) shouldBe signedIn
+                // the last one ends at the largest age, not 30 days later
+                body.string("expiresAt") shouldBe (if (it < 5) clock.now.plus(Duration.ofDays(30)) else signedIn.plus(Duration.ofDays(180))).toString().replace("Z", ".000Z")
+            }
+            // day 174: the session works until day 180, then neither it nor a code of it
+            client.get("/api/v1/auth/who-am-i") { bearerAuth(session) }.status shouldBe HttpStatusCode.OK
+            clock.now = signedIn.plus(Duration.ofDays(180)).minusSeconds(60)
+            val late = tokenOf(client.code(session).bodyAsText().json().string("link"))
+            clock.now = signedIn.plus(Duration.ofDays(180))
+            client.exchange(late).status shouldBe HttpStatusCode.Unauthorized
+            client.get("/api/v1/auth/who-am-i") { bearerAuth(session) }.status shouldBe HttpStatusCode.Unauthorized
+            // a new sign-in starts again
+            client.get("/api/v1/auth/who-am-i") { bearerAuth(session(USER)) }.status shouldBe HttpStatusCode.OK
+        }
+
+    @Test
+    fun `a code made before its user signed out everywhere gives no session (SEC-4)`() =
+        connectTest {
+            val code = tokenOf(client.code(session(USER)).bodyAsText().json().string("link"))
+            validFrom = clock.now.plusSeconds(1)
+            clock.now = clock.now.plusSeconds(1)
+            client.exchange(code).status shouldBe HttpStatusCode.Unauthorized
+            client.get("/api/v1/auth/who-am-i") { bearerAuth(session(USER)) }.status shouldBe HttpStatusCode.OK
+        }
+
+    @Test
+    fun `a session of before auth_time counts from its iat (SEC-4)`() {
+        val old =
+            com.auth0.jwt.JWT
+                .create()
+                .withIssuer(FRONTEND_URL)
+                .withSubject(USER)
+                .withClaim("token_use", "session")
+                .withArrayClaim(TokenService.ROLES, arrayOf("user"))
+                .withIssuedAt(clock.now)
+                .withExpiresAt(clock.now.plus(Duration.ofDays(30)))
+        TokenService.authTimeOf(com.auth0.jwt.JWT.decode(old.sign(com.auth0.jwt.algorithms.Algorithm.none()))) shouldBe clock.now
     }
 }

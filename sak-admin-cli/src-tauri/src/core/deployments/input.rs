@@ -2,6 +2,7 @@
 //! values of the environment, and their checks
 
 use super::*;
+use zeroize::Zeroizing;
 
 /// the values the environment proposes for a new deployment. No Debug: it holds passwords
 #[derive(Default, Serialize)]
@@ -259,8 +260,9 @@ pub enum Intent {
 #[serde(rename_all = "camelCase")]
 pub struct DeploymentRequest {
     pub name: String,
-    pub password: String,
-    pub password_repeat: String,
+    /// wiped when the request goes (SEC-24)
+    pub password: Zeroizing<String>,
+    pub password_repeat: Zeroizing<String>,
     pub location: Location,
     /// the dns mode, kept on every resource. None: subdomain for a create, the mode of the
     /// deployment for a deploy (`resolve_dns`)
@@ -312,8 +314,8 @@ impl DeploymentRequest {
     pub fn as_it_is(name: &str, password: &str, location: Location) -> Self {
         DeploymentRequest {
             name: name.to_string(),
-            password: password.to_string(),
-            password_repeat: password.to_string(),
+            password: Zeroizing::new(password.to_string()),
+            password_repeat: Zeroizing::new(password.to_string()),
             location,
             dns_mode: None,
             root_domain: None,

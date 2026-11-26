@@ -61,6 +61,10 @@ class ResticRepositoryService(
         id: Int,
     ): String? = repository.token(user, id)
 
+    // a new token for every repository of the owner, e.g. when the user is deleted: added again, they
+    // read the new ones, the tokens on their computers from before are refused (SEC-39)
+    fun renewTokens(owner: String): Int = repository.renewTokens(owner, ::newToken)
+
     // deletes a repository of the user with its backup plans, a soft delete: its files stay in the
     // storage until it is purged (BACKUP-9)
     fun delete(

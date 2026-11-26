@@ -2,7 +2,7 @@ import { Location } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AuthService, TranslatePipe } from '@sak/core';
+import { AuthService, loginTokenEmail, TranslatePipe } from '@sak/core';
 
 // the android apps by the client of their login link (LoginClient of sak-auth): the package, also the
 // scheme of the signin link, and the texts of the page that hands the link on
@@ -34,7 +34,9 @@ export function androidAppLink(client: AndroidClient, token: string): string {
 }
 
 // the target of the e-mailed link, trades its login token for a session; the link of a login an
-// android app asked for (client=grocery-android, ...) goes on to that app, unused here
+// android app asked for (client=grocery-android, ...) goes on to that app, unused here. A link this
+// browser did not ask for, or one of another address than the one signed in, asks first whom it
+// signs in (SEC-7)
 @Component({
   selector: 'app-signin',
   imports: [RouterLink, TranslatePipe],
@@ -55,6 +57,28 @@ export function androidAppLink(client: AndroidClient, token: string): string {
                 'signin.failed_after' | t
               }}
             </p>
+          } @else if (confirm(); as confirm) {
+            <h1 class="h4 mb-3 text-break">
+              {{ 'signin.confirm_title' | t: { email: confirm.email } }}
+            </h1>
+            <p class="text-body-secondary">{{ 'signin.confirm_elsewhere' | t }}</p>
+            @if (confirm.current; as current) {
+              <p class="text-break" data-testid="replaces">
+                {{ 'signin.confirm_replaces' | t: { current: current } }}
+              </p>
+            }
+            <div class="d-flex justify-content-end">
+              <div class="btn-group" role="group" [attr.aria-label]="'shared.form_actions' | t">
+                <a
+                  class="btn btn-outline-secondary"
+                  [routerLink]="confirm.current ? '/' : '/login'"
+                  >{{ 'shared.cancel' | t }}</a
+                >
+                <button class="btn btn-primary" type="button" (click)="exchange()">
+                  {{ 'login.sign_in' | t }}
+                </button>
+              </div>
+            </div>
           } @else {
             <p class="mb-0">{{ 'login.signing_in' | t }}</p>
           }
@@ -75,6 +99,8 @@ export class Signin implements OnInit {
   // the android app that asked for the login, and the link that opens it
   protected readonly app = signal<(typeof ANDROID_APPS)[AndroidClient] | null>(null);
   protected readonly appLink = signal<SafeUrl | null>(null);
+  // whom the link signs in, and who is signed in now, while the page asks (SEC-7)
+  protected readonly confirm = signal<{ email: string; current: string | null } | null>(null);
 
   ngOnInit(): void {
     // the login token never stays in the address bar or the history
@@ -94,7 +120,27 @@ export class Signin implements OnInit {
       return;
     }
 
-    this.auth.signIn(this.token).subscribe({
+    // at once only what this browser asked for and nobody else is signed in; a token without an
+    // address is no token, its exchange fails
+    const email = loginTokenEmail(this.token);
+    const current = this.auth.signedInAs();
+    const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+    if (
+      email === null ||
+      (this.auth.askedFor(email) && (current === null || same(current, email)))
+    ) {
+      this.exchange();
+      return;
+    }
+    this.confirm.set({
+      email,
+      current: current !== null && !same(current, email) ? current : null,
+    });
+  }
+
+  protected exchange(): void {
+    this.confirm.set(null);
+    this.auth.signIn(this.token!).subscribe({
       next: (redirect) => void this.router.navigateByUrl(redirect, { replaceUrl: true }),
       error: () => this.failed.set(true),
     });

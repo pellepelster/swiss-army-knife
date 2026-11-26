@@ -16,6 +16,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 use url::Url;
+use zeroize::Zeroizing;
 
 /// the frontend urls of the deployments of the last list: the only urls `open_url` opens
 #[derive(Default)]
@@ -146,7 +147,8 @@ pub async fn deployment_settings(
     tokens: State<'_, ProviderTokens>,
     loaded: State<'_, LoadedSettings>,
     name: String,
-    password: String,
+    // wiped when the command ends (SEC-24)
+    password: Zeroizing<String>,
 ) -> Result<Detected, SakadminError> {
     let detected = manager.detected(tokens.tokens(), &name, &password).await?;
     loaded.set(&name, detected.clone());
@@ -187,7 +189,8 @@ pub async fn check_deployment(
     checked: State<'_, CheckedDeployment>,
     loaded: State<'_, LoadedSettings>,
     name: String,
-    password: String,
+    // wiped when the command ends (SEC-24)
+    password: Zeroizing<String>,
     location: Option<sak_cloud::hetzner::api::Location>,
 ) -> Result<CheckResponse, SakadminError> {
     let number = checked.start();
@@ -294,7 +297,8 @@ pub async fn check_deployment_password(
     manager: State<'_, DeploymentManager>,
     tokens: State<'_, ProviderTokens>,
     name: String,
-    password: String,
+    // wiped when the command ends (SEC-24)
+    password: Zeroizing<String>,
 ) -> Result<(), String> {
     manager
         .check_password(tokens.tokens(), &name, &password)

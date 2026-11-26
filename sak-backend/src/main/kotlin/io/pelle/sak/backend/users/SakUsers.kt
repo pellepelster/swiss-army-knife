@@ -114,9 +114,30 @@ fun Route.users(
         }
     }
 
+    post("/{id}/sign-out") {
+        val id = call.idParameter() ?: return@post
+        val signedOut = withContext(Dispatchers.IO) { userService.signOut(call.owner, id) }
+        call.respond(if (signedOut) HttpStatusCode.NoContent else HttpStatusCode.NotFound)
+    }.describe {
+        tag(USERS_TAG)
+        summary = "Sign a user out everywhere"
+        description = "Ends every session of the user on every device and every link and QR code not yet used (SEC-4); the user stays and can sign in again."
+        parameters {
+            path("id") {
+                description = "The id of the added user"
+                required = true
+                schema = jsonSchema<Int>()
+            }
+        }
+        responses {
+            HttpStatusCode.NoContent { description = "Every session of the user has ended" }
+            errors(HttpStatusCode.NotFound, "No such added user; an admin of the configuration signs out everywhere themselves")
+        }
+    }
+
     delete("/{id}") {
         val id = call.idParameter() ?: return@delete
-        call.respondDeleted(withContext(Dispatchers.IO) { userService.delete(id) })
+        call.respondDeleted(withContext(Dispatchers.IO) { userService.delete(call.owner, id) })
     }.describe {
         tag(USERS_TAG)
         summary = "Delete a user"

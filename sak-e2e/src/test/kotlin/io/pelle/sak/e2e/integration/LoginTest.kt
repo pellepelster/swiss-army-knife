@@ -86,6 +86,8 @@ class LoginTest {
             val page = context.newPage()
             step("opening the used link again, it is refused", multi)
             page.navigate(link)
+            // another browser than the one that asked: it asks first whom it signs in (SEC-7)
+            page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("Sign in").setExact(true)).click()
             assertThat(page.heading("Sign-in failed")).isVisible()
         }
     }

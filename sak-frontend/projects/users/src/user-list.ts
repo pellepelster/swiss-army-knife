@@ -14,8 +14,9 @@ import {
 import { UsersService } from './users.service';
 
 // who may sign in, a page at a time: the admins of the configuration, then the users an admin
-// added. A user is added on its own page and deleted after a confirmation in its place (UX-4.1);
-// an admin of the configuration is not deleted
+// added. A user is added on its own page and deleted after a confirmation in its place (UX-4.1),
+// and signed out everywhere (SEC-4), which they undo by signing in again; an admin of the
+// configuration is neither, they sign out everywhere on their own settings page
 @Component({
   selector: 'app-user-list',
   imports: [PageHeader, PaginationControl, RouterLink, ActionMenu, TranslatePipe],
@@ -34,7 +35,7 @@ import { UsersService } from './users.service';
       <p class="alert alert-danger" role="alert">{{ error }}</p>
     }
 
-    <!-- the links to the android apps were sent -->
+    <!-- the links to the android apps were sent, or a user was signed out -->
     @if (sent(); as sent) {
       <p class="alert alert-success" role="status" data-testid="app-link-sent">{{ sent }}</p>
     }
@@ -86,6 +87,18 @@ import { UsersService } from './users.service';
                       <i class="fa-solid fa-mobile-screen me-2" aria-hidden="true"></i
                       >{{ 'users.send_app_link' | t }}
                     </button>
+                    @if (user.id != null) {
+                      <button
+                        type="button"
+                        class="dropdown-item"
+                        role="menuitem"
+                        data-testid="sign-out"
+                        (click)="signOut(user.id, user.email)"
+                      >
+                        <i class="fa-solid fa-right-from-bracket me-2" aria-hidden="true"></i
+                        >{{ 'users.sign_out' | t }}
+                      </button>
+                    }
                   </app-action-menu>
                 </td>
               </tr>
@@ -143,6 +156,19 @@ export class UserList {
           this.sending.set(false);
           this.list.error.set(apiErrorMessage(error, this.i18n.t('users.app_link_not_sent')));
         },
+      });
+  }
+
+  protected signOut(id: number, email: string): void {
+    this.sent.set(null);
+    this.list.error.set(null);
+    this.service
+      .signOut(id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.sent.set(this.i18n.t('users.signed_out', { email })),
+        error: (error: unknown) =>
+          this.list.error.set(apiErrorMessage(error, this.i18n.t('users.not_signed_out'))),
       });
   }
 

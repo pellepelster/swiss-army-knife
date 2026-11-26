@@ -61,6 +61,8 @@ class OpenRouterTextRecognizerTest {
         val (headers, body) = requests.single()
         headers["Authorization"] shouldBe "Bearer token"
         body.string("model") shouldBe "vendor/vision-model"
+        // no longer answer than that (SEC-20)
+        body.string("max_tokens") shouldBe MAX_COMPLETION_TOKENS.toString()
         body["provider"]!!.jsonObject.string("data_collection") shouldBe "deny"
         val content = body["messages"]!!.jsonArray.single().jsonObject["content"]!!.jsonArray
         content[0].jsonObject.string("text") shouldBe OpenRouterTextRecognizer.PROMPT
@@ -89,5 +91,17 @@ class OpenRouterTextRecognizerTest {
 
         server.stop(0)
         shouldThrow<TextRecognitionException> { recognizer.recognize(file(byteArrayOf(1)), "image/png") }.message shouldContain "not reachable"
+    }
+
+    @Test
+    fun `an answer larger than MAX_ANSWER_BYTES is not read, one of the limit is (SEC-20)`() {
+        // the content of a completion that makes the whole answer exactly the limit
+        val overhead = completion("").toByteArray().size
+        answer = completion("a".repeat(MAX_ANSWER_BYTES - overhead))
+        recognizer.recognize(file(byteArrayOf(1)), "image/png").length shouldBe MAX_ANSWER_BYTES - overhead
+
+        answer = completion("a".repeat(MAX_ANSWER_BYTES - overhead + 1))
+        shouldThrow<TextRecognitionException> { recognizer.recognize(file(byteArrayOf(1)), "image/png") }.message shouldContain
+            "more than $MAX_ANSWER_BYTES bytes"
     }
 }

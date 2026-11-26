@@ -27,6 +27,14 @@ common:
     send_link: { en: "Send login link", de: "Login-Link senden" }
     use_password: { en: "Sign in with password", de: "Mit Passwort anmelden" }
     sign_out: { en: "Sign out", de: "Abmelden" }
+    sign_out_everywhere: { en: "Sign out everywhere", de: "Überall abmelden" }
+    sign_out_everywhere_hint:
+      en: "Signs you out on every device and in every app, this one too. Codes and links not used yet stop working. You can sign in again at once."
+      de: "Meldet dich auf jedem Gerät und in jeder App ab, auch hier. Noch nicht benutzte Codes und Links gelten nicht mehr. Du kannst dich sofort wieder anmelden."
+    sign_out_everywhere_confirm: { en: "Sign out on every device?", de: "Auf jedem Gerät abmelden?" }
+    not_signed_out_everywhere:
+      en: "You could not be signed out everywhere."
+      de: "Du konntest nicht überall abgemeldet werden."
     link_invalid:
       en: "The login link is invalid, expired or was already used."
       de: "Der Login-Link ist ungültig, abgelaufen oder wurde schon benutzt."
@@ -480,6 +488,13 @@ web:
     failed_title: { en: "Sign-in failed", de: "Anmeldung fehlgeschlagen" }
     request_new: { en: "Request a new one", de: "Fordere einen neuen an" }
     failed_after: { en: ".", de: "." }
+    confirm_title: { en: "Sign in as %{email}?", de: "Als %{email} anmelden?" }
+    confirm_elsewhere:
+      en: "This link was not asked for in this browser. Sign in only if you asked for it yourself."
+      de: "Dieser Link wurde nicht in diesem Browser angefordert. Melde dich nur an, wenn du ihn selbst angefordert hast."
+    confirm_replaces:
+      en: "You are signed in as %{current} now, that session ends."
+      de: "Du bist gerade als %{current} angemeldet, diese Sitzung endet."
   shared:
     copy: { en: "Copy", de: "Kopieren" }
     copied: { en: "Copied", de: "Kopiert" }
@@ -551,6 +566,11 @@ web:
       en: "The links to the Android apps could not be sent."
       de: "Die Links zu den Android-Apps konnten nicht gesendet werden."
     not_deleted: { en: "The user could not be deleted.", de: "Der Benutzer konnte nicht gelöscht werden." }
+    sign_out: { en: "Sign out everywhere", de: "Überall abmelden" }
+    signed_out:
+      en: "%{email} is signed out on every device."
+      de: "%{email} ist auf jedem Gerät abgemeldet."
+    not_signed_out: { en: "The user could not be signed out.", de: "Der Benutzer konnte nicht abgemeldet werden." }
     email_hint:
       en: "The user signs in with a link sent to this address. No e-mail is sent now."
       de: "Der Benutzer meldet sich mit einem Link an, der an diese Adresse geht. Jetzt wird keine E-Mail gesendet."

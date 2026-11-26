@@ -11,7 +11,9 @@ import java.security.MessageDigest
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.Base64
+import java.util.Date
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import io.pelle.sak.core.logAddress
@@ -19,6 +21,8 @@ import io.pelle.sak.core.logAddress
 data class LoginClaims(
     val email: String,
     val redirect: String,
+    // when the link was made: one made before the user it is for was added again counts for nothing (SEC-39)
+    val issuedAt: Instant,
 )
 
 // the token of the QR code that connects an app (SECURITY-3); the id tells whether it was used
@@ -32,6 +36,10 @@ data class ConnectToken(
 data class ConnectClaims(
     val email: String,
     val withPassword: Boolean,
+    // when the code was made: one made before its user signed out everywhere counts for nothing
+    val issuedAt: Instant,
+    // when the session that made it signed in, handed on to the session it gives (SEC-4)
+    val authTime: Instant,
 )
 
 data class SessionToken(
@@ -54,6 +62,9 @@ class TokenService(
     val loginTokenTtl: Duration = DEFAULT_LOGIN_TOKEN_TTL,
     val sessionTokenTtl: Duration = DEFAULT_SESSION_TOKEN_TTL,
     val connectTokenTtl: Duration = DEFAULT_CONNECT_TOKEN_TTL,
+    // the longest a user stays signed in from a sign-in with a link or the password, through every
+    // connect that renews the session (SEC-4)
+    val sessionMaxAge: Duration = DEFAULT_SESSION_MAX_AGE,
 ) {
     private val algorithm = Algorithm.ECDSA256(key.publicKey, key.privateKey)
 
@@ -130,7 +141,8 @@ class TokenService(
             return null
         }
 
-        return LoginClaims(email, jwt.getClaim(REDIRECT).asString() ?: "/")
+        val issuedAt = jwt.issuedAtAsInstant ?: return null
+        return LoginClaims(email, jwt.getClaim(REDIRECT).asString() ?: "/", issuedAt)
     }
 
     // good for one exchange within connectTokenTtl (SECURITY-3); keeps the login method of the session.
@@ -139,6 +151,8 @@ class TokenService(
         email: String,
         withPassword: Boolean,
         challenge: String? = null,
+        // the sign-in of the session that makes it, now for none
+        authTime: Instant? = null,
     ): ConnectToken {
         val id = UUID.randomUUID().toString()
         val expiresAt = clock.instant().plus(connectTokenTtl)
@@ -146,6 +160,7 @@ class TokenService(
             sign(email, CONNECT, connectTokenTtl)
                 .withJWTId(id)
                 .withClaim(LOGIN_METHOD, if (withPassword) PASSWORD else EMAIL)
+                .withClaim(AUTH_TIME, Date.from(authTime ?: clock.instant()))
                 .apply { challenge?.let { withClaim(CHALLENGE, it) } }
                 .sign(algorithm)
         val now = clock.instant()
@@ -188,7 +203,8 @@ class TokenService(
             logger.info { "rejected the connect token of ${logAddress(email)}: it was used already" }
             return null
         }
-        return ConnectClaims(email, jwt.getClaim(LOGIN_METHOD).asString() == PASSWORD)
+        val issuedAt = jwt.issuedAtAsInstant ?: return null
+        return ConnectClaims(email, jwt.getClaim(LOGIN_METHOD).asString() == PASSWORD, issuedAt, authTimeOf(jwt) ?: issuedAt)
     }
 
     // null when the user has no such token that is not expired
@@ -201,19 +217,42 @@ class TokenService(
         return usedLoginTokens.containsKey(id)
     }
 
+    // the session of a sign-in with a link or the password, of sessionTokenTtl
     fun issueSessionToken(
         email: String,
         roles: Set<Role>,
         withPassword: Boolean = false,
-    ): SessionToken {
-        val expiresAt = clock.instant().plus(sessionTokenTtl)
+    ): SessionToken = sessionToken(email, roles, withPassword, clock.instant())!!
+
+    // the session a connect token gives, of sessionTokenTtl but at most until sessionMaxAge after
+    // authTime, the sign-in it comes from; null when that is over (SEC-4)
+    fun renewSessionToken(
+        email: String,
+        roles: Set<Role>,
+        withPassword: Boolean,
+        authTime: Instant,
+    ): SessionToken? = sessionToken(email, roles, withPassword, authTime)
+
+    private fun sessionToken(
+        email: String,
+        roles: Set<Role>,
+        withPassword: Boolean,
+        signedIn: Instant,
+    ): SessionToken? {
+        val now = clock.instant()
+        val expiresAt = minOf(now.plus(sessionTokenTtl), signedIn.plus(sessionMaxAge))
+        if (!expiresAt.isAfter(now)) return null
         val token =
-            sign(email, SESSION, sessionTokenTtl)
+            sign(email, SESSION, Duration.between(now, expiresAt))
                 .withArrayClaim(ROLES, roles.map { it.key }.toTypedArray())
                 .withClaim(LOGIN_METHOD, if (withPassword) PASSWORD else EMAIL)
+                .withClaim(AUTH_TIME, Date.from(signedIn))
                 .sign(algorithm)
-        return SessionToken(token, email, expiresAt, withPassword)
+        return SessionToken(token, email, expiresAt.truncatedTo(ChronoUnit.SECONDS), withPassword)
     }
+
+    // whether a session that signed in at authTime is still within sessionMaxAge
+    fun withinMaxAge(authTime: Instant): Boolean = clock.instant().isBefore(authTime.plus(sessionMaxAge))
 
     private fun sign(
         email: String,
@@ -239,6 +278,16 @@ class TokenService(
 
         // short: whoever photographs the code signs in with it until then (SECURITY-3)
         val DEFAULT_CONNECT_TOKEN_TTL: Duration = Duration.ofMinutes(2)
+
+        // the longest from a sign-in with a link or the password, through every renewal (SECURITY-3)
+        val DEFAULT_SESSION_MAX_AGE: Duration = Duration.ofDays(180)
+
+        // when the user signed in with a link or the password (the name of OpenID Connect); a token of
+        // before it was there falls back to its iat
+        const val AUTH_TIME = "auth_time"
+
+        // the sign-in of a session or a connect token, its iat for one without auth_time
+        fun authTimeOf(jwt: com.auth0.jwt.interfaces.Payload): Instant? = jwt.getClaim(AUTH_TIME).asDate()?.toInstant() ?: jwt.issuedAtAsInstant
 
         private const val TOKEN_USE = "token_use"
 

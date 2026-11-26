@@ -172,6 +172,13 @@ open class SakApi(
                 setBody(JsonObject(values))
             }.answer(R.string.error_settings_not_saved)
 
+    // ends every session of the user, this one too (SEC-4)
+    suspend fun signOutEverywhere(): Unit =
+        client
+            .post("$url/auth/sign-out-everywhere") {
+                session()
+            }.answer(R.string.login_not_signed_out_everywhere)
+
     // the signed in user, with their name if they have one
     suspend fun whoAmI(): WhoAmIResponse =
         client

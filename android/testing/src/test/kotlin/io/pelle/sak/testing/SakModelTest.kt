@@ -244,7 +244,7 @@ class SakModelTest {
             advanceUntilIdle()
             model.load()
             advanceUntilIdle()
-            assertEquals("The user could not be read.", model.app().error.english())
+            assertEquals("The user could not be loaded.", model.app().error.english())
 
             backend.answers["GET /things"] = HttpStatusCode.TooManyRequests to ""
             model.load()
@@ -474,7 +474,7 @@ class SakModelTest {
             assertTrue(model.qr.scan.value!!.confirm!!.new)
             model.qr.confirm()
             advanceUntilIdle()
-            assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.qr.scan.value!!.error.english())
+            assertEquals("The QR code is invalid, expired or was already used. Show a new one in the web app.", model.qr.scan.value!!.error.english())
             assertFalse(model.qr.scan.value!!.busy)
 
             backend.answers["POST /auth/login/connect"] = HttpStatusCode.TooManyRequests to ""
@@ -588,7 +588,7 @@ class SakModelTest {
             assertTrue(model.qr.scan.value!!.confirm!!.same)
             model.qr.confirm()
             advanceUntilIdle()
-            assertEquals("The QR code is not valid, or it was used or expired. Show a new one in the web app.", model.qr.scan.value!!.error.english())
+            assertEquals("The QR code is invalid, expired or was already used. Show a new one in the web app.", model.qr.scan.value!!.error.english())
             assertEquals("session", store.load().token)
             assertTrue(model.screen.value is ThingsScreen)
 
@@ -741,6 +741,28 @@ class SakModelTest {
         }
 
     @Test
+    fun `a sign out everywhere ends the session here after the backend ended all, a failure keeps it (SEC-4)`() =
+        runTest {
+            val store = signedIn()
+            val model = model(store).also { it.start() }
+            advanceUntilIdle()
+            val failures = mutableListOf<UiText>()
+
+            backend.answers["POST /auth/sign-out-everywhere"] = HttpStatusCode.InternalServerError to ""
+            model.signOutEverywhere { failures += it }
+            advanceUntilIdle()
+            assertEquals(listOf<UiText>(uiText(R.string.login_not_signed_out_everywhere)), failures)
+            assertFalse(model.screen.value is Screen.SignIn)
+
+            backend.answers["POST /auth/sign-out-everywhere"] = HttpStatusCode.NoContent to ""
+            model.signOutEverywhere { failures += it }
+            advanceUntilIdle()
+            assertEquals(1, failures.size)
+            assertTrue(model.screen.value is Screen.SignIn)
+            assertEquals(io.pelle.sak.testing.signedOut(), store.load())
+        }
+
+    @Test
     fun `an error of the backend is shown with its message`() =
         runTest {
             backend.answers["POST /auth/login/password"] = HttpStatusCode.Unauthorized to ""
@@ -870,7 +892,7 @@ class SakModelTest {
             advanceUntilIdle()
             current.updates.check()
             advanceUntilIdle()
-            assertEquals("Your SAK instance runs no release, there is no update for the app.", current.notice())
+            assertEquals("Your SAK instance does not run a release, so there is no update for the app.", current.notice())
 
             val debug = model(signedIn(), appVersion = "latest").also { it.start() }
             advanceUntilIdle()

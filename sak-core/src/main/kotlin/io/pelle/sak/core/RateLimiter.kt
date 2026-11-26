@@ -48,6 +48,15 @@ class RateLimiter(
         return timestamps.size >= maxEvents
     }
 
+    // gives the newest event of the key back, e.g. an attempt that turned out to be no failure: counted
+    // first, so attempts at once can not pass the limit together, given back once it succeeded (SEC-40)
+    @Synchronized
+    fun release(key: String) {
+        val timestamps = events[key] ?: return
+        timestamps.removeLastOrNull()
+        if (timestamps.isEmpty()) events.remove(key)
+    }
+
     // the number of keys kept, for the tests
     @Synchronized
     internal fun keys(): Int = events.size

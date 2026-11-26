@@ -3,6 +3,7 @@ import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   apiErrorMessage,
+  AuthService,
   I18n,
   PageHeader,
   SettingValue,
@@ -17,7 +18,8 @@ type Edited = Record<string, Record<string, SettingValue>>;
 
 // /user/settings: the settings of the user signed in, for them alone, e.g. the AI of an app (PRIVACY-2);
 // every scope a card of switches, one Save for all (WEB-3) that sends the changed values of each scope.
-// A setting that does not count now is greyed out and says why; one that is on can still be turned off
+// A setting that does not count now is greyed out and says why; one that is on can still be turned off.
+// Below them the sign out everywhere (SEC-4), asked in its place (WEB-3), which signs out here too
 @Component({
   selector: 'app-user-settings-page',
   imports: [PageHeader, TranslatePipe],
@@ -88,11 +90,57 @@ type Edited = Record<string, Record<string, SettingValue>>;
     } @else {
       <p class="text-body-secondary">{{ 'shared.loading' | t }}</p>
     }
+
+    <section
+      class="card card-body vstack gap-2 mt-3"
+      [attr.aria-label]="'login.sign_out_everywhere' | t"
+      data-testid="sign-out-everywhere"
+    >
+      <h2 class="h5 mb-0">{{ 'login.sign_out_everywhere' | t }}</h2>
+      <p class="text-body-secondary mb-0">{{ 'login.sign_out_everywhere_hint' | t }}</p>
+      @if (signOutError(); as error) {
+        <p class="alert alert-danger mb-0" role="alert">{{ error }}</p>
+      }
+      <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+        @if (confirmingSignOut()) {
+          <span class="fw-semibold" role="status">{{
+            'login.sign_out_everywhere_confirm' | t
+          }}</span>
+          <div class="btn-group" role="group" [attr.aria-label]="'shared.form_actions' | t">
+            <button
+              class="btn btn-outline-secondary"
+              type="button"
+              (click)="confirmingSignOut.set(false)"
+            >
+              {{ 'shared.cancel' | t }}
+            </button>
+            <button
+              class="btn btn-danger"
+              type="button"
+              data-testid="confirm-sign-out-everywhere"
+              [disabled]="signingOut()"
+              (click)="signOutEverywhere()"
+            >
+              {{ 'login.sign_out_everywhere' | t }}
+            </button>
+          </div>
+        } @else {
+          <button
+            class="btn btn-outline-danger"
+            type="button"
+            (click)="confirmingSignOut.set(true)"
+          >
+            {{ 'login.sign_out_everywhere' | t }}
+          </button>
+        }
+      </div>
+    </section>
   `,
 })
 export class UserSettingsPage {
   private readonly http = inject(HttpClient);
   private readonly i18n = inject(I18n);
+  private readonly auth = inject(AuthService);
 
   protected readonly scopes = signal<UserSettingScope[] | null>(null);
   protected readonly loadError = signal<string | null>(null);
@@ -103,6 +151,9 @@ export class UserSettingsPage {
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly saved = signal(false);
+  protected readonly confirmingSignOut = signal(false);
+  protected readonly signingOut = signal(false);
+  protected readonly signOutError = signal<string | null>(null);
 
   constructor() {
     this.http
@@ -161,6 +212,19 @@ export class UserSettingsPage {
       this.saveError.set(apiErrorMessage(error, this.i18n.t('settings.not_saved')));
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  // every session of the user ends, this one too: the login opens
+  protected async signOutEverywhere(): Promise<void> {
+    this.signingOut.set(true);
+    this.signOutError.set(null);
+    try {
+      await firstValueFrom(this.http.post<void>('/api/v1/auth/sign-out-everywhere', {}));
+      this.auth.signOut();
+    } catch (error: unknown) {
+      this.signOutError.set(apiErrorMessage(error, this.i18n.t('login.not_signed_out_everywhere')));
+      this.signingOut.set(false);
     }
   }
 }

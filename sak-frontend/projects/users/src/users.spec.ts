@@ -107,6 +107,21 @@ describe('Users', () => {
     );
   });
 
+  it('signs a user out everywhere from the menu of its row, an admin of the configuration not (SEC-4)', async () => {
+    await list([admin, anna]);
+    expect((await rowMenu('admin@example.org')).querySelector('[data-testid=sign-out]')).toBeNull();
+    button('Sign out everywhere', await rowMenu('anna@example.org')).click();
+    http
+      .expectOne({ method: 'POST', url: '/api/v1/users/3/sign-out' })
+      .flush(null, { status: 204, statusText: 'No Content' });
+    await harness.fixture.whenStable();
+    expect(page().querySelector('[data-testid=app-link-sent]')?.textContent?.trim()).toBe(
+      'anna@example.org is signed out on every device.',
+    );
+    // the user stays
+    expect(page().querySelector('[data-testid="user-anna@example.org"]')).not.toBeNull();
+  });
+
   it('adds a user by address with an optional name, the address checked when it is left', async () => {
     await open('/users/create');
     const type = async (id: string, value: string) => {

@@ -246,13 +246,19 @@ How the backend keeps its data is in [MODEL.md](MODEL.md).
 - `SECURITY-2` **The ssh key is never written to disk.** The one exception is `sakadmin ssh-config`: it writes the
   key to the directory that the user names. sakadmin never reads the key from a file.
 - `SECURITY-3` **A signed in session connects an app.** An app never asks for a password. A signed in session of the web
-  app hands it a connect token: good for one exchange within 2 minutes, for a session of the same user with its own full
-  time and the roles the user has at the exchange. A phone scans the token as a QR code, which shows only while asked
-  for; whoever photographs it signs in as the user until it is used or expired. Before it signs in, the app names the
-  SAK instance of the code and asks. A signed request of sakadmin connects no app.
+  app hands it a connect token: good for one exchange within 2 minutes, for a session of the same user with the roles
+  the user has at the exchange. A session lasts 30 days, at most 180 days from the sign-in with a link or the password
+  it comes from; every connect hands that time on, so no session renews itself without an end. A phone scans the token
+  as a QR code, which shows only while asked for; whoever photographs it signs in as the user until it is used or
+  expired. Before it signs in, the app names the SAK instance of the code and asks. A signed request of sakadmin
+  connects no app.
 - `SECURITY-4` **A desktop app connects through the browser.** A desktop app gets its connect token (`SECURITY-3`)
   through the browser of the user, after the user confirmed on a page that tells which app asks; the token is of use
   only to the app that asked. A desktop app keeps its session only in the keychain of the system, never in a file.
+- `SECURITY-5` **A user signs out everywhere.** A user ends every session of theirs on every device, the one they use
+  too, and every link and QR code not used yet; an admin does the same for a user, and deleting a user does it too. The
+  backend keeps the time of the latest sign out of each address and refuses every token issued before it, so a new
+  sign-in works at once. A user added again has nothing of before.
 
 ## Tests
 

@@ -49,6 +49,7 @@ import io.pelle.sak.auth.login
 import io.pelle.sak.auth.whoAmI
 import io.pelle.sak.auth.apiSignature
 import io.pelle.sak.auth.session
+import io.pelle.sak.auth.signOutEverywhere
 import io.pelle.sak.backend.files.discoverTextLimiter
 import io.pelle.sak.backend.files.files
 import io.pelle.sak.backend.files.servedFiles
@@ -184,7 +185,7 @@ fun Application.apps(
     val onLogin = LoginListener { owner, language -> loginListeners.forEach { it.signedIn(owner, language) } }
 
     install(Authentication) {
-        session(tokens, rolesOf)
+        session(tokens, rolesOf, validFrom = userService::validFrom)
         // sakadmin acts as the admin, what it creates is theirs
         apiSignature(config.apiPublicKey?.let { ApiSignature(it, config.apiHost, API_PATH_PREFIX) }, owner = admin)
     }
@@ -218,17 +219,19 @@ fun Application.apps(
                     route(AUTH_PATH) {
                         route(LOGIN_PATH) {
                             if (mailSender != null) {
-                                login(tokens, mailSender, loginApp, rolesOf, onLogin = onLogin)
+                                login(tokens, mailSender, loginApp, rolesOf, validFrom = userService::validFrom, onLogin = onLogin)
                             }
                             if (adminPassword != null) {
                                 passwordLogin(tokens, admin, adminPassword, rolesOf, onLogin = onLogin)
                             }
                             // an app connected with the QR code of a session (SECURITY-3)
-                            connectExchange(tokens, rolesOf, onLogin = onLogin)
+                            connectExchange(tokens, rolesOf, validFrom = userService::validFrom, onLogin = onLogin)
                         }
                         authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
                             whoAmI(nameOf = userService::name)
                             connect(tokens, loginApp)
+                            // every session of the user ends, this one too (SEC-4)
+                            signOutEverywhere { email -> userService.signOutEverywhere(email, email) }
                         }
                     }
                     authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {

@@ -354,6 +354,8 @@ fun AccountMenu(
     home: Boolean = false,
 ) {
     var menu by rememberSaveable { mutableStateOf(false) }
+    var signingOutEverywhere by rememberSaveable { mutableStateOf(false) }
+    if (signingOutEverywhere) ConfirmSignOutEverywhere(model) { signingOutEverywhere = false }
     IconButton(onClick = { menu = true }, modifier = Modifier.testTag("menu")) {
         Icon(painterResource(R.drawable.ic_menu), contentDescription = stringResource(R.string.shared_menu))
     }
@@ -380,7 +382,43 @@ fun AccountMenu(
             modifier = Modifier.testTag("menu-scan-qr"),
         ) { model.qr.open() }
         MenuEntry(stringResource(R.string.login_sign_out), close = { menu = false }) { model.signOut() }
+        MenuEntry(
+            stringResource(R.string.login_sign_out_everywhere),
+            close = { menu = false },
+            modifier = Modifier.testTag("menu-sign-out-everywhere"),
+        ) { signingOutEverywhere = true }
     }
+}
+
+// "Sign out on every device?" with what it does (SEC-4), Cancel the safe default (UX-4.1); why it
+// failed stays in it
+@Composable
+private fun ConfirmSignOutEverywhere(
+    model: SakModel<*>,
+    onDismiss: () -> Unit,
+) {
+    var error by remember { mutableStateOf<UiText?>(null) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.login_sign_out_everywhere_confirm)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.login_sign_out_everywhere_hint))
+                Error(error)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    error = null
+                    model.signOutEverywhere { error = it }
+                },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.testTag("confirm-sign-out-everywhere"),
+            ) { Text(stringResource(R.string.login_sign_out_everywhere)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.shared_cancel)) } },
+    )
 }
 
 // the newer version of the app the deployment runs, at the top of the home; the update downloads it

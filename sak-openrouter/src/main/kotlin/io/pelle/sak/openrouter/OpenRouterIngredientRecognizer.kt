@@ -45,6 +45,8 @@ class OpenRouterIngredientRecognizer(
         buildJsonObject {
             put("model", model)
             put("temperature", 0)
+            // no longer answer than this (SEC-20)
+            put("max_tokens", MAX_COMPLETION_TOKENS)
             putJsonArray("messages") {
                 addJsonObject {
                     put("role", "user")

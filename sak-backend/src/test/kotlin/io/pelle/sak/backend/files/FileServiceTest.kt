@@ -54,6 +54,15 @@ class FileServiceTest {
     }
 
     @Test
+    fun `a discovered text is kept to MAX_DISCOVERED_LENGTH, never between the halves of a character (SEC-20)`() {
+        discoveredOf("short") shouldBe "short"
+        discoveredOf("a".repeat(MAX_DISCOVERED_LENGTH + 10)).length shouldBe MAX_DISCOVERED_LENGTH
+        // an emoji of two chars across the limit goes whole
+        val across = "a".repeat(MAX_DISCOVERED_LENGTH - 1) + "😀" + "b"
+        discoveredOf(across) shouldBe "a".repeat(MAX_DISCOVERED_LENGTH - 1)
+    }
+
+    @Test
     fun `every upload is a file of its own, also of the same content`() {
         val content = Media.PNG + "same".toByteArray()
         val first = (service.store(content.inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file

@@ -7,6 +7,10 @@
     <string name="login_send_link">Login-Link senden</string>
     <string name="login_use_password">Mit Passwort anmelden</string>
     <string name="login_sign_out">Abmelden</string>
+    <string name="login_sign_out_everywhere">Überall abmelden</string>
+    <string name="login_sign_out_everywhere_hint">Meldet dich auf jedem Gerät und in jeder App ab, auch hier. Noch nicht benutzte Codes und Links gelten nicht mehr. Du kannst dich sofort wieder anmelden.</string>
+    <string name="login_sign_out_everywhere_confirm">Auf jedem Gerät abmelden?</string>
+    <string name="login_not_signed_out_everywhere">Du konntest nicht überall abgemeldet werden.</string>
     <string name="login_link_invalid">Der Login-Link ist ungültig, abgelaufen oder wurde schon benutzt.</string>
     <string name="login_signing_in">Wird angemeldet…</string>
     <string name="login_wrong_password">Das Passwort ist falsch.</string>

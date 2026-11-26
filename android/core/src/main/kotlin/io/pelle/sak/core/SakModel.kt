@@ -435,6 +435,14 @@ abstract class SakModel<A : SakApi>(
             )
         }
 
+    // ends every session of the user on every device (SEC-4), then this one as a sign out does; failed
+    // tells why it could not, the session stays then
+    fun signOutEverywhere(failed: (UiText) -> Unit) =
+        scope.launch {
+            request(R.string.login_not_signed_out_everywhere, failed) { it.signOutEverywhere() } ?: return@launch
+            signOut()
+        }
+
     // a request of the signed in user with the api of their session; nothing without one, e.g. signed
     // out meanwhile. A session that ended leads to the sign-in, another failure goes to failed with
     // its text, or the fallback when it has none; the answer of a session that is no longer the one

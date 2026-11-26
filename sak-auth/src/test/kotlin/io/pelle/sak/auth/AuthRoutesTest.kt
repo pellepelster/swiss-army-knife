@@ -36,6 +36,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import io.pelle.sak.api.testing.json
 import io.pelle.sak.api.testing.string
 
@@ -52,6 +54,9 @@ class AuthRoutesTest {
 
     private val rolesOf = { email: String -> if (email == "admin@example.org") setOf(Role.ADMIN) else emptySet() }
 
+    // from when the tokens of every address count, null for always (SEC-39)
+    private var validFrom: Instant? = null
+
     // the owners the login listener was told of
     private val signedIn = mutableListOf<String>()
 
@@ -62,7 +67,7 @@ class AuthRoutesTest {
         block: suspend ApplicationTestBuilder.() -> Unit,
     ) = testApplication {
         application {
-            install(Authentication) { session(tokens, rolesOf) }
+            install(Authentication) { session(tokens, rolesOf, validFrom = { validFrom }) }
             routing {
                 // as the backend does for all of its api
                 installApi()
@@ -75,6 +80,7 @@ class AuthRoutesTest {
                         { to, subject, text -> mails.trySend(Mail(to, subject, text)) },
                         LoginApp(FRONTEND_URL, "sak.example.org"),
                         rolesOf,
+                        validFrom = { validFrom },
                         loginsPerClient = loginsPerClient,
                         linksPerHour = linksPerHour,
                         onLogin = onLogin,
@@ -283,6 +289,22 @@ class AuthRoutesTest {
 
             val session = tokens.issueSessionToken("removed@example.org", setOf(Role.ADMIN)).token
             client.get("/api/v1/auth/who-am-i") { bearerAuth(session) }.status shouldBe HttpStatusCode.Unauthorized
+        }
+
+    @Test
+    fun `sessions and links issued before the address counts from are refused, one of the same second is not (SEC-39)`() =
+        authTest {
+            val session = tokens.issueSessionToken("admin@example.org", setOf(Role.ADMIN)).token
+            val link = tokens.issueLoginToken("admin@example.org", "/")
+            val issued = Instant.now()
+            // e.g. the user was deleted and added again after the tokens were made
+            validFrom = issued.plusSeconds(2)
+            client.get("/api/v1/auth/who-am-i") { bearerAuth(session) }.status shouldBe HttpStatusCode.Unauthorized
+            client.exchange(link).status shouldBe HttpStatusCode.Unauthorized
+            // added in the second the tokens were made: the time of a token is in whole seconds
+            validFrom = issued.truncatedTo(ChronoUnit.SECONDS).plusMillis(900)
+            client.get("/api/v1/auth/who-am-i") { bearerAuth(session) }.status shouldBe HttpStatusCode.OK
+            client.exchange(tokens.issueLoginToken("admin@example.org", "/")).status shouldBe HttpStatusCode.OK
         }
 
     @Test

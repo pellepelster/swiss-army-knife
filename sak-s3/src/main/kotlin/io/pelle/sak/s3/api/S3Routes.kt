@@ -27,6 +27,9 @@ import io.pelle.sak.s3.S3AccessResult
 import io.pelle.sak.s3.S3Operation
 import io.pelle.sak.s3.auth.AwsChunkedFormatException
 import io.pelle.sak.s3.auth.AwsChunkedInputStream
+import io.pelle.sak.s3.auth.ChunkSigning
+import io.pelle.sak.s3.auth.ChunkSignatureMismatchException
+import io.pelle.sak.s3.auth.ChecksumMismatchException
 import io.pelle.sak.s3.auth.PayloadHashMismatchException
 import io.pelle.sak.s3.auth.Sha256VerifyingInputStream
 import io.pelle.sak.s3.auth.SigV4Request
@@ -112,6 +115,8 @@ private fun s3Error(e: Exception): S3Exception? {
         is InvalidKeyException -> error(400, "InvalidRequest", "invalid key")
         is KeyTooLongException -> error(400, "KeyTooLongError", "key too long")
         is AwsChunkedFormatException -> error(400, "IncompleteBody", "malformed aws-chunked body")
+        is ChunkSignatureMismatchException -> error(403, "SignatureDoesNotMatch", "chunk signature does not match")
+        is ChecksumMismatchException -> error(400, "BadDigest", "checksum does not match")
         is PayloadHashMismatchException -> error(400, "XAmzContentSHA256Mismatch", "payload hash mismatch")
         is KeyConflictException -> error(400, "InvalidRequest", "key conflict")
         is InvalidPartException -> error(400, "InvalidPart", "invalid part")
@@ -181,6 +186,7 @@ private class S3Api(
                     bucket = bucket,
                     key = call.parameters.getAll("key").orEmpty().joinToString("/"),
                     awsChunked = headers["x-amz-content-sha256"] in SigV4Verifier.STREAMING_PAYLOAD_MODES,
+                    signing = result.signing,
                 )
         }
     }
@@ -212,6 +218,8 @@ private class S3Api(
         val bucket: String,
         val key: String,
         private val awsChunked: Boolean,
+        // what a signed streamed upload verifies its chunks with (SEC-23)
+        private val signing: ChunkSigning?,
     ) {
         fun query(name: String): String? = call.request.queryParameters[name]
 
@@ -379,13 +387,25 @@ private class S3Api(
         }
 
         // the signature covers the declared payload hash, verifying the body against it makes
-        // the signature cover the body; the chunk signatures of aws-chunked bodies and the
-        // trailing checksums are not verified
+        // the signature cover the body. A signed aws-chunked body is verified chunk by chunk and
+        // its trailer too (SEC-23); an unsigned one (UNSIGNED-PAYLOAD,
+        // STREAMING-UNSIGNED-PAYLOAD-TRAILER) is the choice of the client, as S3 takes it, only its
+        // trailing checksum is verified
         private suspend fun body(): InputStream {
             val stream = call.receiveStream()
-            val declaredHash = call.request.headers["x-amz-content-sha256"] ?: SigV4Verifier.EMPTY_BODY_SHA256
+            val headers = call.request.headers
+            val declaredHash = headers["x-amz-content-sha256"] ?: SigV4Verifier.EMPTY_BODY_SHA256
             return when {
-                awsChunked -> AwsChunkedInputStream(stream)
+                awsChunked -> {
+                    val signed = declaredHash.startsWith(SigV4Verifier.SIGNED_STREAMING_PREFIX)
+                    AwsChunkedInputStream(
+                        stream,
+                        signing = if (signed) checkNotNull(signing) { "a signed request without its signing" } else null,
+                        signedTrailer = signed && declaredHash.endsWith("-TRAILER"),
+                        trailer = headers["x-amz-trailer"]?.trim()?.takeIf { it.isNotEmpty() },
+                        decodedLength = headers["x-amz-decoded-content-length"]?.toLongOrNull(),
+                    )
+                }
                 declaredHash == SigV4Verifier.UNSIGNED_PAYLOAD -> stream
                 else -> Sha256VerifyingInputStream(stream, declaredHash)
             }

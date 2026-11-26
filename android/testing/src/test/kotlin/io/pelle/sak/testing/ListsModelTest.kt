@@ -332,7 +332,7 @@ class ListsModelTest {
             model.saveSettings()
             advanceUntilIdle()
             assertNull(model.lists().settings)
-            assertEquals("The changes could not be read.", model.lists().error.english())
+            assertEquals("The changes could not be loaded.", model.lists().error.english())
         }
 
     @Test
@@ -362,7 +362,7 @@ class ListsModelTest {
             backend.answers["DELETE /things/lists/1"] = HttpStatusCode.InternalServerError to ""
             model.deleteList(1)
             advanceUntilIdle()
-            assertEquals("The user could not be read.", model.lists().error.english())
+            assertEquals("The user could not be loaded.", model.lists().error.english())
             assertEquals(listOf(1, 2), model.lists().lists.map { it.id })
 
             backend.answers["DELETE /things/lists/1"] = HttpStatusCode.NoContent to ""

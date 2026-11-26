@@ -263,8 +263,8 @@ fn running(
 fn deploy() -> DeploymentRequest {
     DeploymentRequest {
         name: "alpha".into(),
-        password: "p".into(),
-        password_repeat: "p".into(),
+        password: zeroize::Zeroizing::new("p".into()),
+        password_repeat: zeroize::Zeroizing::new("p".into()),
         location: Location::nbg1,
         dns_mode: None,
         root_domain: None,

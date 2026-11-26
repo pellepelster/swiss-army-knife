@@ -107,11 +107,14 @@ class FileService(
         ids: Collection<Int>,
     ): Map<Int, StoredFile> = if (ids.isEmpty()) emptyMap() else repository.byIds(owner, ids.toSet())
 
+    // at most MAX_DISCOVERED_LENGTH characters of the text are kept (SEC-20), the column of sqlite does
+    // not hold its varchar
     internal fun setDiscovered(
         file: StoredFile,
         text: String,
     ): StoredFile {
-        return repository.updateDiscovered(file.id, text) ?: file.copy(discovered = text)
+        val kept = discoveredOf(text)
+        return repository.updateDiscovered(file.id, kept) ?: file.copy(discovered = kept)
     }
 
     // the content of a stored file, null when it is not in the storage
@@ -306,4 +309,14 @@ class FileService(
         fun scaledSize(asked: Int): Int? = SCALED_SIZES.firstOrNull { it >= asked }
 
     }
+}
+
+// the most characters of a text discovered in a file that are kept, as the column files.discovered says
+const val MAX_DISCOVERED_LENGTH = 100_000
+
+// the text cut to MAX_DISCOVERED_LENGTH, never between the two halves of a character (SEC-20)
+internal fun discoveredOf(text: String): String {
+    if (text.length <= MAX_DISCOVERED_LENGTH) return text
+    val end = if (Character.isHighSurrogate(text[MAX_DISCOVERED_LENGTH - 1])) MAX_DISCOVERED_LENGTH - 1 else MAX_DISCOVERED_LENGTH
+    return text.substring(0, end)
 }

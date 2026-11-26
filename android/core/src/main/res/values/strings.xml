@@ -7,6 +7,10 @@
     <string name="login_send_link">Send login link</string>
     <string name="login_use_password">Sign in with password</string>
     <string name="login_sign_out">Sign out</string>
+    <string name="login_sign_out_everywhere">Sign out everywhere</string>
+    <string name="login_sign_out_everywhere_hint">Signs you out on every device and in every app, this one too. Codes and links not used yet stop working. You can sign in again at once.</string>
+    <string name="login_sign_out_everywhere_confirm">Sign out on every device?</string>
+    <string name="login_not_signed_out_everywhere">You could not be signed out everywhere.</string>
     <string name="login_link_invalid">The login link is invalid, expired or was already used.</string>
     <string name="login_signing_in">Signing in…</string>
     <string name="login_wrong_password">The password is wrong.</string>
