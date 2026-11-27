@@ -186,7 +186,7 @@ fun Application.apps(
 
     install(Authentication) {
         session(tokens, rolesOf, validFrom = userService::validFrom)
-        // sakadmin acts as the admin, what it creates is theirs
+        // sakadmin reads the settings of the deployment as the admin, and nothing else (SEC-42)
         apiSignature(config.apiPublicKey?.let { ApiSignature(it, config.apiHost, API_PATH_PREFIX) }, owner = admin)
     }
 
@@ -227,14 +227,15 @@ fun Application.apps(
                             // an app connected with the QR code of a session (SECURITY-3)
                             connectExchange(tokens, rolesOf, validFrom = userService::validFrom, onLogin = onLogin)
                         }
-                        authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
+                        // sessions only: a signed request of sakadmin reads the settings of the deployment, nothing else (SEC-42)
+                        authenticate(SESSION_AUTH) {
                             whoAmI(nameOf = userService::name)
                             connect(tokens, loginApp)
                             // every session of the user ends, this one too (SEC-4)
                             signOutEverywhere { email -> userService.signOutEverywhere(email, email) }
                         }
                     }
-                    authenticate(SESSION_AUTH, API_SIGNATURE_AUTH) {
+                    authenticate(SESSION_AUTH) {
                         route(ApiPath.STATIC_HOSTING) {
                             requireRole(Role.ADMIN)
                             buckets(bucketService)

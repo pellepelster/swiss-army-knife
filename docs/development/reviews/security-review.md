@@ -111,17 +111,6 @@ Nothing at the moment.
 
 ## Could fix
 
-### `SEC-42` A signed request is an admin for every method, not only to read
-
-The comment of `ApiSignature` says "sakadmin only reads", but a valid signature gives an admin that never expires
-(`setOf(Role.ADMIN)`) to every route, and only a body is refused: `DELETE /api/v1/users/{id}`, a redirect or a
-repository of restic can be deleted with one. Whoever relays a fresh signed request (accepted in ACCEPTED-RISKS) gets
-only what sakadmin asked for; but the key is the strongest credential of the deployment and nothing of sakadmin needs
-more than `GET`. The check for a body rests on `Content-Length` and `Transfer-Encoding`; that caddy hands every body
-on with one of them was not checked.
-
-Fix: a signed request for `GET` and `HEAD` only, a route that needs more says so.
-
 ### `SEC-16` A deploy takes the root domain from the running server
 
 A deploy "as it is" completes its settings from `GET /api/v1/deployment` (`Detected::from_running`), and the dns

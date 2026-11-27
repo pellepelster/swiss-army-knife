@@ -41,8 +41,9 @@ val apiSignatureSecurityScheme =
 // the requests of sakadmin, signed with the ed25519 key it derives from the deployment password; the
 // backend knows only the public half (api_public_key), no request carries a secret. The signature
 // holds for the host, the method, the path and query (without the prefix of caddy), the time and a
-// nonce, so a replay, an old request (MAX_AGE_SECONDS) or one for another host is refused. No body:
-// sakadmin only reads
+// nonce, so a replay, an old request (MAX_AGE_SECONDS) or one for another host is refused. Only GET
+// and HEAD, no body: sakadmin only reads, and the backend mounts it on the settings of the deployment
+// only (SEC-42)
 class ApiSignature(
     publicKey: String,
     private val host: String,
@@ -75,6 +76,7 @@ class ApiSignature(
         return when {
             timestamp == null || nonce == null || signature == null -> "no ts, nonce or sig"
             !NONCE.matches(nonce) -> "the nonce is no 32 hex characters"
+            method != "GET" && method != "HEAD" -> "a signed request only reads"
             hasBody -> "a signed request carries no body"
             !uri.startsWith("$pathPrefix/") -> "the path is not below $pathPrefix"
             kotlin.math.abs(now - timestamp) > MAX_AGE_SECONDS -> "the time is more than $MAX_AGE_SECONDS seconds away"

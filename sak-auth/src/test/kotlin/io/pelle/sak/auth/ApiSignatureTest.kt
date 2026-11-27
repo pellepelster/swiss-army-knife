@@ -40,7 +40,6 @@ class ApiSignatureTest {
         val signature = signature()
         // another path, method or query; the host is the backend's own, not of the request
         signature.refusal("GET", "/api/v1/notes", header(), hasBody = false)!! shouldContain "does not hold"
-        signature.refusal("DELETE", "/api/v1/config", header(), hasBody = false)!! shouldContain "does not hold"
         signature.refusal("GET", "/api/v1/config?x=1", header(), hasBody = false)!! shouldContain "does not hold"
         ApiSignature(PUBLIC_KEY, "api.other.org", "/api", Clock.fixed(Instant.ofEpochSecond(TIMESTAMP), ZoneOffset.UTC))
             .refusal("GET", "/api/v1/config", header(), hasBody = false)!! shouldContain "does not hold"
@@ -50,6 +49,13 @@ class ApiSignatureTest {
         // another key
         ApiSignature("A".repeat(43) + "=", "api.example.org", "/api", Clock.fixed(Instant.ofEpochSecond(TIMESTAMP), ZoneOffset.UTC))
             .refusal("GET", "/api/v1/config", header(), hasBody = false) shouldBe "the signature does not hold"
+    }
+
+    @Test
+    fun `a signed request only reads, whatever it is signed for (SEC-42)`() {
+        listOf("POST", "PUT", "PATCH", "DELETE").forEach {
+            signature().refusal(it, "/api/v1/config", header(), hasBody = false) shouldBe "a signed request only reads"
+        }
     }
 
     @Test

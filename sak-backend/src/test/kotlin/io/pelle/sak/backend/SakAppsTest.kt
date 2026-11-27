@@ -1704,10 +1704,12 @@ class SakAppsTest {
                     "/api/v1/health",
                     "/api/v1/status",
                 )
-            // the routes behind the login require the session token or a signed request of
-            // sakadmin, the login itself does not
+            // the routes behind the login require the session token, the settings of the deployment a
+            // signed request of sakadmin and nothing else (SEC-42), the login itself neither
             val me = paths.getValue("/api/v1/auth/who-am-i").jsonObject.getValue("get").jsonObject
-            me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"), setOf("api-signature"))
+            me.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("session"))
+            val deployment = paths.getValue("/api/v1/deployment").jsonObject.getValue("get").jsonObject
+            deployment.getValue("security").jsonArray.map { it.jsonObject.keys } shouldBe listOf(setOf("api-signature"))
             paths.getValue("/api/v1/auth/login/link").jsonObject.getValue("post").jsonObject.containsKey("security") shouldBe false
             listOf("session" to "bearer", "api-signature" to "SAK-Ed25519").forEach { (scheme, httpScheme) ->
                 doc.getValue("components").jsonObject.getValue("securitySchemes").jsonObject.getValue(scheme).jsonObject.let {
@@ -2098,8 +2100,6 @@ class SakAppsTest {
             times.size shouldBe 9
             times.forEach { it shouldMatch iso8601 }
 
-            // a signed request has no session that expires: no time at all rather than one far away
-            signed(port, "/api/v1/auth/who-am-i").json()["expiresAt"] shouldBe JsonNull
         }
     }
 
@@ -2127,17 +2127,19 @@ class SakAppsTest {
     }
 
     @Test
-    fun `sakadmin signs in as itself and acts as the admin`() {
+    fun `a signed request of sakadmin reads the settings of the deployment and nothing else (SEC-42)`() {
         withServer { port ->
             val session = signIn(port)
-            post(port, "/api/v1/notes", """{"text":"of the admin","color":"yellow","labels":[]}""", session).statusCode() shouldBe 201
+            post(port, "/api/v1/users", """{"email":"anna@example.org"}""", session).statusCode() shouldBe 201
+            val anna = get(port, "/api/v1/users", session).json().getValue("items").jsonArray.map { it.jsonObject }.single { it.string("email") == "anna@example.org" }.string("id")
 
-            // its data is the admin's
-            signed(port, "/api/v1/notes").body() shouldContain "of the admin"
-            signed(port, "/api/v1/auth/who-am-i").json().let {
-                it.string("username") shouldBe "sakadmin"
-                it.getValue("roles").jsonArray.map { role -> role.jsonPrimitive.content } shouldBe listOf("admin")
+            signed(port, "/api/v1/deployment").statusCode() shouldBe 200
+            listOf("/api/v1/auth/who-am-i", "/api/v1/notes", "/api/v1/users", "/api/v1/settings", "/api/v1/static-hosting").forEach {
+                signed(port, it).statusCode() shouldBe 401
             }
+            // signed for the method it is sent with, it still only reads
+            signed(port, "/api/v1/users/$anna", method = "DELETE", authorization = signature("DELETE", "/v1/users/$anna")).statusCode() shouldBe 401
+            get(port, "/api/v1/users", session).body() shouldContain "anna@example.org"
         }
     }
 
@@ -2173,11 +2175,12 @@ class SakAppsTest {
     }
 
     @Test
-    fun `a signed request of sakadmin reaches the api like an admin session, once, for its host and path`() {
+    fun `a signed request of sakadmin reaches the settings of the deployment, once, for its host and path`() {
         withServer { port ->
             signed(port, "/api/v1/deployment").statusCode() shouldBe 200
-            signed(port, "/api/v1/notes").statusCode() shouldBe 200
-            signed(port, "/api/v1/auth/who-am-i").statusCode() shouldBe 200
+            // nothing but the settings of the deployment (SEC-42)
+            signed(port, "/api/v1/notes").statusCode() shouldBe 401
+            signed(port, "/api/v1/auth/who-am-i").statusCode() shouldBe 401
 
             // the same request again, a replay
             val once = signature("GET", "/v1/deployment")
