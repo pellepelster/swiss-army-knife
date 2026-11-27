@@ -11,6 +11,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.Parameters
 import io.ktor.openapi.jsonSchema
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receiveStream
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -163,8 +164,13 @@ fun Route.servedFiles(fileService: FileService) {
     get("/{id}/thumbnail") {
         val id = call.idParameter() ?: return@get
         val thumbnail =
-            withContext(Dispatchers.IO) {
-                fileService.byId(call.owner, id)?.let { fileService.thumbnail(it) }
+            try {
+                withContext(Dispatchers.IO) {
+                    fileService.byId(call.owner, id)?.let { fileService.thumbnail(it) }
+                }
+            } catch (_: FileService.DecodesBusyException) {
+                call.respondDecodesBusy()
+                return@get
             }
         if (thumbnail == null) {
             call.respond(HttpStatusCode.NotFound)
@@ -185,9 +191,20 @@ fun Route.servedFiles(fileService: FileService) {
                 HttpStatusCode.NotFound,
                 "The signed in user has no such file, or it is neither an image nor a recording that can be read",
             )
+            errors(HttpStatusCode.ServiceUnavailable, DECODES_BUSY)
         }
     }
 }
+
+// what a route that makes a thumbnail answers while FileService.MAX_WAITING_DECODES are made (SEC-50)
+internal const val DECODES_BUSY = "Too many thumbnails are being made; ask again after Retry-After seconds"
+
+internal suspend fun ApplicationCall.respondDecodesBusy() {
+    response.header(HttpHeaders.RetryAfter, DECODES_RETRY_AFTER_SECONDS)
+    respond(HttpStatusCode.ServiceUnavailable)
+}
+
+private const val DECODES_RETRY_AFTER_SECONDS = 1
 
 private fun Parameters.Builder.fileId() =
     path("id") {

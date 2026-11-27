@@ -17,6 +17,7 @@ import androidx.test.core.app.ActivityScenario
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import io.ktor.http.HttpStatusCode
 import io.pelle.sak.core.session.withOpenList
+import io.pelle.sak.testing.connectToken
 import io.pelle.sak.testing.FakeBackend
 import io.pelle.sak.testing.fakeCamera
 import io.pelle.sak.testing.ADDRESS
@@ -124,13 +125,13 @@ class TodoRotationTest {
 
             scenario.rotate(landscape = false)
             compose.onNodeWithTag("qr-scanner").assertIsDisplayed()
-            camera.code = "$ADDRESS/connect#token=the.token"
+            camera.code = "$ADDRESS/connect#token=${connectToken()}"
             // asked first, with the address of the code (SECURITY-3)
             compose.shows("qr-confirm")
             assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
             compose.onNodeWithTag("qr-confirm").performClick()
             compose.shows("list-1")
-            assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"the.token"}"""))
+            assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"${connectToken()}"}"""))
             compose.onAllNodesWithTag("qr-scanner").assertCountEquals(0)
         }
     }

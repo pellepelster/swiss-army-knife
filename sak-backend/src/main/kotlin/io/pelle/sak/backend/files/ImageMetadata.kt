@@ -1,7 +1,10 @@
 package io.pelle.sak.backend.files
 
 import io.pelle.sak.api.storage.model.internal.BlobContent
+import java.io.BufferedInputStream
+import java.io.EOFException
 import java.io.IOException
+import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import javax.imageio.ImageIO
@@ -51,6 +54,59 @@ internal object ImageMetadata {
                 (bits and 0x3FFF) + 1 to ((bits ushr 14) and 0x3FFF) + 1
             }
             else -> null
+        }
+    }
+
+    // the scans of a jpeg, at most limit + 1: a baseline jpeg has one, a progressive one some ten. Each
+    // scan is a pass of the decoder over the whole image, so a jpeg of many small scans takes long to
+    // decode (SEC-50). Null when its markers can not be read
+    fun jpegScans(
+        image: BlobContent,
+        limit: Int,
+    ): Int? =
+        try {
+            image.open().use { jpegScans(BufferedInputStream(it), limit) }
+        } catch (_: IOException) {
+            null
+        }
+
+    private fun jpegScans(
+        input: InputStream,
+        limit: Int,
+    ): Int? {
+        fun next(): Int = input.read().also { if (it < 0) throw EOFException() }
+        if (next() != 0xFF || next() != 0xD8) return null
+        var scans = 0
+        // the marker read at the end of the entropy coded data of a scan
+        var pending: Int? = null
+        while (true) {
+            val marker =
+                pending ?: run {
+                    if (next() != 0xFF) return null
+                    var byte = next()
+                    // fill bytes
+                    while (byte == 0xFF) byte = next()
+                    byte
+                }
+            pending = null
+            when (marker) {
+                // the end of the image
+                0xD9 -> return scans
+                // markers without a length
+                0x01, in 0xD0..0xD7 -> continue
+            }
+            val length = (next() shl 8) or next()
+            if (length < 2) return null
+            input.skipNBytes((length - 2).toLong())
+            if (marker != 0xDA) continue
+            if (++scans > limit) return scans
+            // the entropy coded data: a 0xFF is a stuffed zero, a restart or the next marker
+            while (pending == null) {
+                if (next() != 0xFF) continue
+                var byte = next()
+                while (byte == 0xFF) byte = next()
+                if (byte != 0x00 && byte !in 0xD0..0xD7) pending = byte
+            }
         }
     }
 }

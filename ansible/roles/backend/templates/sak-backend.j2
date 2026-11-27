@@ -296,10 +296,21 @@ backup() {
   mapfile -t snapshots < <(python3 -c 'import json, sys; [print(path) for path in json.load(sys.stdin)]' <<<"$answer")
   for snapshot in "${snapshots[@]}"; do
     # /victoria-logs-data/partitions/<day>/snapshots/<id>, the path in the container; the delete
-    # takes it as it is
-    day=$(basename "$(dirname "$(dirname "$snapshot")")")
+    # takes it as it is. victorialogs, a third party image, writes its data and gives the path, and
+    # root links what it names into the backup: only a path of this form is taken, and only when no
+    # part of it is a link, so it names a snapshot and never e.g. the data of the backend (SEC-52)
+    if [[ ! "$snapshot" =~ ^/victoria-logs-data/partitions/([0-9]{8})/snapshots/([A-Za-z0-9_-]+)$ ]]; then
+      step "victorialogs answered a path that is no snapshot, the backup stops"
+      exit 1
+    fi
+    day=${BASH_REMATCH[1]}
+    expected="$(realpath -e -- "$victorialogs")/partitions/$day/snapshots/${BASH_REMATCH[2]}"
+    if [ "$(realpath -e -- "$victorialogs${snapshot#/victoria-logs-data}" 2>/dev/null)" != "$expected" ] || [ ! -d "$expected" ]; then
+      step "the snapshot of victorialogs of $day is no directory of its own, the backup stops"
+      exit 1
+    fi
     install -d -m 0700 -o {{ backend_user }} -g {{ backend_group }} "$staging/victorialogs/partitions/$day"
-    cp -al "$victorialogs${snapshot#/victoria-logs-data}/." "$staging/victorialogs/partitions/$day/"
+    cp -al "$expected/." "$staging/victorialogs/partitions/$day/"
   done
 
   # the database before the files: every file a row of the copy refers to is there already

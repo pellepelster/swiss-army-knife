@@ -14,6 +14,7 @@ use clap::{Parser, Subcommand};
 use rust_i18n::t;
 use sak_desktop_shared::api::ApiError;
 use sak_desktop_shared::cli::SessionError;
+use sak_desktop_shared::encoding::{printable, printable_lines};
 use sak_desktop_shared::session::SessionManager;
 use serde_json::{Value, json};
 use std::io::IsTerminal;
@@ -21,6 +22,23 @@ use std::path::PathBuf;
 
 /// the identifier of the app, its config directory and its entry in the keychain (tauri.conf.json)
 use crate::core::IDENTIFIER;
+
+/// prints a line to stdout, `tell!` to stderr: the one way the command line prints. What the SAK
+/// instance answered is in many lines (names, urls, excludes, errors, the host of a backup plan): the
+/// line is `printable_lines`, so a server that is taken over sends no escape sequence to the terminal,
+/// e.g. one that sets the clipboard or hides a line (SEC-54)
+macro_rules! say {
+    ($($arg:tt)*) => { println!("{}", shown(&format!($($arg)*))) };
+}
+
+macro_rules! tell {
+    ($($arg:tt)*) => { eprintln!("{}", shown(&format!($($arg)*))) };
+}
+
+/// a line as `say!` and `tell!` print it
+fn shown(line: &str) -> String {
+    printable_lines(line)
+}
 
 pub use crate::core::restic::{ADDRESS_VARIABLE, SESSION_VARIABLE};
 
@@ -284,12 +302,12 @@ pub fn run(cli: Cli) -> i32 {
     // the update asks github, not the SAK instance: it needs no sign-in
     if let Command::Update { check } = cli.command {
         let update =
-            sak_desktop_shared::update::run(&crate::core::APP, check, &|line| println!("{line}"));
+            sak_desktop_shared::update::run(&crate::core::APP, check, &|line| say!("{line}"));
         return match tauri::async_runtime::block_on(update) {
             Ok(true) => EXIT_UPDATE_AVAILABLE,
             Ok(false) => 0,
             Err(message) => {
-                eprintln!("{message}");
+                tell!("{message}");
                 1
             }
         };
@@ -297,7 +315,7 @@ pub fn run(cli: Cli) -> i32 {
     match tauri::async_runtime::block_on(command(cli.command)) {
         Ok(()) => 0,
         Err(message) => {
-            eprintln!("{message}");
+            tell!("{message}");
             1
         }
     }
@@ -312,7 +330,7 @@ async fn command(command: Command) -> Result<(), String> {
             let created = api::create_repository(&sessions, &description)
                 .await
                 .map_err(|error| api_message(&error))?;
-            println!(
+            say!(
                 "{}",
                 t!(
                     "cli.repository_created",
@@ -327,7 +345,7 @@ async fn command(command: Command) -> Result<(), String> {
                 .await
                 .map_err(|error| api_message(&error))?;
             for repository in repositories {
-                println!(
+                say!(
                     "{}\t{}\t{}\t{}",
                     text(&repository["name"]),
                     repository["size"],
@@ -370,7 +388,7 @@ async fn command(command: Command) -> Result<(), String> {
             let created = api::create_plan(&sessions, &plan)
                 .await
                 .map_err(|error| excludes_message(&error, sends_excludes))?;
-            println!(
+            say!(
                 "{}",
                 t!(
                     "cli.plan_created",
@@ -424,23 +442,23 @@ async fn command(command: Command) -> Result<(), String> {
             api::update_plan(&sessions, id, &values)
                 .await
                 .map_err(|error| excludes_message(&error, sends_excludes))?;
-            println!("{}", t!("cli.plan_changed", name = name));
+            say!("{}", t!("cli.plan_changed", name = name));
         }
         Command::Plan(PlanCommand::Excludes { name }) => {
             let plan = by_name(&sessions, PLANS, &name, "cli.unknown_plan").await?;
             let excludes = crate::core::excludes::Excludes::of(&plan);
             if !excludes.patterns.is_empty() {
-                println!("{}", excludes.patterns);
+                say!("{}", excludes.patterns);
             }
             if excludes.caches {
-                println!("# {}", t!("cli.excludes_caches_on"));
+                say!("# {}", t!("cli.excludes_caches_on"));
             }
         }
         Command::Plan(PlanCommand::Presets) => {
             for preset in crate::core::presets::presets(crate::core::presets::System::this()) {
-                println!("{}\t{}", preset.id, preset.name);
+                say!("{}\t{}", preset.id, preset.name);
                 for pattern in preset.patterns {
-                    println!("\t{pattern}");
+                    say!("\t{pattern}");
                 }
             }
         }
@@ -454,7 +472,7 @@ async fn command(command: Command) -> Result<(), String> {
             api::delete_plan(&sessions, id(&plan)?)
                 .await
                 .map_err(|error| api_message(&error))?;
-            println!("{}", t!("cli.plan_deleted", name = name));
+            say!("{}", t!("cli.plan_deleted", name = name));
         }
         Command::Plan(PlanCommand::List) => {
             let plans = api::plans(&sessions)
@@ -467,7 +485,7 @@ async fn command(command: Command) -> Result<(), String> {
                     .flatten()
                     .map(text)
                     .collect();
-                println!(
+                say!(
                     "{}\t{}\t{}",
                     text(&plan["name"]),
                     text(&plan["host"]),
@@ -492,15 +510,15 @@ async fn command(command: Command) -> Result<(), String> {
                         move |event| match event {
                             RunEvent::Initializing => {
                                 line.clear();
-                                println!("{}", t!("cli.initializing"))
+                                say!("{}", t!("cli.initializing"))
                             }
                             RunEvent::Expiring => {
                                 line.clear();
-                                println!("{}", t!("cli.expiring"))
+                                say!("{}", t!("cli.expiring"))
                             }
                             RunEvent::Skipped { message } => {
                                 line.clear();
-                                eprintln!("{}", t!("common.run.skipped", message = message))
+                                tell!("{}", t!("common.run.skipped", message = message))
                             }
                             progress @ RunEvent::Progress { .. } => line.show(&progress),
                         }
@@ -510,7 +528,7 @@ async fn command(command: Command) -> Result<(), String> {
             .await;
             line.clear();
             let summary = summary?;
-            println!(
+            say!(
                 "{}",
                 t!(
                     "cli.backed_up",
@@ -529,7 +547,7 @@ async fn command(command: Command) -> Result<(), String> {
                 .to_string());
             }
             if summary.removed > 0 {
-                println!("{}", t!("cli.removed", count = summary.removed));
+                say!("{}", t!("cli.removed", count = summary.removed));
             }
             // the backup is done, the command still fails
             if let Some(error) = summary.expire_failed {
@@ -542,7 +560,7 @@ async fn command(command: Command) -> Result<(), String> {
                 with_password(|given, _| snapshots::snapshots(&sessions, &passwords, id, given))
                     .await?;
             for snapshot in listed.snapshots {
-                println!(
+                say!(
                     "{}\t{}\t{}\t{}",
                     snapshot.short_id,
                     snapshot.time,
@@ -559,7 +577,7 @@ async fn command(command: Command) -> Result<(), String> {
                 snapshots::delete(&sessions, &runs, &passwords, repository, id.clone(), given)
             })
             .await?;
-            println!("{}", t!("cli.snapshot_deleted", id = id, repository = repo));
+            say!("{}", t!("cli.snapshot_deleted", id = id, repository = repo));
         }
         Command::Restore { plan, target } => {
             let id = id_of(&sessions, PLANS, &plan, "cli.unknown_plan").await?;
@@ -571,7 +589,7 @@ async fn command(command: Command) -> Result<(), String> {
             .await?;
             // the others are restored, the command still fails
             for file in &skipped {
-                eprintln!("{}", t!("common.run.skipped", message = file));
+                tell!("{}", t!("common.run.skipped", message = file));
             }
             if !skipped.is_empty() {
                 return Err(t!(
@@ -582,7 +600,7 @@ async fn command(command: Command) -> Result<(), String> {
                 )
                 .to_string());
             }
-            println!("{}", t!("cli.restored", plan = plan, target = shown));
+            say!("{}", t!("cli.restored", plan = plan, target = shown));
         }
     }
     Ok(())
@@ -684,12 +702,12 @@ impl ProgressLine {
             RunEvent::Progress {
                 current_file: Some(file),
                 ..
-            } => left_cut(file, width),
+            } => left_cut(&printable(file), width),
             _ => String::new(),
         };
         eprint!(
             "{back}{}\x1b[K\n{file}\x1b[K",
-            right_cut(&progress_text(event), width)
+            right_cut(&printable(&progress_text(event)), width)
         );
     }
 
@@ -882,6 +900,36 @@ fn message(error: &RunError) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn what_the_sak_instance_answers_reaches_the_terminal_without_control_characters() {
+        // OSC 52 sets the clipboard, CSI clears the screen or moves up a line (SEC-54)
+        let created = t!(
+            "cli.repository_created",
+            description = text(&json!("work")),
+            name = text(&json!("laptop\u{1b}]52;c;aGk=\u{7}")),
+            url = text(&json!("https://sak.example.org/restic/1"))
+        );
+        assert_eq!(
+            shown(&created),
+            created.replace(['\u{1b}', '\u{7}'], "\u{FFFD}")
+        );
+        let refused = api_message(&ApiError::Refused {
+            status: 422,
+            errors: vec![sak_desktop_shared::api::ApiErrorMessage {
+                code: "x".to_string(),
+                message: "\u{1b}[2Jno".to_string(),
+            }],
+        });
+        let other = message(&RunError::OtherComputer {
+            host: "pc\u{1b}[1A".to_string(),
+        });
+        for line in [shown(&refused), shown(&other)] {
+            assert!(!line.contains('\u{1b}'), "{line:?}");
+        }
+        // the excludes of a plan keep their lines
+        assert_eq!(shown("*.tmp\nnode_modules"), "*.tmp\nnode_modules");
+    }
 
     #[test]
     fn every_error_of_a_run_has_a_text_none_ends_the_command_line() {

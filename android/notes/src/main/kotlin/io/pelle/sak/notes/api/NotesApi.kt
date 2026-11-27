@@ -68,6 +68,7 @@ class NotesApi(
             .get("$url/files/$id" + if (thumbnail) "/thumbnail" else "") {
                 session()
                 longTransfer()
+                if (thumbnail) whileBusy()
             }
             .answer(failure)
 

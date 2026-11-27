@@ -186,7 +186,10 @@ class GroceryApi(
             .get("$url/grocery/items/$id/photo/$fileId") {
                 session()
                 longTransfer()
-                size?.let { parameter("size", it) }
+                size?.let {
+                    parameter("size", it)
+                    whileBusy()
+                }
             }.answer(CoreR.string.photo_not_loaded)
 
     // the ids of the lists the user sees as they change (LIST-4, SakApi.listChanges)

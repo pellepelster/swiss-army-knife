@@ -90,3 +90,10 @@ fun userSettings(vararg scopes: UserSettingScopeResponse) = json(UserSettingsRes
 
 // an event of the stream of the changes of the lists: the list changed
 fun changed(listId: Int) = "event: changed\ndata: {\"listId\":$listId}\n\n"
+
+// a connect token of the QR code of the web app as the app reads it: the address of its user in the
+// payload, which the app shows before the sign-in (SEC-49); the signature is none, the fake backend checks none
+fun connectToken(email: String = "anna@example.org"): String =
+    "eyJhbGciOiJFUzI1NiJ9." +
+        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString("""{"sub":"$email"}""".toByteArray()) +
+        ".c2lnbmF0dXJl"

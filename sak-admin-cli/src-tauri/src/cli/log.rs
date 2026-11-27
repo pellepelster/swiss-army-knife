@@ -69,11 +69,18 @@ pub(super) fn log_line(date: &str, level: Level, message: impl Display) -> Strin
     format!("{date} {style}{}{style:#} {message}", level.name())
 }
 
-/// prints a line of the log, an error to stderr. anstream removes the colour when the output is
-/// not a terminal or NO_COLOR is set
+/// a message as `log` prints it
+pub(super) fn shown(message: impl Display) -> String {
+    sak_desktop_shared::encoding::printable_lines(&message.to_string())
+}
+
+/// prints a line of the log, an error to stderr: the one way the command line prints but its json.
+/// anstream removes the colour when the output is not a terminal or NO_COLOR is set. The message is
+/// `printable_lines`: what the server, the cloud or ansible said is in many of them, and none sends
+/// an escape sequence to the terminal (SEC-48, SEC-54); the colour of the level is added after
 pub(super) fn log(level: Level, message: impl Display) {
     let date = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
-    let line = log_line(&date, level, message);
+    let line = log_line(&date, level, shown(message));
     match level {
         Level::Error => anstream::eprintln!("{line}"),
         _ => anstream::println!("{line}"),

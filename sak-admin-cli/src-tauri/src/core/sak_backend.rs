@@ -3,9 +3,11 @@
 //! calls it through ssh (`ssh::run_streaming`); each line it writes to its standard error goes to
 //! the caller while it runs, its standard output carries the data of a backup or a json answer
 
+use crate::core::encoding::printable;
 use crate::core::ssh::{SSH_FAILED, SshTarget, Stream, run_streaming};
 use rust_i18n::t;
 use serde::Deserialize;
+use serde_json::Value;
 
 pub const SCRIPT: &str = "sak-backend";
 
@@ -109,8 +111,28 @@ fn answer<T: for<'de> Deserialize<'de>>(
     last_line: Option<&str>,
 ) -> Result<T, String> {
     ended(code, Some(out), last_line)?;
-    serde_json::from_slice(out)
+    printable_json(out)
+        .and_then(T::deserialize)
         .map_err(|error| t!("common.sak_backend.unreadable", error = error.to_string()).to_string())
+}
+
+/// the json of the script with every string and key `printable`: root on the server writes it, and
+/// the command line prints its text to a terminal (SEC-48)
+fn printable_json(out: &[u8]) -> Result<Value, serde_json::Error> {
+    fn clean(value: Value) -> Value {
+        match value {
+            Value::String(text) => Value::String(printable(&text)),
+            Value::Array(items) => Value::Array(items.into_iter().map(clean).collect()),
+            Value::Object(fields) => Value::Object(
+                fields
+                    .into_iter()
+                    .map(|(key, value)| (printable(&key), clean(value)))
+                    .collect(),
+            ),
+            other => other,
+        }
+    }
+    serde_json::from_slice(out).map(clean)
 }
 
 /// the exit code of the script as the result: the lock held, the script missing, ssh failed, the
@@ -125,7 +147,10 @@ fn ended(code: i32, out: Option<&[u8]>, last_line: Option<&str>) -> Result<(), S
         BUSY => Err(t!("common.sak_backend.busy").to_string()),
         NOT_FOUND => Err(t!("common.sak_backend.no_script", script = SCRIPT).to_string()),
         SSH_FAILED => Err(crate::core::ssh::failed(last_line)),
-        code => match out.and_then(|out| serde_json::from_slice::<Failure>(out).ok()) {
+        code => match out
+            .and_then(|out| printable_json(out).ok())
+            .and_then(|value| Failure::deserialize(value).ok())
+        {
             Some(failure) => {
                 Err(t!("common.sak_backend.failed", error = failure.error).to_string())
             }
@@ -200,5 +225,29 @@ mod tests {
         );
         assert!(answer::<Answer>(0, b"not json", None).is_err());
         assert!(answer::<Answer>(BUSY, b"", None).is_err());
+    }
+
+    #[test]
+    fn no_control_character_of_the_server_gets_to_a_terminal() {
+        #[derive(Deserialize, Debug, PartialEq)]
+        struct Answer {
+            services: Vec<String>,
+            reasons: Vec<Value>,
+        }
+        // OSC 52 sets the clipboard, CSI moves the cursor (SEC-48)
+        let read = answer::<Answer>(
+            0,
+            br#"{"services": ["\u001b]52;c;aGk=\u0007", "ssh"], "reasons": [{"other\u001b": "a\u009bb"}]}"#,
+            None,
+        )
+        .unwrap();
+        assert_eq!(read.services, vec!["\u{FFFD}]52;c;aGk=\u{FFFD}", "ssh"]);
+        assert_eq!(
+            read.reasons,
+            vec![serde_json::json!({"other\u{FFFD}": "a\u{FFFD}b"})]
+        );
+        let failed = ended(1, Some(br#"{"error": "\u001b[2Jgone"}"#), None).unwrap_err();
+        assert!(!failed.contains('\u{1b}'), "{failed:?}");
+        assert!(failed.contains("\u{FFFD}[2Jgone"), "{failed}");
     }
 }

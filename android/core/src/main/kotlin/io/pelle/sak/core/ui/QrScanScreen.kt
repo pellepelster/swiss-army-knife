@@ -154,10 +154,10 @@ fun QrScanScreen(
             text = {
                 Text(
                     when {
-                        switch.new -> stringResource(R.string.qr_new_text, switch.to)
-                        switch.same -> stringResource(R.string.qr_again_text, switch.from.orEmpty(), switch.user.orEmpty())
-                        switch.signedIn -> stringResource(R.string.qr_switch_text, switch.from.orEmpty(), switch.to)
-                        else -> stringResource(R.string.qr_switch_signed_out_text, switch.from.orEmpty(), switch.to)
+                        switch.new -> stringResource(R.string.qr_new_text, switch.to, switch.signsInAs)
+                        switch.same -> stringResource(R.string.qr_again_text, switch.from.orEmpty(), switch.user.orEmpty(), switch.signsInAs)
+                        switch.signedIn -> stringResource(R.string.qr_switch_text, switch.from.orEmpty(), switch.to, switch.signsInAs)
+                        else -> stringResource(R.string.qr_switch_signed_out_text, switch.from.orEmpty(), switch.to, switch.signsInAs)
                     },
                 )
             },

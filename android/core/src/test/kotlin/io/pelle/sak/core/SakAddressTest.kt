@@ -33,13 +33,15 @@ class SakAddressTest {
         assertNull(announcedApi("ftp://api.example.org", allowUrl = true))
     }
 
-    private val token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbm5hIn0.c2ln-bmF0_dXJl"
+    private val token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbm5hQGV4YW1wbGUub3JnIn0.c2ln-bmF0_dXJl"
 
     @Test
     fun `a QR code of the web app is the SAK address with the token in the fragment`() {
         val code = connectCode("https://sak.example.org/connect#token=$token", allowUrl = false)!!
         assertEquals("https://sak.example.org", code.address)
         assertEquals(token, code.token)
+        // the user it signs in as, shown before (SEC-49)
+        assertEquals("anna@example.org", code.email)
         assertEquals("https://sak.example.org", connectCode(" HTTPS://Sak.Example.org/connect#token=$token\n", allowUrl = false)?.address)
         // an international domain in its ascii form
         assertEquals("https://sak.xn--bcher-kva.example", connectCode("https://sak.bücher.example/connect#token=$token", allowUrl = false)?.address)
@@ -90,5 +92,26 @@ class SakAddressTest {
         assertEquals(token, code.token)
         assertEquals("https://sak.example.org:8443", connectCode("https://sak.example.org:8443/connect#token=$token", allowUrl = true)?.address)
         assertNull(connectCode("http://10.0.2.2:port/connect#token=$token", allowUrl = true))
+    }
+
+    @Test
+    fun `a QR code whose token names no address is none, so the user always sees who it signs in as (SEC-49)`() {
+        fun tokenOf(payload: String) = "eyJhbGciOiJFUzI1NiJ9.${java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(payload.toByteArray())}.c2ln"
+        fun codeOf(payload: String) = connectCode("https://sak.example.org/connect#token=${tokenOf(payload)}", allowUrl = false)
+        assertEquals("bob@example.org", codeOf("""{"sub":"bob@example.org","token_use":"connect"}""")?.email)
+        listOf(
+            """{"token_use":"connect"}""",
+            """{"sub":42}""",
+            """{"sub":"anna"}""",
+            """{"sub":"anna@example.org\n"}""",
+            """{"sub":"anna @example.org"}""",
+            // a mark that turns the text after it right to left
+            """{"sub":"anna\u202e@example.org"}""",
+            """{"sub":"${"a".repeat(250)}@example.org"}""",
+            """["anna@example.org"]""",
+            "no json",
+        ).forEach { assertNull(it, codeOf(it)) }
+        assertNull(connectCode("https://sak.example.org/connect#token=the.token", allowUrl = false))
+        assertNull(connectCode("https://sak.example.org/connect#token=one", allowUrl = false))
     }
 }

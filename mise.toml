@@ -107,6 +107,22 @@ image={{vars.ingress_image}}:latest
 [ "$(docker run --rm --entrypoint id "$image" -u)" = "10000" ]
 docker run --rm "$image" version
 docker run --rm "$image" validate --config /etc/caddy/Caddyfile --adapter caddyfile
+# a redirect with a query, from a client behind a proxy: the access log keeps neither the query
+# (in the uri and the location) nor the addresses the proxy names, but the user agent (SEC-53)
+name=sak-ingress-test-$$
+trap 'docker rm -f "$name" >/dev/null 2>&1' EXIT
+docker run -d --name "$name" "$image" >/dev/null
+for _ in $(seq 50); do docker exec "$name" wget -q -O /dev/null http://127.0.0.1:2019/config/ 2>/dev/null && break; sleep 0.1; done
+docker exec "$name" wget -q -O /dev/null --header 'Content-Type: application/json' \
+  --post-data '{"listen":[":8080"],"routes":[{"handle":[{"handler":"static_response","status_code":302,"headers":{"Location":["https://sak.example.org{http.request.uri}"]}}]}],"logs":{}}' \
+  http://127.0.0.1:2019/config/apps/http/servers/test
+docker exec "$name" sh -c "wget -q -O /dev/null --header 'X-Forwarded-For: 203.0.113.7' --header 'X-Real-Ip: 203.0.113.8' \
+  --header 'Forwarded: for=203.0.113.9' --header 'True-Client-Ip: 203.0.113.10' --header 'User-Agent: sak-test' \
+  'http://127.0.0.1:8080/signin?token=secret-token' 2>/dev/null || true"
+for _ in $(seq 50); do docker exec "$name" grep -q signin /data/log/access.log 2>/dev/null && break; sleep 0.1; done
+log=$(docker exec "$name" cat /data/log/access.log)
+printf '%s' "$log" | grep -q '"User-Agent":\\["sak-test"\\]' || { echo "no user agent in the access log: $log"; exit 1; }
+if printf '%s' "$log" | grep -q 'secret-token\\|203\\.0\\.113'; then echo "the access log keeps a query or an address: $log"; exit 1; fi
 echo "the image of sak-ingress works"
 """
 

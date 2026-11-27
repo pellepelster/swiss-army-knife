@@ -140,9 +140,10 @@ class FileServiceTest {
     fun `makes the thumbnail of a content once when it is asked for many times at once`() {
         val file = (service(maxSize = 10_000_000).store(Media.image(2048, 1365, "jpg").inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
         val start = java.util.concurrent.CountDownLatch(1)
-        val pool = java.util.concurrent.Executors.newFixedThreadPool(16)
+        val asked = FileService.MAX_WAITING_DECODES
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(asked)
         try {
-            val thumbnails = (1..16).map { pool.submit<Long?> { start.await(); service.thumbnail(file)?.size } }
+            val thumbnails = (1..asked).map { pool.submit<Long?> { start.await(); service.thumbnail(file)?.size } }
             start.countDown()
             thumbnails.map { it.get(30, java.util.concurrent.TimeUnit.SECONDS) }.toSet() shouldBe setOf(Files.size(stored(file, "thumbnail-480.jpg")))
         } finally {
@@ -150,6 +151,91 @@ class FileServiceTest {
         }
         // nothing is left staged
         Files.list(dir.resolve(FilesystemLocalStorage.STAGING_DIRECTORY)).use { it.count() } shouldBe 0
+    }
+
+    @Test
+    fun `refuses a thumbnail to make at once while MAX_WAITING_DECODES are made or waited for, a made one not (SEC-50)`() {
+        val real = FilesystemLocalStorage(dir)
+        val reading = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        // the content of a file is read by a decode only once it is stored; the decode waits here
+        var hold = false
+        val storage =
+            object : io.pelle.sak.api.storage.LocalStorage by real {
+                override fun content(path: BlobPath): BlobContent? {
+                    if (hold && path.segments.last() == "content") {
+                        reading.countDown()
+                        release.await()
+                    }
+                    return real.content(path)
+                }
+            }
+        val files = FileService(database, storage, clock, maxSize = 10_000_000)
+        val made = (files.store(Media.image(600, 400, "png").inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
+        files.thumbnail(made).shouldNotBe(null)
+        val file = (files.store(Media.image(600, 400, "png").inputStream(), "pelle@pelle.io") as FileStoreResult.Stored).file
+        hold = true
+
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(FileService.MAX_WAITING_DECODES)
+        try {
+            // one decodes, the others wait for its lock: all hold a place
+            val first = pool.submit<BlobContent?> { files.thumbnail(file) }
+            reading.await(10, java.util.concurrent.TimeUnit.SECONDS) shouldBe true
+            val others = (2..FileService.MAX_WAITING_DECODES).map { pool.submit<BlobContent?> { files.thumbnail(file) } }
+            val waiting = files.javaClass.getDeclaredField("waiting").apply { isAccessible = true }.get(files) as java.util.concurrent.Semaphore
+            val deadline = System.nanoTime() + 10_000_000_000
+            while (waiting.availablePermits() > 0 && System.nanoTime() < deadline) Thread.onSpinWait()
+            waiting.availablePermits() shouldBe 0
+
+            shouldThrow<FileService.DecodesBusyException> { files.thumbnail(file) }
+            // a made thumbnail needs no decode
+            files.thumbnail(made).shouldNotBe(null)
+
+            release.countDown()
+            (listOf(first) + others).map { it.get(30, java.util.concurrent.TimeUnit.SECONDS)?.size }.toSet() shouldBe
+                setOf(Files.size(stored(file, "thumbnail-480.jpg")))
+            waiting.availablePermits() shouldBe FileService.MAX_WAITING_DECODES
+        } finally {
+            release.countDown()
+            pool.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `takes a jpeg of at most MAX_JPEG_SCANS scans, a progressive one of an encoder too (SEC-50)`() {
+        val large = service(maxSize = 10_000_000)
+        large.store(progressiveJpeg().inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>()
+        large.store(jpegOfScans(FileService.MAX_JPEG_SCANS).inputStream(), "pelle@pelle.io").shouldBeInstanceOf<FileStoreResult.Stored>()
+        large.store(jpegOfScans(FileService.MAX_JPEG_SCANS + 1).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UNSUPPORTED_TYPE
+        // no end of the image: its markers can not be read
+        val baseline = Media.image(64, 48, "jpg")
+        large.store(baseline.copyOf(baseline.size - 2).inputStream(), "pelle@pelle.io") shouldBe FileStoreResult.UNSUPPORTED_TYPE
+    }
+
+    private fun progressiveJpeg(): ByteArray {
+        val image = java.awt.image.BufferedImage(640, 480, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        val writer = ImageIO.getImageWritersByFormatName("jpg").next()
+        val out = java.io.ByteArrayOutputStream()
+        ImageIO.createImageOutputStream(out).use { stream ->
+            writer.output = stream
+            val param = writer.defaultWriteParam.apply { progressiveMode = javax.imageio.ImageWriteParam.MODE_DEFAULT }
+            writer.write(null, javax.imageio.IIOImage(image, null, null), param)
+            writer.dispose()
+        }
+        val bytes = out.toByteArray()
+        // more than one scan, as a progressive jpeg has
+        (bytes.toList().windowed(2).count { (a, b) -> a == 0xFF.toByte() && b == 0xDA.toByte() } > 1) shouldBe true
+        return bytes
+    }
+
+    // a baseline jpeg whose one scan, its header and its data, is there count times
+    private fun jpegOfScans(count: Int): ByteArray {
+        val bytes = Media.image(64, 48, "jpg")
+        val scan = bytes.toList().windowed(2).indexOfFirst { (a, b) -> a == 0xFF.toByte() && b == 0xDA.toByte() }
+        val end = bytes.size - 2
+        val head = bytes.copyOfRange(0, scan)
+        val one = bytes.copyOfRange(scan, end)
+        return head + (1..count).fold(ByteArray(0)) { all, _ -> all + one } + bytes.copyOfRange(end, bytes.size)
     }
 
     @Test

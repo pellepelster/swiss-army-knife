@@ -16,7 +16,9 @@ class UserServiceTest {
     private val service by lazy { UserService(SakDatabase.open(tempDir.resolve("sak.db")), listOf(" Admin@Example.org ")) }
 
     @Test
-    fun `a sign out everywhere counts from the next second, for an added user and an admin of the configuration (SEC-4)`() {
+    fun `a sign out everywhere counts from the next second, for an added user and an admin of the configuration, and is told (SEC-4, SEC-47)`() {
+        val signedOut = mutableListOf<String>()
+        service.whenSignedOut { signedOut += it }
         val anna = service.create("admin@example.org", "anna@example.org", null).shouldBeInstanceOf<UserCreateResult.Added>().user
         service.validFrom("admin@example.org") shouldBe null
 
@@ -31,12 +33,14 @@ class UserServiceTest {
         service.signOut("admin@example.org", anna.id) shouldBe true
         (service.validFrom("anna@example.org")!! > anna.createdAt) shouldBe true
         service.signOut("admin@example.org", 4711) shouldBe false
+        // normalized, as the owner of a repository of restic
+        signedOut shouldBe listOf("admin@example.org", "anna@example.org")
     }
 
     @Test
     fun `the tokens of a user count from when they were added, a delete is told, added again counts from then (SEC-39)`() {
         val deleted = mutableListOf<String>()
-        service.whenDeleted { deleted += it }
+        service.whenSignedOut { deleted += it }
         val first = service.create("admin@example.org", "anna@example.org", null).shouldBeInstanceOf<UserCreateResult.Added>().user
         service.validFrom("Anna@Example.org") shouldBe first.createdAt
         // an admin of the configuration and an address that is no user have no time, the roles decide

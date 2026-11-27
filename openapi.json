@@ -3464,6 +3464,16 @@
                                 }
                             }
                         }
+                    },
+                    "503": {
+                        "description": "Too many thumbnails are being made; ask again after Retry-After seconds",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -5754,6 +5764,16 @@
                     },
                     "404": {
                         "description": "The signed in user has no such file, or it is neither an image nor a recording that can be read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Too many thumbnails are being made; ask again after Retry-After seconds",
                         "content": {
                             "application/json": {
                                 "schema": {

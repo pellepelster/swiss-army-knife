@@ -35,7 +35,7 @@ import org.robolectric.Shadows.shadowOf
 // the camera of the scan on the jvm: shows a QR code on a screen as the preview; it reads code once
 // the test sets it
 class FakeQrCamera(
-    private val shown: String = "https://sak.example.org/connect#token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbm5hIn0.c2lnbmF0dXJl",
+    private val shown: String = "https://sak.example.org/connect#token=${connectToken()}",
 ) : QrCamera {
     var code by mutableStateOf<String?>(null)
 

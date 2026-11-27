@@ -75,11 +75,12 @@ class UserService(
         return repository.insert(owner, address, named)?.let { UserCreateResult.Added(it) } ?: UserCreateResult.Exists
     }
 
-    // told of the address of every user deleted, e.g. to renew the tokens of their repositories of restic
-    private val deletedListeners = mutableListOf<(email: String) -> Unit>()
+    // told of the normalized address of every sign out everywhere, a delete included, e.g. to renew the
+    // tokens of its repositories of restic: a session copied before has none after (SEC-39, SEC-47)
+    private val signedOutListeners = mutableListOf<(email: String) -> Unit>()
 
-    fun whenDeleted(listener: (email: String) -> Unit) {
-        deletedListeners += listener
+    fun whenSignedOut(listener: (email: String) -> Unit) {
+        signedOutListeners += listener
     }
 
     // by the owner, an admin; false when there is no such user. Also a sign out everywhere: a token
@@ -90,8 +91,7 @@ class UserService(
         id: Int,
     ): DeleteResult {
         val deleted = repository.delete(id) ?: return DeleteResult.of(false)
-        signOuts.insert(owner, deleted.email)
-        deletedListeners.forEach { it(deleted.email) }
+        signOutEverywhere(owner, deleted.email)
         return DeleteResult.of(true)
     }
 
@@ -107,12 +107,15 @@ class UserService(
         return listOfNotNull(added, signedOut).maxOrNull()
     }
 
-    // ends every session, link and code of the address, by the owner: the user, or an admin (SEC-4)
+    // ends every session, link and code of the address, by the owner: the user, or an admin (SEC-4), and
+    // tells the listeners, which end what else a session gave (SEC-47)
     fun signOutEverywhere(
         owner: String,
         email: String,
     ) {
-        signOuts.insert(owner, normalize(email))
+        val address = normalize(email)
+        signOuts.insert(owner, address)
+        signedOutListeners.forEach { it(address) }
     }
 
     // signs the added user of the id out everywhere, by an admin; false when there is no such user

@@ -906,6 +906,49 @@ class SakAppsTest {
     }
 
     @Test
+    fun `a sign out everywhere, by the user or an admin, ends the tokens of restic a session read before (SEC-47)`() {
+        withServer { port ->
+            val admin = signIn(port)
+            post(port, "/api/v1/users", """{"email":"anna@example.org"}""", admin).statusCode() shouldBe 201
+            val anna = signIn(port, email = "anna@example.org", mails = 2)
+            val repository = get(port, "/api/v1/restic/repositories", anna).json().getValue("items").jsonArray.single().jsonObject.string("id")
+            fun token(session: String) = get(port, "/api/v1/restic/repositories/$repository/token", session).json().string("token")
+            fun config(token: String) =
+                request(
+                    port,
+                    "GET",
+                    "/restic/$repository/config",
+                    answer = HttpResponse.BodyHandlers.ofString(),
+                    authorization = "Basic " + java.util.Base64.getEncoder().encodeToString("$repository:$token".toByteArray()),
+                )
+            // read with a copied session
+            val copied = token(anna)
+            request(
+                port,
+                "POST",
+                "/restic/$repository/config",
+                body = "a config".toByteArray(),
+                answer = HttpResponse.BodyHandlers.ofString(),
+                authorization = "Basic " + java.util.Base64.getEncoder().encodeToString("$repository:$copied".toByteArray()),
+            ).statusCode() shouldBe 200
+
+            post(port, "/api/v1/auth/sign-out-everywhere", "", anna).statusCode() shouldBe 204
+            config(copied).statusCode() shouldBe 401
+
+            // the sign out counts from the next second on (SEC-4)
+            Thread.sleep(1_000)
+            val again = signIn(port, email = "anna@example.org", mails = 3)
+            val renewed = token(again)
+            (renewed != copied) shouldBe true
+            config(renewed).statusCode() shouldBe 200
+
+            val annaId = get(port, "/api/v1/users", admin).json().getValue("items").jsonArray.map { it.jsonObject }.single { it.string("email") == "anna@example.org" }.string("id")
+            post(port, "/api/v1/users/$annaId/sign-out", "", admin).statusCode() shouldBe 204
+            config(renewed).statusCode() shouldBe 401
+        }
+    }
+
+    @Test
     fun `keeps todo lists and their tasks, a done one until the list is purged, changes stream as server-sent events`() {
         withServer { port ->
             val session = signIn(port)

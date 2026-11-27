@@ -95,6 +95,10 @@ class FileService(
     // the decodes that may run at the same time, of different contents or sizes
     private val decodes = Semaphore(Runtime.getRuntime().availableProcessors())
 
+    // the requests that make a thumbnail or wait for one: the decodes, those waiting for a permit of
+    // decodes and those waiting for the lock of the same content and size
+    private val waiting = Semaphore(MAX_WAITING_DECODES)
+
     // a file of the owner, the address that uploaded it; another one's file is none
     fun byId(
         owner: String,
@@ -126,7 +130,8 @@ class FileService(
 
     // a jpeg of at most size (one of SCALED_SIZES) pixels on the longer side: an image scaled down,
     // a recording as its waveform. Null when the file can not be read; a marker next to it keeps it
-    // from being decoded again. Each size is made once, one content and size decodes at a time
+    // from being decoded again. Each size is made once, one content and size decodes at a time. A
+    // thumbnail not made yet throws DecodesBusyException while MAX_WAITING_DECODES are made or waited for
     fun thumbnail(
         file: StoredFile,
         size: Int = THUMBNAIL_SIZE,
@@ -136,6 +141,20 @@ class FileService(
         val none = blob(file.resourceId, NO_THUMBNAIL)
         storage.content(thumbnail)?.let { return it }
         if (storage.stat(none) != null) return null
+        if (!waiting.tryAcquire()) throw DecodesBusyException()
+        try {
+            return makeThumbnail(file, size, thumbnail, none)
+        } finally {
+            waiting.release()
+        }
+    }
+
+    private fun makeThumbnail(
+        file: StoredFile,
+        size: Int,
+        thumbnail: BlobPath,
+        none: BlobPath,
+    ): BlobContent? {
         val key = "${file.resourceId}-$size"
         val lock = thumbnailLocks.computeIfAbsent(key) { Any() }
         try {
@@ -238,6 +257,9 @@ class FileService(
 
     private class TooLargeException : RuntimeException(null, null, false, false)
 
+    // MAX_WAITING_DECODES thumbnails are made or waited for; the route answers 503, the client asks again
+    class DecodesBusyException : RuntimeException("too many thumbnails are being made", null, false, false)
+
     companion object {
         // the most a stored file has, for every app (the request body of the apps and the limit of
         // caddy follow it, APPS_MAX_BODY_SIZE): a recording of the apps of MAX_RECORDING_SECONDS
@@ -249,6 +271,14 @@ class FileService(
         const val MAX_IMAGE_SIZE = 2048
 
         const val MAX_RECORDING_SECONDS = 300
+
+        // the most scans of a jpeg the storage takes; libjpeg-turbo refuses more than 100 too
+        const val MAX_JPEG_SCANS = 100
+
+        // the thumbnails being made or waited for at the same time; more are refused at once
+        // (DecodesBusyException), so the decodes never hold more of the 64 threads of Dispatchers.IO,
+        // which the queries of every route need (SEC-50)
+        const val MAX_WAITING_DECODES = 8
 
         // why the content can not be stored, null when it can
         internal fun check(
@@ -274,7 +304,14 @@ class FileService(
                 }
             } else {
                 val (width, height) = ImageMetadata.size(content, contentType) ?: return FileStoreResult.UNSUPPORTED_TYPE
-                if (maxOf(width, height) > MAX_IMAGE_SIZE) FileStoreResult.IMAGE_TOO_LARGE else null
+                when {
+                    maxOf(width, height) > MAX_IMAGE_SIZE -> FileStoreResult.IMAGE_TOO_LARGE
+                    // a jpeg of more scans than a camera or an encoder makes decodes for long (SEC-50)
+                    contentType == "image/jpeg" &&
+                        (ImageMetadata.jpegScans(content, MAX_JPEG_SCANS) ?: return FileStoreResult.UNSUPPORTED_TYPE) > MAX_JPEG_SCANS ->
+                        FileStoreResult.UNSUPPORTED_TYPE
+                    else -> null
+                }
             }
 
         private const val BUFFER_SIZE = 64 * 1024

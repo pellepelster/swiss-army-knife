@@ -405,7 +405,7 @@ class SakModelTest {
             assertEquals(emptyMap<String, String>(), store.load().app)
         }
 
-    private val code = "$ADDRESS/connect#token=the.connect-token"
+    private val code = "$ADDRESS/connect#token=${connectToken()}"
 
     // the deployment of the old session, before a code of another one
     private fun signedInElsewhere() =
@@ -429,13 +429,13 @@ class SakModelTest {
             model.qr.scanned(code)
             advanceUntilIdle()
             // asked first, with the address of the code (SECURITY-3); nothing is sent before
-            assertEquals(QrSwitch(null, ADDRESS, null), model.qr.scan.value!!.confirm)
+            assertEquals(QrSwitch(null, ADDRESS, null, "anna@example.org"), model.qr.scan.value!!.confirm)
             assertTrue(model.qr.scan.value!!.confirm!!.new)
             assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
             model.qr.confirm()
             advanceUntilIdle()
             assertEquals(1, backend.requests.count { it.startsWith("POST /auth/login/connect") })
-            assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"the.connect-token"}"""))
+            assertTrue(backend.requests.contains("""POST /auth/login/connect {"token":"${connectToken()}"}"""))
             // the SAK address of the code names its api, which answers as a SAK instance
             assertTrue(backend.requests.contains("GET /.well-known/sak.json"))
             assertNull(backend.tokens["/auth/login/connect"])
@@ -521,7 +521,7 @@ class SakModelTest {
             model.qr.scanned(code)
             advanceUntilIdle()
             val confirm = model.qr.scan.value!!.confirm!!
-            assertEquals(QrSwitch("https://old.example.org", ADDRESS, null), confirm)
+            assertEquals(QrSwitch("https://old.example.org", ADDRESS, null, "anna@example.org"), confirm)
             assertFalse(confirm.new)
             assertFalse(confirm.signedIn)
 
@@ -553,7 +553,7 @@ class SakModelTest {
             model.qr.open()
             model.qr.scanned(code)
             advanceUntilIdle()
-            assertEquals(QrSwitch("https://old.example.org", ADDRESS, "admin"), model.qr.scan.value!!.confirm)
+            assertEquals(QrSwitch("https://old.example.org", ADDRESS, "admin", "anna@example.org"), model.qr.scan.value!!.confirm)
             assertFalse(model.qr.scan.value!!.confirm!!.same)
             assertTrue(backend.requests.none { it.startsWith("POST /auth/login/connect") })
 

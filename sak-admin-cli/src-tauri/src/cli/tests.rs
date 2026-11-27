@@ -647,3 +647,20 @@ fn mail_test_changes_only_what_its_flags_name_of_the_mail_server_of_the_deployme
     .unwrap();
     assert!(error.message.contains("single"), "{}", error.message);
 }
+
+#[test]
+fn a_line_of_the_log_keeps_the_colour_of_its_level_but_no_escape_sequence_of_its_message() {
+    // a name of a service the server answered: OSC 52 sets the clipboard (SEC-48, SEC-54)
+    let line = log_line(
+        "2026-11-27 10:00:00",
+        Level::Warn,
+        shown("ssh.service\u{1b}]52;c;aGk=\u{7}\nnext"),
+    );
+    let style = Level::Warn.style();
+    assert_eq!(
+        line,
+        format!(
+            "2026-11-27 10:00:00 {style}WARN{style:#} ssh.service\u{FFFD}]52;c;aGk=\u{FFFD}\nnext"
+        )
+    );
+}

@@ -668,22 +668,23 @@ android:
     without_code: { en: "Sign in without a code", de: "Ohne Code anmelden" }
     switch_title: { en: "Switch the SAK instance?", de: "SAK-Instanz wechseln?" }
     switch_text:
-      en: "You are signed in to %{from}. The QR code signs you in to %{to} instead."
-      de: "Du bist bei %{from} angemeldet. Der QR-Code meldet dich stattdessen bei %{to} an."
+      en: "You are signed in to %{from}. The QR code signs you in to %{to} instead, as %{as}."
+      de: "Du bist bei %{from} angemeldet. Der QR-Code meldet dich stattdessen bei %{to} an, als %{as}."
     switch: { en: "Switch", de: "Wechseln" }
     again_title: { en: "Sign in again?", de: "Neu anmelden?" }
     again_text:
-      en: "You are signed in to %{address} as %{user}. The QR code signs you in again, as the user who shows it."
-      de: "Du bist bei %{address} als %{user} angemeldet. Der QR-Code meldet dich neu an, als der Benutzer, der ihn zeigt."
+      en: "You are signed in to %{address} as %{user}. The QR code signs you in again, as %{as}."
+      de: "Du bist bei %{address} als %{user} angemeldet. Der QR-Code meldet dich neu an, als %{as}."
     stay: { en: "Stay signed in", de: "Angemeldet bleiben" }
-    # every code asks before it signs in, with the address it names (SECURITY-3)
+    # every code asks before it signs in, with the SAK address and the user it names (SECURITY-3): a
+    # code another user shows signs in as that user (SEC-49)
     new_title: { en: "Sign in to this SAK instance?", de: "Bei dieser SAK-Instanz anmelden?" }
     new_text:
-      en: "The QR code signs you in to %{to}. Go on only if it is your SAK instance."
-      de: "Der QR-Code meldet dich bei %{to} an. Mach nur weiter, wenn es deine SAK-Instanz ist."
+      en: "The QR code signs you in to %{to} as %{as}. Go on only if it is your SAK instance and your address."
+      de: "Der QR-Code meldet dich bei %{to} als %{as} an. Mach nur weiter, wenn es deine SAK-Instanz und deine Adresse ist."
     switch_signed_out_text:
-      en: "The app is set up for %{from}. The QR code signs you in to %{to} instead."
-      de: "Die App ist für %{from} eingerichtet. Der QR-Code meldet dich stattdessen bei %{to} an."
+      en: "The app is set up for %{from}. The QR code signs you in to %{to} instead, as %{as}."
+      de: "Die App ist für %{from} eingerichtet. Der QR-Code meldet dich stattdessen bei %{to} an, als %{as}."
   # the lists of the list-based apps (grocery, todo): the home, the settings of a list (components/INDEX.md)
   no_lists:
     en: "You have no list yet, create one with the plus at the top."

@@ -20,12 +20,21 @@
 				request>client_ip ip_mask 24 64
 				request>uri regexp "\?.*$" ""
 				request>headers>Referer delete
+				request>headers>Forwarded delete
+				request>headers>X-Forwarded-For delete
+				request>headers>X-Real-Ip delete
+				request>headers>True-Client-Ip delete
+				request>headers>X-Client-Ip delete
+				request>headers>Cf-Connecting-Ip delete
+				resp_headers>Location delete
 			}
 		}
 		exclude http.log.access
 	}
 	# client addresses are masked to their network; no query and no referer reach the log, they
-	# can hold what a user typed, a login token or the credentials of a presigned url
+	# can hold what a user typed, a login token or the credentials of a presigned url. Neither does
+	# the location of a redirect, which carries the query of its request, nor a header that names a
+	# client address a proxy of the client set, unmasked (SEC-53); the user agent stays for vector
 	log access {
 		output file /data/log/access.log {
 			roll_size 100MiB
@@ -38,6 +47,13 @@
 				request>client_ip ip_mask 24 64
 				request>uri regexp "\?.*$" ""
 				request>headers>Referer delete
+				request>headers>Forwarded delete
+				request>headers>X-Forwarded-For delete
+				request>headers>X-Real-Ip delete
+				request>headers>True-Client-Ip delete
+				request>headers>X-Client-Ip delete
+				request>headers>Cf-Connecting-Ip delete
+				resp_headers>Location delete
 			}
 		}
 		include http.log.access

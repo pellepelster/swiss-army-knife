@@ -34,6 +34,10 @@ class FakeBackend {
     // answers by key with query, before answers, e.g. "GET /grocery/lists?offset=100&limit=100"
     val answersByQuery = mutableMapOf<String, Pair<HttpStatusCode, String>>()
 
+    // answers by key that are given once each, in their order, before answersByQuery and answers,
+    // e.g. a 503 the client asks again after
+    val answersOnce = mutableMapOf<String, ArrayDeque<Pair<HttpStatusCode, String>>>()
+
     // the content type by key, application/json when there is none
     val contentTypes = mutableMapOf<String, String>()
 
@@ -71,7 +75,11 @@ class FakeBackend {
             languages += request.headers[HttpHeaders.AcceptLanguage]
             queries += "$key?${request.url.encodedQuery}"
             if (key in unreachable) throw IOException("$key can not be reached")
-            val (status, body) = answersByQuery["$key?${request.url.encodedQuery}"] ?: answers[key] ?: (HttpStatusCode.NotFound to "")
+            val (status, body) =
+                answersOnce[key]?.removeFirstOrNull()
+                    ?: answersByQuery["$key?${request.url.encodedQuery}"]
+                    ?: answers[key]
+                    ?: (HttpStatusCode.NotFound to "")
             answer(status, body, contentTypes[key] ?: "application/json")
         }
 

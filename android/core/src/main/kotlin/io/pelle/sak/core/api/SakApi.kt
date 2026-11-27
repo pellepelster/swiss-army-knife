@@ -15,7 +15,9 @@ import androidx.annotation.StringRes
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.retry
 import io.ktor.client.plugins.HttpTimeoutConfig
 import io.ktor.client.plugins.timeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -74,14 +76,22 @@ fun sakClient(engine: HttpClientEngine): HttpClient =
             socketTimeoutMillis = SOCKET_TIMEOUT_MS
             requestTimeoutMillis = REQUEST_TIMEOUT_MS
         }
+        // only a request that asks for it (whileBusy)
+        install(HttpRequestRetry) { noRetry() }
     }
 
 const val CONNECT_TIMEOUT_MS = 15_000L
 const val SOCKET_TIMEOUT_MS = 30_000L
 const val REQUEST_TIMEOUT_MS = 60_000L
 
+// the wait before a busy request is asked again, without a Retry-After; with one, that
+const val BUSY_DELAY_MS = 1_000L
+
 // an upload or a download of a file, e.g. a photo or a recording, over a slow connection
 const val TRANSFER_TIMEOUT_MS = 10 * 60_000L
+
+// how often a request asks again that the backend answered 503, busy, e.g. making thumbnails (SEC-50)
+const val BUSY_RETRIES = 5
 
 // the most pages all() asks for, so a server that does not page can not keep it asking
 const val MAX_PAGES = 1_000
@@ -100,6 +110,16 @@ open class SakApi(
     protected fun HttpRequestBuilder.session() {
         token?.let { bearerAuth(it) }
         languages?.let { header(HttpHeaders.AcceptLanguage, it) }
+    }
+
+    // asks again after the Retry-After of the answer, at most BUSY_RETRIES times, while the backend is
+    // busy: a thumbnail or a scaled photo, which it makes only so many at once (SEC-50)
+    protected fun HttpRequestBuilder.whileBusy() {
+        retry {
+            noRetry()
+            retryIf(BUSY_RETRIES) { _, response -> response.status == HttpStatusCode.ServiceUnavailable }
+            constantDelay(BUSY_DELAY_MS, randomizationMs = BUSY_DELAY_MS)
+        }
     }
 
     protected fun HttpRequestBuilder.longTransfer() {

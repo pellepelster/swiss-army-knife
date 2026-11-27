@@ -253,6 +253,38 @@ on_server "[ \"\$(cat /work/systemctl.log)\" = \"\$(printf '%s\\n' 'restart cron
   || { on_server "cat /work/systemctl.log" >&2; fail "the services were not restarted in order"; }
 ! on_server "grep -q dbus /work/systemctl.log" || fail "dbus was restarted"
 
+echo "a backup takes no path of victorialogs but its snapshots, no link out of them (SEC-52)"
+# a victorialogs that answers what it likes, in place of the real one for this test
+docker stop "$name-logs" >/dev/null
+on_server "cat > /work/fake-snapshots.py <<'EOF'
+import http.server, json, sys
+answer = json.dumps([sys.argv[1]]).encode()
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(answer if self.path.endswith('/create') else b'{}')
+    def log_message(self, *args):
+        pass
+http.server.HTTPServer(('127.0.0.1', 9428), Handler).serve_forever()
+EOF
+mkdir -p $data/victorialogs/partitions/20990101/snapshots
+ln -sfn $data/backend $data/victorialogs/partitions/20990101/snapshots/planted
+ln -sfn $data/backend $data/victorialogs/partitions/20990102"
+for planted in /victoria-logs-data/../backend /victoria-logs-data/partitions/20990101/snapshots/planted \
+  /victoria-logs-data/partitions/20990102/snapshots/data /victoria-logs-data/partitions/../../backend/snapshots/x; do
+  on_server "python3 /work/fake-snapshots.py '$planted' & fake=\$!
+for _ in \$(seq 50); do curl -fsS -X POST http://127.0.0.1:9428/x >/dev/null 2>&1 && break; sleep 0.1; done
+set +e; sak-backend backup \$(age-keygen -y /work/backup.key) > /work/planted.age 2> /work/planted.log; code=\$?
+kill \$fake; wait \$fake 2>/dev/null; [ \$code != 0 ]" || fail "a backup took the path $planted of victorialogs"
+  on_server "grep -q 'the backup stops' /work/planted.log && [ ! -e /work/storage/data/.backup-alpha ]" \
+    || { on_server "cat /work/planted.log" >&2; fail "the backup with $planted did not stop clean"; }
+done
+on_server "rm -rf $data/victorialogs/partitions/20990101 $data/victorialogs/partitions/20990102 /work/planted.age"
+docker start "$name-logs" >/dev/null
+on_server "for _ in \$(seq 100); do curl -fsS http://127.0.0.1:9428/health >/dev/null 2>&1 && exit 0; sleep 0.1; done; exit 1" \
+  || fail "victorialogs did not start again"
+
 echo "an unknown command says how to use it"
 on_server "set +e; usage=\$(sak-backend nothing 2>&1 >/dev/null); [ \$? = 1 ] && grep -q 'usage: sak-backend backup' <<<\"\$usage\"" || fail "the usage"
 

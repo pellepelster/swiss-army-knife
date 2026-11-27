@@ -85,7 +85,7 @@ class QrConnect(
         scanning.value = current.copy(busy = true)
         exchanging =
             scope.launch {
-                val confirm = switchOf(code.address)
+                val confirm = switchOf(code.address).copy(signsInAs = code.email)
                 confirming = code
                 scanning.update { it?.copy(busy = false, confirm = confirm) }
             }

@@ -48,6 +48,8 @@ import io.pelle.sak.backend.grocery.model.api.GroceryPhotoRequest
 import io.pelle.sak.backend.files.BlobResponse
 import io.pelle.sak.backend.files.FileService
 import io.pelle.sak.backend.files.IMMUTABLE
+import io.pelle.sak.backend.files.DECODES_BUSY
+import io.pelle.sak.backend.files.respondDecodesBusy
 import io.pelle.sak.backend.grocery.model.api.GroceryItemResponse
 import io.pelle.sak.backend.grocery.model.api.GroceryListRequest
 import io.pelle.sak.backend.grocery.model.api.GroceryListResponse
@@ -649,7 +651,13 @@ fun Route.grocery(
                 call.respondErrors(ApiTexts.MALFORMED_REQUEST)
                 return@get
             }
-            val photo = withContext(Dispatchers.IO) { groceryService.photoContent(call.owner, id, fileId, size) }
+            val photo =
+                try {
+                    withContext(Dispatchers.IO) { groceryService.photoContent(call.owner, id, fileId, size) }
+                } catch (_: FileService.DecodesBusyException) {
+                    call.respondDecodesBusy()
+                    return@get
+                }
             if (photo == null) {
                 call.respond(HttpStatusCode.NotFound)
                 return@get
@@ -681,6 +689,7 @@ fun Route.grocery(
                 HttpStatusCode.OK { description = "The photo, scaled or itself" }
                 errors(HttpStatusCode.BadRequest, "A size that is no positive number")
                 errors(HttpStatusCode.NotFound, "The user sees no such item, or the file is not its photo")
+                errors(HttpStatusCode.ServiceUnavailable, DECODES_BUSY)
             }
         }
 

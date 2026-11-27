@@ -3151,6 +3151,15 @@ export interface paths {
             'application/json': components['schemas']['ApiErrorResponse'];
           };
         };
+        /** @description Too many thumbnails are being made; ask again after Retry-After seconds */
+        503: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
       };
     };
     put?: never;
@@ -5370,6 +5379,15 @@ export interface paths {
         };
         /** @description The signed in user has no such file, or it is neither an image nor a recording that can be read */
         404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            'application/json': components['schemas']['ApiErrorResponse'];
+          };
+        };
+        /** @description Too many thumbnails are being made; ask again after Retry-After seconds */
+        503: {
           headers: {
             [name: string]: unknown;
           };

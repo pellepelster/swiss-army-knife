@@ -22,6 +22,8 @@ data class QrSwitch(
     val to: String,
     // who is signed in now, none while signed out
     val user: String?,
+    // who the code signs in as, the user who shows it: named, a code of another user is no surprise (SEC-49)
+    val signsInAs: String = "",
 ) {
     val same: Boolean get() = from == to
 
